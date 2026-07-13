@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -137,7 +137,7 @@ class SemanticMemory:
                     "event_type": "UserProgressEvent",
                     "user_id": user_id,
                     "profile_update": updates,
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
@@ -158,7 +158,7 @@ class SemanticMemory:
             "field": field_name,
             "old_value": old_value,
             "new_value": new_value,
-            "detected_at": datetime.utcnow(),
+            "detected_at": datetime.now(timezone.utc),
         }
         self.pending_contradictions.append(contradiction)
         # 注入到工作记忆，让智能体在下一轮提出
@@ -181,7 +181,7 @@ class SemanticMemory:
         if fact.supersedes and fact.supersedes in self.facts:
             old_fact = self.facts[fact.supersedes]
             old_valid = dict(old_fact.valid_time or {})
-            old_valid["valid_to"] = datetime.utcnow()
+            old_valid["valid_to"] = datetime.now(timezone.utc)
             old_fact.valid_time = old_valid
 
         self.facts[fact.fact_id] = fact
@@ -200,7 +200,7 @@ class SemanticMemory:
                     "confidence": fact.confidence,
                     "valid_time": fact.valid_time,
                     "supersedes": fact.supersedes,
-                    "transaction_time": datetime.utcnow(),
+                    "transaction_time": datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")

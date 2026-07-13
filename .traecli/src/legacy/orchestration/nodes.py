@@ -690,7 +690,6 @@ async def integrity_check_node(state: ConversationState) -> dict[str, Any]:
     # 若 hallucination_check 失败，追加警示
     hallucination = check_results.get("hallucination_check", {})
     if not hallucination.get("passed", True):
-        issues = hallucination.get("issues", [])
         warning = (
             "\n\n【事实复核提示】本回复中部分内容可能需要进一步核实。"
             "建议您通过官方渠道确认具体信息。"
@@ -738,7 +737,7 @@ async def output_guard_node(state: ConversationState) -> dict[str, Any]:
     # 追加置信度标注（若有且尚未追加）
     confidence_labels = state.get("confidence_labels", [])
     if confidence_labels:
-        existing_labels = [l for l in confidence_labels if isinstance(l, dict)]
+        existing_labels = [item for item in confidence_labels if isinstance(item, dict)]
         if existing_labels and "【置信度标注】" not in draft_response:
             label_lines: list[str] = ["【置信度标注】"]
             for label in existing_labels:

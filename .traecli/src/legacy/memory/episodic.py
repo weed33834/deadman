@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -102,7 +102,7 @@ class EpisodicMemory:
         episode = Episode(
             episode_id=turn.get("turn_id") or str(uuid4()),
             session_id=session_id,
-            timestamp=turn.get("timestamp") or datetime.utcnow(),
+            timestamp=turn.get("timestamp") or datetime.now(timezone.utc),
             agent=turn.get("agent", "unknown"),
             user_message=content if turn.get("role") == "user" else "",
             assistant_response=content if turn.get("role") == "assistant" else "",

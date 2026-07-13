@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -42,8 +42,8 @@ class UserProgress:
     current_step: int = 1
     completed_steps: list[int] = field(default_factory=list)
     skipped_steps: list[int] = field(default_factory=list)
-    started_at: datetime = field(default_factory=datetime.utcnow)
-    last_active_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_active_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: dict = field(default_factory=dict)
 
 
@@ -105,7 +105,7 @@ class ProceduralMemory:
         if step_completed not in progress.completed_steps:
             progress.completed_steps.append(step_completed)
         progress.current_step = step_completed + 1
-        progress.last_active_at = datetime.utcnow()
+        progress.last_active_at = datetime.now(timezone.utc)
 
         # 可选：同步到 Graphiti（跨会话续接）
         if self.graphiti is not None:
@@ -116,7 +116,7 @@ class ProceduralMemory:
                     "procedure_id": procedure_id,
                     "completed_steps": progress.completed_steps,
                     "current_step": progress.current_step,
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
@@ -144,10 +144,10 @@ class ProceduralMemory:
             if step.get("step_id") == step_id:
                 step["user_correction"] = user_correction.get("correction")
                 step["corrected_by_user"] = user_id
-                step["corrected_at"] = datetime.utcnow()
+                step["corrected_at"] = datetime.now(timezone.utc)
                 break
 
-        proc.last_updated = datetime.utcnow()
+        proc.last_updated = datetime.now(timezone.utc)
         proc.verified = False  # 需要重新验证
 
         # 可选：记录到 Graphiti 作为 KnowledgeVersion
@@ -158,7 +158,7 @@ class ProceduralMemory:
                     "procedure_id": proc.procedure_id,
                     "change": "user_correction",
                     "user_correction": user_correction,
-                    "transaction_time": datetime.utcnow(),
+                    "transaction_time": datetime.now(timezone.utc),
                 })
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")

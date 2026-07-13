@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -69,7 +69,7 @@ class WorkingMemory:
             "turn_id": str(uuid4()),
             "role": role,
             "content": content,
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "agent": agent or self.current_agent,
             **kwargs,
         }

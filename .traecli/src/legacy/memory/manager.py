@@ -7,7 +7,7 @@ MemoryManager 把 WorkingMemory / EpisodicMemory / SemanticMemory / ProceduralMe
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from ..llm import llm_client
 from .working import WorkingMemory

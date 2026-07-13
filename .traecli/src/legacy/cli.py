@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
-import sys
 
 from . import __version__
 
@@ -39,7 +37,7 @@ def cmd_eval(args):
     cases_dir = args.cases_dir or str(settings.tests_dir / "automated" / "cases")
     result = asyncio.run(run_all_cases(cases_dir))
 
-    print(f"\n=== 评估结果 ===")
+    print("\n=== 评估结果 ===")
     print(f"总数: {result['total']}")
     print(f"通过: {result['passed']}")
     print(f"失败: {result['failed']}")
@@ -63,7 +61,7 @@ def cmd_run(args):
 
     result = asyncio.run(graph.ainvoke(state))
 
-    print(f"\n=== 响应 ===")
+    print("\n=== 响应 ===")
     print(result.get("final_response", "(无响应)"))
     print(f"\n=== 智能体: {result.get('current_agent', '?')} ===")
     print(f"=== 风险等级: {result.get('risk_tier', '?')} ===")

@@ -26,7 +26,7 @@ import logging
 import re
 import sys
 import uuid
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,10 +36,8 @@ from ..config import settings
 from ..types import (
     ConfidenceLabel,
     ExecutionMode,
-    RiskTier,
-    SubagentResult,
 )
-from ..rules_loader import rule_checker, rule_loader
+from ..rules_loader import rule_checker
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +417,7 @@ class McpServer:
     async def _stdio_loop(self) -> None:
         reader = asyncio.StreamReader()
         protocol = asyncio.StreamReaderProtocol(reader)
-        await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
+        await asyncio.get_running_loop().connect_read_pipe(lambda: protocol, sys.stdin)
 
         while True:
             line = await reader.readline()
@@ -1077,11 +1075,9 @@ async def check_integrity(
             source_issues.append(f"claim[{idx}] 缺少来源: {claim_text}")
 
     # 2. 幻觉校验 - 复用 RuleChecker 的编造模式
-    fabrication_hit = False
     for pattern in rule_checker.FABRICATION_PATTERNS:
         matches = re.findall(pattern, output_text)
         if matches:
-            fabrication_hit = True
             hallucination_issues.append(f"匹配到编造模式 {pattern}: {matches}")
     # 数字类 claim 无来源视为幻觉风险
     for idx, claim in enumerate(claims_to_verify):
