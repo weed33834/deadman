@@ -255,7 +255,7 @@ PII 脱敏率 = 脱敏的 PII 字段数 / 总 PII 字段数
 
 ## 七、互操作指标（v4.2 新增 - A2A 协议）
 
-对应 [A2A-Protocol.md](../a2A-Protocol.md)。
+对应 [A2A-Protocol.md](../a2a/A2A-Protocol.md)。
 
 ```
 A2A 调用成功率 = 成功完成的外部调用 / 总外部调用次数

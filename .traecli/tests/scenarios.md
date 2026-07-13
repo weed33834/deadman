@@ -8,7 +8,7 @@ safety（L0）> integrity（L1）> input-guardrails（L2）> compliance（L3）>
 ## 测试前置条件
 
 1. 已部署全部并列智能体（death-aftercare / legal-advisor / financial-analyst / policy-researcher / cross-border-specialist / medical-guide）及其私有子智能体。
-2. `rules/` 下 10 个规则文件均已就绪并可被 Read 读取。
+2. `rules/` 下 14 个规则文件均已就绪并可被 Read 读取。
 3. `knowledge/regions/CN/` 知识库已就绪（场景 1、3、4 依赖）；`knowledge/regions/US/`、`knowledge/regions/JP/` 知识库已就绪（场景 6 依赖）。
 4. `skills/death-aftercare-guide/` 与 `skills/policy-research/` 已就绪。
 5. 测试环境具备 WebSearch / WebFetch 能力（场景 2、5、6 可能用到）。
@@ -37,7 +37,7 @@ L1（常规信息引导）。无即时人身风险，无重大财产/法律争�
    - 关系：女儿（已明确）
    - 时间：刚去世（需问"是否已经拿到死亡证明"判断所处阶段）
    - 独生女（需轻量核实，因为涉及后续继承顺位）
-3. **加载知识库**：用 Read 加载 `knowledge/regions/CN/general.md`（如存在），获取北京/中国大陆身后事通用流程。
+3. **加载知识库**：用 Read 加载 `knowledge/regions/CN/overview.md`（如存在），获取北京/中国大陆身后事通用流程。
 4. **按阶段引导**：按 9 阶段流程（death-aftercare-guide skill）从当前所处阶段开始引导：
    - 若尚未开死亡证明 → 从 stage-1（死亡证明）开始
    - 若已有死亡证明 → 询问已完成哪些，从下一阶段续接

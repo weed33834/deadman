@@ -316,7 +316,7 @@ integrity-framework.md 是平台最高优先级规则。在本智能体中，以
 - **medical-guide**：医疗流程导航，专精就医/医保/临终关怀/医疗纠纷初步指引
 
 ### 共享与隔离
-- **共享**：`rules/`（10 个规则文件，优先级链一致）、`knowledge/regions/`（地域知识库）、`knowledge/regions/SCHEMA.md`、`skills/policy-research/`（通用政策搜索技能，必要时自己也可用）
+- **共享**：`rules/`（10 个主链规则文件，rules/ 共 14 个，优先级链一致）、`knowledge/regions/`（地域知识库）、`knowledge/regions/SCHEMA.md`、`skills/policy-research/`（通用政策搜索技能，必要时自己也可用）
 - **本智能体独有**：`skills/death-aftercare-guide/`（领域知识）、与用户的持续对话、私有子智能体
 - **其他智能体私有**：各自的子智能体与独立上下文，不共享
 

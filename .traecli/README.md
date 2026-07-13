@@ -53,7 +53,7 @@ docker compose --profile full up -d
 
 ```
 .traecli/
-├── agents/           # 24 个智能体定义（6 并列 + 12 子 + 机制）
+├── agents/           # 22 个智能体定义（6 并列 + 12 子 + 3 机制 + TEAM）
 ├── rules/            # 14 个规则文件（L0-L8 优先级链）
 ├── knowledge/        # 地域知识库 + 知识图谱
 ├── skills/           # 技能定义

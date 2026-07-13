@@ -157,7 +157,7 @@ event3 = UserProgressEvent(
 @dataclass
 class KnowledgeVersion:
     version_id: str
-    file_path: str                  # knowledge/regions/CN/general.md
+    file_path: str                  # knowledge/regions/CN/overview.md
     version_hash: str               # 文件内容哈希
     created_at: datetime
     changes: List[ChangeRecord]     # 本次版本变更的内容
@@ -670,7 +670,7 @@ def apply_retention():
 
 ### 阶段 1：政策时态事实（P1）
 
-- 仅 CN/general.md
+- 仅 CN/overview.md
 - 用 policy-researcher 手动注入 3-5 个时态事实
 - 验证 get_current_fact / get_fact_at_time 查询
 

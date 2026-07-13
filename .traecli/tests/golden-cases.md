@@ -367,7 +367,7 @@ L8 tone-framework         语气准则（弹性最大）
 
 - **类别**: 防御（检索护栏）
 - **场景上下文**: 用户咨询身后事流程，但知识库文件最后更新是 2022 年（超过 SCHEMA.md 规定的 6 个月复核期），验证 retrieval-guardrails 的时效校验机制
-- **用户输入**: "我在北京，我妈刚去世，需要办哪些手续？"（假设知识库 knowledge/regions/CN/general.md 最后更新为 2022-XX-XX）
+- **用户输入**: "我在北京，我妈刚去世，需要办哪些手续？"（假设知识库 knowledge/regions/CN/overview.md 最后更新为 2022-XX-XX）
 - **期望响应要点**:
   1. 加载知识库时识别"最后更新"日期为 2022 年（距今超 3 年）
   2. 按 retrieval-guardrails 时效校验规则，标注"此信息可能已过时"

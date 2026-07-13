@@ -1,4 +1,4 @@
-"""MCP Server 实现 - 封装身后事平台的 11 个工具
+"""MCP Server 实现 - 封装身后事平台的 13 个工具
 
 优先尝试使用 FastMCP；若 fastmcp 包不可用，则降级为纯 Python async + 装饰器模式。
 两种实现共享同一套工具注册逻辑，调用方式对上层透明。
@@ -15,6 +15,8 @@
   9. initiate_debate      - 发起辩论
  10. call_external_agent  - A2A 外部调用（需 user_consent）
  11. execute_reflexion    - 反思重试
+ 12. init_transfer        - 发起智能体转介（7 字段摘要 + 用户确认）
+ 13. report_incident      - 上报安全事件（注入攻击/规则违反等）
 """
 
 from __future__ import annotations
@@ -1898,6 +1900,150 @@ def _lookup_adjustment_strategy(operation_type: str, operation_name: str, failur
             return f"[{entry['failure_mode']}] {entry['adjustment']}"
     # 兜底
     return f"[unknown] {_ADJUSTMENT_STRATEGIES[-1]['adjustment']}"
+
+
+# =====================================================================
+# 工具 12: init_transfer
+# =====================================================================
+
+@mcp.tool(
+    name="init_transfer",
+    description=(
+        "发起智能体转介。构造 7 字段转介摘要（from_agent/to_agent/reason/current_question/"
+        "context_summary/risk_tier/urgency），返回 user_confirmation_required=true 等待用户确认。"
+        "转介为高风险操作，必须由用户显式同意后方可执行。"
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "from_agent": {"type": "string", "description": "当前智能体名"},
+            "to_agent": {"type": "string", "description": "目标智能体名"},
+            "reason": {"type": "string", "description": "转介原因"},
+            "current_question": {"type": "string", "description": "用户当前问题"},
+            "context_summary": {"type": "string", "description": "上下文摘要", "default": ""},
+            "risk_tier": {"type": "string", "description": "风险等级（R0/R1/R2/R3）", "default": ""},
+            "urgency": {"type": "string", "description": "紧急程度", "default": "normal"},
+        },
+        "required": ["from_agent", "to_agent", "reason", "current_question"],
+    },
+    output_schema={
+        "type": "object",
+        "properties": {
+            "transfer_summary": {"type": "object"},
+            "fields_complete": {"type": "integer"},
+            "user_confirmation_required": {"type": "boolean"},
+            "transfer_id": {"type": "string"},
+            "status": {"type": "string"},
+        },
+    },
+)
+async def init_transfer(
+    from_agent: str,
+    to_agent: str,
+    reason: str,
+    current_question: str,
+    context_summary: str = "",
+    risk_tier: str = "",
+    urgency: str = "normal",
+) -> dict[str, Any]:
+    """发起智能体转介
+
+    构造 7 字段转介摘要并返回，等待用户确认后执行。
+    7 字段：from_agent / to_agent / reason / current_question /
+           context_summary / risk_tier / urgency
+    """
+    transfer_summary: dict[str, Any] = {
+        "from_agent": from_agent,
+        "to_agent": to_agent,
+        "reason": reason,
+        "current_question": current_question,
+        "context_summary": context_summary,
+        "risk_tier": risk_tier,
+        "urgency": urgency,
+    }
+    # 统计已填字段数（非空字符串视为已填）
+    fields_complete = sum(1 for v in transfer_summary.values() if v)
+    return {
+        "transfer_summary": transfer_summary,
+        "fields_complete": fields_complete,
+        "user_confirmation_required": True,
+        "transfer_id": str(uuid.uuid4()),
+        "status": "pending_confirmation",
+        "timestamp": _utcnow_iso(),
+    }
+
+
+# =====================================================================
+# 工具 13: report_incident
+# =====================================================================
+
+@mcp.tool(
+    name="report_incident",
+    description=(
+        "上报安全事件（如注入攻击、规则违反、安全隐患等）。"
+        "生成唯一 incident_id 并记录到日志，返回 status=logged。"
+        "用于审计与安全监控，不阻断当前流程。"
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "incident_type": {
+                "type": "string",
+                "description": "事件类型",
+                "enum": ["injection_attempt", "rule_violation", "safety_concern", "other"],
+            },
+            "description": {"type": "string", "description": "事件描述"},
+            "severity": {
+                "type": "string",
+                "description": "严重程度",
+                "enum": ["low", "medium", "high", "critical"],
+                "default": "medium",
+            },
+            "user_input": {"type": "string", "description": "触发事件的用户输入", "default": ""},
+            "agent_name": {"type": "string", "description": "相关智能体名", "default": ""},
+        },
+        "required": ["incident_type", "description"],
+    },
+    output_schema={
+        "type": "object",
+        "properties": {
+            "incident_id": {"type": "string"},
+            "status": {"type": "string"},
+            "logged": {"type": "boolean"},
+        },
+    },
+)
+async def report_incident(
+    incident_type: str,
+    description: str,
+    severity: str = "medium",
+    user_input: str = "",
+    agent_name: str = "",
+) -> dict[str, Any]:
+    """上报安全事件
+
+    生成 incident_id 并记录日志，返回 logged=true。
+    不阻断当前流程，仅做审计记录。
+    """
+    incident_id = str(uuid.uuid4())
+    # 记录到日志（审计用途）
+    logger.warning(
+        "安全事件上报: incident_id=%s type=%s severity=%s agent=%s desc=%s",
+        incident_id,
+        incident_type,
+        severity,
+        agent_name or "(unknown)",
+        description[:200],
+    )
+    return {
+        "incident_id": incident_id,
+        "status": "logged",
+        "logged": True,
+        "incident_type": incident_type,
+        "severity": severity,
+        "agent_name": agent_name,
+        "timestamp": _utcnow_iso(),
+    }
 
 
 # =====================================================================

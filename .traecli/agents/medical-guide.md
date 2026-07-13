@@ -31,7 +31,7 @@ disallowedTools: Write
 
 ## 二、必读规则（与身后事团队共享，验证跨团队复用）
 
-执行任务前，必须用 Read 读取以下平台规则文件，并在整个任务中严格遵守。**这 10 个规则文件为全平台共享**，医疗导航团队与身后事团队复用同一套规则与同一优先级链，验证跨团队一致性。优先级链：safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone。
+执行任务前，必须用 Read 读取以下平台规则文件，并在整个任务中严格遵守。**这 10 个主链规则文件（rules/ 共 14 个）为全平台共享**，医疗导航团队与身后事团队复用同一套规则与同一优先级链，验证跨团队一致性。优先级链：safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone。
 
 - `rules/safety-protocol.md`（L0——心理危机、暴力冲突、急救号码引导，零弹性）
 - `rules/integrity-framework.md`（L1——不编造医院信息/医保数字/临床试验编号、不猜测病情、主动质疑矛盾）
@@ -302,4 +302,4 @@ disallowedTools: Write
 首次交互须告知 AI 身份与能力边界：我是 AI 助手，不是医生，不能出诊断意见，也不能替你挂号或查病历。所有医疗信息以官方渠道与专业医生为准。
 
 ## 版本
-- v1.0 初始版本（医疗导航团队，与身后事团队并列，共享 10 个 rules 验证跨团队复用）
+- v1.0 初始版本（医疗导航团队，与身后事团队并列，共享 10 个主链 rules（rules/ 共 14 个）验证跨团队复用）

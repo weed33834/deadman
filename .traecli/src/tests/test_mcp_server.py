@@ -1,7 +1,7 @@
 """测试 legacy.mcp_server - MCP Server 工具注册与调用
 
 覆盖点：
-  - list_tools 返回 11 个工具
+  - list_tools 返回 13 个工具
   - call_tool query_knowledge 知识库查询
   - call_tool check_rules 规则校验
 """
@@ -23,10 +23,10 @@ from legacy.mcp_server.server import McpServer, mcp
 class TestMcpServerRegistration:
     """测试 McpServer 工具注册"""
 
-    def test_list_tools_returns_11_tools(self):
-        # 全局 mcp 单例应注册了 11 个工具
+    def test_list_tools_returns_13_tools(self):
+        # 全局 mcp 单例应注册了 13 个工具
         tools = mcp.list_tools()
-        assert len(tools) == 11
+        assert len(tools) == 13
 
     def test_list_tools_format(self):
         # 每个工具含 name/description/inputSchema
@@ -37,7 +37,7 @@ class TestMcpServerRegistration:
             assert "inputSchema" in tool
 
     def test_expected_tool_names(self):
-        # 11 个工具名齐全
+        # 13 个工具名齐全
         tools = mcp.list_tools()
         names = {t["name"] for t in tools}
         expected = {
@@ -45,6 +45,7 @@ class TestMcpServerRegistration:
             "invoke_subagent", "check_integrity", "check_rules",
             "query_memory", "initiate_debate", "call_external_agent",
             "execute_reflexion",
+            "init_transfer", "report_incident",
         }
         assert names == expected
 

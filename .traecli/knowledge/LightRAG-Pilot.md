@@ -13,7 +13,7 @@ knowledge/regions/ 是 Markdown 文件，检索靠关键词匹配：
 ↓
 query_knowledge(country=CN, region=beijing, topic=household_cancellation)
 ↓
-Read knowledge/regions/CN/general.md
+Read knowledge/regions/CN/overview.md
 ↓
 全文返回（可能 5000 字），智能体从中找答案
 ```
@@ -55,9 +55,9 @@ Read knowledge/regions/CN/general.md
 
 ## 试点范围
 
-### 试点 1：CN/general.md
+### 试点 1：CN/overview.md
 
-选择 `knowledge/regions/CN/general.md` 作为试点，原因：
+选择 `knowledge/regions/CN/overview.md` 作为试点，原因：
 - 内容已结构化（按主题分章节）
 - 是 13 个 golden case 中最常引用的知识库
 - 政策稳定，便于评估
@@ -563,7 +563,7 @@ knowledge/_graph/
 ```json
 {
   "version": "2026-07-13-v1",
-  "source_file": "knowledge/regions/CN/general.md",
+  "source_file": "knowledge/regions/CN/overview.md",
   "source_file_hash": "sha256:...",
   "extracted_at": "2026-07-13T10:00:00Z",
   "entity_count": 45,
@@ -584,14 +584,14 @@ policy-researcher 写入新版本时，比较 source_file_hash，若变化则触
 3. **时限/数字必须可溯源**：从原文逐字摘录
 
 ```jsonl
-{"type": "relation", "relation_type": "time_bound", "from": "户籍注销", "to": "30天", "source_text": "公民死亡后，家属应在30日内到户口所在地派出所办理户籍注销", "source_section": "CN/general.md#户籍注销"}
+{"type": "relation", "relation_type": "time_bound", "from": "户籍注销", "to": "30天", "source_text": "公民死亡后，家属应在30日内到户口所在地派出所办理户籍注销", "source_section": "CN/overview.md#户籍注销"}
 ```
 
 若智能体输出的关系在图谱中无 source_text 支撑，触发 integrity-framework 违反。
 
 ## 试点步骤
 
-1. **第 1 步**：手动标注 CN/general.md 的实体关系（10-20 个实体，30-50 个关系）
+1. **第 1 步**：手动标注 CN/overview.md 的实体关系（10-20 个实体，30-50 个关系）
 2. **第 2 步**：实现 extract_from_markdown，用 LLM 自动提取，与人工标注对比
 3. **第 3 步**：实现 query_graph 的 local/global/hybrid 三模式
 4. **第 4 步**：扩展 query_knowledge MCP 工具支持 query_mode

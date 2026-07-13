@@ -29,14 +29,19 @@
 └────────────────┬─────────────────────────┘
                  │ MCP Protocol
 ┌────────────────▼─────────────────────────┐
-│  平台 MCP Server                          │
+│  平台 MCP Server（13 工具）               │
 │  ├── check_rules（规则校验）              │
 │  ├── query_knowledge（知识库查询）        │
-│  ├── init_transfer（转介初始化）          │
-│  ├── accept_transfer（转介接收）          │
-│  ├── log_trace（trace 上报）              │
 │  ├── check_integrity（5 关自检）          │
-│  ├── get_confidence_label（置信度标注）   │
+│  ├── web_search（网络搜索）               │
+│  ├── read_file（读取文件）                │
+│  ├── write_file（写入文件）               │
+│  ├── invoke_subagent（调用子智能体）      │
+│  ├── query_memory（分层记忆查询）         │
+│  ├── initiate_debate（发起辩论）          │
+│  ├── call_external_agent（A2A 调用）      │
+│  ├── execute_reflexion（反思重试）        │
+│  ├── init_transfer（转介初始化）          │
 │  └── report_incident（事故上报）          │
 └────────────────┬─────────────────────────┘
                  │ Read/Write
@@ -142,73 +147,7 @@
 }
 ```
 
-### 3. init_transfer（转介初始化）
-
-**功能**：智能体发起转介时，生成标准化的转介摘要。
-
-```json
-{
-  "name": "init_transfer",
-  "description": "初始化智能体间转介。生成标准化转介摘要（7字段），返回完整摘要供用户确认。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "from_agent": {"type": "string"},
-      "to_agent": {"type": "string"},
-      "reason": {"type": "string"},
-      "user_situation": {"type": "string"},
-      "confirmed_facts": {"type": "string"},
-      "completed_items": {"type": "string", "description": "已办理的手续，若无则写'尚未办理任何手续'"},
-      "current_question": {"type": "string"},
-      "additional_context": {"type": "string"}
-    },
-    "required": ["from_agent", "to_agent", "reason", "user_situation", "current_question"]
-  },
-  "output": {
-    "transfer_summary": {
-      "转介自": "death-aftercare",
-      "转介原因": "复杂财务",
-      "用户情况": "北京/独生女/前天去世",
-      "已确认": "无遗嘱/单独继承/多类资产",
-      "已完成事项": "尚未办理任何手续",
-      "当前问题": "资产清点与税务",
-      "上下文传递": "已加载CN/overview.md"
-    },
-    "fields_complete": 7,
-    "fields_missing": [],
-    "transfer_id": "uuid",
-    "user_confirmation_required": true
-  }
-}
-```
-
-### 4. accept_transfer（转介接收）
-
-**功能**：目标智能体接收转介时，解析转介摘要。
-
-```json
-{
-  "name": "accept_transfer",
-  "description": "接收转介。解析转介摘要，加载必要上下文，返回接收确认。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "transfer_id": {"type": "string"},
-      "transfer_summary": {"type": "object"}
-    },
-    "required": ["transfer_id", "transfer_summary"]
-  },
-  "output": {
-    "accepted": "boolean",
-    "fields_complete": 7,
-    "fields_missing": [],
-    "context_to_load": ["knowledge/regions/CN/overview.md", "rules/compliance-framework.md"],
-    "continuation_point": "用户需要资产清点模板"
-  }
-}
-```
-
-### 5. check_integrity（5 关自检 + SelfCheckGPT 数字类校验）
+### 3. check_integrity（5 关自检 + SelfCheckGPT 数字类校验）
 
 **功能**：integrity-framework 第八章的 5 关输出自检。v1.1 起集成 SelfCheckGPT 数字类幻觉检测（[SelfCheckGPT.md](../tests/automated/SelfCheckGPT.md)）。
 
@@ -252,7 +191,7 @@
       "low_consistency_claims": ["12345"]
     },
     "confidence_labels": [
-      {"claim": "北京户籍注销时限30天", "confidence": "高", "source": "knowledge/regions/CN/general.md"},
+      {"claim": "北京户籍注销时限30天", "confidence": "高", "source": "knowledge/regions/CN/overview.md"},
       {"claim": "派出所电话12345", "confidence": "未知", "source": null}
     ]
   }
@@ -265,35 +204,268 @@
 3. 多次采样（temp=0.3/0.5/0.7/0.4/0.6）生成响应，计算数字类 claim 的一致性
 4. 一致性 < 0.5 的 claim 标记为"未知"，触发重写或标注
 
-### 6. log_trace（trace 上报）
+### 4. web_search（网络搜索）
 
-**功能**：上报 span 到 trace 系统。
+**功能**：封装 WebSearch 能力，供智能体在 MCP 统一接口下搜索实时信息。
 
 ```json
 {
-  "name": "log_trace",
-  "description": "上报trace span到可观测性系统。每次智能体处理、子智能体调用、转介、规则触发、工具调用都应上报。",
+  "name": "web_search",
+  "description": "搜索网络获取实时信息。用于知识库未覆盖或需核实的政策、电话、流程等。",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "trace_id": {"type": "string"},
-      "parent_span_id": {"type": "string"},
-      "span_type": {"type": "string", "enum": ["root", "agent", "subagent", "transfer", "rule", "tool"]},
-      "span_name": {"type": "string"},
-      "attributes": {"type": "object"},
-      "events": {"type": "array"},
-      "status": {"type": "string", "enum": ["OK", "ERROR", "PARTIAL", "FALLBACK"]}
+      "query": {"type": "string", "description": "搜索查询"},
+      "num_results": {"type": "integer", "default": 5, "description": "返回结果数量"}
     },
-    "required": ["trace_id", "span_type", "span_name"]
+    "required": ["query"]
   },
   "output": {
-    "span_id": "uuid",
-    "logged": true
+    "results": [
+      {"title": "...", "url": "...", "snippet": "..."}
+    ]
   }
 }
 ```
 
-### 7. report_incident（事故上报）
+### 5. read_file（读取文件）
+
+**功能**：读取工作区文件，供智能体加载规则、知识库、配置等。
+
+```json
+{
+  "name": "read_file",
+  "description": "读取工作区内指定路径的文件内容。用于加载 rules/、knowledge/ 等文件。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "file_path": {"type": "string", "description": "文件路径，如 rules/safety-protocol.md"},
+      "encoding": {"type": "string", "default": "utf-8"}
+    },
+    "required": ["file_path"]
+  },
+  "output": {
+    "content": "文件内容",
+    "exists": "boolean",
+    "size": "integer"
+  }
+}
+```
+
+### 6. write_file（写入文件）
+
+**功能**：写入工作区文件，用于知识库更新、incident 记录、trace 存储等。受权限隔离约束，仅允许写入 knowledge/_traces/、knowledge/_incidents/ 等指定目录。
+
+```json
+{
+  "name": "write_file",
+  "description": "将内容写入工作区指定路径。用于知识库更新、incident 记录等。受权限隔离约束。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "file_path": {"type": "string", "description": "目标文件路径"},
+      "content": {"type": "string", "description": "写入内容"},
+      "mode": {"type": "string", "enum": ["write", "append"], "default": "write"}
+    },
+    "required": ["file_path", "content"]
+  },
+  "output": {
+    "written": "boolean",
+    "bytes": "integer"
+  }
+}
+```
+
+### 7. invoke_subagent（调用子智能体）
+
+**功能**：调用子智能体在独立上下文执行深度任务，结果以结构化报告返回父智能体。子智能体不直接面对用户。
+
+```json
+{
+  "name": "invoke_subagent",
+  "description": "调用子智能体在独立上下文执行深度任务。子智能体不直接面对用户，结果以结构化报告返回父智能体。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "subagent_name": {"type": "string", "description": "子智能体名，如 death-aftercare-tracker"},
+      "task": {"type": "string", "description": "任务描述"},
+      "context": {"type": "object", "description": "传递给子智能体的上下文"},
+      "timeout": {"type": "integer", "default": 60, "description": "超时秒数"}
+    },
+    "required": ["subagent_name", "task"]
+  },
+  "output": {
+    "success": "boolean",
+    "result": "dict|null",
+    "report": "string",
+    "error": "string|null"
+  }
+}
+```
+
+### 8. query_memory（分层记忆查询）
+
+**功能**：查询分层记忆系统（[Memory-Store.md](../agents/Memory-Store.md)）。支持 Working/Episodic/Semantic/Procedural 四层记忆的查询和更新。
+
+```json
+{
+  "name": "query_memory",
+  "description": "查询或更新分层记忆。支持工作记忆（最近对话）、情景记忆（历史片段）、语义记忆（用户画像/事实）、程序记忆（流程进度）。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "action": {"type": "string", "enum": ["recall", "update_profile", "update_progress", "detect_contradiction"]},
+      "user_id": {"type": "string", "description": "用户 ID（哈希）"},
+      "memory_layer": {"type": "string", "enum": ["working", "episodic", "semantic", "procedural"]},
+      "query": {"type": "string", "description": "recall 时的查询文本"},
+      "updates": {"type": "object", "description": "update_profile/update_progress 时的更新内容"}
+    },
+    "required": ["action", "user_id"]
+  },
+  "output": {
+    "action": "recall|update_profile|update_progress|detect_contradiction",
+    "results": "list[dict]",
+    "contradictions_detected": "list[dict]",
+    "user_profile": "dict",
+    "current_progress": "dict"
+  }
+}
+```
+
+### 9. initiate_debate（发起辩论）
+
+**功能**：当多智能体意见冲突时发起辩论（[Debate-Voting.md](../agents/Debate-Voting.md)）。
+
+```json
+{
+  "name": "initiate_debate",
+  "description": "当多个智能体对同一问题给出冲突回答时，发起结构化辩论。3 轮辩论（Opening/Rebuttal/Closing）+ 投票 + 可选仲裁。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "topic": {"type": "string", "description": "辩论主题"},
+      "participants": {"type": "array", "items": {"type": "string"}, "description": "参与辩论的智能体 ID 列表"},
+      "initial_responses": {"type": "array", "items": {"type": "object"}, "description": "各方初始回答"},
+      "voting_strategy": {"type": "string", "enum": ["majority", "weighted", "confidence_weighted", "consensus"], "default": "weighted"}
+    },
+    "required": ["topic", "participants", "initial_responses"]
+  },
+  "output": {
+    "debate_id": "uuid",
+    "rounds": "list[dict]",
+    "votes": "dict",
+    "final_resolution": "dict",
+    "arbitration_needed": "boolean"
+  }
+}
+```
+
+### 10. call_external_agent（A2A 外部智能体调用）
+
+**功能**：通过 A2A 协议调用别家厂商的智能体（[A2A-Protocol.md](../a2a/A2A-Protocol.md)）。
+
+```json
+{
+  "name": "call_external_agent",
+  "description": "通过 A2A 协议调用外部智能体。需用户提供数据共享同意。出口数据自动脱敏，返回结果校验诚信报告。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "to_agent_id": {"type": "string", "description": "目标外部 agent ID"},
+      "capability_id": {"type": "string", "description": "调用的能力 ID（见 Agent Card）"},
+      "input_data": {"type": "object", "description": "输入参数（自动脱敏 PII）"},
+      "user_consent": {"type": "boolean", "description": "用户是否同意数据共享"}
+    },
+    "required": ["to_agent_id", "capability_id", "input_data", "user_consent"]
+  },
+  "output": {
+    "task_id": "uuid",
+    "state": "completed|failed|rejected",
+    "result": "dict",
+    "integrity_report": "dict",
+    "integrity_verified": "boolean",
+    "warning": "string|null"
+  }
+}
+```
+
+**安全约束**：
+- 若 `user_consent` 为 false，拒绝调用
+- 出口数据中 PII 字段（identifier/name/phone/address/account_number）自动脱敏
+- 返回结果若缺少 `integrity_report`，标记为低信任并建议交叉验证
+
+### 11. execute_reflexion（反思重试）
+
+**功能**：子智能体/工具/转介调用失败时，执行反思-调整-重试（[Reflexion-Mechanism.md](../agents/Reflexion-Mechanism.md)）。
+
+```json
+{
+  "name": "execute_reflexion",
+  "description": "子智能体/工具/转介调用失败时的反思-调整-重试机制。MAX_RETRIES=3，失败后走 fallback。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "operation_type": {"type": "string", "enum": ["subagent", "tool", "transfer"]},
+      "operation_name": {"type": "string", "description": "失败的操作名，如 'death-aftercare-emotional' 或 'query_knowledge'"},
+      "failure_reason": {"type": "string", "description": "失败原因"},
+      "original_input": {"type": "object", "description": "原始输入参数"}
+    },
+    "required": ["operation_type", "operation_name", "failure_reason", "original_input"]
+  },
+  "output": {
+    "success": "boolean",
+    "result": "dict|null",
+    "attempts": "integer",
+    "fallback_used": "boolean",
+    "adjustments_applied": "list[str]",
+    "reflexion_history": "list[dict]"
+  }
+}
+```
+
+**预定义调整策略**：见 [Reflexion-Mechanism.md](../agents/Reflexion-Mechanism.md) 的 `ADJUSTMENT_STRATEGIES` 表（10 种失败模式快速路径）。
+
+### 12. init_transfer（转介初始化）
+
+**功能**：智能体发起转介时，生成标准化的转介摘要。
+
+```json
+{
+  "name": "init_transfer",
+  "description": "初始化智能体间转介。生成标准化转介摘要（7字段），返回完整摘要供用户确认。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "from_agent": {"type": "string"},
+      "to_agent": {"type": "string"},
+      "reason": {"type": "string"},
+      "user_situation": {"type": "string"},
+      "confirmed_facts": {"type": "string"},
+      "completed_items": {"type": "string", "description": "已办理的手续，若无则写'尚未办理任何手续'"},
+      "current_question": {"type": "string"},
+      "additional_context": {"type": "string"}
+    },
+    "required": ["from_agent", "to_agent", "reason", "user_situation", "current_question"]
+  },
+  "output": {
+    "transfer_summary": {
+      "转介自": "death-aftercare",
+      "转介原因": "复杂财务",
+      "用户情况": "北京/独生女/前天去世",
+      "已确认": "无遗嘱/单独继承/多类资产",
+      "已完成事项": "尚未办理任何手续",
+      "当前问题": "资产清点与税务",
+      "上下文传递": "已加载CN/overview.md"
+    },
+    "fields_complete": 7,
+    "fields_missing": [],
+    "transfer_id": "uuid",
+    "user_confirmation_required": true
+  }
+}
+```
+
+### 13. report_incident（事故上报）
 
 **功能**：上报事故到 accountability-framework 的事故记录系统。
 
@@ -467,7 +639,7 @@ Claude: tool_use 格式 + 手动实现
 
 ```
 支持 MCP 的平台（Claude/OpenAI Agents SDK/TRAE/自建）：
-  → 直接配置 MCP server，7 个工具自动可用
+  → 直接配置 MCP server，13 个工具自动可用
   
 不支持 MCP 的平台（百炼/元宝/...）：
   → 适配层把 MCP 工具转换为平台原生格式
@@ -492,137 +664,12 @@ mcp_servers:
 
 ## 安全考虑
 
-1. **MCP server 不暴露文件系统**：只通过定义好的 7 个工具访问，不直接 Read/Write 任意文件
+1. **MCP server 不暴露文件系统**：只通过定义好的 13 个工具访问；read_file/write_file 受权限隔离约束，仅允许访问指定目录
 2. **PII 脱敏**：所有经过 MCP server 的数据先脱敏
 3. **权限隔离**：check_rules 只读 rules/，query_knowledge 只读 knowledge/，report_incident 只写 _incidents/
 4. **审计日志**：每次 MCP 工具调用都记录 trace span
 
-## v1.1 新增工具（v4.2 支撑设施集成）
-
-以下 4 个工具在 v1.1 新增，对应 P1/P2 支撑设施：
-
-### 8. query_memory（分层记忆查询）
-
-**功能**：查询分层记忆系统（[Memory-Store.md](../agents/Memory-Store.md)）。支持 Working/Episodic/Semantic/Procedural 四层记忆的查询和更新。
-
-```json
-{
-  "name": "query_memory",
-  "description": "查询或更新分层记忆。支持工作记忆（最近对话）、情景记忆（历史片段）、语义记忆（用户画像/事实）、程序记忆（流程进度）。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "action": {"type": "string", "enum": ["recall", "update_profile", "update_progress", "detect_contradiction"]},
-      "user_id": {"type": "string", "description": "用户 ID（哈希）"},
-      "memory_layer": {"type": "string", "enum": ["working", "episodic", "semantic", "procedural"]},
-      "query": {"type": "string", "description": "recall 时的查询文本"},
-      "updates": {"type": "object", "description": "update_profile/update_progress 时的更新内容"}
-    },
-    "required": ["action", "user_id"]
-  },
-  "output": {
-    "action": "recall|update_profile|update_progress|detect_contradiction",
-    "results": "list[dict]",
-    "contradictions_detected": "list[dict]",
-    "user_profile": "dict",
-    "current_progress": "dict"
-  }
-}
-```
-
-### 9. initiate_debate（发起辩论）
-
-**功能**：当多智能体意见冲突时发起辩论（[Debate-Voting.md](../agents/Debate-Voting.md)）。
-
-```json
-{
-  "name": "initiate_debate",
-  "description": "当多个智能体对同一问题给出冲突回答时，发起结构化辩论。3 轮辩论（Opening/Rebuttal/Closing）+ 投票 + 可选仲裁。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "topic": {"type": "string", "description": "辩论主题"},
-      "participants": {"type": "array", "items": {"type": "string"}, "description": "参与辩论的智能体 ID 列表"},
-      "initial_responses": {"type": "array", "items": {"type": "object"}, "description": "各方初始回答"},
-      "voting_strategy": {"type": "string", "enum": ["majority", "weighted", "confidence_weighted", "consensus"], "default": "weighted"}
-    },
-    "required": ["topic", "participants", "initial_responses"]
-  },
-  "output": {
-    "debate_id": "uuid",
-    "rounds": "list[dict]",
-    "votes": "dict",
-    "final_resolution": "dict",
-    "arbitration_needed": "boolean"
-  }
-}
-```
-
-### 10. call_external_agent（A2A 外部智能体调用）
-
-**功能**：通过 A2A 协议调用别家厂商的智能体（[A2A-Protocol.md](../a2A-Protocol.md)）。
-
-```json
-{
-  "name": "call_external_agent",
-  "description": "通过 A2A 协议调用外部智能体。需用户提供数据共享同意。出口数据自动脱敏，返回结果校验诚信报告。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "to_agent_id": {"type": "string", "description": "目标外部 agent ID"},
-      "capability_id": {"type": "string", "description": "调用的能力 ID（见 Agent Card）"},
-      "input_data": {"type": "object", "description": "输入参数（自动脱敏 PII）"},
-      "user_consent": {"type": "boolean", "description": "用户是否同意数据共享"}
-    },
-    "required": ["to_agent_id", "capability_id", "input_data", "user_consent"]
-  },
-  "output": {
-    "task_id": "uuid",
-    "state": "completed|failed|rejected",
-    "result": "dict",
-    "integrity_report": "dict",
-    "integrity_verified": "boolean",
-    "warning": "string|null"
-  }
-}
-```
-
-**安全约束**：
-- 若 `user_consent` 为 false，拒绝调用
-- 出口数据中 PII 字段（identifier/name/phone/address/account_number）自动脱敏
-- 返回结果若缺少 `integrity_report`，标记为低信任并建议交叉验证
-
-### 11. execute_reflexion（反思重试）
-
-**功能**：子智能体/工具/转介调用失败时，执行反思-调整-重试（[Reflexion-Mechanism.md](../agents/Reflexion-Mechanism.md)）。
-
-```json
-{
-  "name": "execute_reflexion",
-  "description": "子智能体/工具/转介调用失败时的反思-调整-重试机制。MAX_RETRIES=3，失败后走 fallback。",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "operation_type": {"type": "string", "enum": ["subagent", "tool", "transfer"]},
-      "operation_name": {"type": "string", "description": "失败的操作名，如 'death-aftercare-emotional' 或 'query_knowledge'"},
-      "failure_reason": {"type": "string", "description": "失败原因"},
-      "original_input": {"type": "object", "description": "原始输入参数"}
-    },
-    "required": ["operation_type", "operation_name", "failure_reason", "original_input"]
-  },
-  "output": {
-    "success": "boolean",
-    "result": "dict|null",
-    "attempts": "integer",
-    "fallback_used": "boolean",
-    "adjustments_applied": "list[str]",
-    "reflexion_history": "list[dict]"
-  }
-}
-```
-
-**预定义调整策略**：见 [Reflexion-Mechanism.md](../agents/Reflexion-Mechanism.md) 的 `ADJUSTMENT_STRATEGIES` 表（10 种失败模式快速路径）。
-
 ## 版本
+- v1.2 工具列表与 server.py 对齐为 13 工具：删除 accept_transfer/log_trace/get_confidence_label，新增 web_search/read_file/write_file/invoke_subagent；log_trace 由 observability tracer 自动上报替代
 - v1.1 新增 4 工具（query_memory/initiate_debate/call_external_agent/execute_reflexion）+ query_knowledge 支持 LightRAG query_mode 和本体过滤 + check_integrity 集成 SelfCheckGPT
 - v1.0 初始 MCP Server 方案（7 工具 + FastMCP 实现 + 部署方式）

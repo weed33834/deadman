@@ -46,7 +46,7 @@
    - 在其他智能体的 system prompt 中添加"何时转介到新智能体"
 
 5. **遵守 rules/ 优先级链**：
-   - 在新智能体的 system prompt 中明确必读 10 个规则文件
+   - 在新智能体的 system prompt 中明确必读 10 个主链规则文件（rules/ 共 14 个）
    - 优先级链与团队一致：safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone
 
 6. **更新测试**：

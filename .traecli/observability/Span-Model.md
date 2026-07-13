@@ -397,7 +397,7 @@ knowledge/_traces/
 
 ### 9. A2A Span（跨厂商调用 span）
 
-**含义**：通过 A2A 协议调用外部智能体（[A2A-Protocol.md](../a2A-Protocol.md)）。
+**含义**：通过 A2A 协议调用外部智能体（[A2A-Protocol.md](../a2a/A2A-Protocol.md)）。
 
 ```json
 {

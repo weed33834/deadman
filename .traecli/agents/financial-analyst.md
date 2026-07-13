@@ -31,7 +31,7 @@ disallowedTools: Write
 
 ## 二、必读规则
 
-执行任务前，必须用 Read 读取以下全部 10 个平台规则文件，并在整个任务中严格遵守。优先级链与团队一致：safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone。
+执行任务前，必须用 Read 读取以下全部 10 个主链规则文件（rules/ 共 14 个），并在整个任务中严格遵守。优先级链与团队一致：safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone。
 
 **零弹性层（绝对不可突破）**：
 - `rules/safety-protocol.md`（L0——安全协议：人身安全永远优先于财务分析）

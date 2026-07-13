@@ -2,6 +2,32 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v4.4.1（2026-07）Review 修复 - 36 个一致性问题
+
+> 全面 review 后修复文档与代码的不一致问题。
+
+### MCP Server 工具补实现（11 → 13）
+
+- 新增 `init_transfer`：发起智能体转介（7 字段 transfer_summary + user_confirmation_required）
+- 新增 `report_incident`：上报安全事件（injection_attempt/rule_violation/safety_concern）
+- 测试 case（case-06/11/13/20）引用的 init_transfer 和 report_incident 现已实现
+
+### 文档一致性修复
+
+- 修复 5 处破损 A2A 链接（`../a2A-Protocol.md` → `../a2a/A2A-Protocol.md`）
+- 修复 10 处规则计数矛盾（"10 个规则文件" → "14 个"或"10 个主链（共 14 个）"）
+- 修复智能体计数（"24 个" → "22 个"）
+- 修复指标计数矛盾（CHANGELOG 的 "80+" → "50+"，与其他 4 处统一）
+- 合并 CN/general.md 到 CN/overview.md（符合 SCHEMA.md 规范），更新 14 处引用
+- 重写 mcp_server/README.md 工具列表：与 server.py 的 13 个工具完全对齐，删除未实现的 accept_transfer/log_trace/get_confidence_label
+
+### 验证
+
+- ruff check: All checks passed
+- pytest: 255 passed
+- MCP tools: 13（含 init_transfer + report_incident）
+- 文档残留检查: 0（a2A-Protocol / 10 个规则 / 24 个智能体 / 80+ 指标 全部清零）
+
 ## v4.4（2026-07）P4 工程化 - 测试 + 容器化 + CI/CD
 
 > 把可运行的代码变成可交付的工程：测试套件 + Docker 容器化 + CI/CD 流水线 + 部署文档。
@@ -92,7 +118,7 @@
 ### 可观测性（observability/）
 
 - **`tracer.py`**：Tracer（11 类 span，OTel 降级为内存记录，trace_tool_span/trace_reflexion_span 辅助函数）
-- **`metrics.py`**：MetricsCollector（11 大类 80+ 指标，内存聚合，get_dashboard）
+- **`metrics.py`**：MetricsCollector（11 大类 50+ 指标，内存聚合，get_dashboard）
 
 ### 设计原则
 
@@ -311,7 +337,7 @@
 - 子智能体在独立上下文执行深度任务，结果以结构化报告返回
 
 ### 规则体系
-- 共享层 `rules/` 全部 10 个规则文件——所有智能体共用，优先级链一致
+- 共享层 `rules/` 全部 14 个规则文件——所有智能体共用，优先级链一致
 - 新增 `rules/conflict-resolution.md`：定义优先级链 safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone
 
 ### 知识库
@@ -323,5 +349,5 @@
 ### 初始版本
 - 4 个智能体：death-aftercare / legal-advisor / financial-analyst / policy-researcher
 - 4 个规则：safety-protocol / integrity-framework / compliance-framework / retrieval-guardrails
-- 中国知识库：`knowledge/regions/CN/overview.md` + `knowledge/regions/CN/general.md`
+- 中国知识库：`knowledge/regions/CN/overview.md`（含通用流程）
 - 主-子委派架构（后在 v2.0 废弃）
