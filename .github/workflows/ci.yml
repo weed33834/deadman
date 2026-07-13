@@ -1,0 +1,159 @@
+# 主 CI 流水线 - 代码风格检查 + 单元测试 + Docker 构建 + 评估 case
+# 触发：push 到 main 分支 或 拉起 PR
+name: CI 流水线
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# 同一分支新推送时取消旧的运行，节省 CI 资源
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===== Job 1: 代码风格检查 =====
+  lint:
+    name: 代码风格检查 (ruff)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .traecli/src
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ruff-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-ruff-
+
+      - name: 安装 ruff
+        run: pip install ruff
+
+      - name: ruff check（代码风格检查）
+        run: ruff check legacy
+
+  # ===== Job 2: 单元测试（Python 版本矩阵） =====
+  test:
+    name: 单元测试 (Python ${{ matrix.python-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: .traecli/src
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - name: 安装项目依赖
+        run: pip install -e ".[dev]"
+
+      - name: 运行测试并生成覆盖率报告
+        run: pytest tests/ --cov=legacy --cov-report=xml --cov-report=term
+
+      - name: 上传测试覆盖率报告
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .traecli/src/coverage.xml
+          retention-days: 14
+
+  # ===== Job 3: 构建 Docker 镜像（仅构建不推送） =====
+  build:
+    name: 构建 Docker 镜像
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 构建镜像（不推送）
+        uses: docker/build-push-action@v6
+        with:
+          context: .traecli
+          file: .traecli/Dockerfile
+          push: false
+          tags: legacy-aftercare:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===== Job 4: 运行评估 case（允许失败，依赖 LLM API key） =====
+  evaluate:
+    name: 评估 case（允许失败）
+    needs: test
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: .traecli/src
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-eval-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-eval-
+
+      - name: 安装项目依赖
+        run: pip install -e ".[dev]"
+
+      - name: 运行评估 case
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          JUDGE_MODELS: ${{ secrets.JUDGE_MODELS }}
+        run: legacy eval --cases-dir ../tests/automated/cases --verbose
+
+      - name: 上传评估报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: .traecli/tests/automated/reports/
+          retention-days: 14
+          if-no-files-found: ignore

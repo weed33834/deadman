@@ -1,0 +1,283 @@
+# ============================================================
+# Legacy 平台 Docker Compose 编排
+#
+# 服务拓扑：
+#   legacy          主服务（MCP Server HTTP，构建自 Dockerfile）
+#   neo4j           Graphiti 时态记忆后端（可选 profile: graphiti）
+#   langfuse        可观测性平台（可选 profile: observability）
+#   langfuse-db     Langfuse 依赖的 Postgres（可选 profile: observability）
+#   otel-collector  OpenTelemetry 中转（可选 profile: observability）
+#
+# 用法：
+#   # 仅启动主服务（默认）
+#   docker compose up -d
+#
+#   # 主服务 + Neo4j（启用 Graphiti 时态记忆）
+#   docker compose --profile graphiti up -d
+#
+#   # 主服务 + 可观测性栈（Langfuse + OTel Collector）
+#   docker compose --profile observability up -d
+#
+#   # 全量启动（等价于同时激活 graphiti + observability）
+#   docker compose --profile full up -d
+#   # 或显式指定两个 profile：
+#   docker compose --profile graphiti --profile observability up -d
+#
+# 配置：复制 .env.example 为 .env 并填入 LLM_API_KEY 等敏感配置
+# ============================================================
+
+services:
+  # ============================================================
+  # 主服务：Legacy MCP Server
+  # ============================================================
+  legacy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        LEGACY_VERSION: ${LEGACY_VERSION:-4.2.0}
+    image: legacy-aftercare:${LEGACY_VERSION:-4.2.0}
+    container_name: legacy
+    restart: unless-stopped
+    ports:
+      - "${MCP_HOST_PORT:-8000}:8000"
+    environment:
+      # === LLM 配置 ===
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-30}
+      # === MCP Server ===
+      MCP_SERVER_HOST: 0.0.0.0
+      MCP_SERVER_PORT: 8000
+      # === 可观测性 ===
+      OTEL_ENDPOINT: ${OTEL_ENDPOINT:-http://otel-collector:4317}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      # === Graphiti / Neo4j（profile=graphiti 时生效）===
+      GRAPHITI_ENABLED: ${GRAPHITI_ENABLED:-false}
+      GRAPHITI_NEO4J_URI: ${GRAPHITI_NEO4J_URI:-bolt://neo4j:7687}
+      GRAPHITI_NEO4J_USER: ${GRAPHITI_NEO4J_USER:-neo4j}
+      GRAPHITI_NEO4J_PASSWORD: ${GRAPHITI_NEO4J_PASSWORD:-${NEO4J_PASSWORD:-changeme}}
+      # === LightRAG ===
+      LIGHTRAG_ENABLED: ${LIGHTRAG_ENABLED:-false}
+      # === Reflexion / SelfCheck ===
+      REFLEXION_MAX_RETRIES: ${REFLEXION_MAX_RETRIES:-3}
+      SELFCHECK_CONSISTENCY_THRESHOLD: ${SELFCHECK_CONSISTENCY_THRESHOLD:-0.5}
+      # === 日志与严格校验 ===
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      STRICT_ENV_CHECK: ${STRICT_ENV_CHECK:-false}
+    volumes:
+      # 数据持久化（记忆 / LightRAG 存储 / 运行时数据）
+      - ./data:/app/data
+      # 可选：挂载测试套件以支持 eval 模式（.dockerignore 排除了 tests/）
+      # - ./.traecli/tests:/app/.traecli/tests:ro
+    networks:
+      - legacy-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # 可选依赖：仅在对应 profile 启用时等待，否则跳过（required: false）
+    # 需要 Docker Compose v2.20+ 支持 required 字段
+    # legacy 服务无 profiles 声明 → 默认始终启动；
+    # neo4j/langfuse/otel 仅在对应 profile 激活时启动
+    depends_on:
+      otel-collector:
+        condition: service_started
+        required: false
+      neo4j:
+        condition: service_healthy
+        required: false
+
+  # ============================================================
+  # Neo4j：Graphiti 时态记忆后端
+  # 启用：docker compose --profile graphiti up -d
+  # ============================================================
+  neo4j:
+    image: neo4j:5
+    container_name: legacy-neo4j
+    restart: unless-stopped
+    profiles:
+      - graphiti
+      - full
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-changeme}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    ports:
+      - "7474:7474"  # Neo4j Browser
+      - "7687:7687"  # Bolt 协议
+    networks:
+      - legacy-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ============================================================
+  # OpenTelemetry Collector：遥测数据中转
+  # 启用：docker compose --profile observability up -d
+  # 接收 OTLP（gRPC 4317 / HTTP 4318），转发至 debug 与 legacy 服务
+  # ============================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: legacy-otel
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    # 配置通过环境变量 OTEL_CONFIG 内联注入（--config=env:OTEL_CONFIG）
+    # 避免额外挂载配置文件，保持部署自包含
+    environment:
+      OTEL_CONFIG: |
+        extensions:
+          health_check:
+            endpoint: 0.0.0.0:13133
+        receivers:
+          otlp:
+            protocols:
+              grpc:
+                endpoint: 0.0.0.0:4317
+              http:
+                endpoint: 0.0.0.0:4318
+        processors:
+          batch:
+            timeout: 5s
+            send_batch_size: 512
+          memory_limiter:
+            check_interval: 2s
+            limit_percentage: 80
+            spike_limit_percentage: 25
+        exporters:
+          debug:
+            verbosity: basic
+          # 如需导出到 Langfuse 或其他后端，在此扩展
+        service:
+          extensions: [health_check]
+          telemetry:
+            logs:
+              level: info
+          pipelines:
+            traces:
+              receivers: [otlp]
+              processors: [memory_limiter, batch]
+              exporters: [debug]
+            metrics:
+              receivers: [otlp]
+              processors: [memory_limiter, batch]
+              exporters: [debug]
+            logs:
+              receivers: [otlp]
+              processors: [memory_limiter, batch]
+              exporters: [debug]
+    command: ["--config=env:OTEL_CONFIG"]
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+      - "8888:8888"  # 内部指标
+      - "13133:13133"  # health_check 扩展端点
+    networks:
+      - legacy-net
+    # 注意：otel-collector-contrib 镜像为 distroless（无 shell/wget/curl）
+    # 无法使用 CMD-SHELL 健康检查。health_check 扩展已暴露 13133 端口，
+    # 如需 Docker 级健康检查，可改用含 curl 的 sidecar 或使用 service_started 依赖。
+    # 此处保留端口映射供外部探测：
+    #   curl http://localhost:13133/ → 200 表示健康
+
+  # ============================================================
+  # Langfuse：LLM 可观测性平台
+  # 启用：docker compose --profile observability up -d
+  # 依赖 langfuse-db（Postgres）
+  # ============================================================
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: legacy-langfuse
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    environment:
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse}@langfuse-db:5432/langfuse
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-changeme-please-32-chars-min}
+      SALT: ${LANGFUSE_SALT:-changeme-please-32-chars-min}
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3000}
+      # Langfuse 自身的 OTel 导出（可选）
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    ports:
+      - "3000:3000"  # Langfuse Web UI
+    networks:
+      - legacy-net
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+        required: false  # OTel 中转可选，缺失时 Langfuse 仍可运行（仅不导出 trace）
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/public/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  # ============================================================
+  # Langfuse 依赖的 Postgres 数据库
+  # ============================================================
+  langfuse-db:
+    image: postgres:16-alpine
+    container_name: legacy-langfuse-db
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:-langfuse}
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse-db-data:/var/lib/postgresql/data
+    networks:
+      - legacy-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+# ============================================================
+# 卷定义
+# ============================================================
+volumes:
+  neo4j-data:
+    name: legacy-neo4j-data
+  neo4j-logs:
+    name: legacy-neo4j-logs
+  langfuse-db-data:
+    name: legacy-langfuse-db-data
+
+# ============================================================
+# 网络隔离
+# 使用专用 bridge 网络，与默认网络及其他 compose 项目隔离
+# ============================================================
+networks:
+  legacy-net:
+    driver: bridge
+    name: legacy-net
+    # 启用 IP 地址管理
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16

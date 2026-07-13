@@ -2,6 +2,45 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v4.4（2026-07）P4 工程化 - 测试 + 容器化 + CI/CD
+
+> 把可运行的代码变成可交付的工程：测试套件 + Docker 容器化 + CI/CD 流水线 + 部署文档。
+
+### 测试套件（src/tests/）
+
+- **11 个测试文件**，**255 个测试全部通过**
+- 覆盖 12 个模块：types/rules_loader/memory/reflexion/selfcheck/evaluation/observability/orchestration/mcp_server
+- LLM 调用全部用 mock，不依赖外部 API
+- pytest fixtures 自动重置全局单例，保证用例隔离
+- 覆盖率报告：`pytest --cov=legacy --cov-report=html`
+
+### Docker 容器化（.traecli/）
+
+- **Dockerfile**：多阶段构建（builder + runtime），基于 python:3.11-slim，非 root 用户，tini 作为 PID 1，HEALTHCHECK 配置
+- **docker-compose.yml**：主服务 + 可选服务（Neo4j for Graphiti / Langfuse + Postgres for 可观测性 / OTel Collector），用 profiles 按需启动
+- **docker/entrypoint.sh**：支持 mcp-server/eval/run 三种模式切换
+- **docker/healthcheck.py**：独立健康检查脚本
+- **.dockerignore**：排除测试/缓存/密钥
+
+### CI/CD 流水线（.github/workflows/）
+
+- **ci.yml**：push 到 main + PR 触发，lint（ruff）→ test（Python 3.10/3.11/3.12 矩阵）→ build（Docker）→ evaluate（允许失败），缓存 pip 依赖，上传覆盖率
+- **sync-to-gitcode.yml**：push 到 main 后自动同步到 GitCode（用 GITCODE_TOKEN secret）
+- **release.yml**：打 v* tag 时构建 Docker 镜像推送到 ghcr.io + 自动生成 GitHub Release
+
+### 部署文档（docs/）
+
+- **QUICKSTART.md**：5 分钟上手指南（安装/配置/三种使用方式/核心概念）
+- **DEPLOYMENT.md**：完整部署指南（Docker/Compose/环境变量/CI/CD/安全/故障排查）
+- **README.md**：更新为面向用户的快速入口
+
+### 安全
+
+- .gitignore 排除 .env / *.key / credentials/
+- Docker 非 root 用户运行
+- CI/CD 密钥全部用 GitHub Secrets，不硬编码
+- 仓库文件中零密钥泄露（已验证）
+
 ## v4.3（2026-07）P3 编码落地 - 可运行的 Python 实现
 
 > 把 P0/P1/P2 的方案文档变成可跑的 Python 代码。核心架构仍是 agent.md 驱动，代码层是支撑设施的参考实现。

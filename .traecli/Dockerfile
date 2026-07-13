@@ -1,0 +1,155 @@
+# ============================================================
+# Legacy 平台 Dockerfile - 多阶段构建
+#
+# 阶段划分：
+#   builder  - 安装 Python 依赖到独立虚拟环境
+#   runtime  - 最小化运行时镜像，仅复制代码与已装依赖
+#
+# 构建：  docker build -t legacy-aftercare:latest .
+# 运行：  docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare:latest
+# 模式：  docker run legacy-aftercare:latest mcp-server   # 默认
+#         docker run legacy-aftercare:latest eval
+#         docker run legacy-aftercare:latest run "你的问题"
+# ============================================================
+
+# ============================================================
+# Builder 阶段：安装依赖
+# ============================================================
+FROM python:3.11-slim AS builder
+
+# 关闭 Python 字节码写入与缓冲，加速构建
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 安装编译工具链（部分 Python 依赖如 pydantic-core 需要编译）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建独立虚拟环境（runtime 阶段仅复制此目录）
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 升级打包工具
+RUN pip install --upgrade pip setuptools wheel
+
+# 复制 pyproject.toml + 源码，安装 legacy 包及其依赖
+# 利用 .dockerignore 排除 tests/ 与缓存，缩小构建上下文
+WORKDIR /build
+COPY src/ ./
+
+# 安装当前包（同时拉取全部 dependencies）
+RUN pip install --no-cache-dir .
+
+# ============================================================
+# Runtime 阶段：最小化运行时镜像
+# ============================================================
+FROM python:3.11-slim AS runtime
+
+# 构建参数（仅用于镜像元数据，不进入运行时环境）
+ARG LEGACY_VERSION=4.2.0
+ARG BUILD_DATE=unknown
+ARG VCS_REF=unknown
+
+# 运行时环境变量
+#   - PYTHONPATH 指向源码目录，使 import legacy 优先加载源码树
+#     （保证 config.py 中 project_root = Path(__file__).parent.parent.parent
+#      解析为 /app/.traecli/，从而正确定位 rules/agents/knowledge/skills）
+#   - MCP_SERVER_HOST=0.0.0.0 使服务在容器内对外可达
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app/.traecli/src" \
+    LEGACY_VERSION=${LEGACY_VERSION} \
+    # === MCP Server ===
+    MCP_SERVER_HOST=0.0.0.0 \
+    MCP_SERVER_PORT=8000 \
+    # === LLM 默认配置（运行时通过 -e 或 compose 覆盖）===
+    LLM_PROVIDER=openai \
+    LLM_MODEL=gpt-4o \
+    LLM_API_KEY="" \
+    LLM_BASE_URL="" \
+    LLM_TIMEOUT=30 \
+    # === 可观测性默认端点（对应 docker-compose 中服务名）===
+    OTEL_ENDPOINT=http://otel-collector:4317 \
+    LANGFUSE_HOST=http://langfuse:3000 \
+    LANGFUSE_SECRET_KEY="" \
+    LANGFUSE_PUBLIC_KEY="" \
+    # === Graphiti / Neo4j ===
+    GRAPHITI_ENABLED=false \
+    GRAPHITI_NEO4J_URI=bolt://neo4j:7687 \
+    GRAPHITI_NEO4J_USER=neo4j \
+    GRAPHITI_NEO4J_PASSWORD="" \
+    # === LightRAG ===
+    LIGHTRAG_ENABLED=false \
+    # === 日志 ===
+    LOG_LEVEL=INFO
+
+# 安装运行时系统依赖：
+#   curl            - HEALTHCHECK 用
+#   ca-certificates - HTTPS 证书校验（LLM/OTel 出站）
+#   tini             - PID 1 init，正确转发 SIGTERM
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# 从 builder 复制已装好的虚拟环境（含依赖与 legacy 包）
+COPY --from=builder /opt/venv /opt/venv
+
+# 创建非 root 用户（安全最佳实践）
+RUN groupadd --system legacy \
+    && useradd --system --gid legacy --create-home \
+       --home-dir /home/legacy --shell /bin/bash legacy
+
+# 创建项目目录与数据持久化目录
+RUN mkdir -p /app/.traecli /app/data /app/docker \
+    && chown -R legacy:legacy /app
+
+WORKDIR /app
+
+# 复制项目运行时数据（rules/agents/knowledge/skills 等被 MCP 工具读取）
+# 注意：src/ 中的 legacy 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
+COPY --chown=legacy:legacy . /app/.traecli/
+
+# 复制入口脚本与健康检查脚本
+COPY --chown=legacy:legacy docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=legacy:legacy docker/healthcheck.py /app/docker/healthcheck.py
+RUN chmod +x /app/docker/entrypoint.sh /app/docker/healthcheck.py
+
+# 切换到非 root 用户
+USER legacy
+
+# 暴露 MCP Server HTTP 端口
+EXPOSE 8000
+
+# 数据持久化卷（记忆存储 / LightRAG / 运行时数据）
+VOLUME ["/app/data"]
+
+# 健康检查：curl 调用 /health 端点
+#   --interval  两次检查间隔
+#   --timeout   单次检查超时
+#   --start-period 启动宽限期（MCP Server 初始化时间）
+#   --retries   连续失败次数后标记 unhealthy
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fsS http://localhost:8000/health || exit 1
+
+# 镜像元数据（OCI 标准）
+LABEL org.opencontainers.image.title="legacy-aftercare" \
+      org.opencontainers.image.description="身后事多智能体平台 MCP Server" \
+      org.opencontainers.image.version="${LEGACY_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.source="https://github.com/legacy/aftercare" \
+      org.opencontainers.image.licenses="MIT"
+
+# 入口点：tini 作为 PID 1，entrypoint.sh 处理模式切换
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/docker/entrypoint.sh"]
+
+# 默认启动 MCP Server（HTTP 模式）
+# 可通过 docker run ... <mode> 覆盖：mcp-server | eval | run
+CMD ["mcp-server"]
