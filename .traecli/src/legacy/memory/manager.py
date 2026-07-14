@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ..config import settings
 from ..llm import llm_client
 from .working import WorkingMemory
 from .episodic import EpisodicMemory
@@ -28,6 +29,27 @@ try:  # pragma: no cover - 可选依赖
     from lightrag import LightRAG as _LightRAGClient  # type: ignore
 except Exception:  # pragma: no cover
     _LightRAGClient = None  # type: ignore
+
+
+def _init_graphiti() -> Any:
+    """懒加载 Graphiti 客户端
+
+    需要 GRAPHITI_ENABLED=true + graphiti 包已安装 + Neo4j 连接配置。
+    初始化失败时返回 None，记忆系统降级为纯内存模式。
+    """
+    if not settings.graphiti_enabled or _GraphitiClient is None:
+        return None
+    try:
+        client = _GraphitiClient(
+            uri=settings.graphiti_neo4j_uri,
+            user=settings.graphiti_neo4j_user,
+            password=settings.graphiti_neo4j_password,
+        )
+        logger.info("Graphiti 客户端初始化成功，uri=%s", settings.graphiti_neo4j_uri)
+        return client
+    except Exception as exc:
+        logger.warning("Graphiti 初始化失败，记忆系统降级为纯内存: %s", exc)
+        return None
 
 
 # 需要 PII 脱敏的字段集合
@@ -77,8 +99,8 @@ class MemoryManager:
         graphiti_client: Any = None,
         lightrag_client: Any = None,
     ):
-        # 可选外部依赖
-        self.graphiti = graphiti_client
+        # 可选外部依赖：未传入时尝试自动初始化
+        self.graphiti = graphiti_client or _init_graphiti()
         self.lightrag = lightrag_client
 
         # 初始化 4 层记忆

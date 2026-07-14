@@ -166,13 +166,23 @@ class EpisodicMemory:
         top_k: int = 5,
         session_id: str | None = None,
     ) -> list[Episode]:
-        """按语义相似度回忆（关键词匹配模拟，非真正 embedding）。
+        """按语义相似度回忆。
+
+        Graphiti 可用时优先用其语义搜索（真实 embedding），
+        不可用或失败时降级为关键词匹配模拟。
 
         Args:
             query: 查询文本
             top_k: 返回前 K 个最相关片段
             session_id: 可选，限定会话范围
         """
+        # Graphiti 可用时优先用其语义搜索
+        if self.graphiti is not None:
+            graphiti_results = self._graphiti_search(query, top_k)
+            if graphiti_results:
+                return graphiti_results
+
+        # 降级：关键词匹配模拟
         query_kw = set(_extract_keywords(query))
         if not query_kw:
             return []
@@ -191,6 +201,66 @@ class EpisodicMemory:
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [ep for _, ep in scored[:top_k]]
+
+    def _graphiti_search(self, query: str, top_k: int) -> list[Episode]:
+        """尝试用 Graphiti 语义搜索，安全降级。
+
+        Graphiti 的 search 可能是同步或异步，这里统一处理。
+        在异步上下文中（如 MCP Server 的 asyncio.run 内）不阻塞，返回空列表降级。
+        """
+        if self.graphiti is None:
+            return []
+        try:
+            import inspect
+
+            raw = self.graphiti.search(query, num_results=top_k)
+            # 处理可能的异步返回
+            if inspect.isawaitable(raw):
+                import asyncio
+
+                try:
+                    asyncio.get_running_loop()
+                    # 已在异步事件循环中，不能阻塞，降级
+                    return []
+                except RuntimeError:
+                    raw = asyncio.run(raw)
+
+            if not isinstance(raw, list):
+                return []
+
+            # 将 Graphiti 结果转为 Episode
+            episodes: list[Episode] = []
+            for item in raw:
+                if isinstance(item, dict):
+                    data = item
+                else:
+                    data = vars(item) if hasattr(item, "__dict__") else {}
+                ts = data.get("created_at") or data.get("timestamp")
+                if isinstance(ts, str):
+                    try:
+                        ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    except ValueError:
+                        ts = datetime.now(timezone.utc)
+                elif ts is None:
+                    ts = datetime.now(timezone.utc)
+
+                episodes.append(
+                    Episode(
+                        episode_id=str(data.get("uuid", data.get("id", ""))),
+                        session_id=str(data.get("session_id", "")),
+                        timestamp=ts,
+                        agent=str(data.get("agent", "graphiti")),
+                        user_message="",
+                        assistant_response=str(
+                            data.get("content", data.get("summary", ""))
+                        ),
+                        summary=str(data.get("summary", data.get("content", ""))),
+                    )
+                )
+            return episodes
+        except Exception as e:
+            logger.warning(f"Graphiti 查询失败，降级到关键词匹配: {e}")
+            return []
 
     async def _summarize_turn(self, turn: dict) -> str:
         """用 LLM 生成片段摘要；无 API key 或失败时回退到简单截断"""
