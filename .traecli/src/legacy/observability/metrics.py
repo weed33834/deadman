@@ -359,6 +359,39 @@ class MetricsCollector:
         for cat in list(self._records.keys()):
             self._records[cat] = {}
 
+    def export_prometheus(self) -> str:
+        """导出 Prometheus 文本格式指标
+
+        格式：
+            # HELP <metric_name> <description>
+            # TYPE <metric_name> <type>
+            <metric_name>{tags} <value>
+
+        每个 metric 输出其 last 值（gauge 类型），适合 Prometheus 抓取。
+        """
+        lines: list[str] = []
+        for category, cat_meta in METRIC_CATEGORIES.items():
+            cat_bucket = self._records.get(category, {})
+            for metric_name, tag_map in cat_bucket.items():
+                # Prometheus 指标名：点转下划线
+                prom_name = metric_name.replace(".", "_")
+                desc = f"{cat_meta['name_cn']} - {metric_name}"
+                lines.append(f"# HELP {prom_name} {desc}")
+                lines.append(f"# TYPE {prom_name} gauge")
+                for tags_key, records in tag_map.items():
+                    if not records:
+                        continue
+                    last_value = records[-1]["value"]
+                    tags = records[-1].get("tags", {})
+                    if tags:
+                        label_str = ",".join(
+                            f'{k}="{v}"' for k, v in tags.items()
+                        )
+                        lines.append(f"{prom_name}{{{label_str}}} {last_value}")
+                    else:
+                        lines.append(f"{prom_name} {last_value}")
+        return "\n".join(lines) + "\n" if lines else ""
+
     # === 内部工具 ===
 
     @staticmethod

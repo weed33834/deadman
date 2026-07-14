@@ -153,6 +153,7 @@ class Tracer:
     - OTel 可用：start_span/end_span 同时维护内存 span dict 与 OTel span，
       OTel span 通过 BatchSpanProcessor 异步导出到 settings.otel_endpoint。
     - OTel 不可用：仅维护内存 span dict 列表，调用方可通过 get_spans() 取出后写 JSONL。
+    - Langfuse 可用（可选）：end_span 时同步记录到 Langfuse，用于 LLM 调用追踪。
 
     线程模型：单进程内使用，跨线程共享时建议加锁（此处未加锁，遵循 OTel 默认语义）。
     """
@@ -166,6 +167,10 @@ class Tracer:
                 # SDK 初始化失败，降级为内存模式
                 self.otel_available = False
 
+        # Langfuse 可选集成
+        self._langfuse: Optional[Any] = None
+        self._init_langfuse()
+
         # 内存 span 存储：span_id -> span_dict
         self._spans: dict[str, dict[str, Any]] = {}
         # span_id -> OTel span 对象（仅 OTel 模式下有值）
@@ -174,6 +179,28 @@ class Tracer:
         self._span_stack: list[str] = []
         # trace_id -> [span_id, ...] 索引，便于按 trace 取出全部 span
         self._trace_index: dict[str, list[str]] = {}
+
+    def _init_langfuse(self) -> None:
+        """初始化 Langfuse 客户端（可选）
+
+        需要 LANGFUSE_HOST + LANGFUSE_SECRET_KEY + LANGFUSE_PUBLIC_KEY 配置。
+        """
+        if not settings.langfuse_host:
+            return
+        try:
+            from langfuse import Langfuse  # type: ignore
+
+            self._langfuse = Langfuse(
+                host=settings.langfuse_host,
+                secret_key=settings.langfuse_secret,
+                public_key=settings.langfuse_public,
+            )
+        except ImportError:
+            # langfuse 包未安装，跳过
+            pass
+        except Exception:
+            # 初始化失败，降级为无 Langfuse
+            self._langfuse = None
 
     # === 核心 API ===
 
@@ -293,6 +320,49 @@ class Tracer:
                 otel_span.end()
             except Exception:  # pragma: no cover
                 pass
+
+        # Langfuse 同步（LLM 相关 span 记录为 generation）
+        if self._langfuse is not None:
+            self._sync_to_langfuse(span_dict)
+
+    def _sync_to_langfuse(self, span_dict: dict[str, Any]) -> None:
+        """将 span 同步到 Langfuse
+
+        LLM_JUDGE / TOOL / AGENT 类 span 记录为 generation，
+        其他类 span 记录为 trace event。
+        """
+        if self._langfuse is None:
+            return
+        try:
+            span_type = span_dict.get("span_type", "")
+            name = span_dict.get("name", "")
+            attrs = span_dict.get("attributes", {})
+            # LLM 调用类 span 记录为 generation
+            if span_type in ("llm_judge", "tool", "agent"):
+                self._langfuse.generation(
+                    name=name,
+                    metadata={
+                        "span_type": span_type,
+                        "trace_id": span_dict.get("trace_id"),
+                        "span_id": span_dict.get("span_id"),
+                        "status": span_dict.get("status"),
+                    },
+                    input=attrs.get("input"),
+                    output=attrs.get("output"),
+                    model=attrs.get("model", "unknown"),
+                )
+            else:
+                # 其他 span 记录为 event
+                self._langfuse.event(
+                    name=name,
+                    metadata={
+                        "span_type": span_type,
+                        "trace_id": span_dict.get("trace_id"),
+                        "status": span_dict.get("status"),
+                    },
+                )
+        except Exception:  # pragma: no cover - Langfuse 失败不影响主流程
+            pass
 
     def emit_span(self, span_dict: dict[str, Any]) -> None:
         """将一个完整的 span 字典转为 OTel span 或内存记录。

@@ -84,6 +84,8 @@ class WebServer:
                     self._handle_agents()
                 elif path == "/api/tools":
                     self._handle_tools()
+                elif path == "/metrics":
+                    self._handle_metrics()
                 else:
                     # 静态文件（CSS/JS）
                     static_file = _STATIC_DIR / path.lstrip("/")
@@ -152,6 +154,22 @@ class WebServer:
                     self._send_json(200, {"tools": mcp.list_tools()})
                 except Exception as exc:
                     self._send_json(200, {"tools": [], "error": str(exc)})
+
+            def _handle_metrics(self) -> None:
+                """Prometheus 指标端点"""
+                try:
+                    from ..observability.metrics import metrics_collector
+                    text = metrics_collector.export_prometheus()
+                    body = text.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header(
+                        "Content-Type", "text/plain; version=0.0.4; charset=utf-8"
+                    )
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
 
         httpd = ThreadingHTTPServer((host, port), Handler)
         logger.info("AG-UI Web Server listening on http://%s:%d", host, port)
