@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: .traecli/src
+        working-directory: .
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-ruff-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          key: ${{ runner.os }}-pip-ruff-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-ruff-
 
@@ -45,7 +45,7 @@ jobs:
         run: pip install ruff
 
       - name: ruff check（代码风格检查）
-        run: ruff check legacy
+        run: ruff check .traecli/src/legacy
 
   # ===== Job 2: 单元测试（Python 版本矩阵） =====
   test:
@@ -58,7 +58,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     defaults:
       run:
-        working-directory: .traecli/src
+        working-directory: .
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
@@ -80,14 +80,14 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: 运行测试并生成覆盖率报告
-        run: pytest tests/ --cov=legacy --cov-report=xml --cov-report=term
+        run: pytest .traecli/src/tests/ --cov=legacy --cov-report=xml --cov-report=term
 
       - name: 上传测试覆盖率报告
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: .traecli/src/coverage.xml
+          path: coverage.xml
           retention-days: 14
 
   # ===== Job 3: 构建 Docker 镜像（仅构建不推送） =====
@@ -105,8 +105,8 @@ jobs:
       - name: 构建镜像（不推送）
         uses: docker/build-push-action@v6
         with:
-          context: .traecli
-          file: .traecli/Dockerfile
+          context: .
+          file: Dockerfile
           push: false
           tags: legacy-aftercare:ci
           cache-from: type=gha
@@ -120,7 +120,7 @@ jobs:
     continue-on-error: true
     defaults:
       run:
-        working-directory: .traecli/src
+        working-directory: .
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-eval-${{ hashFiles('.traecli/src/pyproject.toml') }}
+          key: ${{ runner.os }}-pip-eval-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-eval-
 
@@ -147,7 +147,7 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           JUDGE_MODELS: ${{ secrets.JUDGE_MODELS }}
-        run: legacy eval --cases-dir ../tests/automated/cases --verbose
+        run: legacy eval --cases-dir .traecli/tests/automated/cases --verbose
 
       - name: 上传评估报告
         if: always()

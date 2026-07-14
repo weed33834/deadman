@@ -14,7 +14,6 @@
 ### 构建镜像
 
 ```bash
-cd .traecli
 docker build -t legacy-aftercare:latest .
 ```
 
@@ -72,7 +71,6 @@ EOF
 ### 2. 启动全量服务
 
 ```bash
-cd .traecli
 docker compose --profile full up -d
 ```
 
@@ -207,6 +205,5 @@ print(asyncio.run(c.chat([{'role':'user','content':'hi'}])))
 ### 测试失败
 
 ```bash
-cd .traecli/src
-python -m pytest tests/ -v --tb=long
+python -m pytest .traecli/src/tests/ -v --tb=long
 ```

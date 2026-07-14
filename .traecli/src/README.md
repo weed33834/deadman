@@ -7,12 +7,12 @@
 - 英文：**Legacy**
 - 日文：**終活**（しゅうかつ）
 
-详见 [BRAND.md](../BRAND.md)。
+详见 [BRAND.md](../../BRAND.md)。
 
 ## 安装
 
 ```bash
-cd .traecli/src
+cd legacy-aftercare
 pip install -e .
 ```
 
@@ -48,7 +48,7 @@ legacy/
 ├── llm.py                 # LLM 客户端（多厂商）
 ├── rules_loader.py        # 规则加载器 + 规则校验器
 ├── cli.py                 # CLI 入口
-├── mcp_server/            # MCP Server（11 工具）
+├── mcp_server/            # MCP Server（13 工具）
 │   ├── __init__.py
 │   └── server.py
 ├── orchestration/         # LangGraph 编排

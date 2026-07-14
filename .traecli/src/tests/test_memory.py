@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from legacy.memory.manager import (
     MemoryManager,
@@ -19,7 +18,7 @@ from legacy.memory.manager import (
     sanitize_before_store,
     _mask_pii,
 )
-from legacy.memory.semantic import Fact, SemanticMemory, UserProfile
+from legacy.memory.semantic import SemanticMemory, UserProfile
 from legacy.memory.working import WorkingMemory
 
 

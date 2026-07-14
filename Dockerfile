@@ -39,7 +39,8 @@ RUN pip install --upgrade pip setuptools wheel
 # 复制 pyproject.toml + 源码，安装 legacy 包及其依赖
 # 利用 .dockerignore 排除 tests/ 与缓存，缩小构建上下文
 WORKDIR /build
-COPY src/ ./
+COPY pyproject.toml ./
+COPY .traecli/src/ ./.traecli/src/
 
 # 安装当前包（同时拉取全部 dependencies）
 RUN pip install --no-cache-dir .
@@ -50,7 +51,7 @@ RUN pip install --no-cache-dir .
 FROM python:3.11-slim AS runtime
 
 # 构建参数（仅用于镜像元数据，不进入运行时环境）
-ARG LEGACY_VERSION=4.2.0
+ARG LEGACY_VERSION=4.4.1
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
 
@@ -117,8 +118,8 @@ WORKDIR /app
 COPY --chown=legacy:legacy . /app/.traecli/
 
 # 复制入口脚本与健康检查脚本
-COPY --chown=legacy:legacy docker/entrypoint.sh /app/docker/entrypoint.sh
-COPY --chown=legacy:legacy docker/healthcheck.py /app/docker/healthcheck.py
+COPY --chown=legacy:legacy .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=legacy:legacy .traecli/docker/healthcheck.py /app/docker/healthcheck.py
 RUN chmod +x /app/docker/entrypoint.sh /app/docker/healthcheck.py
 
 # 切换到非 root 用户

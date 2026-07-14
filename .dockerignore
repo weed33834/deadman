@@ -37,7 +37,7 @@ coverage.xml
 *.cover
 .hypothesis/
 # 排除测试套件（eval 模式需挂载卷注入 tests/）
-tests/
+.traecli/src/tests/
 .traecli/tests/
 
 # === Markdown 文档 ===

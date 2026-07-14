@@ -10,12 +10,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
-from legacy.rules_loader import RuleChecker, RuleLoader, rule_checker, rule_loader
+from legacy.rules_loader import RuleChecker, RuleLoader, rule_checker
 from legacy.types import RiskTier
 
 

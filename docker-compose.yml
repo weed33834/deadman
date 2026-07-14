@@ -35,8 +35,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        LEGACY_VERSION: ${LEGACY_VERSION:-4.2.0}
-    image: legacy-aftercare:${LEGACY_VERSION:-4.2.0}
+        LEGACY_VERSION: ${LEGACY_VERSION:-4.4.1}
+    image: legacy-aftercare:${LEGACY_VERSION:-4.4.1}
     container_name: legacy
     restart: unless-stopped
     ports:

@@ -8,9 +8,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from legacy.mcp_server.server import McpServer, mcp
 

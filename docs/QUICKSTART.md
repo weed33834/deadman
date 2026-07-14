@@ -6,7 +6,7 @@
 
 ```bash
 git clone https://github.com/MS33834/legacy-aftercare.git
-cd legacy-aftercare/.traecli/src
+cd legacy-aftercare
 pip install -e .
 ```
 
@@ -49,7 +49,6 @@ legacy mcp-server
 #### 方式 C：Docker
 
 ```bash
-cd .traecli
 docker build -t legacy-aftercare .
 docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
 ```
@@ -57,8 +56,7 @@ docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
 ### 4. 运行测试
 
 ```bash
-cd .traecli/src
-python -m pytest tests/ -v
+python -m pytest .traecli/src/tests/ -v
 ```
 
 ### 5. 运行评估
@@ -94,7 +92,7 @@ L7 retrieval       > 检索防护
 L8 tone            > 语气
 ```
 
-### MCP 工具（11 个）
+### MCP 工具（13 个）
 
 ```
 query_knowledge    - 查询地域知识库
@@ -108,6 +106,8 @@ query_memory       - 分层记忆查询
 initiate_debate    - 发起辩论
 call_external_agent - A2A 外部调用
 execute_reflexion  - 反思重试
+init_transfer      - 发起智能体转介
+report_incident    - 上报安全事件
 ```
 
 ## 下一步

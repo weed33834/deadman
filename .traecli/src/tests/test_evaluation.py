@@ -9,9 +9,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
 
-import pytest
 
 from legacy.evaluation.three_layer import (
     KeywordChecker,

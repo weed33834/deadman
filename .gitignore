@@ -54,6 +54,10 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# === Linter 缓存 ===
+.ruff_cache/
+**/.ruff_cache/
+
 # === IDE ===
 .idea/
 .vscode/

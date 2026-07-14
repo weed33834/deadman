@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "legacy-aftercare"
-version = "4.4.0"
+version = "4.4.1"
 description = "Legacy / 死者为大 / 終活 - 通用身后事多智能体平台（不绑定任何厂商，适用于所有支持 agent 的平台）"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -59,7 +59,7 @@ legacy = "legacy.cli:main"
 legacy-mcp-server = "legacy.mcp_server.server:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = [".traecli/src"]
 include = ["legacy*"]
 
 [tool.ruff]
