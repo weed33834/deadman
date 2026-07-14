@@ -4,6 +4,16 @@
 
 三语品牌名：**Legacy**（英）/ **死者为大**（中）/ **終活**（日）
 
+## 仓库地址
+
+本项目三仓平等维护（均为各自平台的主仓库，非镜像关系），任一仓库均可 clone：
+
+| 平台 | 地址 |
+|------|------|
+| GitHub | https://github.com/bad-hope/legacy-aftercare |
+| GitCode | https://gitcode.com/badhope/legacy-aftercare |
+| Gitee | https://gitee.com/badhope/legacy-aftercare |
+
 ## 快速开始
 
 ### 1. 安装

@@ -78,7 +78,7 @@ def _build_default_card() -> AgentCard:
         ],
         provider={
             "name": "Legacy Aftercare Platform",
-            "url": "https://github.com/MS33834/legacy-aftercare",
+            "url": "https://github.com/bad-hope/legacy-aftercare",
         },
         authentication={"schemes": ["bearer"]},
     )

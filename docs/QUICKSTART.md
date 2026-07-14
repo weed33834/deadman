@@ -5,7 +5,7 @@
 ### 1. 安装
 
 ```bash
-git clone https://github.com/MS33834/legacy-aftercare.git
+git clone https://github.com/bad-hope/legacy-aftercare.git
 cd legacy-aftercare
 pip install -e .
 ```

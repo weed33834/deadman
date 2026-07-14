@@ -156,7 +156,12 @@ docker compose --profile observability up -d
 - **ci.yml**：push 到 main 时自动跑 lint + test（Python 3.10/3.11/3.12 矩阵）+ Docker 构建（仅构建不推送），无需任何 Secrets
 - **release.yml**：打 `v*` tag 时构建 Docker 镜像并推送到 ghcr.io + 自动生成 GitHub Release
 
-> GitCode 与 GitHub 均为主仓库（双仓平等维护），不再使用镜像同步流水线。
+> 本项目三仓平等维护（均为各自平台的主仓库，非镜像关系）：
+> - GitHub: https://github.com/bad-hope/legacy-aftercare
+> - GitCode: https://gitcode.com/badhope/legacy-aftercare
+> - Gitee: https://gitee.com/badhope/legacy-aftercare
+>
+> 不再使用镜像同步流水线，三仓通过本地 `sync.sh` 手动同步推送。
 
 ## 安全注意事项
 
