@@ -35,6 +35,9 @@ dependencies = [
     # 评估
     "pyyaml>=6.0",
     "pydantic>=2.0",
+    # LLM 官方 SDK（多厂商统一封装 + fallback）
+    "openai>=1.30.0",
+    "anthropic>=0.40.0",
     # 工具
     "httpx>=0.27.0",
     "tenacity>=8.0",
@@ -50,8 +53,11 @@ dev = [
 lightrag = ["lightrag-hku>=1.0"]
 graphiti = ["graphiti-core>=0.5"]
 langfuse = ["langfuse>=2.0"]
+openai = ["openai>=1.30"]
+anthropic = ["anthropic>=0.40"]
+sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=2.0"]
 all = [
-    "legacy-aftercare[dev,lightrag,graphiti,langfuse]",
+    "legacy-aftercare[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint]",
 ]
 
 [project.scripts]

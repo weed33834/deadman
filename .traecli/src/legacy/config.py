@@ -18,12 +18,21 @@ class Settings:
     mcp_server_port: int = int(os.getenv("MCP_SERVER_PORT", "8000"))
     mcp_server_host: str = os.getenv("MCP_SERVER_HOST", "127.0.0.1")
 
-    # === LLM ===
+    # === LLM 主配置 ===
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # openai/anthropic/zhipu/...
     llm_model: str = os.getenv("LLM_MODEL", "gpt-4o")
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_base_url: str = os.getenv("LLM_BASE_URL", "")
     llm_timeout: int = int(os.getenv("LLM_TIMEOUT", "30"))
+
+    # === LLM Fallback 链（主 LLM 失败时按序尝试）===
+    # 格式："provider:model" 逗号分隔，例如 "openai:gpt-4o,anthropic:claude-3-5-sonnet,zhipu:glm-4.6"
+    # 每个 provider 的 api_key 从 {PROVIDER}_API_KEY 环境变量读取（OPENAI_API_KEY/ANTHROPIC_API_KEY/ZHIPU_API_KEY）
+    llm_fallback_chain: list[str] = field(
+        default_factory=lambda: [
+            x.strip() for x in os.getenv("LLM_FALLBACK_CHAIN", "").split(",") if x.strip()
+        ]
+    )
 
     # === 评审模型（LLM-as-Judge） ===
     judge_models: list[str] = field(
@@ -42,6 +51,11 @@ class Settings:
     # === 记忆 ===
     memory_max_turns: int = int(os.getenv("MEMORY_MAX_TURNS", "10"))
     memory_retention_years: int = int(os.getenv("MEMORY_RETENTION_YEARS", "7"))
+
+    # === Checkpointer（LangGraph 状态持久化）===
+    # 开发期用 SQLite，生产可换 Postgres（langgraph-checkpoint-postgres）
+    # 为空则降级为 MemorySaver（进程重启即丢）
+    checkpoint_db_path: str = os.getenv("CHECKPOINT_DB_PATH", "data/checkpoints.db")
 
     # === Reflexion ===
     reflexion_max_retries: int = int(os.getenv("REFLEXION_MAX_RETRIES", "3"))

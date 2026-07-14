@@ -48,6 +48,7 @@ LANGGRAPH_AVAILABLE = False
 StateGraph = None  # type: ignore
 END = None  # type: ignore
 MemorySaver = None  # type: ignore
+SqliteSaver = None  # type: ignore
 
 try:
     from langgraph.graph import StateGraph as _StateGraph, END as _END  # type: ignore
@@ -57,6 +58,16 @@ try:
     END = _END
     MemorySaver = _MemorySaver
     LANGGRAPH_AVAILABLE = True
+    # SqliteSaver 是独立可选依赖（langgraph-checkpoint-sqlite）
+    try:
+        from langgraph.checkpoint.sqlite import SqliteSaver as _SqliteSaver  # type: ignore
+
+        SqliteSaver = _SqliteSaver
+    except ImportError:
+        logger.info(
+            "langgraph-checkpoint-sqlite 不可用，checkpointer 降级为 MemorySaver（进程重启即丢）。"
+            "pip install langgraph-checkpoint-sqlite 后可获得持久化 checkpoint。"
+        )
 except ImportError:
     logger.info(
         "langgraph 不可用，编排将降级为 SequentialExecutor（顺序执行）模式。"
@@ -327,11 +338,29 @@ def _build_langgraph():
     graph.add_edge(NODE_RESPOND, END)
 
     # === 编译 ===
-    # 尝试使用 MemorySaver 作为 checkpointer（支持多轮对话状态恢复）
+    # checkpointer 优先级：SqliteSaver（持久化）> MemorySaver（内存）> None
     checkpointer = None
-    if MemorySaver is not None:
+    if SqliteSaver is not None:
+        try:
+            import sqlite3
+            from pathlib import Path
+
+            from ..config import settings
+
+            db_path = settings.checkpoint_db_path
+            if db_path:
+                Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+                conn = sqlite3.connect(db_path, check_same_thread=False)
+                checkpointer = SqliteSaver(conn)
+                logger.info("checkpointer 使用 SqliteSaver（持久化到 %s）", db_path)
+        except Exception as e:
+            logger.warning("SqliteSaver 初始化失败，尝试降级到 MemorySaver: %s", e)
+            checkpointer = None
+
+    if checkpointer is None and MemorySaver is not None:
         try:
             checkpointer = MemorySaver()
+            logger.info("checkpointer 降级为 MemorySaver（进程重启即丢）")
         except Exception as e:
             logger.warning("MemorySaver 初始化失败，编译无 checkpointer: %s", e)
 
