@@ -100,6 +100,16 @@ except Exception:
     get_predefined_strategy = None  # type: ignore
     _REFLEXION_AVAILABLE = False
 
+# LightRAG 知识图谱检索（可选依赖）
+try:
+    from lightrag import LightRAG, QueryParam  # type: ignore
+
+    _LIGHTRAG_AVAILABLE = True
+except Exception:
+    LightRAG = None  # type: ignore
+    QueryParam = None  # type: ignore
+    _LIGHTRAG_AVAILABLE = False
+
 
 # =====================================================================
 # 辅助函数
@@ -268,6 +278,84 @@ def _error_response(tool_name: str, exc: BaseException) -> dict[str, Any]:
         "message": str(exc),
         "timestamp": _utcnow_iso(),
     }
+
+
+# =====================================================================
+# LightRAG 客户端懒加载
+# =====================================================================
+
+_lightrag_instance: Any = None
+_lightrag_ingested: bool = False
+
+
+def _get_lightrag() -> Any:
+    """懒加载 LightRAG 实例（进程级单例）
+
+    需要 LIGHTRAG_ENABLED=true 且 lightrag 包已安装。
+    首次调用时自动 ingest knowledge/regions/ 下的全部 .md 文件。
+    """
+    global _lightrag_instance, _lightrag_ingested
+    if not settings.lightrag_enabled or not _LIGHTRAG_AVAILABLE:
+        return None
+    if _lightrag_instance is None:
+        try:
+            storage_dir = settings.lightrag_storage_dir
+            storage_dir.mkdir(parents=True, exist_ok=True)
+            # LightRAG 需要一个 LLM 调用函数；用 llm.py 的客户端封装
+            from ..llm import llm_client
+
+            async def _llm_model_func(
+                prompt: str,
+                system_prompt: str | None = None,
+                history_messages: list | None = None,
+                **kwargs: Any,
+            ) -> str:
+                messages: list[dict[str, str]] = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                if history_messages:
+                    messages.extend(history_messages)
+                messages.append({"role": "user", "content": prompt})
+                return await llm_client.chat(messages, **kwargs)
+
+            _lightrag_instance = LightRAG(
+                working_dir=str(storage_dir),
+                llm_model_func=_llm_model_func,
+            )
+            logger.info("LightRAG 初始化完成，storage_dir=%s", storage_dir)
+        except Exception as exc:
+            logger.warning("LightRAG 初始化失败: %s", exc)
+            _lightrag_instance = None
+            return None
+
+    # 首次使用时自动 ingest 知识库
+    if not _lightrag_ingested:
+        _ingest_knowledge_files()
+        _lightrag_ingested = True
+
+    return _lightrag_instance
+
+
+def _ingest_knowledge_files() -> None:
+    """将 knowledge/regions/ 下的全部 .md 文件导入 LightRAG"""
+    if _lightrag_instance is None:
+        return
+    regions_dir = settings.knowledge_dir / "regions"
+    if not regions_dir.exists():
+        return
+    count = 0
+    for md_file in regions_dir.rglob("*.md"):
+        try:
+            content = md_file.read_text(encoding="utf-8")
+            rel_path = md_file.relative_to(settings.project_root).as_posix()
+            # 加上文件路径作为上下文前缀，便于 LightRAG 实体抽取
+            tagged = f"[来源: {rel_path}]\n\n{content}"
+            _lightrag_instance.insert(tagged)
+            count += 1
+        except Exception as exc:
+            logger.warning("LightRAG ingest 失败 %s: %s", md_file, exc)
+    if count > 0:
+        logger.info("LightRAG 已 ingest %d 个知识库文件", count)
 
 
 # =====================================================================
@@ -687,26 +775,39 @@ async def query_knowledge(
     # LightRAG 模式判断
     lightrag_mode = query_mode in {"local", "global", "hybrid"}
     degraded = False
+    graph_content: str | None = None
     graph_entities: list[dict[str, Any]] = []
     graph_relations: list[dict[str, Any]] = []
-    if lightrag_mode and not settings.lightrag_enabled:
-        degraded = True
+
+    if lightrag_mode:
+        rag = _get_lightrag()
+        if rag is not None:
+            # 调用 LightRAG 查询
+            try:
+                query_text = f"{country} {region or ''} {topic}".strip()
+                param = QueryParam(mode=query_mode) if QueryParam else None
+                graph_content = rag.query(query_text, param=param)
+            except Exception as exc:
+                logger.warning("LightRAG 查询失败，降级为向量检索: %s", exc)
+                degraded = True
+        else:
+            degraded = True
     # 本体过滤：当前未接入实体图谱，仅回填空列表 + 标注
     if entity_types or relation_types:
-        # 没有图谱数据时，过滤无意义，仅在结果中回显请求
         graph_entities = []
         graph_relations = []
 
     return {
         "found": True,
         "data": {
-            "content": topic_snippet or content,
+            "content": graph_content or topic_snippet or content,
             "full_file": str(target.relative_to(settings.project_root)),
             "last_updated": meta["last_updated"],
             "sources": meta["sources"],
             "trust_level": meta["trust_level"],
             "freshness_status": freshness,
         },
+        "graph_content": graph_content,
         "graph_entities": graph_entities,
         "graph_relations": graph_relations,
         "needs_research": False,
