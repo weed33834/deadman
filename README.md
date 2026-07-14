@@ -9,7 +9,7 @@
 ### 1. 安装
 
 ```bash
-cd .traecli/src
+cd legacy-aftercare
 pip install -e .
 ```
 
@@ -37,7 +37,6 @@ legacy eval -v
 ### 4. Docker 部署
 
 ```bash
-cd .traecli
 docker build -t legacy-aftercare .
 docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
 ```
@@ -45,23 +44,23 @@ docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
 ### 5. 全量部署（含 Neo4j + Langfuse + OTel）
 
 ```bash
-cd .traecli
 docker compose --profile full up -d
 ```
 
 ## 项目结构
 
 ```
-.traecli/
-├── agents/           # 22 个智能体定义（6 并列 + 12 子 + 3 机制 + TEAM）
-├── rules/            # 14 个规则文件（L0-L8 优先级链）
-├── knowledge/        # 地域知识库 + 知识图谱
-├── skills/           # 技能定义
-├── tests/            # 测试 case
-├── src/legacy/       # Python 实现（12 模块）
-├── Dockerfile        # 容器化
-├── docker-compose.yml
-└── ...
+legacy-aftercare/
+├── README.md / CHANGELOG.md / pyproject.toml   # 项目入口
+├── Dockerfile / docker-compose.yml             # 容器化
+├── docs/                                       # 快速开始 + 部署指南
+└── .traecli/                                   # 业务实现
+    ├── agents/           # 22 个智能体定义（6 并列 + 12 子 + 3 机制 + TEAM）
+    ├── rules/            # 14 个规则文件（L0-L8 优先级链）
+    ├── knowledge/        # 地域知识库 + 知识图谱
+    ├── skills/           # 技能定义
+    ├── tests/            # 测试 case
+    └── src/legacy/       # Python 实现（12 模块）
 ```
 
 ## 文档
@@ -69,6 +68,6 @@ docker compose --profile full up -d
 - [品牌说明](BRAND.md)
 - [变更日志](CHANGELOG.md)
 - [平台适配](PLATFORMS.md)
-- [源码 README](src/README.md)
+- [源码 README](.traecli/src/README.md)
 - [快速开始](docs/QUICKSTART.md)
 - [部署指南](docs/DEPLOYMENT.md)

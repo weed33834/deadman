@@ -114,8 +114,9 @@ RUN mkdir -p /app/.traecli /app/data /app/docker \
 WORKDIR /app
 
 # 复制项目运行时数据（rules/agents/knowledge/skills 等被 MCP 工具读取）
-# 注意：src/ 中的 legacy 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
-COPY --chown=legacy:legacy . /app/.traecli/
+# 注意：构建上下文为仓库根目录，仅复制 .traecli/ 子目录以保持容器内路径结构
+# src/ 中的 legacy 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
+COPY --chown=legacy:legacy .traecli/ /app/.traecli/
 
 # 复制入口脚本与健康检查脚本
 COPY --chown=legacy:legacy .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh

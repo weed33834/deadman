@@ -4,6 +4,7 @@
 # === 密钥与敏感文件（绝不入仓库） ===
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 *.p12
