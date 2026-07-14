@@ -64,6 +64,7 @@ all = [
 [project.scripts]
 legacy = "legacy.cli:main"
 legacy-mcp-server = "legacy.mcp_server.server:main"
+legacy-a2a-server = "legacy.a2a.server:main"
 
 [tool.setuptools.packages.find]
 where = [".traecli/src"]
