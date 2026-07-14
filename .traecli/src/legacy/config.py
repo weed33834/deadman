@@ -57,6 +57,14 @@ class Settings:
     # 为空则降级为 MemorySaver（进程重启即丢）
     checkpoint_db_path: str = os.getenv("CHECKPOINT_DB_PATH", "data/checkpoints.db")
 
+    # === Docker 沙箱（工具隔离执行）===
+    # 启用后 write_file 等工具在 Docker 容器内执行，避免污染主环境
+    # 需要 Docker daemon 可用；不可用时自动降级为本地执行
+    sandbox_enabled: bool = os.getenv("SANDBOX_ENABLED", "false").lower() == "true"
+    sandbox_image: str = os.getenv("SANDBOX_IMAGE", "python:3.12-slim")
+    sandbox_timeout: int = int(os.getenv("SANDBOX_TIMEOUT", "30"))
+    sandbox_work_dir: str = os.getenv("SANDBOX_WORK_DIR", "/tmp/legacy-sandbox")
+
     # === Reflexion ===
     reflexion_max_retries: int = int(os.getenv("REFLEXION_MAX_RETRIES", "3"))
 

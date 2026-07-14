@@ -65,10 +65,14 @@ all = [
 legacy = "legacy.cli:main"
 legacy-mcp-server = "legacy.mcp_server.server:main"
 legacy-a2a-server = "legacy.a2a.server:main"
+legacy-web-server = "legacy.web.server:main"
 
 [tool.setuptools.packages.find]
 where = [".traecli/src"]
 include = ["legacy*"]
+
+[tool.setuptools.package-data]
+legacy = ["web/static/*"]
 
 [tool.ruff]
 line-length = 100

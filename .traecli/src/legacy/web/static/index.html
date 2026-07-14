@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>身后事智能体平台</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f5f7; color: #1d1d1f; height: 100vh; display: flex;
+  }
+  .sidebar {
+    width: 240px; background: #1d1d1f; color: #f5f5f7; padding: 20px 0;
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .sidebar h1 { font-size: 16px; padding: 0 20px 20px; border-bottom: 1px solid #333; }
+  .agent-list { flex: 1; overflow-y: auto; padding: 10px 0; }
+  .agent-item {
+    padding: 10px 20px; cursor: pointer; transition: background 0.2s; font-size: 14px;
+  }
+  .agent-item:hover { background: #2d2d2f; }
+  .agent-item.active { background: #3a3a3c; border-left: 3px solid #0a84ff; }
+  .sidebar-footer { padding: 12px 20px; font-size: 12px; color: #86868b; border-top: 1px solid #333; }
+  .main { flex: 1; display: flex; flex-direction: column; }
+  .header {
+    padding: 16px 24px; background: #fff; border-bottom: 1px solid #e5e5e7;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h2 { font-size: 16px; font-weight: 500; }
+  .status-badge {
+    font-size: 12px; padding: 4px 10px; border-radius: 12px;
+    background: #e8f5e9; color: #2e7d32;
+  }
+  .status-badge.degraded { background: #fff3e0; color: #e65100; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 24px; }
+  .message {
+    max-width: 720px; margin: 0 auto 16px; display: flex; gap: 12px;
+  }
+  .message.user { flex-direction: row-reverse; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff;
+  }
+  .avatar.user { background: #0a84ff; }
+  .avatar.bot { background: #34c759; }
+  .bubble {
+    max-width: 70%; padding: 12px 16px; border-radius: 16px;
+    line-height: 1.6; font-size: 14px; white-space: pre-wrap; word-break: break-word;
+  }
+  .message.user .bubble { background: #0a84ff; color: #fff; border-bottom-right-radius: 4px; }
+  .message.bot .bubble { background: #fff; color: #1d1d1f; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .meta { font-size: 11px; color: #86868b; margin-top: 4px; }
+  .input-area {
+    padding: 16px 24px; background: #fff; border-top: 1px solid #e5e5e7;
+  }
+  .input-wrapper {
+    max-width: 720px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-end;
+  }
+  textarea {
+    flex: 1; padding: 12px 16px; border: 1px solid #d2d2d7; border-radius: 12px;
+    font-size: 14px; font-family: inherit; resize: none; max-height: 120px;
+    outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: #0a84ff; }
+  button {
+    padding: 12px 20px; background: #0a84ff; color: #fff; border: none;
+    border-radius: 12px; font-size: 14px; cursor: pointer; transition: background 0.2s;
+  }
+  button:hover { background: #0071e3; }
+  button:disabled { background: #d2d2d7; cursor: not-allowed; }
+  .typing { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #86868b; margin: 0 2px; animation: blink 1.4s infinite both; }
+  .typing:nth-child(2) { animation-delay: 0.2s; }
+  .typing:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+  .transfer-card {
+    max-width: 720px; margin: 0 auto 16px; padding: 16px; background: #fff3e0;
+    border-radius: 12px; border-left: 4px solid #ff9500;
+  }
+  .transfer-card h3 { font-size: 14px; margin-bottom: 8px; color: #e65100; }
+  .transfer-card p { font-size: 13px; color: #6d4c41; margin-bottom: 12px; }
+  .transfer-card button { background: #ff9500; padding: 8px 16px; font-size: 13px; }
+  .transfer-card button.reject { background: #86868b; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <h1>身后事智能体平台</h1>
+  <div class="agent-list" id="agentList"></div>
+  <div class="sidebar-footer">v4.4.1 · 方案 C 全栈</div>
+</div>
+<div class="main">
+  <div class="header">
+    <h2 id="currentAgent">身后事流程引导员</h2>
+    <div class="status-badge" id="statusBadge">就绪</div>
+  </div>
+  <div class="chat-area" id="chatArea">
+    <div class="message bot">
+      <div class="avatar bot">AI</div>
+      <div>
+        <div class="bubble">您好，我是身后事流程引导员。在这个困难时期，我会协助您处理逝者的身后事务。请问有什么需要帮助的？</div>
+        <div class="meta">身后事流程引导员</div>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea id="input" placeholder="输入您的问题..." rows="1" onkeydown="handleKey(event)"></textarea>
+      <button id="sendBtn" onclick="send()">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const AGENTS = [
+  { id: "death-aftercare", name: "身后事流程引导员" },
+  { id: "legal-advisor", name: "法律咨询智能体" },
+  { id: "financial-analyst", name: "财务分析智能体" },
+  { id: "policy-researcher", name: "政策研究智能体" },
+  { id: "cross-border-specialist", name: "跨境事务智能体" },
+  { id: "medical-guide", name: "医疗导航智能体" },
+];
+let currentAgent = "death-aftercare";
+let history = [];
+let streaming = false;
+
+const agentList = document.getElementById("agentList");
+AGENTS.forEach(a => {
+  const div = document.createElement("div");
+  div.className = "agent-item" + (a.id === currentAgent ? " active" : "");
+  div.textContent = a.name;
+  div.dataset.id = a.id;
+  div.onclick = () => switchAgent(a.id, a.name, div);
+  agentList.appendChild(div);
+});
+
+function switchAgent(id, name, el) {
+  currentAgent = id;
+  document.getElementById("currentAgent").textContent = name;
+  document.querySelectorAll(".agent-item").forEach(e => e.classList.remove("active"));
+  el.classList.add("active");
+}
+
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+const chatArea = document.getElementById("chatArea");
+const statusBadge = document.getElementById("statusBadge");
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 120) + "px";
+});
+
+function handleKey(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+}
+
+function addMessage(role, text, meta) {
+  const msg = document.createElement("div");
+  msg.className = "message " + role;
+  const avatar = document.createElement("div");
+  avatar.className = "avatar " + role;
+  avatar.textContent = role === "user" ? "我" : "AI";
+  const content = document.createElement("div");
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  content.appendChild(bubble);
+  if (meta) {
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = meta;
+    content.appendChild(m);
+  }
+  msg.appendChild(avatar);
+  msg.appendChild(content);
+  chatArea.appendChild(msg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return bubble;
+}
+
+async function send() {
+  const text = input.value.trim();
+  if (!text || streaming) return;
+  input.value = "";
+  input.style.height = "auto";
+  addMessage("user", text);
+  history.push({ role: "user", content: text });
+
+  streaming = true;
+  sendBtn.disabled = true;
+  statusBadge.textContent = "流式响应中";
+  statusBadge.classList.add("degraded");
+
+  // 创建占位 bot 消息
+  const bubble = addMessage("bot", "");
+  bubble.innerHTML = '<span class="typing"></span><span class="typing"></span><span class="typing"></span>';
+  let fullResponse = "";
+
+  try {
+    // SSE 流式
+    const url = `/api/stream?query=${encodeURIComponent(text)}&agent=${encodeURIComponent(currentAgent)}`;
+    const resp = await fetch(url);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.chunk) {
+              fullResponse += data.chunk;
+              bubble.textContent = fullResponse;
+              chatArea.scrollTop = chatArea.scrollHeight;
+            }
+          } catch (e) {}
+        } else if (line.startsWith("event: done")) {
+          break;
+        } else if (line.startsWith("event: error")) {
+          // 下一行是 data
+        }
+      }
+    }
+
+    if (!fullResponse) {
+      // 降级到同步
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: text, agent: currentAgent, history }),
+      });
+      const data = await r.json();
+      fullResponse = data.response || "(空响应)";
+      if (data.degraded) statusBadge.classList.add("degraded");
+    }
+
+    bubble.textContent = fullResponse;
+    history.push({ role: "assistant", content: fullResponse });
+  } catch (e) {
+    bubble.textContent = "请求失败: " + e.message;
+  } finally {
+    streaming = false;
+    sendBtn.disabled = false;
+    statusBadge.textContent = "就绪";
+    statusBadge.classList.remove("degraded");
+  }
+}
+</script>
+</body>
+</html>

@@ -1006,7 +1006,11 @@ async def write_file(
     overwrite: bool = False,
     create_dirs: bool = True,
 ) -> dict[str, Any]:
-    """写入项目内文件，带安全限制"""
+    """写入项目内文件，带安全限制
+
+    SANDBOX_ENABLED=true 且 Docker 可用时，在容器内执行写入；
+    否则降级为本地写入。
+    """
     target = _safe_resolve(path)
     if target is None:
         return {"ok": False, "path": path, "error": "路径越界或包含非法引用"}
@@ -1034,6 +1038,19 @@ async def write_file(
     if existed and not overwrite:
         return {"ok": False, "path": path, "error": "文件已存在且 overwrite=false"}
 
+    # 沙箱模式：Docker 可用时在容器内写入
+    if settings.sandbox_enabled:
+        try:
+            from ..sandbox import sandbox_write_file
+
+            result = await sandbox_write_file(path, content, encoding)
+            if result.get("ok"):
+                result["created"] = not existed
+            return result
+        except Exception as exc:
+            logger.warning("沙箱写入失败，降级为本地: %s", exc)
+
+    # 本地写入（降级）
     if create_dirs:
         target.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1044,6 +1061,7 @@ async def write_file(
         "path": str(target.relative_to(settings.project_root)),
         "bytes_written": len(data),
         "created": not existed,
+        "sandbox": False,
     }
 
 
