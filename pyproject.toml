@@ -56,8 +56,9 @@ langfuse = ["langfuse>=2.0"]
 openai = ["openai>=1.30"]
 anthropic = ["anthropic>=0.40"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=2.0"]
+mcp = ["fastmcp>=0.8", "duckduckgo-search>=6.0"]
 all = [
-    "legacy-aftercare[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint]",
+    "legacy-aftercare[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp]",
 ]
 
 [project.scripts]

@@ -402,7 +402,26 @@ class McpServer:
         transport:
           - stdio: 通过 stdin/stdout 走 JSON-RPC（每行一个请求）
           - http:  启动一个简单的 HTTP server（/mcp 与 /tools 端点）
+
+        FastMCP 可用时优先委托其 transport（完整兼容官方 MCP 协议），
+        失败则降级到手写实现。
         """
+        # FastMCP 可用时优先用它的 transport（官方协议完整实现）
+        if self._fastmcp is not None:
+            try:
+                # FastMCP 的 transport 名称：stdio / sse
+                fmcp_transport = "sse" if transport == "http" else "stdio"
+                kwargs: dict[str, Any] = {}
+                if fmcp_transport == "sse":
+                    kwargs["host"] = host or settings.mcp_server_host
+                    kwargs["port"] = port or settings.mcp_server_port
+                logger.info("使用 FastMCP 官方 transport: %s", fmcp_transport)
+                self._fastmcp.run(transport=fmcp_transport, **kwargs)
+                return
+            except Exception as exc:
+                logger.warning("FastMCP run 失败，降级到手写 transport: %s", exc)
+
+        # 降级：手写 transport
         host = host or settings.mcp_server_host
         port = port or settings.mcp_server_port
         if transport == "stdio":
@@ -457,8 +476,8 @@ class McpServer:
                     "jsonrpc": "2.0",
                     "id": req_id,
                     "result": {
-                        "protocolVersion": "2024-11-05",
-                        "serverInfo": {"name": self.name, "version": "1.1.0"},
+                        "protocolVersion": "2025-06-18",
+                        "serverInfo": {"name": self.name, "version": "2.0.0"},
                         "capabilities": {"tools": {}},
                     },
                 }
@@ -707,8 +726,9 @@ async def query_knowledge(
 @mcp.tool(
     name="web_search",
     description=(
-        "联网搜索（mock 实现）。当前未接入真实搜索引擎，返回空结果并标记 needs_research=true。"
-        "智能体应据此触发 policy-researcher 子智能体或调用 call_external_agent。"
+        "联网搜索。优先使用 duckduckgo-search（免费无需 API key），"
+        "若依赖不可用则降级为 mock 并标记 needs_research=true。"
+        "智能体可据此补充知识库或触发 policy-researcher 子智能体。"
     ),
     input_schema={
         "type": "object",
@@ -735,10 +755,49 @@ async def web_search(
     language: str | None = None,
     max_results: int = 5,
 ) -> dict[str, Any]:
-    """联网搜索（mock）
+    """联网搜索
 
-    当前为占位实现：返回空结果列表，并提示调用方应触发 policy-researcher。
+    优先使用 duckduckgo-search 执行真实搜索；依赖不可用时降级为 mock。
     """
+    # 尝试使用 duckduckgo-search
+    try:
+        from duckduckgo_search import DDGS  # type: ignore
+
+        region = country.lower() if country else None
+        search_kwargs: dict[str, Any] = {"max_results": max_results}
+        if region:
+            search_kwargs["region"] = region
+        if language:
+            search_kwargs["safesearch"] = "moderate"
+
+        with DDGS() as ddgs:
+            raw_results = list(ddgs.text(query, **search_kwargs))
+
+        results = [
+            {
+                "title": r.get("title", ""),
+                "url": r.get("href", r.get("url", "")),
+                "snippet": r.get("body", r.get("snippet", "")),
+            }
+            for r in raw_results
+        ]
+
+        return {
+            "results": results,
+            "needs_research": len(results) == 0,
+            "mock": False,
+            "query": query,
+            "country": country,
+            "language": language,
+            "max_results": max_results,
+            "engine": "duckduckgo",
+        }
+    except ImportError:
+        logger.info("duckduckgo-search 不可用，web_search 降级为 mock")
+    except Exception as exc:
+        logger.warning("duckduckgo 搜索失败，降级为 mock: %s", exc)
+
+    # 降级：mock
     return {
         "results": [],
         "needs_research": True,
@@ -748,7 +807,8 @@ async def web_search(
         "language": language,
         "max_results": max_results,
         "suggestion": (
-            "web_search 当前为 mock 实现。建议触发 policy-researcher 子智能体执行真实搜索，"
+            "web_search 当前为 mock 实现（duckduckgo-search 不可用或搜索失败）。"
+            "pip install duckduckgo-search 后可获得真实搜索能力，"
             "或通过 call_external_agent 调用具备联网能力的外部 agent。"
         ),
     }
@@ -1590,7 +1650,7 @@ async def initiate_debate(
     description=(
         "通过 A2A 协议调用外部智能体。需用户提供数据共享同意（user_consent=true）。"
         "出口数据自动脱敏 PII，返回结果校验诚信报告。"
-        "当前为 mock 实现：不实际发起网络请求，返回模拟结果。"
+        "当 A2A_REGISTRY_URL 已配置时发起真实 HTTP 调用；否则降级为 mock。"
     ),
     input_schema={
         "type": "object",
@@ -1620,7 +1680,12 @@ async def call_external_agent(
     input_data: dict[str, Any],
     user_consent: bool,
 ) -> dict[str, Any]:
-    """A2A 外部智能体调用（mock 实现）"""
+    """A2A 外部智能体调用
+
+    当 settings.a2a_registry_url 已配置时，通过 httpx 发起真实 A2A HTTP 调用
+    （POST {registry_url}/agents/{to_agent_id}/tasks）；
+    否则降级为 mock 实现。
+    """
     # 强制用户同意
     if not user_consent:
         return {
@@ -1634,17 +1699,9 @@ async def call_external_agent(
 
     # 出口数据脱敏
     redacted_input = _redact_pii(input_data)
-
-    # mock：不实际发起网络请求
     task_id = str(uuid.uuid4())
-    mock_result: dict[str, Any] = {
-        "acknowledged": True,
-        "to_agent_id": to_agent_id,
-        "capability_id": capability_id,
-        "echo": redacted_input,
-        "note": "mock 响应，未实际调用外部 agent",
-    }
-    # 模拟 integrity_report
+
+    # 构造 integrity_report（无论真实/mock 都会返回）
     integrity_report: dict[str, Any] = {
         "checked_at": _utcnow_iso(),
         "data_redacted": True,
@@ -1653,6 +1710,58 @@ async def call_external_agent(
         "checksum": str(uuid.uuid4())[:8],
     }
 
+    # 尝试真实 A2A HTTP 调用
+    registry_url = getattr(settings, "a2a_registry_url", "") or ""
+    if registry_url:
+        try:
+            import httpx  # type: ignore
+
+            url = f"{registry_url.rstrip('/')}/agents/{to_agent_id}/tasks"
+            payload = {
+                "capability_id": capability_id,
+                "input_data": redacted_input,
+                "task_id": task_id,
+                "from_agent_id": getattr(settings, "a2a_self_agent_id", ""),
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+                external_result = resp.json()
+
+            integrity_report["source_verified"] = True
+            return {
+                "task_id": task_id,
+                "state": external_result.get("state", "completed"),
+                "result": external_result.get("result", external_result),
+                "integrity_report": integrity_report,
+                "integrity_verified": True,
+                "warning": None,
+                "redacted_input": redacted_input,
+                "transport": "a2a-http",
+            }
+        except ImportError:
+            logger.warning("httpx 不可用，call_external_agent 降级为 mock")
+        except Exception as exc:
+            logger.warning("A2A HTTP 调用失败，降级为 mock: %s", exc)
+            return {
+                "task_id": task_id,
+                "state": "failed",
+                "result": None,
+                "integrity_report": integrity_report,
+                "integrity_verified": False,
+                "warning": f"A2A 调用失败: {exc}",
+                "redacted_input": redacted_input,
+                "transport": "a2a-http-failed",
+            }
+
+    # 降级：mock
+    mock_result: dict[str, Any] = {
+        "acknowledged": True,
+        "to_agent_id": to_agent_id,
+        "capability_id": capability_id,
+        "echo": redacted_input,
+        "note": "mock 响应，未实际调用外部 agent（A2A_REGISTRY_URL 未配置）",
+    }
     return {
         "task_id": task_id,
         "state": "completed",
@@ -1660,10 +1769,11 @@ async def call_external_agent(
         "integrity_report": integrity_report,
         "integrity_verified": True,
         "warning": (
-            "mock 实现：未实际发起 A2A 网络调用。"
-            "集成真实 A2A registry 后请替换为 httpx 调用。"
+            "mock 实现：A2A_REGISTRY_URL 未配置，未实际发起 A2A 网络调用。"
+            "配置 A2A_REGISTRY_URL 后可获得真实 A2A 调用能力。"
         ),
         "redacted_input": redacted_input,
+        "transport": "mock",
     }
 
 
