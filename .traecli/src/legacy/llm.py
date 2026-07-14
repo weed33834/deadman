@@ -76,6 +76,69 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
         "env_key": "ZHIPU_API_KEY",
         "sdk": "openai",  # 智谱走 OpenAI 兼容接口
     },
+    # 本地模型 - Ollama（OpenAI 兼容接口，默认 11434 端口）
+    "ollama": {
+        "base_url": "http://localhost:11434/v1",
+        "env_key": "OLLAMA_API_KEY",  # Ollama 默认无需 key，用占位
+        "sdk": "openai",
+    },
+    # 本地模型 - vLLM（OpenAI 兼容接口，默认 8000 端口）
+    "vllm": {
+        "base_url": "http://localhost:8000/v1",
+        "env_key": "VLLM_API_KEY",  # vLLM 可选 token
+        "sdk": "openai",
+    },
+    # 本地模型 - llama.cpp server（OpenAI 兼容接口，默认 8080 端口）
+    "llama_cpp": {
+        "base_url": "http://localhost:8080/v1",
+        "env_key": "LLAMA_CPP_API_KEY",
+        "sdk": "openai",
+    },
+}
+
+
+# =====================================================================
+# 各厂商最新模型清单（2026-07 官网查证）
+# 用于 llm-test CLI 展示可选模型、成本估算
+# =====================================================================
+PROVIDER_MODELS: dict[str, list[dict[str, Any]]] = {
+    "openai": [
+        # 数据源: https://platform.openai.com/docs/models (2026-07-14)
+        {"id": "gpt-5.5", "name": "GPT-5.5", "context": "1M", "input_price": 5.0, "output_price": 30.0},
+        {"id": "gpt-5.4", "name": "GPT-5.4", "context": "1M", "input_price": 2.5, "output_price": 15.0},
+        {"id": "gpt-5.4-mini", "name": "GPT-5.4 mini", "context": "400K", "input_price": 0.75, "output_price": 4.5},
+        {"id": "gpt-5.4-nano", "name": "GPT-5.4 nano", "context": "400K", "input_price": 0.3, "output_price": 1.8},
+    ],
+    "anthropic": [
+        # 数据源: https://platform.claude.com/docs/en/about-claude/pricing (2026-07-14)
+        {"id": "claude-fable-5", "name": "Claude Fable 5", "context": "1M", "input_price": 10.0, "output_price": 50.0},
+        {"id": "claude-opus-4-8", "name": "Claude Opus 4.8", "context": "1M", "input_price": 5.0, "output_price": 25.0},
+        {"id": "claude-sonnet-5", "name": "Claude Sonnet 5", "context": "1M", "input_price": 2.0, "output_price": 10.0},
+        {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "context": "200K", "input_price": 1.0, "output_price": 5.0},
+    ],
+    "zhipu": [
+        # 数据源: https://docs.bigmodel.cn/cn/update/new-releases (2026-07-14)
+        {"id": "glm-5.2", "name": "GLM-5.2", "context": "1M", "input_price": None, "output_price": None},
+        {"id": "glm-5.1", "name": "GLM-5.1", "context": "200K", "input_price": None, "output_price": None},
+        {"id": "glm-5", "name": "GLM-5", "context": "200K", "input_price": None, "output_price": None},
+        {"id": "glm-4.7", "name": "GLM-4.7", "context": "200K", "input_price": None, "output_price": None},
+        {"id": "glm-4.7-flash", "name": "GLM-4.7 Flash (免费)", "context": "200K", "input_price": 0.0, "output_price": 0.0},
+        {"id": "glm-4.6", "name": "GLM-4.6", "context": "200K", "input_price": None, "output_price": None},
+    ],
+    "ollama": [
+        # 本地模型，价格均为 0（本地运行）
+        {"id": "qwen3:32b", "name": "Qwen3 32B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
+        {"id": "qwen3:14b", "name": "Qwen3 14B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
+        {"id": "llama3.3:70b", "name": "Llama 3.3 70B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
+        {"id": "deepseek-r1:32b", "name": "DeepSeek R1 32B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
+    ],
+    "vllm": [
+        # vLLM 模型由用户自行加载，这里仅占位
+        {"id": "custom", "name": "用户自定义模型", "context": "N/A", "input_price": 0.0, "output_price": 0.0},
+    ],
+    "llama_cpp": [
+        {"id": "custom", "name": "用户自定义模型", "context": "N/A", "input_price": 0.0, "output_price": 0.0},
+    ],
 }
 
 
@@ -190,7 +253,10 @@ class LLMClient:
         # 先试主客户端，再试 fallback
         for client in [self, *self._fallback_clients]:
             try:
-                return await client._call_once(messages, temperature, max_tokens, tools, **kwargs)
+                resp = await client._call_once(messages, temperature, max_tokens, tools, **kwargs)
+                # 成功后记录成本(实际 token 用量→成本)
+                self._track_cost(resp)
+                return resp
             except Exception as e:
                 last_error = e
                 logger.warning(
@@ -201,6 +267,21 @@ class LLMClient:
                 )
                 continue
         raise RuntimeError(f"所有 LLM 均调用失败，最后错误: {last_error}") from last_error
+
+    def _track_cost(self, resp: LLMResponse) -> None:
+        """把本次调用的 token 用量记入成本追踪器(失败静默,不阻断主流程)"""
+        try:
+            from .cost import cost_tracker
+
+            usage = resp.usage or {}
+            cost_tracker.record_usage(
+                provider=self.provider,
+                model=self.model,
+                prompt_tokens=usage.get("prompt_tokens", 0),
+                completion_tokens=usage.get("completion_tokens", 0),
+            )
+        except Exception:  # pragma: no cover - 成本追踪失败不影响业务
+            pass
 
     async def chat_stream(
         self,
@@ -232,6 +313,25 @@ class LLMClient:
         """多次采样 - SelfCheckGPT 用"""
         tasks = [self.chat(messages, temp, **kwargs) for temp in temperatures]
         return await asyncio.gather(*tasks)
+
+    async def ping_once(
+        self,
+        messages: list[dict[str, str]] | None = None,
+        max_tokens: int = 20,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """单次直连调用 - 不走 fallback 链、不重试。
+
+        专供 llm-test 等"接入测试"场景使用:测的就是这一个 provider+model 的
+        真实可达性与延迟,避免重试/ fallback 掩盖问题。
+
+        Args:
+            messages: 测试消息,默认用一个简短 ping
+            max_tokens: 最大输出 token,默认 20(接入测试只需短回复)
+        """
+        if messages is None:
+            messages = [{"role": "user", "content": "请只回复四个字:pong ok"}]
+        return await self._dispatch(messages, 0.0, max_tokens, None, **kwargs)
 
     # ==================================================================
     # 单次调用（含重试，不含 fallback）
@@ -605,6 +705,60 @@ class LLMClient:
             if start != -1 and end != -1:
                 return json.loads(text[start : end + 1])
             raise
+
+
+# =====================================================================
+# 模型清单同步 - 定期 fetch 各 provider /models 端点拿真实可用模型
+# =====================================================================
+async def fetch_provider_models(provider: str) -> list[dict[str, Any]]:
+    """从 provider 的 /models 端点拉取真实可用模型清单
+
+    各厂商端点:
+      - OpenAI 兼容(openai/zhipu/ollama/vllm/llama_cpp): GET {base_url}/models
+      - Anthropic: GET https://api.anthropic.com/v1/models (需 x-api-key + anthropic-version)
+
+    返回 [{"id": ..., "owned_by": ...}, ...],失败返回空列表(不抛异常)
+
+    用于 llm-sync-models CLI:把线上真实模型与本地 PROVIDER_MODELS 对比,
+    发现新模型/下线模型,避免用本地旧数据。
+    """
+    defaults = _PROVIDER_DEFAULTS.get(provider, {})
+    base_url = defaults.get("base_url", "")
+    env_key = defaults.get("env_key", "")
+    api_key = os.getenv(env_key, "") if env_key else ""
+
+    if not _HAS_HTTPX:
+        logger.warning("httpx 不可用,无法 fetch %s 模型清单", provider)
+        return []
+
+    if provider == "anthropic":
+        url = "https://api.anthropic.com/v1/models?limit=100"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+    else:
+        url = f"{base_url}/models"
+        headers = {"Authorization": f"Bearer {api_key or 'none'}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as http_client:
+            resp = await http_client.get(url, headers=headers)
+            if resp.status_code != 200:
+                logger.info("fetch %s models 返回 %s", provider, resp.status_code)
+                return []
+            data = resp.json()
+        # OpenAI 兼容: data["data"] = [{"id": ...}]
+        # Anthropic: data["data"] = [{"id": ...}]
+        items = data.get("data", []) if isinstance(data, dict) else []
+        return [
+            {"id": item.get("id", ""), "owned_by": item.get("owned_by", "")}
+            for item in items
+            if item.get("id")
+        ]
+    except Exception as e:
+        logger.info("fetch %s models 失败: %s", provider, e)
+        return []
 
 
 # 全局单例

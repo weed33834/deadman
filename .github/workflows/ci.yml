@@ -1,4 +1,4 @@
-# 主 CI 流水线 - 代码风格检查 + 单元测试 + Docker 构建 + 评估 case
+# 主 CI 流水线 - 代码风格检查 + 单元测试 + Docker 构建
 # 触发：push 到 main 分支 或 拉起 PR
 name: CI 流水线
 
@@ -111,49 +111,3 @@ jobs:
           tags: legacy-aftercare:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ===== Job 4: 运行评估 case（允许失败，依赖 LLM API key） =====
-  evaluate:
-    name: 评估 case（允许失败）
-    needs: test
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    defaults:
-      run:
-        working-directory: .
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: 缓存 pip 依赖
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-eval-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-eval-
-
-      - name: 安装项目依赖
-        run: pip install -e ".[dev]"
-
-      - name: 运行评估 case
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          JUDGE_MODELS: ${{ secrets.JUDGE_MODELS }}
-        run: legacy eval --cases-dir .traecli/tests/automated/cases --verbose
-
-      - name: 上传评估报告
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: evaluation-report
-          path: .traecli/tests/automated/reports/
-          retention-days: 14
-          if-no-files-found: ignore

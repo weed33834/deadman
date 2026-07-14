@@ -161,3 +161,50 @@ class RuleChecker:
 # 全局单例
 rule_loader = RuleLoader()
 rule_checker = RuleChecker()
+
+
+def validate_rules() -> dict:
+    """校验规则文件完整性 - 反馈闭环数据源
+
+    校验项:
+      - RULE_PRIORITY + SUPPLEMENTARY_RULES 引用的文件是否都存在
+      - 优先级链无重复优先级、无重复规则名
+      - rules/ 目录下是否存在未被引用的孤儿文件(提示,非错误)
+
+    返回 {"passed": bool, "errors": [...], "warnings": [...], "stats": {...}}
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # 1. 引用的文件都存在
+    referenced = set(RULE_PRIORITY.values()) | set(SUPPLEMENTARY_RULES)
+    for name in referenced:
+        path = rule_loader.rules_dir / f"{name}.md"
+        if not path.exists():
+            errors.append(f"引用的规则文件缺失: {name}.md")
+
+    # 2. 优先级链无重复
+    priorities = list(RULE_PRIORITY.keys())
+    if len(priorities) != len(set(priorities)):
+        errors.append(f"优先级链有重复优先级: {priorities}")
+    names_in_chain = list(RULE_PRIORITY.values())
+    if len(names_in_chain) != len(set(names_in_chain)):
+        errors.append(f"优先级链有重复规则名: {names_in_chain}")
+
+    # 3. 孤儿文件(在 rules/ 但未被引用)
+    if rule_loader.rules_dir.exists():
+        all_files = {p.stem for p in rule_loader.rules_dir.glob("*.md")}
+        orphans = all_files - referenced
+        for o in sorted(orphans):
+            warnings.append(f"孤儿规则文件(未被引用): {o}.md")
+
+    return {
+        "passed": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+        "stats": {
+            "referenced_count": len(referenced),
+            "priority_chain_count": len(RULE_PRIORITY),
+            "supplementary_count": len(SUPPLEMENTARY_RULES),
+        },
+    }
