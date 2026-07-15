@@ -1,6 +1,6 @@
 # Legacy / 死者为大 / 終活
 
-通用身后事多智能体平台。不绑定任何厂商，适用于所有支持 agent 的平台。
+身后事多智能体平台。不绑定任何厂商，适用于所有支持 agent 的平台。
 
 三语品牌名：**Legacy**（英）/ **死者为大**（中）/ **終活**（日）
 
@@ -16,14 +16,14 @@
 
 ## 快速开始
 
-### 1. 安装
+### 安装
 
 ```bash
 cd legacy-aftercare
 pip install -e .
 ```
 
-### 2. 配置环境变量
+### 配置环境变量
 
 ```bash
 export LLM_API_KEY="your-api-key"
@@ -31,42 +31,44 @@ export LLM_MODEL="gpt-4o"
 export LLM_PROVIDER="openai"
 ```
 
-### 3. 运行
+### 运行
+
+平台提供三种入口，按需选择：
 
 ```bash
-# 启动 MCP Server（给智能体平台调用）
+# MCP Server —— 供智能体平台调用（JSON-RPC，端口 8000）
 legacy mcp-server
 
-# 启动 Web UI（对话界面 + 运维看板 + 测试中心，端口 8002）
+# Web UI —— 对话界面与运维看板（端口 8002）
 legacy-web-server
-# 浏览器打开 http://localhost:8002
 
-# 运行单次对话
+# CLI 单次对话
 legacy run "我爸在北京去世了，需要办什么手续？"
 
-# 运行评估
+# 评估套件
 legacy eval -v
 ```
 
-**Web UI 四个页签**（端口 8002）：
-- **对话**：6 智能体切换 + SSE 流式响应
-- **运维看板**：13 领域健康汇总 + 记忆状态 + 部署工件
-- **测试中心**：13 领域手动测试（一键运行 CLI 命令，真实反馈）
-- **资源列表**：智能体 + MCP 工具清单
+Web UI（`http://localhost:8002`）包含四个部分：
 
-### 4. Docker 部署
+- **对话** —— 六个智能体可切换，支持 SSE 流式响应
+- **运维看板** —— 各领域反馈闭环状态、记忆分层条目数、部署工件校验
+- **测试中心** —— 分领域运行诊断命令，查看延迟与可用性
+- **资源列表** —— 智能体与 MCP 工具清单
+
+### Docker 部署
 
 ```bash
 docker build -t legacy-aftercare .
 
-# MCP Server（默认，端口 8000）
+# MCP Server
 docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
 
-# Web UI（端口 8002）
+# Web UI
 docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx legacy-aftercare web-server
 ```
 
-### 5. 全量部署（含 Neo4j + Langfuse + OTel）
+全量部署（含 Neo4j / Langfuse / OTel Collector）：
 
 ```bash
 docker compose --profile full up -d
@@ -80,12 +82,17 @@ legacy-aftercare/
 ├── Dockerfile / docker-compose.yml             # 容器化
 ├── docs/                                       # 快速开始 + 部署指南
 └── .traecli/                                   # 业务实现
-    ├── agents/           # 22 个智能体定义（6 并列 + 12 子 + 3 机制 + TEAM）
-    ├── rules/            # 14 个规则文件（L0-L8 优先级链）
+    ├── agents/           # 智能体定义（6 并列 + 子智能体 + 机制）
+    ├── rules/            # 规则文件（L0-L8 优先级链）
     ├── knowledge/        # 地域知识库 + 知识图谱
     ├── skills/           # 技能定义
     ├── tests/            # 测试 case
-    └── src/legacy/       # Python 实现（12 模块）
+    └── src/legacy/       # Python 实现
+        ├── web/          # Web UI 与 API
+        ├── mcp_server/   # MCP Server（13 工具）
+        ├── a2a/          # A2A 协议
+        ├── memory/       # 四层记忆
+        └── ...           # 其余模块
 ```
 
 ## 文档
