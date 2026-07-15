@@ -10,22 +10,26 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     background: #f5f5f7; color: #1d1d1f; height: 100vh; display: flex;
   }
+  /* ===== 侧边栏 ===== */
   .sidebar {
     width: 240px; background: #1d1d1f; color: #f5f5f7; padding: 20px 0;
     display: flex; flex-direction: column; flex-shrink: 0;
   }
   .sidebar h1 { font-size: 16px; padding: 0 20px 20px; border-bottom: 1px solid #333; }
-  .agent-list { flex: 1; overflow-y: auto; padding: 10px 0; }
-  .agent-item {
-    padding: 10px 20px; cursor: pointer; transition: background 0.2s; font-size: 14px;
+  .nav-list { flex: 1; overflow-y: auto; padding: 10px 0; }
+  .nav-item {
+    padding: 12px 20px; cursor: pointer; transition: background 0.2s; font-size: 14px;
+    display: flex; align-items: center; gap: 8px;
   }
-  .agent-item:hover { background: #2d2d2f; }
-  .agent-item.active { background: #3a3a3c; border-left: 3px solid #0a84ff; }
+  .nav-item:hover { background: #2d2d2f; }
+  .nav-item.active { background: #3a3a3c; border-left: 3px solid #0a84ff; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
   .sidebar-footer { padding: 12px 20px; font-size: 12px; color: #86868b; border-top: 1px solid #333; }
-  .main { flex: 1; display: flex; flex-direction: column; }
+  /* ===== 主区域 ===== */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .header {
     padding: 16px 24px; background: #fff; border-bottom: 1px solid #e5e5e7;
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
   }
   .header h2 { font-size: 16px; font-weight: 500; }
   .status-badge {
@@ -33,10 +37,12 @@
     background: #e8f5e9; color: #2e7d32;
   }
   .status-badge.degraded { background: #fff3e0; color: #e65100; }
+  .status-badge.error { background: #ffebee; color: #c62828; }
+  .content { flex: 1; overflow-y: auto; }
+  /* ===== 对话页 ===== */
+  #page-chat { display: flex; flex-direction: column; height: 100%; }
   .chat-area { flex: 1; overflow-y: auto; padding: 24px; }
-  .message {
-    max-width: 720px; margin: 0 auto 16px; display: flex; gap: 12px;
-  }
+  .message { max-width: 720px; margin: 0 auto 16px; display: flex; gap: 12px; }
   .message.user { flex-direction: row-reverse; }
   .avatar {
     width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
@@ -52,12 +58,8 @@
   .message.user .bubble { background: #0a84ff; color: #fff; border-bottom-right-radius: 4px; }
   .message.bot .bubble { background: #fff; color: #1d1d1f; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
   .meta { font-size: 11px; color: #86868b; margin-top: 4px; }
-  .input-area {
-    padding: 16px 24px; background: #fff; border-top: 1px solid #e5e5e7;
-  }
-  .input-wrapper {
-    max-width: 720px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-end;
-  }
+  .input-area { padding: 16px 24px; background: #fff; border-top: 1px solid #e5e5e7; }
+  .input-wrapper { max-width: 720px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-end; }
   textarea {
     flex: 1; padding: 12px 16px; border: 1px solid #d2d2d7; border-radius: 12px;
     font-size: 14px; font-family: inherit; resize: none; max-height: 120px;
@@ -74,45 +76,149 @@
   .typing:nth-child(2) { animation-delay: 0.2s; }
   .typing:nth-child(3) { animation-delay: 0.4s; }
   @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
-  .transfer-card {
-    max-width: 720px; margin: 0 auto 16px; padding: 16px; background: #fff3e0;
-    border-radius: 12px; border-left: 4px solid #ff9500;
+  /* ===== 通用面板 ===== */
+  .panel { padding: 24px; max-width: 1000px; margin: 0 auto; }
+  .panel h3 { font-size: 15px; margin-bottom: 12px; color: #1d1d1f; }
+  .panel-section { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .panel-section h4 { font-size: 14px; margin-bottom: 12px; color: #6d4c41; display: flex; align-items: center; gap: 6px; }
+  /* ===== 表格 ===== */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #f5f5f7; font-weight: 500; color: #6d4c41; border-bottom: 1px solid #e5e5e7; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f2; }
+  tr:hover { background: #f9f9fb; }
+  /* ===== 状态标签 ===== */
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+  .tag.ok { background: #e8f5e9; color: #2e7d32; }
+  .tag.fail { background: #ffebee; color: #c62828; }
+  .tag.skip { background: #f5f5f7; color: #86868b; }
+  .tag.warn { background: #fff3e0; color: #e65100; }
+  /* ===== 测试中心 ===== */
+  .test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .test-card { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f0f0f2; }
+  .test-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .test-card-title { font-size: 14px; font-weight: 500; }
+  .test-card-desc { font-size: 12px; color: #86868b; margin-bottom: 10px; }
+  .test-btn { padding: 6px 14px; font-size: 13px; }
+  .test-output {
+    margin-top: 8px; padding: 10px; background: #1d1d1f; color: #e8e8ed;
+    border-radius: 8px; font-family: "SF Mono", Monaco, monospace; font-size: 12px;
+    max-height: 300px; overflow-y: auto; white-space: pre-wrap; display: none;
   }
-  .transfer-card h3 { font-size: 14px; margin-bottom: 8px; color: #e65100; }
-  .transfer-card p { font-size: 13px; color: #6d4c41; margin-bottom: 12px; }
-  .transfer-card button { background: #ff9500; padding: 8px 16px; font-size: 13px; }
-  .transfer-card button.reject { background: #86868b; margin-left: 8px; }
+  .test-output.show { display: block; }
+  .test-output.loading { color: #86868b; }
+  /* ===== 看板卡片 ===== */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .stat-label { font-size: 12px; color: #86868b; margin-bottom: 4px; }
+  .stat-value { font-size: 24px; font-weight: 600; color: #1d1d1f; }
+  .stat-sub { font-size: 11px; color: #86868b; margin-top: 4px; }
+  /* ===== 领域健康汇总 ===== */
+  .domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .domain-card { background: #fff; border-radius: 10px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .domain-name { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  /* ===== 加载动画 ===== */
+  .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #d2d2d7; border-top-color: #0a84ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div class="sidebar">
   <h1>身后事智能体平台</h1>
-  <div class="agent-list" id="agentList"></div>
-  <div class="sidebar-footer">v4.4.1 · 方案 C 全栈</div>
+  <div class="nav-list" id="navList">
+    <div class="nav-item active" data-page="chat" onclick="switchPage('chat')">
+      <span class="nav-icon">💬</span> 对话
+    </div>
+    <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">
+      <span class="nav-icon">📊</span> 运维看板
+    </div>
+    <div class="nav-item" data-page="test" onclick="switchPage('test')">
+      <span class="nav-icon">🧪</span> 测试中心
+    </div>
+    <div class="nav-item" data-page="resources" onclick="switchPage('resources')">
+      <span class="nav-icon">📚</span> 资源列表
+    </div>
+  </div>
+  <div class="sidebar-footer">v5.0 · 三仓同步 · 13 领域</div>
 </div>
+
 <div class="main">
   <div class="header">
-    <h2 id="currentAgent">身后事流程引导员</h2>
+    <h2 id="pageTitle">对话</h2>
     <div class="status-badge" id="statusBadge">就绪</div>
   </div>
-  <div class="chat-area" id="chatArea">
-    <div class="message bot">
-      <div class="avatar bot">AI</div>
-      <div>
-        <div class="bubble">您好，我是身后事流程引导员。在这个困难时期，我会协助您处理逝者的身后事务。请问有什么需要帮助的？</div>
-        <div class="meta">身后事流程引导员</div>
+  <div class="content">
+
+    <!-- ===== 对话页 ===== -->
+    <div id="page-chat" class="page">
+      <div class="chat-area" id="chatArea">
+        <div class="message bot">
+          <div class="avatar bot">AI</div>
+          <div>
+            <div class="bubble">您好，我是身后事流程引导员。在这个困难时期，我会协助您处理逝者的身后事务。请问有什么需要帮助的？</div>
+            <div class="meta">身后事流程引导员</div>
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea id="input" placeholder="输入您的问题..." rows="1" onkeydown="handleKey(event)"></textarea>
+          <button id="sendBtn" onclick="send()">发送</button>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="input-area">
-    <div class="input-wrapper">
-      <textarea id="input" placeholder="输入您的问题..." rows="1" onkeydown="handleKey(event)"></textarea>
-      <button id="sendBtn" onclick="send()">发送</button>
+
+    <!-- ===== 运维看板页 ===== -->
+    <div id="page-dashboard" class="page hidden">
+      <div class="panel">
+        <div class="panel-section">
+          <h4>📋 全领域健康汇总</h4>
+          <p style="font-size:12px;color:#86868b;margin-bottom:12px;">读取 data/*_health.json 反馈闭环数据</p>
+          <div class="domain-grid" id="healthGrid"></div>
+        </div>
+        <div class="panel-section">
+          <h4>🧠 记忆系统状态</h4>
+          <div class="stat-grid" id="memoryGrid"></div>
+        </div>
+        <div class="panel-section">
+          <h4>🐳 部署工件</h4>
+          <table id="deployTable"><thead><tr><th>工件</th><th>状态</th><th>路径</th></tr></thead><tbody></tbody></table>
+        </div>
+        <button onclick="loadDashboard()" style="margin-top:8px;">刷新看板</button>
+      </div>
     </div>
+
+    <!-- ===== 测试中心页 ===== -->
+    <div id="page-test" class="page hidden">
+      <div class="panel">
+        <div class="panel-section">
+          <h4>🧪 13 领域手动测试</h4>
+          <p style="font-size:12px;color:#86868b;margin-bottom:12px;">点击运行，真实反馈延迟/可用性/错误。结果同步写入 data/*_health.json</p>
+          <div class="test-grid" id="testGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 资源列表页 ===== -->
+    <div id="page-resources" class="page hidden">
+      <div class="panel">
+        <div class="panel-section">
+          <h4>🤖 智能体清单</h4>
+          <table id="agentsTable"><thead><tr><th>ID</th><th>名称</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="panel-section">
+          <h4>🔧 MCP 工具清单</h4>
+          <table id="toolsTable"><thead><tr><th>工具名</th><th>描述</th></tr></thead><tbody></tbody></table>
+        </div>
+        <button onclick="loadResources()" style="margin-top:8px;">刷新列表</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
+// ===== 全局状态 =====
 const AGENTS = [
   { id: "death-aftercare", name: "身后事流程引导员" },
   { id: "legal-advisor", name: "法律咨询智能体" },
@@ -125,27 +231,95 @@ let currentAgent = "death-aftercare";
 let history = [];
 let streaming = false;
 
-const agentList = document.getElementById("agentList");
-AGENTS.forEach(a => {
-  const div = document.createElement("div");
-  div.className = "agent-item" + (a.id === currentAgent ? " active" : "");
-  div.textContent = a.name;
-  div.dataset.id = a.id;
-  div.onclick = () => switchAgent(a.id, a.name, div);
-  agentList.appendChild(div);
-});
+// 测试命令定义 - 按 13 领域分组
+const TEST_GROUPS = [
+  { domain: "LLM 管理", tests: [
+    { cmd: "llm-test", name: "LLM 接入测试", desc: "ping 各 provider 真实延迟" },
+    { cmd: "llm-sync-models", name: "模型清单同步", desc: "从 /models 端点拉真实清单" },
+    { cmd: "llm-cost", name: "成本追踪", desc: "查看累计成本" },
+  ]},
+  { domain: "提示词", tests: [
+    { cmd: "prompt-list", name: "提示词列表", desc: "本地 .prompty 清单" },
+    { cmd: "prompt-sync", name: "提示词同步", desc: "从 LangSmith/deepset 拉" },
+  ]},
+  { domain: "规则", tests: [
+    { cmd: "rule-test", name: "规则校验测试", desc: "编造检测+风险等级" },
+    { cmd: "rule-validate", name: "规则完整性", desc: "引用文件+优先级链" },
+  ]},
+  { domain: "智能体", tests: [
+    { cmd: "agent-list", name: "智能体列表", desc: "本地 agents/*.md" },
+  ]},
+  { domain: "知识库", tests: [
+    { cmd: "knowledge-list", name: "知识库列表", desc: "regions/**/*.md" },
+    { cmd: "knowledge-freshness", name: "知识新鲜度", desc: "90/180/365 天阈值" },
+  ]},
+  { domain: "MCP 工具", tests: [
+    { cmd: "tool-list", name: "MCP 工具列表", desc: "13 个工具" },
+    { cmd: "mcp-ping", name: "MCP 可达性", desc: "外部 server ping" },
+  ]},
+  { domain: "可观测性", tests: [
+    { cmd: "obs-dashboard", name: "指标看板", desc: "11 大类指标" },
+    { cmd: "obs-test", name: "可观测接入测试", desc: "span+指标+后端" },
+    { cmd: "obs-export", name: "Prometheus 导出", desc: "指标文本格式" },
+  ]},
+  { domain: "记忆", tests: [
+    { cmd: "memory-list", name: "记忆状态", desc: "4 层条目数" },
+    { cmd: "memory-test", name: "记忆写入+召回", desc: "情景+语义测试" },
+    { cmd: "memory-ping", name: "记忆后端", desc: "Graphiti/LightRAG" },
+  ]},
+  { domain: "A2A", tests: [
+    { cmd: "a2a-card", name: "AgentCard", desc: "本地名片+完整性" },
+    { cmd: "a2a-test", name: "A2A 协议自测", desc: "JSON-RPC tasks/send" },
+    { cmd: "a2a-registry", name: "Registry 可达性", desc: "线上注册中心" },
+  ]},
+  { domain: "部署", tests: [
+    { cmd: "deploy-check", name: "部署工件校验", desc: "Dockerfile/compose/entrypoint" },
+    { cmd: "deploy-test", name: "运行时测试", desc: "docker+healthcheck" },
+  ]},
+  { domain: "Reflexion", tests: [
+    { cmd: "reflexion-list", name: "调整策略", desc: "10 种快速路径" },
+    { cmd: "reflexion-test", name: "反思重试测试", desc: "mock 操作失败重试" },
+    { cmd: "reflexion-ping", name: "LLM 反思路径", desc: "慢速路径可达性" },
+  ]},
+  { domain: "技能", tests: [
+    { cmd: "skill-list", name: "技能列表", desc: "skills/*/SKILL.md" },
+    { cmd: "skill-validate", name: "技能校验", desc: "frontmatter 完整性" },
+  ]},
+];
 
-function switchAgent(id, name, el) {
-  currentAgent = id;
-  document.getElementById("currentAgent").textContent = name;
-  document.querySelectorAll(".agent-item").forEach(e => e.classList.remove("active"));
-  el.classList.add("active");
+// ===== 页面切换 =====
+function switchPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  document.getElementById("page-" + page).classList.remove("hidden");
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add("active");
+  const titles = { chat: "对话", dashboard: "运维看板", test: "测试中心", resources: "资源列表" };
+  document.getElementById("pageTitle").textContent = titles[page] || page;
+  if (page === "dashboard") loadDashboard();
+  if (page === "test") renderTestGrid();
+  if (page === "resources") loadResources();
 }
 
+// ===== 对话功能 =====
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 const chatArea = document.getElementById("chatArea");
 const statusBadge = document.getElementById("statusBadge");
+
+// 智能体选择器（嵌入对话页头部）
+(function renderAgentSelector() {
+  const header = document.querySelector(".header");
+  const select = document.createElement("select");
+  select.id = "agentSelect";
+  select.style.cssText = "padding:4px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;";
+  AGENTS.forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a.id; opt.textContent = a.name;
+    select.appendChild(opt);
+  });
+  select.onchange = () => { currentAgent = select.value; };
+  header.insertBefore(select, statusBadge);
+})();
 
 input.addEventListener("input", () => {
   input.style.height = "auto";
@@ -153,10 +327,7 @@ input.addEventListener("input", () => {
 });
 
 function handleKey(e) {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    send();
-  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
 }
 
 function addMessage(role, text, meta) {
@@ -172,12 +343,10 @@ function addMessage(role, text, meta) {
   content.appendChild(bubble);
   if (meta) {
     const m = document.createElement("div");
-    m.className = "meta";
-    m.textContent = meta;
+    m.className = "meta"; m.textContent = meta;
     content.appendChild(m);
   }
-  msg.appendChild(avatar);
-  msg.appendChild(content);
+  msg.appendChild(avatar); msg.appendChild(content);
   chatArea.appendChild(msg);
   chatArea.scrollTop = chatArea.scrollHeight;
   return bubble;
@@ -186,29 +355,20 @@ function addMessage(role, text, meta) {
 async function send() {
   const text = input.value.trim();
   if (!text || streaming) return;
-  input.value = "";
-  input.style.height = "auto";
+  input.value = ""; input.style.height = "auto";
   addMessage("user", text);
   history.push({ role: "user", content: text });
-
-  streaming = true;
-  sendBtn.disabled = true;
-  statusBadge.textContent = "流式响应中";
-  statusBadge.classList.add("degraded");
-
-  // 创建占位 bot 消息
+  streaming = true; sendBtn.disabled = true;
+  statusBadge.textContent = "流式响应中"; statusBadge.classList.add("degraded");
   const bubble = addMessage("bot", "");
   bubble.innerHTML = '<span class="typing"></span><span class="typing"></span><span class="typing"></span>';
   let fullResponse = "";
-
   try {
-    // SSE 流式
     const url = `/api/stream?query=${encodeURIComponent(text)}&agent=${encodeURIComponent(currentAgent)}`;
     const resp = await fetch(url);
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -219,42 +379,157 @@ async function send() {
         if (line.startsWith("data: ")) {
           try {
             const data = JSON.parse(line.slice(6));
-            if (data.chunk) {
-              fullResponse += data.chunk;
-              bubble.textContent = fullResponse;
-              chatArea.scrollTop = chatArea.scrollHeight;
-            }
+            if (data.chunk) { fullResponse += data.chunk; bubble.textContent = fullResponse; chatArea.scrollTop = chatArea.scrollHeight; }
           } catch (e) {}
-        } else if (line.startsWith("event: done")) {
-          break;
-        } else if (line.startsWith("event: error")) {
-          // 下一行是 data
         }
       }
     }
-
     if (!fullResponse) {
-      // 降级到同步
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: text, agent: currentAgent, history }),
-      });
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: text, agent: currentAgent, history }) });
       const data = await r.json();
       fullResponse = data.response || "(空响应)";
       if (data.degraded) statusBadge.classList.add("degraded");
     }
-
     bubble.textContent = fullResponse;
     history.push({ role: "assistant", content: fullResponse });
   } catch (e) {
     bubble.textContent = "请求失败: " + e.message;
   } finally {
-    streaming = false;
-    sendBtn.disabled = false;
-    statusBadge.textContent = "就绪";
-    statusBadge.classList.remove("degraded");
+    streaming = false; sendBtn.disabled = false;
+    statusBadge.textContent = "就绪"; statusBadge.classList.remove("degraded");
   }
+}
+
+// ===== 运维看板 =====
+async function loadDashboard() {
+  // 健康汇总
+  try {
+    const resp = await fetch("/api/health/all");
+    const data = await resp.json();
+    const grid = document.getElementById("healthGrid");
+    grid.innerHTML = "";
+    const domainNames = { llm:"LLM", prompt:"提示词", rule:"规则", agent:"智能体", knowledge:"知识库", eval:"评估", tool:"MCP工具", mcp:"MCP", obs:"可观测", memory:"记忆", a2a:"A2A", deploy:"部署", reflexion:"Reflexion", skill:"技能" };
+    Object.entries(data).forEach(([domain, info]) => {
+      const card = document.createElement("div");
+      card.className = "domain-card";
+      const hasData = info.status !== "no_data" && info.status !== "parse_error";
+      const tag = hasData ? '<span class="tag ok">有数据</span>' : '<span class="tag skip">无数据</span>';
+      card.innerHTML = `<div class="domain-name">${domainNames[domain] || domain}</div>${tag}`;
+      grid.appendChild(card);
+    });
+  } catch (e) { console.error(e); }
+
+  // 记忆状态
+  try {
+    const resp = await fetch("/api/memory/state");
+    const m = await resp.json();
+    const grid = document.getElementById("memoryGrid");
+    grid.innerHTML = "";
+    const stats = [
+      { label: "工作记忆", value: m.working || 0 },
+      { label: "情景记忆", value: m.episodic || 0 },
+      { label: "语义事实", value: m.semantic || 0 },
+      { label: "用户画像", value: m.semantic_profiles || 0 },
+      { label: "待处理矛盾", value: m.semantic_contradictions || 0 },
+      { label: "程序记忆", value: m.procedural || 0 },
+    ];
+    stats.forEach(s => {
+      const card = document.createElement("div");
+      card.className = "stat-card";
+      card.innerHTML = `<div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div>`;
+      grid.appendChild(card);
+    });
+  } catch (e) { console.error(e); }
+
+  // 部署工件
+  try {
+    const resp = await fetch("/api/deploy/check");
+    const d = await resp.json();
+    const tbody = document.querySelector("#deployTable tbody");
+    tbody.innerHTML = "";
+    (d.artifacts || []).forEach(a => {
+      const tr = document.createElement("tr");
+      const tag = a.exists ? '<span class="tag ok">存在</span>' : '<span class="tag fail">缺失</span>';
+      tr.innerHTML = `<td>${a.name}</td><td>${tag}</td><td style="font-size:11px;color:#86868b;">${a.path}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
+}
+
+// ===== 测试中心 =====
+function renderTestGrid() {
+  const grid = document.getElementById("testGrid");
+  grid.innerHTML = "";
+  TEST_GROUPS.forEach(group => {
+    group.tests.forEach(t => {
+      const card = document.createElement("div");
+      card.className = "test-card";
+      card.innerHTML = `
+        <div class="test-card-header">
+          <span class="test-card-title">${t.name}</span>
+          <span class="tag skip" style="font-size:11px;">${group.domain}</span>
+        </div>
+        <div class="test-card-desc">${t.desc}</div>
+        <button class="test-btn" onclick="runTest('${t.cmd}', this)">运行</button>
+        <div class="test-output" id="output-${t.cmd}"></div>
+      `;
+      grid.appendChild(card);
+    });
+  });
+}
+
+async function runTest(cmd, btn) {
+  const output = document.getElementById("output-" + btn.dataset.cmd || "output-" + cmd);
+  const out = document.getElementById("output-" + cmd);
+  out.className = "test-output show loading";
+  out.textContent = "运行中...";
+  btn.disabled = true;
+  btn.textContent = "运行中";
+  try {
+    const resp = await fetch(`/api/cli/${cmd}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ timeout: 90 }) });
+    const data = await resp.json();
+    out.className = "test-output show";
+    if (data.ok) {
+      out.textContent = data.output || "(无输出)";
+    } else {
+      out.textContent = `[失败] ${data.error || data.stderr || "未知错误"}\n${data.output || ""}`;
+    }
+  } catch (e) {
+    out.className = "test-output show";
+    out.textContent = "请求失败: " + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "运行";
+  }
+}
+
+// ===== 资源列表 =====
+async function loadResources() {
+  // 智能体
+  try {
+    const resp = await fetch("/api/agents");
+    const data = await resp.json();
+    const tbody = document.querySelector("#agentsTable tbody");
+    tbody.innerHTML = "";
+    (data.agents || []).forEach(a => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><code>${a.id}</code></td><td>${a.name}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
+  // 工具
+  try {
+    const resp = await fetch("/api/tools");
+    const data = await resp.json();
+    const tbody = document.querySelector("#toolsTable tbody");
+    tbody.innerHTML = "";
+    (data.tools || []).forEach(t => {
+      const tr = document.createElement("tr");
+      const desc = (t.description || "").substring(0, 60);
+      tr.innerHTML = `<td><code>${t.name}</code></td><td>${desc}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
 }
 </script>
 </body>

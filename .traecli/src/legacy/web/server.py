@@ -1,4 +1,4 @@
-"""AG-UI Web Server - 提供对话界面 + chat API + SSE 流式
+"""AG-UI Web Server - 提供对话界面 + chat API + SSE 流式 + 运维 API
 
 端点：
   GET  /                   -> 对话界面（index.html）
@@ -7,8 +7,17 @@
   GET  /api/stream?query=  -> SSE 流式对话（逐 token 推送）
   GET  /api/agents         -> 智能体列表
   GET  /api/tools          -> MCP 工具列表
+  GET  /metrics            -> Prometheus 指标
 
-前端：web/static/index.html（单页应用，原生 JS，无构建依赖）
+  --- 运维 API（覆盖 13 领域四件套） ---
+  POST /api/cli/<command>  -> 通用 CLI 代理（subprocess 调用，返回 stdout）
+  GET  /api/obs/dashboard  -> 可观测性看板（结构化 JSON）
+  GET  /api/llm/health     -> LLM 健康（读 data/llm_health.json）
+  GET  /api/memory/state   -> 记忆状态（4 层条目数）
+  GET  /api/deploy/check   -> 部署工件校验
+  GET  /api/health/all     -> 全领域健康汇总
+
+前端：web/static/index.html（多页签 SPA，原生 JS，无构建依赖）
 """
 
 from __future__ import annotations
@@ -16,6 +25,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import subprocess
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -29,6 +40,37 @@ logger = logging.getLogger(__name__)
 # 静态文件目录
 _STATIC_DIR = Path(__file__).parent / "static"
 
+# 允许通过 /api/cli 代理调用的 CLI 子命令白名单（安全：防止任意命令执行）
+# 覆盖全部 13 领域的只读/测试类命令
+_CLI_COMMANDS = {
+    # 基础
+    "version", "eval-list",
+    # LLM
+    "llm-test", "llm-sync-models", "llm-cost",
+    # 提示词
+    "prompt-list", "prompt-sync",
+    # 规则
+    "rule-test", "rule-validate",
+    # 智能体
+    "agent-list", "agent-ping",
+    # 知识库
+    "knowledge-list", "knowledge-freshness",
+    # MCP 工具
+    "tool-list", "mcp-ping",
+    # 可观测性
+    "obs-dashboard", "obs-test", "obs-export",
+    # 记忆
+    "memory-list", "memory-test", "memory-ping",
+    # A2A
+    "a2a-card", "a2a-test", "a2a-registry",
+    # 部署
+    "deploy-check", "deploy-test",
+    # Reflexion
+    "reflexion-list", "reflexion-test", "reflexion-ping",
+    # 技能
+    "skill-list", "skill-validate",
+}
+
 
 class WebServer:
     """AG-UI Web Server
@@ -39,7 +81,7 @@ class WebServer:
     def __init__(self) -> None:
         self.host = settings.mcp_server_host
         # Web UI 端口默认比 MCP +2（MCP=8000, A2A=8001, Web=8002）
-        self.port = int(sys.getenv("WEB_SERVER_PORT", "8002"))
+        self.port = int(os.getenv("WEB_SERVER_PORT", "8002"))
 
     def run(self, host: str | None = None, port: int | None = None) -> None:
         host = host or self.host
@@ -84,6 +126,16 @@ class WebServer:
                     self._handle_agents()
                 elif path == "/api/tools":
                     self._handle_tools()
+                elif path == "/api/obs/dashboard":
+                    self._handle_obs_dashboard()
+                elif path == "/api/llm/health":
+                    self._handle_health_file("llm_health.json")
+                elif path == "/api/memory/state":
+                    self._handle_memory_state()
+                elif path == "/api/deploy/check":
+                    self._handle_deploy_check()
+                elif path == "/api/health/all":
+                    self._handle_health_all()
                 elif path == "/metrics":
                     self._handle_metrics()
                 else:
@@ -102,18 +154,28 @@ class WebServer:
             def do_POST(self) -> None:  # noqa: N802
                 parsed = urlparse(self.path)
                 path = parsed.path
-                if path != "/api/chat":
+                if path == "/api/chat":
+                    length = int(self.headers.get("Content-Length", "0"))
+                    raw = self.rfile.read(length) if length else b"{}"
+                    try:
+                        req = json.loads(raw.decode("utf-8"))
+                    except json.JSONDecodeError as exc:
+                        self._send_json(400, {"error": f"invalid json: {exc}"})
+                        return
+                    resp = asyncio.run(server_ref._handle_chat(req))
+                    self._send_json(200, resp)
+                elif path.startswith("/api/cli/"):
+                    command = path[len("/api/cli/"):]
+                    length = int(self.headers.get("Content-Length", "0"))
+                    raw = self.rfile.read(length) if length else b"{}"
+                    try:
+                        req = json.loads(raw.decode("utf-8")) if raw else {}
+                    except json.JSONDecodeError:
+                        req = {}
+                    resp = server_ref._handle_cli(command, req)
+                    self._send_json(200, resp)
+                else:
                     self.send_error(404, "Not Found")
-                    return
-                length = int(self.headers.get("Content-Length", "0"))
-                raw = self.rfile.read(length) if length else b"{}"
-                try:
-                    req = json.loads(raw.decode("utf-8"))
-                except json.JSONDecodeError as exc:
-                    self._send_json(400, {"error": f"invalid json: {exc}"})
-                    return
-                resp = asyncio.run(server_ref._handle_chat(req))
-                self._send_json(200, resp)
 
             def _handle_stream(self, query: dict[str, list[str]]) -> None:
                 """SSE 流式对话"""
@@ -170,6 +232,97 @@ class WebServer:
                     self.wfile.write(body)
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
+
+            def _handle_obs_dashboard(self) -> None:
+                """可观测性看板（结构化 JSON）"""
+                try:
+                    from ..observability import metrics_collector
+                    self._send_json(200, metrics_collector.get_dashboard())
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_health_file(self, filename: str) -> None:
+                """读取 data/<filename> 健康文件"""
+                data_file = settings.project_root / "data" / filename
+                if data_file.exists():
+                    try:
+                        data = json.loads(data_file.read_text(encoding="utf-8"))
+                        self._send_json(200, data)
+                        return
+                    except Exception as exc:
+                        self._send_json(500, {"error": f"读取失败: {exc}"})
+                        return
+                self._send_json(200, {"status": "no_data", "message": f"{filename} 尚未生成，请先运行对应 CLI 命令"})
+
+            def _handle_memory_state(self) -> None:
+                """记忆 4 层状态"""
+                try:
+                    from ..memory.manager import MemoryManager
+                    mgr = MemoryManager()
+                    self._send_json(200, {
+                        "working": len(mgr.working._turns) if hasattr(mgr.working, "_turns") else 0,
+                        "episodic": len(mgr.episodic._store),
+                        "semantic": len(mgr.semantic.facts),
+                        "semantic_profiles": len(mgr.semantic.user_profiles),
+                        "semantic_contradictions": len(mgr.semantic.pending_contradictions),
+                        "procedural": len(mgr.procedural._procedures) if hasattr(mgr.procedural, "_procedures") else 0,
+                        "graphiti_enabled": mgr.graphiti is not None,
+                        "lightrag_enabled": mgr.lightrag is not None,
+                    })
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_deploy_check(self) -> None:
+                """部署工件校验"""
+                import yaml
+                project_root = settings.project_root.parent
+                docker_dir = settings.project_root / "docker"
+                artifacts = [
+                    ("Dockerfile", project_root / "Dockerfile"),
+                    ("docker-compose.yml", project_root / "docker-compose.yml"),
+                    ("entrypoint.sh", docker_dir / "entrypoint.sh"),
+                    ("healthcheck.py", docker_dir / "healthcheck.py"),
+                ]
+                results = []
+                for name, path in artifacts:
+                    results.append({"name": name, "exists": path.exists(), "path": str(path)})
+                # compose 语法
+                compose_path = project_root / "docker-compose.yml"
+                compose_ok = False
+                services = []
+                if compose_path.exists():
+                    try:
+                        with open(compose_path, encoding="utf-8") as f:
+                            compose = yaml.safe_load(f) or {}
+                        services = list((compose.get("services") or {}).keys())
+                        compose_ok = True
+                    except Exception:
+                        pass
+                self._send_json(200, {
+                    "artifacts": results,
+                    "compose_valid": compose_ok,
+                    "compose_services": services,
+                })
+
+            def _handle_health_all(self) -> None:
+                """全领域健康汇总（读取所有 data/*_health.json）"""
+                data_dir = settings.project_root / "data"
+                domains = [
+                    "llm", "prompt", "rule", "agent", "knowledge",
+                    "eval", "tool", "mcp", "obs", "memory",
+                    "a2a", "deploy", "reflexion", "skill",
+                ]
+                summary = {}
+                for domain in domains:
+                    hf = data_dir / f"{domain}_health.json"
+                    if hf.exists():
+                        try:
+                            summary[domain] = json.loads(hf.read_text(encoding="utf-8"))
+                        except Exception:
+                            summary[domain] = {"status": "parse_error"}
+                    else:
+                        summary[domain] = {"status": "no_data"}
+                self._send_json(200, summary)
 
         httpd = ThreadingHTTPServer((host, port), Handler)
         logger.info("AG-UI Web Server listening on http://%s:%d", host, port)
@@ -231,6 +384,59 @@ class WebServer:
                 "agent": agent,
                 "degraded": True,
                 "error": str(exc),
+            }
+
+    def _handle_cli(self, command: str, req: dict[str, Any]) -> dict[str, Any]:
+        """通用 CLI 代理 - subprocess 调用 legacy.cli <command>
+
+        安全：command 必须在 _CLI_COMMANDS 白名单中
+        返回：{"ok": bool, "output": str, "command": str, "returncode": int}
+        """
+        if command not in _CLI_COMMANDS:
+            return {
+                "ok": False,
+                "error": f"不允许的命令: {command}",
+                "allowed": sorted(_CLI_COMMANDS),
+            }
+
+        # 构造命令行参数
+        cmd_args = [sys.executable, "-m", "legacy.cli", command]
+
+        # 从 req 中提取额外参数（如 --provider, --model, --name, --timeout 等）
+        extra_args = req.get("args", [])
+        if isinstance(extra_args, list):
+            cmd_args.extend(str(a) for a in extra_args)
+
+        timeout = req.get("timeout", 60)
+
+        try:
+            proc = subprocess.run(
+                cmd_args,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(settings.project_root),
+            )
+            return {
+                "ok": proc.returncode == 0,
+                "output": proc.stdout,
+                "stderr": proc.stderr,
+                "command": command,
+                "returncode": proc.returncode,
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "error": f"命令超时（{timeout}s）",
+                "command": command,
+                "returncode": -1,
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "command": command,
+                "returncode": -1,
             }
 
     async def _stream_chat(self, wfile: Any, query: str, agent: str) -> None:

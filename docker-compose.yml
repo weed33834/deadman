@@ -35,12 +35,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        LEGACY_VERSION: ${LEGACY_VERSION:-4.4.1}
-    image: legacy-aftercare:${LEGACY_VERSION:-4.4.1}
+        LEGACY_VERSION: ${LEGACY_VERSION:-5.0}
+    image: legacy-aftercare:${LEGACY_VERSION:-5.0}
     container_name: legacy
     restart: unless-stopped
     ports:
-      - "${MCP_HOST_PORT:-8000}:8000"
+      - "${MCP_HOST_PORT:-8000}:8000"   # MCP Server
+      - "${A2A_HOST_PORT:-8001}:8001"   # A2A Server
+      - "${WEB_HOST_PORT:-8002}:8002"   # Web UI（AG-UI）
     environment:
       # === LLM 配置 ===
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
@@ -51,6 +53,8 @@ services:
       # === MCP Server ===
       MCP_SERVER_HOST: 0.0.0.0
       MCP_SERVER_PORT: 8000
+      # === Web UI ===
+      WEB_SERVER_PORT: 8002
       # === 可观测性 ===
       OTEL_ENDPOINT: ${OTEL_ENDPOINT:-http://otel-collector:4317}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}

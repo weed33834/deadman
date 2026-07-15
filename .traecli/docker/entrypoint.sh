@@ -2,14 +2,16 @@
 # ============================================================
 # Legacy 平台容器入口脚本
 #
-# 支持三种运行模式（通过 CMD/参数切换）：
+# 支持四种运行模式（通过 CMD/参数切换）：
 #   mcp-server  (默认) 启动 MCP Server 的 HTTP 传输模式
+#   web-server         启动 AG-UI Web Server（对话界面 + 运维 API，端口 8002）
 #   eval               运行自动化评估套件
 #   run "<输入>"        运行单次对话
 #
 # 用法：
 #   docker run legacy                          # 默认 mcp-server
 #   docker run legacy mcp-server               # 显式指定
+#   docker run legacy web-server               # Web UI（端口 8002）
 #   docker run legacy eval                     # 评估
 #   docker run legacy run "老人去世后如何办理死亡证明"
 # ============================================================
@@ -87,6 +89,15 @@ case "$MODE" in
             --log-level "${LOG_LEVEL:-INFO}"
         ;;
 
+    # ---- Web Server 模式（AG-UI 对话界面 + 运维 API）----
+    web-server)
+        log "启动 AG-UI Web Server (host=${MCP_SERVER_HOST:-0.0.0.0}, port=${WEB_SERVER_PORT:-8002})"
+        exec legacy-web-server \
+            --host "${MCP_SERVER_HOST:-0.0.0.0}" \
+            --port "${WEB_SERVER_PORT:-8002}" \
+            --log-level "${LOG_LEVEL:-INFO}"
+        ;;
+
     # ---- 评估模式 ----
     eval)
         log "运行自动化评估套件"
@@ -103,9 +114,10 @@ case "$MODE" in
     # ---- 未知模式 ----
     *)
         log "未知模式: ${MODE}"
-        log "支持的模式: mcp-server (默认) | eval | run"
+        log "支持的模式: mcp-server (默认) | web-server | eval | run"
         log "示例:"
         log "  docker run legacy mcp-server"
+        log "  docker run legacy web-server"
         log "  docker run legacy eval"
         log "  docker run legacy run \"你的问题\""
         exit 1

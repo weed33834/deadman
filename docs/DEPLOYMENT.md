@@ -33,8 +33,11 @@ docker run -d \
 ### 运行模式切换
 
 ```bash
-# MCP Server（默认）
-docker run legacy-aftercare mcp-server
+# MCP Server（默认，端口 8000）
+docker run -p 8000:8000 legacy-aftercare mcp-server
+
+# Web UI（对话 + 运维看板 + 测试中心，端口 8002）
+docker run -p 8002:8002 legacy-aftercare web-server
 
 # 运行评估
 docker run legacy-aftercare eval
@@ -42,6 +45,13 @@ docker run legacy-aftercare eval
 # 单次对话
 docker run legacy-aftercare run "你的问题"
 ```
+
+**三种服务端口**：
+| 端口 | 服务 | 启动方式 |
+|------|------|---------|
+| 8000 | MCP Server（JSON-RPC） | `legacy mcp-server` 或 `docker run ... mcp-server` |
+| 8001 | A2A Server（JSON-RPC 2.0） | `legacy-a2a-server` |
+| 8002 | Web UI（HTTP + SSE） | `legacy-web-server` 或 `docker run ... web-server` |
 
 ### 健康检查
 

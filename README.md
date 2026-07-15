@@ -34,8 +34,12 @@ export LLM_PROVIDER="openai"
 ### 3. 运行
 
 ```bash
-# 启动 MCP Server
+# 启动 MCP Server（给智能体平台调用）
 legacy mcp-server
+
+# 启动 Web UI（对话界面 + 运维看板 + 测试中心，端口 8002）
+legacy-web-server
+# 浏览器打开 http://localhost:8002
 
 # 运行单次对话
 legacy run "我爸在北京去世了，需要办什么手续？"
@@ -44,11 +48,22 @@ legacy run "我爸在北京去世了，需要办什么手续？"
 legacy eval -v
 ```
 
+**Web UI 四个页签**（端口 8002）：
+- **对话**：6 智能体切换 + SSE 流式响应
+- **运维看板**：13 领域健康汇总 + 记忆状态 + 部署工件
+- **测试中心**：13 领域手动测试（一键运行 CLI 命令，真实反馈）
+- **资源列表**：智能体 + MCP 工具清单
+
 ### 4. Docker 部署
 
 ```bash
 docker build -t legacy-aftercare .
+
+# MCP Server（默认，端口 8000）
 docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
+
+# Web UI（端口 8002）
+docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx legacy-aftercare web-server
 ```
 
 ### 5. 全量部署（含 Neo4j + Langfuse + OTel）

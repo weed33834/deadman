@@ -8,6 +8,7 @@
 # 构建：  docker build -t legacy-aftercare:latest .
 # 运行：  docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare:latest
 # 模式：  docker run legacy-aftercare:latest mcp-server   # 默认
+#         docker run -p 8002:8002 legacy-aftercare:latest web-server
 #         docker run legacy-aftercare:latest eval
 #         docker run legacy-aftercare:latest run "你的问题"
 # ============================================================
@@ -51,7 +52,7 @@ RUN pip install --no-cache-dir .
 FROM python:3.11-slim AS runtime
 
 # 构建参数（仅用于镜像元数据，不进入运行时环境）
-ARG LEGACY_VERSION=4.4.1
+ARG LEGACY_VERSION=5.0
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
 
@@ -126,8 +127,8 @@ RUN chmod +x /app/docker/entrypoint.sh /app/docker/healthcheck.py
 # 切换到非 root 用户
 USER legacy
 
-# 暴露 MCP Server HTTP 端口
-EXPOSE 8000
+# 暴露端口：MCP Server(8000) / A2A Server(8001) / Web UI(8002)
+EXPOSE 8000 8001 8002
 
 # 数据持久化卷（记忆存储 / LightRAG / 运行时数据）
 VOLUME ["/app/data"]
@@ -146,7 +147,7 @@ LABEL org.opencontainers.image.title="legacy-aftercare" \
       org.opencontainers.image.version="${LEGACY_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/legacy/aftercare" \
+      org.opencontainers.image.source="https://github.com/bad-hope/legacy-aftercare" \
       org.opencontainers.image.licenses="MIT"
 
 # 入口点：tini 作为 PID 1，entrypoint.sh 处理模式切换

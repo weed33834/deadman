@@ -46,11 +46,30 @@ legacy mcp-server
 # 在 TRAE/Coze/Dify 等平台配置 MCP endpoint 指向 http://localhost:8000
 ```
 
-#### 方式 C：Docker
+#### 方式 C：Web UI（对话 + 运维看板 + 测试中心）
+
+```bash
+legacy-web-server
+# 默认监听 0.0.0.0:8002
+# 浏览器打开 http://localhost:8002
+```
+
+Web UI 提供 4 个页签：
+- **对话**：6 智能体切换 + SSE 流式响应
+- **运维看板**：13 领域健康汇总 + 记忆 4 层状态 + 部署工件校验
+- **测试中心**：13 领域一键手动测试（LLM/提示词/规则/智能体/知识库/MCP/可观测/记忆/A2A/部署/Reflexion/技能）
+- **资源列表**：智能体清单 + MCP 工具清单
+
+#### 方式 D：Docker
 
 ```bash
 docker build -t legacy-aftercare .
+
+# MCP Server
 docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
+
+# Web UI
+docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx legacy-aftercare web-server
 ```
 
 ### 4. 运行测试
