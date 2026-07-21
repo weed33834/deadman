@@ -3,8 +3,8 @@
 ## 安装
 
 ```bash
-git clone https://github.com/bad-hope/legacy-aftercare.git
-cd legacy-aftercare
+git clone https://github.com/bad-hope/deadman.git
+cd deadman
 pip install -e .
 ```
 
@@ -41,7 +41,7 @@ export LLM_BASE_URL=http://localhost:11434/v1
 ### CLI 单次对话
 
 ```bash
-legacy run "我爸在北京去世了，需要办什么手续？"
+deadman run "我爸在北京去世了，需要办什么手续？"
 ```
 
 ### MCP Server
@@ -49,7 +49,7 @@ legacy run "我爸在北京去世了，需要办什么手续？"
 供智能体平台调用。默认监听 `127.0.0.1:8000`，在 TRAE / Coze / Dify 等平台配置 MCP endpoint 指向 `http://localhost:8000` 即可。
 
 ```bash
-legacy mcp-server
+deadman mcp-server
 ```
 
 ### Web UI
@@ -57,7 +57,7 @@ legacy mcp-server
 对话界面与运维看板，默认监听 `0.0.0.0:8002`，浏览器打开 `http://localhost:8002`。
 
 ```bash
-legacy-web-server
+deadman-web-server
 ```
 
 四个页签：
@@ -70,13 +70,13 @@ legacy-web-server
 ### Docker
 
 ```bash
-docker build -t legacy-aftercare .
+docker build -t deadman .
 
 # MCP Server
-docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare
+docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx deadman
 
 # Web UI
-docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx legacy-aftercare web-server
+docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx deadman web-server
 ```
 
 ## 测试
@@ -88,7 +88,7 @@ python -m pytest .traecli/src/tests/ -v
 ## 评估
 
 ```bash
-legacy eval -v
+deadman eval -v
 ```
 
 ## 核心概念
@@ -146,4 +146,4 @@ report_incident       上报安全事件
 
 - [部署指南](DEPLOYMENT.md) —— 生产环境部署
 - [平台适配](../PLATFORMS.md) —— 各平台接入说明
-- [品牌说明](../BRAND.md) —— 三语品牌名
+- [品牌说明](../BRAND.md) —— 品牌名

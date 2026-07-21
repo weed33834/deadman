@@ -409,7 +409,7 @@ knowledge/_traces/
   "start_time": "...",
   "end_time": "...",
   "attributes": {
-    "from_agent_id": "legacy-legal-advisor",
+    "from_agent_id": "deadman-legal-advisor",
     "to_agent_id": "external-lawyer-agent",
     "capability_id": "inheritance-law-consultation",
     "task_state": "completed|failed|rejected",

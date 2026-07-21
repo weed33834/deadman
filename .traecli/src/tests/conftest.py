@@ -1,6 +1,6 @@
 """pytest 全局配置 - sys.path 设置 + mock LLM fixtures
 
-把 /workspace/.traecli/src 加到 sys.path，让 `import legacy` 能工作。
+把 /workspace/.traecli/src 加到 sys.path，让 `import deadman` 能工作。
 LLM 调用全部走 mock，不真正调外部 API。
 """
 
@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# === 把 src 目录加到 sys.path，让 import legacy 能工作 ===
+# === 把 src 目录加到 sys.path，让 import deadman 能工作 ===
 _SRC_DIR = str(Path(__file__).resolve().parent.parent)
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
@@ -41,18 +41,18 @@ def mock_llm_client():
 
 @pytest.fixture
 def patch_llm(monkeypatch, mock_llm_client):
-    """把 legacy.llm.llm_client 全局单例替换为 mock。
+    """把 deadman.llm.llm_client 全局单例替换为 mock。
 
     测试中需要全局 llm_client 时用这个 fixture。
     """
-    import legacy.llm as llm_module
+    import deadman.llm as llm_module
 
     monkeypatch.setattr(llm_module, "llm_client", mock_llm_client)
     # 同步替换已经导入到各模块的引用
-    import legacy.memory.manager as mm
-    import legacy.memory.episodic as ep
-    import legacy.reflexion.engine as rfe
-    import legacy.orchestration.nodes as nodes
+    import deadman.memory.manager as mm
+    import deadman.memory.episodic as ep
+    import deadman.reflexion.engine as rfe
+    import deadman.orchestration.nodes as nodes
 
     monkeypatch.setattr(mm, "llm_client", mock_llm_client)
     monkeypatch.setattr(ep, "llm_client", mock_llm_client)
@@ -69,8 +69,8 @@ def _reset_global_singletons():
     """
     # 测试前清理
     try:
-        from legacy.observability.tracer import tracer
-        from legacy.observability.metrics import metrics_collector
+        from deadman.observability.tracer import tracer
+        from deadman.observability.metrics import metrics_collector
 
         tracer.clear()
         metrics_collector.clear()
@@ -79,8 +79,8 @@ def _reset_global_singletons():
     yield
     # 测试后清理
     try:
-        from legacy.observability.tracer import tracer
-        from legacy.observability.metrics import metrics_collector
+        from deadman.observability.tracer import tracer
+        from deadman.observability.metrics import metrics_collector
 
         tracer.clear()
         metrics_collector.clear()

@@ -1,4 +1,4 @@
-"""测试 legacy.rules_loader - 规则加载器与规则校验器
+"""测试 deadman.rules_loader - 规则加载器与规则校验器
 
 覆盖点：
   - RuleLoader.load_rule 文件加载与缓存
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 
 
-from legacy.rules_loader import RuleChecker, RuleLoader, rule_checker
-from legacy.types import RiskTier
+from deadman.rules_loader import RuleChecker, RuleLoader, rule_checker
+from deadman.types import RiskTier
 
 
 # =====================================================================
@@ -230,7 +230,7 @@ class TestRuleCheckerScenarios:
 
     def test_check_returns_rule_check_result(self):
         # 返回类型为 RuleCheckResult
-        from legacy.types import RuleCheckResult
+        from deadman.types import RuleCheckResult
 
         result = rule_checker.check("普通文本。")
         assert isinstance(result, RuleCheckResult)

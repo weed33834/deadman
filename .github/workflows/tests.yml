@@ -1,0 +1,39 @@
+name: tests
+
+# 最低限度 CI：仅运行测试套件，无自动合并、无机器人、无 release 自动化。
+# 依赖更新由维护者手动进行（不配置 Dependabot / Renovate）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run tests
+        run: |
+          python -m pytest .traecli/src/tests/ -q --tb=short
+        env:
+          PYTHONDONTWRITEBYTECODE: 1

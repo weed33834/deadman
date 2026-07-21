@@ -1,8 +1,8 @@
 # ============================================================
-# Legacy 平台 Docker Compose 编排
+# deadman 平台 Docker Compose 编排
 #
 # 服务拓扑：
-#   legacy          主服务（MCP Server HTTP，构建自 Dockerfile）
+#   deadman          主服务（MCP Server HTTP，构建自 Dockerfile）
 #   neo4j           Graphiti 时态记忆后端（可选 profile: graphiti）
 #   langfuse        可观测性平台（可选 profile: observability）
 #   langfuse-db     Langfuse 依赖的 Postgres（可选 profile: observability）
@@ -28,16 +28,16 @@
 
 services:
   # ============================================================
-  # 主服务：Legacy MCP Server
+  # 主服务：deadman MCP Server
   # ============================================================
-  legacy:
+  deadman:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        LEGACY_VERSION: ${LEGACY_VERSION:-5.0}
-    image: legacy-aftercare:${LEGACY_VERSION:-5.0}
-    container_name: legacy
+        DEADMAN_VERSION: ${DEADMAN_VERSION:-5.0}
+    image: deadman:${DEADMAN_VERSION:-5.0}
+    container_name: deadman
     restart: unless-stopped
     ports:
       - "${MCP_HOST_PORT:-8000}:8000"   # MCP Server
@@ -79,7 +79,7 @@ services:
       # 可选：挂载测试套件以支持 eval 模式（.dockerignore 排除了 tests/）
       # - ./.traecli/tests:/app/.traecli/tests:ro
     networks:
-      - legacy-net
+      - deadman-net
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s
@@ -88,7 +88,7 @@ services:
       retries: 3
     # 可选依赖：仅在对应 profile 启用时等待，否则跳过（required: false）
     # 需要 Docker Compose v2.20+ 支持 required 字段
-    # legacy 服务无 profiles 声明 → 默认始终启动；
+    # deadman 服务无 profiles 声明 → 默认始终启动；
     # neo4j/langfuse/otel 仅在对应 profile 激活时启动
     depends_on:
       otel-collector:
@@ -104,7 +104,7 @@ services:
   # ============================================================
   neo4j:
     image: neo4j:5
-    container_name: legacy-neo4j
+    container_name: deadman-neo4j
     restart: unless-stopped
     profiles:
       - graphiti
@@ -121,7 +121,7 @@ services:
       - "7474:7474"  # Neo4j Browser
       - "7687:7687"  # Bolt 协议
     networks:
-      - legacy-net
+      - deadman-net
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
       interval: 15s
@@ -132,11 +132,11 @@ services:
   # ============================================================
   # OpenTelemetry Collector：遥测数据中转
   # 启用：docker compose --profile observability up -d
-  # 接收 OTLP（gRPC 4317 / HTTP 4318），转发至 debug 与 legacy 服务
+  # 接收 OTLP（gRPC 4317 / HTTP 4318），转发至 debug 与 deadman 服务
   # ============================================================
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: legacy-otel
+    container_name: deadman-otel
     restart: unless-stopped
     profiles:
       - observability
@@ -192,7 +192,7 @@ services:
       - "8888:8888"  # 内部指标
       - "13133:13133"  # health_check 扩展端点
     networks:
-      - legacy-net
+      - deadman-net
     # 注意：otel-collector-contrib 镜像为 distroless（无 shell/wget/curl）
     # 无法使用 CMD-SHELL 健康检查。health_check 扩展已暴露 13133 端口，
     # 如需 Docker 级健康检查，可改用含 curl 的 sidecar 或使用 service_started 依赖。
@@ -206,7 +206,7 @@ services:
   # ============================================================
   langfuse:
     image: langfuse/langfuse:latest
-    container_name: legacy-langfuse
+    container_name: deadman-langfuse
     restart: unless-stopped
     profiles:
       - observability
@@ -222,7 +222,7 @@ services:
     ports:
       - "3000:3000"  # Langfuse Web UI
     networks:
-      - legacy-net
+      - deadman-net
     depends_on:
       langfuse-db:
         condition: service_healthy
@@ -241,7 +241,7 @@ services:
   # ============================================================
   langfuse-db:
     image: postgres:16-alpine
-    container_name: legacy-langfuse-db
+    container_name: deadman-langfuse-db
     restart: unless-stopped
     profiles:
       - observability
@@ -253,7 +253,7 @@ services:
     volumes:
       - langfuse-db-data:/var/lib/postgresql/data
     networks:
-      - legacy-net
+      - deadman-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
       interval: 10s
@@ -266,20 +266,20 @@ services:
 # ============================================================
 volumes:
   neo4j-data:
-    name: legacy-neo4j-data
+    name: deadman-neo4j-data
   neo4j-logs:
-    name: legacy-neo4j-logs
+    name: deadman-neo4j-logs
   langfuse-db-data:
-    name: legacy-langfuse-db-data
+    name: deadman-langfuse-db-data
 
 # ============================================================
 # 网络隔离
 # 使用专用 bridge 网络，与默认网络及其他 compose 项目隔离
 # ============================================================
 networks:
-  legacy-net:
+  deadman-net:
     driver: bridge
-    name: legacy-net
+    name: deadman-net
     # 启用 IP 地址管理
     ipam:
       driver: default

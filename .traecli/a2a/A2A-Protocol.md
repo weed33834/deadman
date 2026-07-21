@@ -54,12 +54,12 @@ A2A（Agent-to-Agent Protocol）：
 ```json
 // a2a/agent_cards/death-aftercare.json
 {
-  "agent_id": "legacy-death-aftercare",
+  "agent_id": "deadman-death-aftercare",
   "name": "身后事流程引导员",
   "description": "协助处理逝者身后事，包括死亡证明、户口注销、数字账号、遗产继承等 9 阶段全流程引导。专精中国大陆政策，部分覆盖美国加州、日本。",
   "version": "v4.1",
   "provider": {
-    "name": "TRAE Aftercare Platform",
+    "name": "deadman Platform",
     "url": "https://aftercare.example.com",
     "contact": "support@aftercare.example.com"
   },
@@ -126,38 +126,38 @@ A2A（Agent-to-Agent Protocol）：
 
 AGENT_CARDS = {
     "death-aftercare": {
-        "agent_id": "legacy-death-aftercare",
+        "agent_id": "deadman-death-aftercare",
         "name": "身后事流程引导员",
         "capabilities": ["death-certificate-guidance", "estate-inheritance-overview",
                         "psychological-crisis-response", "digital-account-succession",
                         "household-cancellation", "funeral-service-guidance"]
     },
     "legal-advisor": {
-        "agent_id": "legacy-legal-advisor",
+        "agent_id": "deadman-legal-advisor",
         "name": "法律顾问（不出法律意见）",
         "capabilities": ["inheritance-dispute-assessment", "lawyer-referral",
                         "legal-framework-explanation", "statute-of-limitations-check"]
     },
     "financial-analyst": {
-        "agent_id": "legacy-financial-analyst",
+        "agent_id": "deadman-financial-analyst",
         "name": "财务分析师",
         "capabilities": ["estate-asset-inventory", "tax-obligation-assessment",
                         "insurance-claim-guidance", "debt-settlement-framework"]
     },
     "policy-researcher": {
-        "agent_id": "legacy-policy-researcher",
+        "agent_id": "deadman-policy-researcher",
         "name": "政策研究员",
         "capabilities": ["policy-search", "policy-verification",
                         "cross-jurisdiction-comparison", "policy-change-tracking"]
     },
     "cross-border-specialist": {
-        "agent_id": "legacy-cross-border-specialist",
+        "agent_id": "deadman-cross-border-specialist",
         "name": "跨境专家",
         "capabilities": ["consular-authentication-guidance", "body-repatriation-framework",
                         "legal-conflict-identification", "multi-jurisdiction-coordination"]
     },
     "medical-guide": {
-        "agent_id": "legacy-medical-guide",
+        "agent_id": "deadman-medical-guide",
         "name": "医疗导航员",
         "capabilities": ["medical-insurance-guidance", "hospital-information",
                         "cross-region-medical-care", "medical-dispute-referral"]

@@ -30,8 +30,8 @@ for remote in origin gitcode gitee; do
 done
 
 echo "=== 同步完成 ==="
-echo "GitHub:  https://github.com/bad-hope/legacy-aftercare"
-echo "GitCode: https://gitcode.com/badhope/legacy-aftercare"
-echo "Gitee:   https://gitee.com/badhope/legacy-aftercare"
+echo "GitHub:  https://github.com/bad-hope/deadman"
+echo "GitCode: https://gitcode.com/badhope/deadman"
+echo "Gitee:   https://gitee.com/badhope/deadman"
 
 exit $FAILED

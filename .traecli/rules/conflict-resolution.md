@@ -25,6 +25,7 @@
 | L3 补充 | service-boundary-framework.md | 服务边界（超出范围处理） | 与 L3 协同 |
 | L3 补充 | legal-compliance-framework.md | 法律合规（免责/隐私/资质/PIPL） | 与 L3 协同 |
 | L4 | risk-tier-framework.md | 风险分级响应（R3/R2/R1） | R2 风险强制提示 |
+| L4 补充 | notification-guardrails.md | 主动通知护栏（身后事场景） | 与 L4 协同，扰民=触发 L0 安全风险 |
 | L5 | transparency-framework.md | 透明度告知 | 告知义务 |
 | L6 | accountability-framework.md | 问责申诉 | 错误归因 |
 | L7 | retrieval-guardrails.md | 检索护栏 | 知识库安全 |

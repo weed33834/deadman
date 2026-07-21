@@ -1,18 +1,15 @@
-# Legacy / 死者为大 / 終活 - 源码
+# deadman - 源码
 
-通用身后事多智能体平台的 Python 实现。不绑定任何厂商，适用于所有支持 agent 的平台。
+身后事多智能体引导平台的 Python 实现。不绑定任何厂商，适用于所有支持 agent 的平台。
 
-三语品牌名：
-- 中文：**死者为大**
-- 英文：**Legacy**
-- 日文：**終活**（しゅうかつ）
+统一品牌名：**deadman**
 
 详见 [BRAND.md](../../BRAND.md)。
 
 ## 安装
 
 ```bash
-cd legacy-aftercare
+cd deadman
 pip install -e .
 ```
 
@@ -21,27 +18,27 @@ pip install -e .
 ### 启动 MCP Server
 
 ```bash
-legacy-mcp-server
+deadman-mcp-server
 # 或
-legacy mcp-server
+deadman mcp-server
 ```
 
 ### 运行评估
 
 ```bash
-legacy eval -v
+deadman eval -v
 ```
 
 ### 运行单次对话
 
 ```bash
-legacy run "我爸在北京去世了，需要办什么手续？"
+deadman run "我爸在北京去世了，需要办什么手续？"
 ```
 
 ## 模块结构
 
 ```
-legacy/
+deadman/
 ├── __init__.py            # 包入口
 ├── config.py              # 全局配置（环境变量）
 ├── types.py               # 核心数据类型

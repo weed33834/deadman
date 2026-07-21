@@ -1,16 +1,16 @@
 # ============================================================
-# Legacy 平台 Dockerfile - 多阶段构建
+# deadman 平台 Dockerfile - 多阶段构建
 #
 # 阶段划分：
 #   builder  - 安装 Python 依赖到独立虚拟环境
 #   runtime  - 最小化运行时镜像，仅复制代码与已装依赖
 #
-# 构建：  docker build -t legacy-aftercare:latest .
-# 运行：  docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx legacy-aftercare:latest
-# 模式：  docker run legacy-aftercare:latest mcp-server   # 默认
-#         docker run -p 8002:8002 legacy-aftercare:latest web-server
-#         docker run legacy-aftercare:latest eval
-#         docker run legacy-aftercare:latest run "你的问题"
+# 构建：  docker build -t deadman:latest .
+# 运行：  docker run -p 8000:8000 -e LLM_API_KEY=sk-xxx deadman:latest
+# 模式：  docker run deadman:latest mcp-server   # 默认
+#         docker run -p 8002:8002 deadman:latest web-server
+#         docker run deadman:latest eval
+#         docker run deadman:latest run "你的问题"
 # ============================================================
 
 # ============================================================
@@ -37,7 +37,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 升级打包工具
 RUN pip install --upgrade pip setuptools wheel
 
-# 复制 pyproject.toml + 源码，安装 legacy 包及其依赖
+# 复制 pyproject.toml + 源码，安装 deadman 包及其依赖
 # 利用 .dockerignore 排除 tests/ 与缓存，缩小构建上下文
 WORKDIR /build
 COPY pyproject.toml ./
@@ -52,12 +52,12 @@ RUN pip install --no-cache-dir .
 FROM python:3.11-slim AS runtime
 
 # 构建参数（仅用于镜像元数据，不进入运行时环境）
-ARG LEGACY_VERSION=5.0
+ARG DEADMAN_VERSION=5.0
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
 
 # 运行时环境变量
-#   - PYTHONPATH 指向源码目录，使 import legacy 优先加载源码树
+#   - PYTHONPATH 指向源码目录，使 import deadman 优先加载源码树
 #     （保证 config.py 中 project_root = Path(__file__).parent.parent.parent
 #      解析为 /app/.traecli/，从而正确定位 rules/agents/knowledge/skills）
 #   - MCP_SERVER_HOST=0.0.0.0 使服务在容器内对外可达
@@ -65,7 +65,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH="/app/.traecli/src" \
-    LEGACY_VERSION=${LEGACY_VERSION} \
+    DEADMAN_VERSION=${DEADMAN_VERSION} \
     # === MCP Server ===
     MCP_SERVER_HOST=0.0.0.0 \
     MCP_SERVER_PORT=8000 \
@@ -100,32 +100,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-# 从 builder 复制已装好的虚拟环境（含依赖与 legacy 包）
+# 从 builder 复制已装好的虚拟环境（含依赖与 deadman 包）
 COPY --from=builder /opt/venv /opt/venv
 
 # 创建非 root 用户（安全最佳实践）
-RUN groupadd --system legacy \
-    && useradd --system --gid legacy --create-home \
-       --home-dir /home/legacy --shell /bin/bash legacy
+RUN groupadd --system deadman \
+    && useradd --system --gid deadman --create-home \
+       --home-dir /home/deadman --shell /bin/bash deadman
 
 # 创建项目目录与数据持久化目录
 RUN mkdir -p /app/.traecli /app/data /app/docker \
-    && chown -R legacy:legacy /app
+    && chown -R deadman:deadman /app
 
 WORKDIR /app
 
 # 复制项目运行时数据（rules/agents/knowledge/skills 等被 MCP 工具读取）
 # 注意：构建上下文为仓库根目录，仅复制 .traecli/ 子目录以保持容器内路径结构
-# src/ 中的 legacy 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
-COPY --chown=legacy:legacy .traecli/ /app/.traecli/
+# src/ 中的 deadman 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
+COPY --chown=deadman:deadman .traecli/ /app/.traecli/
 
 # 复制入口脚本与健康检查脚本
-COPY --chown=legacy:legacy .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh
-COPY --chown=legacy:legacy .traecli/docker/healthcheck.py /app/docker/healthcheck.py
+COPY --chown=deadman:deadman .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=deadman:deadman .traecli/docker/healthcheck.py /app/docker/healthcheck.py
 RUN chmod +x /app/docker/entrypoint.sh /app/docker/healthcheck.py
 
 # 切换到非 root 用户
-USER legacy
+USER deadman
 
 # 暴露端口：MCP Server(8000) / A2A Server(8001) / Web UI(8002)
 EXPOSE 8000 8001 8002
@@ -142,12 +142,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -fsS http://localhost:8000/health || exit 1
 
 # 镜像元数据（OCI 标准）
-LABEL org.opencontainers.image.title="legacy-aftercare" \
-      org.opencontainers.image.description="身后事多智能体平台 MCP Server" \
-      org.opencontainers.image.version="${LEGACY_VERSION}" \
+LABEL org.opencontainers.image.title="deadman" \
+      org.opencontainers.image.description="身后事多智能体引导平台 MCP Server" \
+      org.opencontainers.image.version="${DEADMAN_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/bad-hope/legacy-aftercare" \
+      org.opencontainers.image.source="https://github.com/bad-hope/deadman" \
       org.opencontainers.image.licenses="MIT"
 
 # 入口点：tini 作为 PID 1，entrypoint.sh 处理模式切换

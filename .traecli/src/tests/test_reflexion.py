@@ -1,4 +1,4 @@
-"""测试 legacy.reflexion - Reflexion 反思重试引擎
+"""测试 deadman.reflexion - Reflexion 反思重试引擎
 
 覆盖点：
   - execute_with_reflexion 成功路径（首次即成功）
@@ -12,7 +12,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 
-from legacy.reflexion.engine import (
+from deadman.reflexion.engine import (
     ADJUSTMENT_STRATEGIES,
     ReflexionEngine,
     get_predefined_strategy,

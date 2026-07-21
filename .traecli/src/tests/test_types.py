@@ -1,4 +1,4 @@
-"""测试 legacy.types - 核心数据类型
+"""测试 deadman.types - 核心数据类型
 
 覆盖点：
   - TransferSummary.is_complete() 在字段齐全/缺失时的行为
@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 
-from legacy.types import (
+from deadman.types import (
     ConfidenceLabel,
     ExecutionMode,
     RuleCheckResult,

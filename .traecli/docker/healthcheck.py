@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Legacy 平台容器健康检查脚本
+"""deadman 平台容器健康检查脚本
 
 请求 MCP Server 的 /health 端点，判断服务是否健康：
   - 返回 0：健康（HTTP 2xx）

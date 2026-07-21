@@ -1,4 +1,4 @@
-"""测试 legacy.evaluation - 三层判定 + 工具调用校验
+"""测试 deadman.evaluation - 三层判定 + 工具调用校验
 
 覆盖点：
   - RegexChecker 正则黑名单检测
@@ -11,12 +11,12 @@ from __future__ import annotations
 
 
 
-from legacy.evaluation.three_layer import (
+from deadman.evaluation.three_layer import (
     KeywordChecker,
     RegexChecker,
     ThreeLayerEvaluator,
 )
-from legacy.evaluation.tool_calls import (
+from deadman.evaluation.tool_calls import (
     ArgValidator,
     _is_subsequence,
     _match_result,

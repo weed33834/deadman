@@ -1,4 +1,4 @@
-"""测试 legacy.orchestration - 状态定义与图执行器
+"""测试 deadman.orchestration - 状态定义与图执行器
 
 覆盖点：
   - create_initial_state 初始状态构造
@@ -12,12 +12,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 
-from legacy.orchestration.graph import (
+from deadman.orchestration.graph import (
     LANGGRAPH_AVAILABLE,
     SequentialExecutor,
     build_main_graph,
 )
-from legacy.orchestration.state import ConversationState, create_initial_state
+from deadman.orchestration.state import ConversationState, create_initial_state
 
 
 # =====================================================================

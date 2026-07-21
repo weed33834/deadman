@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Legacy 平台容器入口脚本
+# deadman 平台容器入口脚本
 #
 # 支持四种运行模式（通过 CMD/参数切换）：
 #   mcp-server  (默认) 启动 MCP Server 的 HTTP 传输模式
@@ -9,11 +9,11 @@
 #   run "<输入>"        运行单次对话
 #
 # 用法：
-#   docker run legacy                          # 默认 mcp-server
-#   docker run legacy mcp-server               # 显式指定
-#   docker run legacy web-server               # Web UI（端口 8002）
-#   docker run legacy eval                     # 评估
-#   docker run legacy run "老人去世后如何办理死亡证明"
+#   docker run deadman                          # 默认 mcp-server
+#   docker run deadman mcp-server               # 显式指定
+#   docker run deadman web-server               # Web UI（端口 8002）
+#   docker run deadman eval                     # 评估
+#   docker run deadman run "老人去世后如何办理死亡证明"
 # ============================================================
 set -euo pipefail
 
@@ -82,7 +82,7 @@ case "$MODE" in
     # ---- MCP Server 模式（默认）----
     mcp-server)
         log "启动 MCP Server (transport=http, host=${MCP_SERVER_HOST:-0.0.0.0}, port=${MCP_SERVER_PORT:-8000})"
-        exec legacy-mcp-server \
+        exec deadman-mcp-server \
             --transport http \
             --host "${MCP_SERVER_HOST:-0.0.0.0}" \
             --port "${MCP_SERVER_PORT:-8000}" \
@@ -92,7 +92,7 @@ case "$MODE" in
     # ---- Web Server 模式（AG-UI 对话界面 + 运维 API）----
     web-server)
         log "启动 AG-UI Web Server (host=${MCP_SERVER_HOST:-0.0.0.0}, port=${WEB_SERVER_PORT:-8002})"
-        exec legacy-web-server \
+        exec deadman-web-server \
             --host "${MCP_SERVER_HOST:-0.0.0.0}" \
             --port "${WEB_SERVER_PORT:-8002}" \
             --log-level "${LOG_LEVEL:-INFO}"
@@ -102,13 +102,13 @@ case "$MODE" in
     eval)
         log "运行自动化评估套件"
         # 透传剩余参数（如 --cases-dir, -v）
-        exec legacy eval "$@"
+        exec deadman eval "$@"
         ;;
 
     # ---- 单次对话模式 ----
     run)
         log "运行单次对话"
-        exec legacy run "$@"
+        exec deadman run "$@"
         ;;
 
     # ---- 未知模式 ----
@@ -116,10 +116,10 @@ case "$MODE" in
         log "未知模式: ${MODE}"
         log "支持的模式: mcp-server (默认) | web-server | eval | run"
         log "示例:"
-        log "  docker run legacy mcp-server"
-        log "  docker run legacy web-server"
-        log "  docker run legacy eval"
-        log "  docker run legacy run \"你的问题\""
+        log "  docker run deadman mcp-server"
+        log "  docker run deadman web-server"
+        log "  docker run deadman eval"
+        log "  docker run deadman run \"你的问题\""
         exit 1
         ;;
 esac

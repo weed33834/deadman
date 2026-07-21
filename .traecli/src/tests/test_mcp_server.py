@@ -1,4 +1,4 @@
-"""测试 legacy.mcp_server - MCP Server 工具注册与调用
+"""测试 deadman.mcp_server - MCP Server 工具注册与调用
 
 覆盖点：
   - list_tools 返回 13 个工具
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 
 
-from legacy.mcp_server.server import McpServer, mcp
+from deadman.mcp_server.server import McpServer, mcp
 
 
 # =====================================================================
@@ -21,10 +21,10 @@ from legacy.mcp_server.server import McpServer, mcp
 class TestMcpServerRegistration:
     """测试 McpServer 工具注册"""
 
-    def test_list_tools_returns_13_tools(self):
-        # 全局 mcp 单例应注册了 13 个工具
+    def test_list_tools_returns_15_tools(self):
+        # 全局 mcp 单例应注册了 15 个工具（13 原有 + web_search_official + execute_code）
         tools = mcp.list_tools()
-        assert len(tools) == 13
+        assert len(tools) == 15
 
     def test_list_tools_format(self):
         # 每个工具含 name/description/inputSchema
@@ -35,15 +35,17 @@ class TestMcpServerRegistration:
             assert "inputSchema" in tool
 
     def test_expected_tool_names(self):
-        # 13 个工具名齐全
+        # 15 个工具名齐全（13 原有 + web_search_official + execute_code）
         tools = mcp.list_tools()
         names = {t["name"] for t in tools}
         expected = {
-            "query_knowledge", "web_search", "read_file", "write_file",
+            "query_knowledge", "web_search", "web_search_official",
+            "read_file", "write_file",
             "invoke_subagent", "check_integrity", "check_rules",
             "query_memory", "initiate_debate", "call_external_agent",
             "execute_reflexion",
             "init_transfer", "report_incident",
+            "execute_code",
         }
         assert names == expected
 
@@ -213,12 +215,19 @@ class TestCallToolOthers:
         assert result["ok"] is False
         assert result["error"] == "ToolNotFound"
 
-    async def test_call_web_search_returns_mock(self):
-        # web_search 是 mock 实现
+    async def test_call_web_search_returns_real(self):
+        # web_search 是真实实现（httpx 直连 DuckDuckGo HTML，借鉴 Hermes MIT 设计）
+        # 不再返回 mock=True；失败/无网络时返回 ok=True + 空 results + 引导打官方热线
         result = await mcp.call_tool("web_search", {"query": "test"})
         assert isinstance(result, dict)
-        assert result.get("mock") is True
-        assert result.get("needs_research") is True
+        # 应有 ok 字段（不再有 mock 字段）
+        assert "ok" in result
+        # 不应有 mock=True（已替换为真实实现）
+        assert result.get("mock") is not True
+        # results 应是 list（可能为空，因为无网络）
+        assert isinstance(result.get("results"), list)
+        # note 应存在（retrieval-guardrails 要求）
+        assert "note" in result
 
     async def test_call_query_memory_available(self):
         # query_memory 调用应返回 dict（memory 模块可用）
@@ -282,8 +291,8 @@ class TestMcpServerBasics:
         assert server.name == "my-server"
 
     def test_init_default_name(self):
-        # 全局 mcp 单例名为 legacy-platform
-        assert mcp.name == "legacy-platform"
+        # 全局 mcp 单例名为 deadman-platform
+        assert mcp.name == "deadman-platform"
 
     def test_trace_id_is_string(self):
         # trace_id 应是字符串（uuid）

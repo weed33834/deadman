@@ -1,4 +1,4 @@
-"""测试 legacy.memory - 4 层记忆系统
+"""测试 deadman.memory - 4 层记忆系统
 
 覆盖点：
   - WorkingMemory 溢出归档（超过 MAX_TURNS 时归档到 episodic）
@@ -12,14 +12,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 
-from legacy.memory.manager import (
+from deadman.memory.manager import (
     MemoryManager,
     PII_FIELDS,
     sanitize_before_store,
     _mask_pii,
 )
-from legacy.memory.semantic import SemanticMemory, UserProfile
-from legacy.memory.working import WorkingMemory
+from deadman.memory.semantic import SemanticMemory, UserProfile
+from deadman.memory.working import WorkingMemory
 
 
 # =====================================================================

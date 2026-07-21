@@ -1,4 +1,4 @@
-"""测试 legacy.selfcheck - SelfCheckGPT 数字类幻觉检测
+"""测试 deadman.selfcheck - SelfCheckGPT 数字类幻觉检测
 
 覆盖点：
   - extract_numeric_claims 6 种正则模式（phone/days/money/percent/article/step_count）
@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from legacy.selfcheck.checker import (
+from deadman.selfcheck.checker import (
     NUMBER_PATTERNS,
     SelfCheckChecker,
     _HIGH_THRESHOLD,

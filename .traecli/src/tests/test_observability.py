@@ -1,4 +1,4 @@
-"""测试 legacy.observability - Tracer 与 MetricsCollector
+"""测试 deadman.observability - Tracer 与 MetricsCollector
 
 覆盖点：
   - Tracer start_span / end_span 生命周期
@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import pytest
 
-from legacy.observability.metrics import (
+from deadman.observability.metrics import (
     METRIC_CATEGORIES,
     MetricsCollector,
     metrics_collector,
 )
-from legacy.observability.tracer import SpanType, Tracer, tracer
+from deadman.observability.tracer import SpanType, Tracer, tracer
 
 
 # =====================================================================
@@ -196,7 +196,7 @@ class TestTraceContextManagers:
 
     def test_trace_tool_span_creates_and_ends(self):
         # with 块进入时创建 span，退出时结束
-        from legacy.observability.tracer import trace_tool_span
+        from deadman.observability.tracer import trace_tool_span
 
         with trace_tool_span("web_search", {"query": "x"}) as span_id:
             assert span_id is not None
@@ -210,7 +210,7 @@ class TestTraceContextManagers:
 
     def test_trace_tool_span_error_status(self):
         # with 块内抛异常 → status=ERROR
-        from legacy.observability.tracer import trace_tool_span
+        from deadman.observability.tracer import trace_tool_span
 
         with pytest.raises(ValueError):
             with trace_tool_span("bad_tool") as span_id:
@@ -220,7 +220,7 @@ class TestTraceContextManagers:
         assert len(span["events"]) >= 1
 
     def test_trace_root_span(self):
-        from legacy.observability.tracer import trace_root_span
+        from deadman.observability.tracer import trace_root_span
 
         with trace_root_span("user_request", {"user": "u1"}) as span_id:
             span = tracer.get_span(span_id)

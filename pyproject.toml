@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "legacy-aftercare"
-version = "4.4.1"
-description = "Legacy / 死者为大 / 終活 - 通用身后事多智能体平台（不绑定任何厂商，适用于所有支持 agent 的平台）"
+name = "deadman"
+version = "5.0.0"
+description = "deadman - 身后事多智能体引导平台（不绑定任何厂商，适用于所有支持 agent 的平台）"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{name = "Legacy Team"}]
-keywords = ["legacy", "aftercare", "agent", "multi-agent", "mcp", "langgraph"]
+authors = [{name = "deadman Team"}]
+keywords = ["deadman", "aftercare", "agent", "multi-agent", "mcp", "langgraph"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -59,21 +59,21 @@ sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=2.0"]
 mcp = ["fastmcp>=0.8", "duckduckgo-search>=6.0"]
 ragas = ["ragas>=0.1", "datasets>=2.0"]
 all = [
-    "legacy-aftercare[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp,ragas]",
+    "deadman[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp,ragas]",
 ]
 
 [project.scripts]
-legacy = "legacy.cli:main"
-legacy-mcp-server = "legacy.mcp_server.server:main"
-legacy-a2a-server = "legacy.a2a.server:main"
-legacy-web-server = "legacy.web.server:main"
+deadman = "deadman.cli:main"
+deadman-mcp-server = "deadman.mcp_server.server:main"
+deadman-a2a-server = "deadman.a2a.server:main"
+deadman-web-server = "deadman.web.server:main"
 
 [tool.setuptools.packages.find]
 where = [".traecli/src"]
-include = ["legacy*"]
+include = ["deadman*"]
 
 [tool.setuptools.package-data]
-legacy = ["web/static/*"]
+deadman = ["web/static/*"]
 
 [tool.ruff]
 line-length = 100

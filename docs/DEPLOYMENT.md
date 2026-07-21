@@ -4,7 +4,7 @@
 
 | 模式 | 适用场景 | 命令 |
 |------|---------|------|
-| 本地开发 | 开发调试 | `pip install -e .` + `legacy mcp-server` |
+| 本地开发 | 开发调试 | `pip install -e .` + `deadman mcp-server` |
 | Docker 单容器 | 小规模部署 | `docker run` |
 | Docker Compose | 生产部署（含可观测性） | `docker compose --profile full up` |
 | K8s | 大规模集群 | （待补充 Helm chart） |
@@ -14,51 +14,51 @@
 ### 构建镜像
 
 ```bash
-docker build -t legacy-aftercare:latest .
+docker build -t deadman:latest .
 ```
 
 ### 运行（MCP Server 模式）
 
 ```bash
 docker run -d \
-  --name legacy \
+  --name deadman \
   -p 8000:8000 \
   -e LLM_API_KEY=sk-xxx \
   -e LLM_MODEL=gpt-4o \
   -e LLM_PROVIDER=openai \
   -v $(pwd)/data:/app/data \
-  legacy-aftercare:latest
+  deadman:latest
 ```
 
 ### 运行模式切换
 
 ```bash
 # MCP Server（默认，端口 8000）
-docker run -p 8000:8000 legacy-aftercare mcp-server
+docker run -p 8000:8000 deadman mcp-server
 
 # Web UI（对话 + 运维看板 + 测试中心，端口 8002）
-docker run -p 8002:8002 legacy-aftercare web-server
+docker run -p 8002:8002 deadman web-server
 
 # 运行评估
-docker run legacy-aftercare eval
+docker run deadman eval
 
 # 单次对话
-docker run legacy-aftercare run "你的问题"
+docker run deadman run "你的问题"
 ```
 
 **三种服务端口**：
 | 端口 | 服务 | 启动方式 |
 |------|------|---------|
-| 8000 | MCP Server（JSON-RPC） | `legacy mcp-server` 或 `docker run ... mcp-server` |
-| 8001 | A2A Server（JSON-RPC 2.0） | `legacy-a2a-server` |
-| 8002 | Web UI（HTTP + SSE） | `legacy-web-server` 或 `docker run ... web-server` |
+| 8000 | MCP Server（JSON-RPC） | `deadman mcp-server` 或 `docker run ... mcp-server` |
+| 8001 | A2A Server（JSON-RPC 2.0） | `deadman-a2a-server` |
+| 8002 | Web UI（HTTP + SSE） | `deadman-web-server` 或 `docker run ... web-server` |
 
 ### 健康检查
 
 ```bash
 curl http://localhost:8000/health
 # 或
-docker exec legacy python /app/docker/healthcheck.py
+docker exec deadman python /app/docker/healthcheck.py
 ```
 
 ## Docker Compose 全量部署
@@ -88,7 +88,7 @@ docker compose --profile full up -d
 
 | 服务 | 端口 | 用途 |
 |------|------|------|
-| legacy | 8000 | MCP Server |
+| deadman | 8000 | MCP Server |
 | neo4j | 7687, 7474 | Graphiti 时态记忆 |
 | langfuse | 3000 | 可观测性平台 |
 | postgres | 5432 | Langfuse 数据库 |
@@ -97,13 +97,13 @@ docker compose --profile full up -d
 ### 4. 按需启动
 
 ```bash
-# 只启动 legacy
-docker compose up -d legacy
+# 只启动 deadman
+docker compose up -d deadman
 
-# 启动 legacy + Graphiti
+# 启动 deadman + Graphiti
 docker compose --profile graphiti up -d
 
-# 启动 legacy + 可观测性
+# 启动 deadman + 可观测性
 docker compose --profile observability up -d
 ```
 
@@ -157,7 +157,7 @@ docker compose --profile observability up -d
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | A2A_REGISTRY_URL | A2A 注册中心 | https://a2a-registry.example.com |
-| A2A_SELF_AGENT_ID | 本机 agent ID | legacy |
+| A2A_SELF_AGENT_ID | 本机 agent ID | deadman |
 
 ## CI/CD
 
@@ -167,16 +167,16 @@ docker compose --profile observability up -d
 - **release.yml**：打 `v*` tag 时构建 Docker 镜像并推送到 ghcr.io + 自动生成 GitHub Release
 
 > 本项目三仓平等维护（均为各自平台的主仓库，非镜像关系）：
-> - GitHub: https://github.com/bad-hope/legacy-aftercare
-> - GitCode: https://gitcode.com/badhope/legacy-aftercare
-> - Gitee: https://gitee.com/badhope/legacy-aftercare
+> - GitHub: https://github.com/bad-hope/deadman
+> - GitCode: https://gitcode.com/badhope/deadman
+> - Gitee: https://gitee.com/badhope/deadman
 >
 > 不再使用镜像同步流水线，三仓通过本地 `sync.sh` 手动同步推送。
 
 ## 安全注意事项
 
 1. **密钥不进仓库**：.gitignore 已排除 .env / *.key / credentials/
-2. **Docker 非 root 运行**：镜像用 `legacy` 用户
+2. **Docker 非 root 运行**：镜像用 `deadman` 用户
 3. **PII 脱敏**：记忆层自动脱敏 identifier/name/phone/address
 4. **A2A 数据脱敏**：外部调用出口自动脱敏 PII
 5. **用户同意**：A2A 外部调用必须获用户同意
@@ -190,18 +190,18 @@ docker compose --profile observability up -d
 lsof -i :8000
 
 # 检查环境变量
-docker exec legacy env | grep LLM
+docker exec deadman env | grep LLM
 
 # 查看日志
-docker logs legacy
+docker logs deadman
 ```
 
 ### LLM 调用失败
 
 ```bash
 # 测试 LLM 连通性
-docker exec legacy python -c "
-from legacy.llm import LLMClient
+docker exec deadman python -c "
+from deadman.llm import LLMClient
 import asyncio
 c = LLMClient()
 print(asyncio.run(c.chat([{'role':'user','content':'hi'}])))
