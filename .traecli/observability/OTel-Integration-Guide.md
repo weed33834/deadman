@@ -83,7 +83,7 @@ OTel GenAI 标准不覆盖多智能体场景，我们扩展以下属性（前缀
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind
 
-tracer = trace.get_tracer("death-aftercare-platform")
+tracer = trace.get_tracer("deadman")
 
 def handle_user_request(user_input, user_id, platform):
     with tracer.start_as_current_span("user_request", kind=SpanKind.SERVER) as root:

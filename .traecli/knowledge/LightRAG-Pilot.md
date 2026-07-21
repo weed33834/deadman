@@ -437,7 +437,7 @@ def query_graph_knowledge(country, region, topic):
 # 智能体的 tools 声明不变
 tools: WebSearch, WebFetch
 mcp_servers:
-  - death-aftercare-platform  # query_knowledge 自动支持 graph/hybrid 模式
+  - deadman-platform  # query_knowledge 自动支持 graph/hybrid 模式
 ```
 
 智能体调用时指定 mode：

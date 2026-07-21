@@ -504,7 +504,7 @@ from fastmcp import FastMCP
 import json
 from pathlib import Path
 
-mcp = FastMCP("death-aftercare-platform")
+mcp = FastMCP("deadman-platform")
 
 @mcp.tool()
 def check_rules(agent_name: str, output_text: str, context: dict = None) -> dict:
@@ -596,7 +596,7 @@ if __name__ == "__main__":
 // Claude Desktop / TRAE 的 MCP 配置
 {
   "mcpServers": {
-    "death-aftercare-platform": {
+    "deadman-platform": {
       "command": "python",
       "args": [".traecli/mcp_server/server.py"],
       "cwd": "/workspace"
@@ -616,7 +616,7 @@ python .traecli/mcp_server/server.py --transport http --port 8000
 // 各平台配置
 {
   "mcpServers": {
-    "death-aftercare-platform": {
+    "deadman-platform": {
       "url": "http://localhost:8000/mcp"
     }
   }
@@ -657,7 +657,7 @@ tools: WebSearch, WebFetch, Read, Write
 # 封装后
 tools: WebSearch, WebFetch
 mcp_servers:
-  - death-aftercare-platform  # 提供 check_rules, query_knowledge, init_transfer 等
+  - deadman-platform  # 提供 check_rules, query_knowledge, init_transfer 等
 ```
 
 智能体调用方式不变，只是工具来源从"平台原生"变为"MCP server 提供"。
