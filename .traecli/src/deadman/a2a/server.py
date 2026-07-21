@@ -78,7 +78,7 @@ def _build_default_card() -> AgentCard:
         ],
         provider={
             "name": "deadman Platform",
-            "url": "https://github.com/bad-hope/deadman",
+            "url": "https://github.com/weed33834/deadman",
         },
         authentication={"schemes": ["bearer"]},
     )

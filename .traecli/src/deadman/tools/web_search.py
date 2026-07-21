@@ -153,7 +153,7 @@ class DuckDuckGoSearchProvider:
     # 默认请求头（模拟浏览器避免被屏蔽）
     _HEADERS: dict[str, str] = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; deadman-bot/1.0; +https://github.com/bad-hope/deadman)"
+            "Mozilla/5.0 (compatible; deadman-bot/1.0; +https://github.com/weed33834/deadman)"
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",

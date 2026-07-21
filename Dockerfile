@@ -147,7 +147,7 @@ LABEL org.opencontainers.image.title="deadman" \
       org.opencontainers.image.version="${DEADMAN_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/bad-hope/deadman" \
+      org.opencontainers.image.source="https://github.com/weed33834/deadman" \
       org.opencontainers.image.licenses="MIT"
 
 # 入口点：tini 作为 PID 1，entrypoint.sh 处理模式切换

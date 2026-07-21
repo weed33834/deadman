@@ -3,7 +3,8 @@
 ## 安装
 
 ```bash
-git clone https://github.com/bad-hope/deadman.git
+git clone https://github.com/weed33834/deadman.git
+# 或国内镜像：git clone https://gitcode.com/badhope/deadman.git
 cd deadman
 pip install -e .
 ```
