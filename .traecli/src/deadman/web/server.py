@@ -2248,7 +2248,7 @@ class WebServer:
         """
         return {
             "platform": "deadman",
-            "version": "4.7.0",
+            "version": "5.0.0",
             "is_ai": True,  # transparency-framework L5 强制
             "disclaimer": (
                 "本平台是信息引导工具，不代办、不代查、不出具法律意见、"

@@ -16,7 +16,7 @@
 # ============================================================
 # Builder 阶段：安装依赖
 # ============================================================
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # 关闭 Python 字节码写入与缓冲，加速构建
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -49,7 +49,7 @@ RUN pip install --no-cache-dir .
 # ============================================================
 # Runtime 阶段：最小化运行时镜像
 # ============================================================
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # 构建参数（仅用于镜像元数据，不进入运行时环境）
 ARG DEADMAN_VERSION=5.0

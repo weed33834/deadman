@@ -82,6 +82,254 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 
 详见 [SECURITY.md](SECURITY.md)。
 
+## 系统架构
+
+```
+                          ┌──────────────────────────────────────────────┐
+                          │              用户接入层（4 入口）              │
+                          │  CLI · Web UI · MCP Server · A2A Server        │
+                          └──────────────┬───────────────────────────────┘
+                                         │
+                ┌────────────────────────┼─────────────────────────┐
+                │                        │                         │
+        ┌───────▼────────┐    ┌──────────▼──────────┐    ┌────────▼────────┐
+        │ input-guardrails│    │  safety-protocol L0 │    │ compliance L3   │
+        │  (Prompt Inj.)  │    │ (自杀/他杀风险干预) │    │  (PIPL/边界)    │
+        └───────┬────────┘    └──────────┬──────────┘    └────────┬────────┘
+                └────────────────────────┼─────────────────────────┘
+                                         │
+                          ┌──────────────▼───────────────────────┐
+                          │      LangGraph build_main_graph      │
+                          │   规则链 L0→L8（15 个规则文件）        │
+                          └──────────────┬───────────────────────┘
+                                         │
+        ┌────────────┬────────────┬──────┴───────┬────────────┬────────────┐
+        ▼            ▼            ▼              ▼            ▼            ▼
+┌──────────────┐┌────────────┐┌────────────┐┌────────────┐┌────────────┐┌────────────┐
+│ death-       ││ legal-     ││ financial- ││ policy-    ││ cross-     ││ medical-   │
+│ aftercare    ││ advisor    ││ analyst    ││ researcher ││ border-    ││ guide      │
+│              ││            ││            ││            ││ specialist ││            │
+│ 9 阶段流程   ││ 法律边界   ││ 资产/税务  ││ 跨地域政策 ││ 跨境身后事 ││ 医保/大病  │
+└──────┬───────┘└─────┬──────┘└─────┬──────┘└─────┬──────┘└─────┬──────┘└─────┬──────┘
+       │              │              │              │              │              │
+       └──────────────┴──────┬───────┴──────────────┴──────────────┴──────────────┘
+                             │
+                  ┌──────────▼──────────┐
+                  │  12 个私有子智能体  │
+                  │  (regional/legal/   │
+                  │   financial/...)    │
+                  └──────────┬──────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+┌───────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
+│  4 层记忆系统  │  │  知识库 + 工具  │  │  数据落地层     │
+│  working/epi/  │  │  CN 5 省 + US + │  │  ending_note/   │
+│  semantic/proc │  │  JP + WebSearch │  │  vault/cases/   │
+│                │  │  + 15 MCP 工具  │  │  switch/tickets │
+└────────────────┘  └─────────────────┘  └─────────────────┘
+       全部加密落盘（per-user passphrase + PBKDF2 + HMAC-SHA256）
+```
+
+## 智能体详解
+
+### death-aftercare（身后事流程引导）
+
+主智能体，9 阶段标准流程：
+
+1. **死亡证明** —— 在医院 / 家中 / 非正常死亡三种情形下分别办理
+2. **遗体处理** —— 殡仪馆接运 / 冷藏 / 火化 / 土葬许可
+3. **身份注销** —— 户口 / 身份证 / 护照 / 港澳台通行证
+4. **数字账号** —— 微信 / 支付宝 / 银行 App / 网盘 / 游戏账号
+5. **金融资产** —— 银行存款 / 股票 / 基金 / 保险 / 住房公积金
+6. **不动产车辆** —— 房产过户 / 车辆继承 / 公证材料清单
+7. **遗产继承** —— 法定 / 遗嘱 / 遗赠扶养 / 跨代继承
+8. **社保福利** —— 丧葬费 / 抚恤金 / 个人账户余额
+9. **债权债务** —— 债务清偿 / 债权追索 / 失踪宣告
+
+### legal-advisor（法律边界告知）
+
+绝不出具法律意见。仅告知：
+- 当前场景可能涉及的法律边界
+- 需要专业律师介入的信号
+- 公证材料清单的合法性要求
+- 遗嘱效力的形式要件
+
+### financial-analyst（财产风险提示）
+
+- 遗产税（中国目前无，但跨境可能触发）
+- 资产隐匿风险
+- 银行账户冻结流程
+- 保险受益人指定 vs 法定继承
+- 跨境资产申报
+
+### policy-researcher（跨地域政策调研）
+
+中国 34 省级行政区 + 美国 + 日本，每地 9 阶段政策文件：
+- 北京 / 上海 / 广东 / 浙江 / 江苏（已覆盖）
+- 其他省份持续完善中（按需求优先级）
+- 美国（加州已覆盖）
+- 日本（已覆盖）
+
+### cross-border-specialist（跨境身后事）
+
+- 中国公民在境外去世：领事馆协助流程
+- 外籍人士在中国去世：大使馆通报 + 遗体出境许可
+- 跨境资产继承：双重视角下的税务居民身份
+- 涉外公证与海牙认证
+
+### medical-guide（医疗政策导航）
+
+- 医保账户注销与余额继承
+- 大病保险理赔
+- 临终关怀（安宁疗护）资源
+- 慢性病管理档案处置
+
+## 安全模型
+
+### 数据流加密
+
+```
+用户输入 → input-guardrails → safety(L0) → graph(L1-L8) → 智能体
+                                                         ↓
+                                            PII 脱敏（姓名/身份证/电话/账号/地址/出生日期）
+                                                         ↓
+                                            per-user passphrase（HMAC-SHA256(global, user_id)）
+                                                         ↓
+                                            PBKDF2-HMAC-SHA256（100k 迭代）派生 enc_key/mac_key
+                                                         ↓
+                                            HMAC-SHA256 keystream 流密码加密 + HMAC tag 完整性
+                                                         ↓
+                                            原子写入 ~/.deadman/（0o600 权限）
+```
+
+### 威胁模型
+
+| 威胁 | 缓解 |
+|------|------|
+| 攻击者获取 `~/.deadman/` 离线数据 | per-user passphrase 派生，无全局密钥可解 |
+| 攻击者篡改 envelope | HMAC-SHA256 tag 验签失败拒绝解密 |
+| 用户越权访问他人笔记 | 所有端点走 `_phase_auth_user()` JWT 认证 + ownership 校验 |
+| Prompt Injection 绕过规则链 | L2 input-guardrails + L0 safety 双层防御 |
+| 自杀风险信号触发代办 | L0 即时拦截，输出 12320 / 988 热线，绝不代办 |
+| 主动通知扰民 | L4 notification-guardrails 默认静默 + 7 天等待期 + 退订机制 |
+| 时序攻击 JWT | `hmac.compare_digest` 恒定时间比较 |
+| 邮箱枚举 | 登录失败统一返回"邮箱或密码错误" |
+| 密码爆破 | PBKDF2 100k 迭代 + 16B salt |
+
+## 常见问题 FAQ
+
+### Q1：这是不是代办身后事的服务？
+
+不是。deadman 严格遵循 `compliance-framework.md` 四项禁止：
+
+- **不代办** —— 不替用户跑腿、不替用户填写表格
+- **不代查** —— 不查询用户银行账户、社保账户
+- **不出具法律意见** —— 不替律师做判断
+- **不与殡葬机构分成** —— 不收返佣、不导流特定机构
+
+deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什么、找谁办、需要带什么材料"。
+
+### Q2：数据安全吗？我的隐私怎么保证？
+
+- 用户密码用 PBKDF2-HMAC-SHA256 加盐哈希（100k 迭代）
+- 终活笔记 / 保险库内容用 per-user passphrase 加密落盘
+- PII 字段（姓名 / 身份证 / 电话 / 账号 / 地址 / 出生日期）落盘前掩码
+- 文件权限 0o600，目录权限 0o700
+- 全程本地部署，数据不出你的机器（自托管模式）
+- 详见 [SECURITY.md](SECURITY.md) 与 [docs/privacy.md](docs/privacy.md)
+
+### Q3：支持哪些 LLM？
+
+- OpenAI（GPT-4o / GPT-4 Turbo / GPT-3.5）
+- Anthropic（Claude 3.5 Sonnet / Claude 3 Opus）
+- 智谱（GLM-4.6 / GLM-4-Plus）—— 国内首选
+- 任何 OpenAI 兼容协议的 LLM（通过 `LLM_BASE_URL` 配置）
+- 支持多 provider fallback 链：主 LLM 失败按序尝试备选
+
+### Q4：MCP Server 和 A2A Server 是什么？
+
+- **MCP Server**（端口 8000）：标准 MCP 协议，供 Claude Desktop / TRAE / 任何 MCP 客户端调用 15 个工具
+- **A2A Server**（端口 8001）：跨智能体协议，让 deadman 与其他智能体平台互联
+- **Web UI**（端口 8002）：对话界面 + 运维看板 + 测试中心
+
+四个入口共享同一套智能体、规则链、知识库，按需选择。
+
+### Q5：Dead Man Switch 是什么？怎么用？
+
+借鉴 GoodTrust 的 Dead Man Switch 功能并升级为多因子验证：
+
+1. 用户初始化 switch，设定 checkin 周期（如 30 天）
+2. 用户定期 checkin 重置计时器
+3. 超期未 checkin → 状态从 ACTIVE → SUSPECTED
+4. 系统通过邮件 / 短信联系用户，无响应 → VERIFYING
+5. 联系紧急联系人 / 律师 / 法定继承人确认 → CONFIRMED
+6. 7 天等待期后 → EXECUTED，触发预设动作（投递终活笔记 / 通知受益人）
+
+避免单一信号误判导致的死亡推定。
+
+### Q6：和 Cake / Everplans / Trust & Will 这些海外产品有什么区别？
+
+详见 [docs/competitive-research-round2.md](docs/competitive-research-round2.md)。
+
+主要差异：
+
+- **本土化**：deadman 覆盖中国 5 省 + 8 类通知信函 + 微信公众号接入，海外产品只做美国
+- **多智能体**：deadman 6 智能体 + 12 子智能体协作，海外产品是单体应用
+- **规则优先级链**：deadman 有 L0-L8 共 15 个规则文件硬约束，海外产品无此机制
+- **开源**：deadman MIT 开源，海外产品全部闭源 SaaS
+- **不绑定 LLM**：deadman 支持 OpenAI/Anthropic/智谱任一，海外产品绑死自家模型
+
+### Q7：如何贡献新的省份知识库？
+
+1. 阅读 [.traecli/knowledge/regions/SCHEMA.md](.traecli/knowledge/regions/SCHEMA.md) 9 阶段标准
+2. 参考 [beijing.md](.traecli/knowledge/regions/CN/beijing.md) 模板
+3. 填写 9 阶段 + 紧急联系方式 + 特殊情形 + 医疗政策补充
+4. 元信息标"数据来源"真实 URL，不确定的电话写"请拨打 12345 核实"
+5. 跑 `deadman knowledge-freshness-scan --regions-dir .traecli/knowledge/regions` 确认无 stale
+6. 提交 PR（按 [CONTRIBUTING.md](CONTRIBUTING.md) 流程）
+
+### Q8：生产部署需要做什么？
+
+必做：
+
+1. 设置环境变量 `DEADMAN_ENDING_NOTE_PASSPHRASE` / `DEADMAN_VAULT_PASSWORD` / `JWT_SECRET`（用强随机串）
+2. 启用 HTTPS（Nginx 反代 + Let's Encrypt）
+3. `DEADMAN_ALLOW_QUERY_USER_ID=0`（强制 JWT 认证）
+4. `LOG_LEVEL=WARNING`（避免 PII 进日志）
+5. `~/.deadman/` 目录加密备份
+
+详见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+
+### Q9：可以用于商业用途吗？
+
+可以。deadman 使用 MIT 协议，允许商业使用、修改、分发、再授权。但请：
+
+- 保留 LICENSE 文件与版权声明
+- 自行承担合规风险（身后事在中国大陆受 PIPL / 殡葬管理条例等约束）
+- 不要用 deadman 名义做未授权的担保
+- 商业部署建议联系法律顾问确认合规边界
+
+### Q10：项目路线图？
+
+近期（v5.x）：
+
+- [ ] 补齐剩余 29 省级行政区知识库
+- [ ] AES-256-GCM 替换 HMAC-SHA256 keystream 流密码
+- [ ] 国产 LLM 默认接入（智谱 / 通义千问 / 文心一言）
+- [ ] 移动端 App（React Native）
+
+中期（v6.x）：
+
+- [ ] 托管服务（SaaS 模式，仍开源）
+- [ ] 法律主体注册与 ICP 备案
+- [ ] 多语言 UI（中 / 英 / 日）
+
+长期（v7+）：
+
+- [ ] 跨境身后事一站式中台
+- [ ] 与公证处 / 殡仪馆系统直连（合规前提下）
+
 ## 快速开始
 
 ### 安装

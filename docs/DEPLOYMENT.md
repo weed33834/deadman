@@ -163,7 +163,7 @@ docker compose --profile observability up -d
 
 项目配置了精简的 GitHub Actions（仅保留必要项）：
 
-- **tests.yml**：push 到 main 或提交 PR 时自动跑 pytest（Python 3.11），无需任何 Secrets
+- **tests.yml**：push 到 main 或提交 PR 时自动跑 pytest（Python 3.12），无需任何 Secrets
 - 不配置 release.yml / Docker 自动构建 / Dependabot / 自动合并 / 机器人
 
 > 本项目两仓平等维护（均为各自平台的主仓库，非镜像关系）：

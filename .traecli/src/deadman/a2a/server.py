@@ -30,7 +30,7 @@ def _build_default_card() -> AgentCard:
     return AgentCard(
         name="deadman-platform",
         description="身后事多智能体引导平台 - 协助处理逝者身后事全流程",
-        version="4.4.1",
+        version="5.0.0",
         url=f"http://{settings.mcp_server_host}:{settings.mcp_server_port}/a2a",
         skills=[
             AgentCardSkill(

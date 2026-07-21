@@ -368,6 +368,11 @@ class TestCooldownAndExecution:
         monkeypatch.setattr(NotificationGuardrail, "DAILY_LIMIT", 10)
         monkeypatch.setattr(NotificationGuardrail, "WEEKLY_LIMIT", 30)
         monkeypatch.setattr(NotificationGuardrail, "MONTHLY_LIMIT", 80)
+        # 关闭静默时段检查避免 flaky（22:00-08:00 UTC 跑测试会被拒绝）
+        # 本测试关注冷静期机制，不验证 silent_hours 规则（该规则由其他测试覆盖）
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        # 同理关闭敏感日期封禁（避免清明/中元等公历近似日误命中）
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, user_id: False)
         record = self._advance_to_confirmed(store, "u-cool-pass")
         # 把 confirmed_at 回退到 8 天前（> 7 天冷静期）
         record.confirmed_at = datetime.utcnow() - timedelta(days=8)
