@@ -35,8 +35,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        DEADMAN_VERSION: ${DEADMAN_VERSION:-5.0}
-    image: deadman:${DEADMAN_VERSION:-5.0}
+        DEADMAN_VERSION: ${DEADMAN_VERSION:-5.1}
+    image: deadman:${DEADMAN_VERSION:-5.1}
     container_name: deadman
     restart: unless-stopped
     ports:

@@ -944,7 +944,7 @@ def _get_sandbox_manager() -> Any:
 # 工具 1: query_knowledge
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="query_knowledge",
     description=(
         "查询地域知识库。输入国家、地区、查询主题，返回当地政策信息。"
@@ -952,32 +952,6 @@ def _get_sandbox_manager() -> Any:
         "支持 LightRAG 知识图谱检索模式（local/global/hybrid）和跨域本体实体/关系类型过滤。"
         "若 LightRAG 未启用或本体图谱不可用，自动降级为向量/原文检索。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "country": {"type": "string", "description": "国家代码，如 CN/US/JP"},
-            "region": {"type": "string", "description": "地区，如 beijing/california/tokyo"},
-            "topic": {"type": "string", "description": "查询主题，如 death_certificate/estate_inheritance"},
-            "fallback_to_search": {"type": "boolean", "description": "知识库不存在时是否建议触发搜索", "default": True},
-            "query_mode": {
-                "type": "string",
-                "enum": ["vector", "local", "global", "hybrid"],
-                "default": "vector",
-                "description": "检索模式：vector=传统向量检索；local/global/hybrid=LightRAG 知识图谱模式",
-            },
-            "entity_types": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "按跨域本体实体类型过滤，如 ['DeathCertificate','Organization']",
-            },
-            "relation_types": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "按跨域本体关系类型过滤，如 ['requires','issued_by']",
-            },
-        },
-        "required": ["country", "topic"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -995,7 +969,7 @@ async def query_knowledge(
     topic: str,
     region: str | None = None,
     fallback_to_search: bool = True,
-    query_mode: str = "vector",
+    query_mode: Literal["vector", "local", "global", "hybrid"] = "vector",
     entity_types: list[str] | None = None,
     relation_types: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -1004,6 +978,15 @@ async def query_knowledge(
     读取 knowledge/regions/{country}/{region|overview}.md，解析元信息与正文。
     当 query_mode 为 local/global/hybrid 但 LightRAG 未启用时，自动降级为 vector
     并在返回中标注 degraded。
+
+    Args:
+        country: 国家代码，如 CN/US/JP
+        topic: 查询主题，如 death_certificate/estate_inheritance
+        region: 地区，如 beijing/california/tokyo
+        fallback_to_search: 知识库不存在时是否建议触发搜索
+        query_mode: 检索模式：vector=传统向量检索；local/global/hybrid=LightRAG 知识图谱模式
+        entity_types: 按跨域本体实体类型过滤，如 ['DeathCertificate','Organization']
+        relation_types: 按跨域本体关系类型过滤，如 ['requires','issued_by']
     """
     country_dir = settings.knowledge_dir / "regions" / country.upper()
     if not country_dir.exists():
@@ -1121,7 +1104,7 @@ async def query_knowledge(
 # 工具 2: web_search（真实实现 - 借鉴 Hermes MIT 设计，httpx 直连 DuckDuckGo）
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="web_search",
     description=(
         "联网搜索（DuckDuckGo HTML 端点，httpx 直连，无需 API key）。"
@@ -1129,14 +1112,6 @@ async def query_knowledge(
         "confidence<0.5 的结果会在 note 中标注'低可信度，需向官方核实'（retrieval-guardrails）。"
         "失败返回空列表 + 引导用户打官方热线（integrity-framework：不编造结果）。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "query": {"type": "string", "description": "搜索查询语句"},
-            "max_results": {"type": "integer", "description": "最大结果数", "default": 5},
-        },
-        "required": ["query"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1163,6 +1138,10 @@ async def web_search(
     - integrity-framework：失败返回空 + 引导打官方热线，不编造结果
     - input-guardrails：query 仅作为 URL params，不拼接到 shell
     - compliance-framework：仅提供信息，不代查
+
+    Args:
+        query: 搜索查询语句
+        max_results: 最大结果数
     """
     tool = _get_web_search_tool()
     if tool is None:
@@ -1185,22 +1164,13 @@ async def web_search(
 # 工具 2b: web_search_official（仅返回官方源）
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="web_search_official",
     description=(
         "联网搜索并仅返回官方源结果（source_type=official 且 confidence>=0.85）。"
         "适用于需要权威信息的场景（如政策法规、官方流程）。"
         "若结果为空，建议打 12345 政务服务热线或当地对应机构核实。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "query": {"type": "string", "description": "搜索查询语句"},
-            "max_results": {"type": "integer", "description": "最大结果数", "default": 5},
-            "min_confidence": {"type": "number", "description": "最低 confidence 阈值", "default": 0.85},
-        },
-        "required": ["query"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1223,6 +1193,11 @@ async def web_search_official(
 
     返回 source_type=official 且 confidence>=min_confidence 的结果。
     官方源 = .gov / .edu 域名。
+
+    Args:
+        query: 搜索查询语句
+        max_results: 最大结果数
+        min_confidence: 最低 confidence 阈值
     """
     tool = _get_web_search_tool()
     if tool is None:
@@ -1245,21 +1220,12 @@ async def web_search_official(
 # 工具 3: read_file
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="read_file",
     description=(
         "读取项目内的文件。仅允许读取 .traecli/ 项目根目录之内的文件，禁止路径穿越。"
         "适合读取 rules/*.md、knowledge/**/*.md、agents/*.md 等。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "path": {"type": "string", "description": "相对于项目根的文件路径，如 rules/integrity-framework.md"},
-            "encoding": {"type": "string", "description": "文件编码", "default": "utf-8"},
-            "max_bytes": {"type": "integer", "description": "最大读取字节数（防止超大文件）", "default": 1048576},
-        },
-        "required": ["path"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1271,7 +1237,13 @@ async def web_search_official(
     },
 )
 async def read_file(path: str, encoding: str = "utf-8", max_bytes: int = 1048576) -> dict[str, Any]:
-    """读取项目内文件，带安全限制"""
+    """读取项目内文件，带安全限制
+
+    Args:
+        path: 相对于项目根的文件路径，如 rules/integrity-framework.md
+        encoding: 文件编码
+        max_bytes: 最大读取字节数（防止超大文件）
+    """
     target = _safe_resolve(path)
     if target is None:
         return {"ok": False, "path": path, "error": "路径越界或包含非法引用"}
@@ -1298,23 +1270,12 @@ async def read_file(path: str, encoding: str = "utf-8", max_bytes: int = 1048576
 # 工具 4: write_file
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="write_file",
     description=(
         "写入项目内的文件。仅允许写入 .traecli/ 项目根目录之内，禁止路径穿越。"
         "安全限制：禁止覆盖 rules/*.md（规则由人工维护）；禁止写入 .env / .git / 凭证文件。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "path": {"type": "string", "description": "相对于项目根的文件路径"},
-            "content": {"type": "string", "description": "写入内容"},
-            "encoding": {"type": "string", "default": "utf-8"},
-            "overwrite": {"type": "boolean", "default": False, "description": "若文件已存在是否覆盖"},
-            "create_dirs": {"type": "boolean", "default": True, "description": "是否自动创建父目录"},
-        },
-        "required": ["path", "content"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1336,6 +1297,13 @@ async def write_file(
 
     SANDBOX_ENABLED=true 且 Docker 可用时，在容器内执行写入；
     否则降级为本地写入。
+
+    Args:
+        path: 相对于项目根的文件路径
+        content: 写入内容
+        encoding: 文件编码
+        overwrite: 若文件已存在是否覆盖
+        create_dirs: 是否自动创建父目录
     """
     target = _safe_resolve(path)
     if target is None:
@@ -1395,22 +1363,12 @@ async def write_file(
 # 工具 5: invoke_subagent
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="invoke_subagent",
     description=(
         "调用子智能体。传入子智能体名（如 death-aftercare-emotional / financial-analyst-taxes）"
         "与任务描述，返回 SubagentResult。若 LLM 不可用则返回 fallback 结果。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "subagent_name": {"type": "string", "description": "子智能体名，如 death-aftercare-emotional"},
-            "task": {"type": "string", "description": "委派给子智能体的任务描述"},
-            "context": {"type": "object", "description": "上下文（用户输入/已确认事实/已有摘要等）"},
-            "timeout": {"type": "integer", "description": "超时秒数", "default": 30},
-        },
-        "required": ["subagent_name", "task"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1432,6 +1390,12 @@ async def invoke_subagent(
 
     优先查找 agents/{subagent_name}.md 获取定义；若 LLM 可用，则用 LLM 生成响应；
     否则返回 fallback 模式结果。
+
+    Args:
+        subagent_name: 子智能体名，如 death-aftercare-emotional
+        task: 委派给子智能体的任务描述
+        context: 上下文（用户输入/已确认事实/已有摘要等）
+        timeout: 超时秒数
     """
     context = context or {}
     # 查找 agent 定义文件
@@ -1811,30 +1775,13 @@ async def check_rules(
 # 工具 8: query_memory
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="query_memory",
     description=(
         "查询或更新分层记忆。支持工作记忆（最近对话）、情景记忆（历史片段）、"
         "语义记忆（用户画像/事实）、程序记忆（流程进度）。"
         "若 memory 模块未实现，返回空结果并标注 unavailable=true。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "action": {
-                "type": "string",
-                "enum": ["recall", "update_profile", "update_progress", "detect_contradiction"],
-            },
-            "user_id": {"type": "string", "description": "用户 ID（哈希）"},
-            "memory_layer": {
-                "type": "string",
-                "enum": ["working", "episodic", "semantic", "procedural"],
-            },
-            "query": {"type": "string", "description": "recall 时的查询文本"},
-            "updates": {"type": "object", "description": "update_profile/update_progress 时的更新内容"},
-        },
-        "required": ["action", "user_id"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -1848,13 +1795,21 @@ async def check_rules(
     },
 )
 async def query_memory(
-    action: str,
+    action: Literal["recall", "update_profile", "update_progress", "detect_contradiction"],
     user_id: str,
-    memory_layer: str | None = None,
+    memory_layer: Literal["working", "episodic", "semantic", "procedural"] | None = None,
     query: str | None = None,
     updates: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """分层记忆查询 - 基于 MemoryManager 的 4 层记忆"""
+    """分层记忆查询 - 基于 MemoryManager 的 4 层记忆
+
+    Args:
+        action: 记忆操作类型（recall/update_profile/update_progress/detect_contradiction）
+        user_id: 用户 ID（哈希）
+        memory_layer: 记忆层（working/episodic/semantic/procedural）
+        query: recall 时的查询文本
+        updates: update_profile/update_progress 时的更新内容
+    """
     if not _MEMORY_AVAILABLE or MemoryManager is None:
         return {
             "action": action,
@@ -1996,31 +1951,13 @@ def _profile_to_dict(profile: Any) -> dict[str, Any]:
 # 工具 9: initiate_debate
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="initiate_debate",
     description=(
         "当多个智能体对同一问题给出冲突回答时，发起结构化辩论。"
         "3 轮辩论（Opening/Rebuttal/Closing）+ 投票 + 可选仲裁。"
         "若 debate 模块未实现，返回 not_implemented=true。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "topic": {"type": "string", "description": "辩论主题"},
-            "participants": {"type": "array", "items": {"type": "string"}, "description": "参与辩论的智能体 ID 列表"},
-            "initial_responses": {
-                "type": "array",
-                "items": {"type": "object"},
-                "description": "各方初始回答",
-            },
-            "voting_strategy": {
-                "type": "string",
-                "enum": ["majority", "weighted", "confidence_weighted", "consensus"],
-                "default": "weighted",
-            },
-        },
-        "required": ["topic", "participants", "initial_responses"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2037,9 +1974,16 @@ async def initiate_debate(
     topic: str,
     participants: list[str],
     initial_responses: list[dict[str, Any]],
-    voting_strategy: str = "weighted",
+    voting_strategy: Literal["majority", "weighted", "confidence_weighted", "consensus"] = "weighted",
 ) -> dict[str, Any]:
-    """发起辩论"""
+    """发起辩论
+
+    Args:
+        topic: 辩论主题
+        participants: 参与辩论的智能体 ID 列表
+        initial_responses: 各方初始回答
+        voting_strategy: 投票策略（majority/weighted/confidence_weighted/consensus）
+    """
     if not _DEBATE_AVAILABLE or DebateOrchestrator is None:
         return {
             "debate_id": str(uuid.uuid4()),
@@ -2090,23 +2034,13 @@ async def initiate_debate(
 # 工具 10: call_external_agent
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="call_external_agent",
     description=(
         "通过 A2A 协议调用外部智能体。需用户提供数据共享同意（user_consent=true）。"
         "出口数据自动脱敏 PII，返回结果校验诚信报告。"
         "当 A2A_REGISTRY_URL 已配置时发起真实 HTTP 调用；否则降级为 mock。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "to_agent_id": {"type": "string", "description": "目标外部 agent ID"},
-            "capability_id": {"type": "string", "description": "调用的能力 ID（见 Agent Card）"},
-            "input_data": {"type": "object", "description": "输入参数（自动脱敏 PII）"},
-            "user_consent": {"type": "boolean", "description": "用户是否同意数据共享"},
-        },
-        "required": ["to_agent_id", "capability_id", "input_data", "user_consent"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2130,6 +2064,12 @@ async def call_external_agent(
     当 settings.a2a_registry_url 已配置时，通过 httpx 发起真实 A2A HTTP 调用
     （POST {registry_url}/agents/{to_agent_id}/tasks）；
     否则降级为 mock 实现。
+
+    Args:
+        to_agent_id: 目标外部 agent ID
+        capability_id: 调用的能力 ID（见 Agent Card）
+        input_data: 输入参数（自动脱敏 PII）
+        user_consent: 用户是否同意数据共享
     """
     # 强制用户同意
     if not user_consent:
@@ -2242,28 +2182,12 @@ def _collect_redacted_fields(original: Any, redacted: Any) -> list[str]:
 # 工具 11: execute_reflexion
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="execute_reflexion",
     description=(
         "子智能体/工具/转介调用失败时的反思-调整-重试机制。MAX_RETRIES=3，失败后走 fallback。"
         "若 reflexion 模块未实现，返回 not_implemented=true 并给出预定义调整策略建议。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "operation_type": {
-                "type": "string",
-                "enum": ["subagent", "tool", "transfer"],
-            },
-            "operation_name": {
-                "type": "string",
-                "description": "失败的操作名，如 'death-aftercare-emotional' 或 'query_knowledge'",
-            },
-            "failure_reason": {"type": "string", "description": "失败原因"},
-            "original_input": {"type": "object", "description": "原始输入参数"},
-        },
-        "required": ["operation_type", "operation_name", "failure_reason", "original_input"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2278,7 +2202,7 @@ def _collect_redacted_fields(original: Any, redacted: Any) -> list[str]:
     },
 )
 async def execute_reflexion(
-    operation_type: str,
+    operation_type: Literal["subagent", "tool", "transfer"],
     operation_name: str,
     failure_reason: str,
     original_input: dict[str, Any],
@@ -2288,6 +2212,12 @@ async def execute_reflexion(
     MCP 工具收到的是失败元数据（非可执行 callable），因此不能直接调用
     ReflexionEngine.execute_with_reflexion。这里调用其内部 _reflect + _adjust_input
     生成反思结论与调整后输入，供调用方自行重试。
+
+    Args:
+        operation_type: 失败的操作类型（subagent/tool/transfer）
+        operation_name: 失败的操作名，如 'death-aftercare-emotional' 或 'query_knowledge'
+        failure_reason: 失败原因
+        original_input: 原始输入参数
     """
     if not _REFLEXION_AVAILABLE or ReflexionEngine is None:
         # 模块未实现：返回预定义调整策略建议
@@ -2461,26 +2391,13 @@ def _lookup_adjustment_strategy(operation_type: str, operation_name: str, failur
 # 工具 12: init_transfer
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="init_transfer",
     description=(
         "发起智能体转介。构造 7 字段转介摘要（from_agent/to_agent/reason/current_question/"
         "context_summary/risk_tier/urgency），返回 user_confirmation_required=true 等待用户确认。"
         "转介为高风险操作，必须由用户显式同意后方可执行。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "from_agent": {"type": "string", "description": "当前智能体名"},
-            "to_agent": {"type": "string", "description": "目标智能体名"},
-            "reason": {"type": "string", "description": "转介原因"},
-            "current_question": {"type": "string", "description": "用户当前问题"},
-            "context_summary": {"type": "string", "description": "上下文摘要", "default": ""},
-            "risk_tier": {"type": "string", "description": "风险等级（R0/R1/R2/R3）", "default": ""},
-            "urgency": {"type": "string", "description": "紧急程度", "default": "normal"},
-        },
-        "required": ["from_agent", "to_agent", "reason", "current_question"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2506,6 +2423,15 @@ async def init_transfer(
     构造 7 字段转介摘要并返回，等待用户确认后执行。
     7 字段：from_agent / to_agent / reason / current_question /
            context_summary / risk_tier / urgency
+
+    Args:
+        from_agent: 当前智能体名
+        to_agent: 目标智能体名
+        reason: 转介原因
+        current_question: 用户当前问题
+        context_summary: 上下文摘要
+        risk_tier: 风险等级（R0/R1/R2/R3）
+        urgency: 紧急程度
     """
     transfer_summary: dict[str, Any] = {
         "from_agent": from_agent,
@@ -2592,7 +2518,7 @@ async def report_incident(
 # 工具 14: execute_code（沙箱代码执行 - 借鉴 Hermes MIT 设计）
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="execute_code",
     description=(
         "在隔离沙箱内执行用户提供的 Python 代码字符串。"
@@ -2601,18 +2527,6 @@ async def report_incident(
         "仅执行 Python（不 shell=True），用户代码仅作为文件内容 / stdin 数据（input-guardrails）。"
         "失败返回 ok=False + error，不抛异常（integrity-framework）。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "code": {"type": "string", "description": "Python 代码字符串"},
-            "timeout": {
-                "type": "integer",
-                "description": "超时秒（默认取 settings.sandbox_timeout=30）",
-                "default": 30,
-            },
-        },
-        "required": ["code"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2644,6 +2558,10 @@ async def execute_code(
     - integrity-framework：失败返回 ok=False + error，不抛异常
     - safety-protocol：网络禁用 + 资源限制
     - compliance-framework：仅执行用户提供的代码，不代办 shell 操作
+
+    Args:
+        code: Python 代码字符串
+        timeout: 超时秒（默认取 settings.sandbox_timeout=30）
     """
     if not code or not code.strip():
         return {

@@ -682,6 +682,56 @@
     transition: all 0.18s;
   }
   .theme-toggle:hover { background: var(--accent); color: var(--paper-warm); }
+
+  /* ===== P9: 对话维度 dashboard 概览页（agent/risk/span/token/termination）===== */
+  .dashboard-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 16px;
+  }
+  @media (max-width: 768px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+  .dashboard-charts {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 768px) { .dashboard-charts { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: #fff; border: 1px solid var(--line-soft);
+    border-left: 2px solid var(--seal); padding: 14px 16px;
+  }
+  .chart-title {
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 13px; font-weight: 500; color: var(--accent-deep);
+    margin-bottom: 10px; letter-spacing: 1px;
+  }
+  .chart-empty {
+    font-size: 11px; color: var(--ink-muted);
+    text-align: center; padding: 18px 0;
+  }
+  .bar-chart { display: flex; flex-direction: column; gap: 6px; }
+  .bar-item {
+    display: flex; align-items: center; gap: 8px; font-size: 11px;
+  }
+  .bar-label {
+    flex: 0 0 90px; color: var(--ink-soft);
+    font-family: "SF Mono", "Menlo", monospace; font-size: 10.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bar-track {
+    flex: 1; position: relative; height: 16px;
+    background: var(--paper-warm); border: 1px solid var(--line-soft);
+  }
+  .bar-fill {
+    height: 100%; transition: width 0.3s ease;
+  }
+  .bar-value {
+    position: absolute; right: 6px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px; color: var(--ink); font-weight: 500;
+    text-shadow: 0 0 2px var(--paper);
+  }
+  .trace-table { font-size: 12px; }
+  .trace-table tbody tr:hover { background: var(--paper-warm); }
+  .trace-table td { font-size: 11.5px; padding: 7px 10px; }
 </style>
 </head>
 <body>
@@ -759,6 +809,36 @@
           <div class="section-title">记忆系统</div>
           <div class="section-desc">四层记忆当前条目数</div>
           <div class="stat-grid" id="memoryGrid"></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">对话维度</div>
+          <div class="section-desc">智能体调用 / 风险分布 / token 用量 / 终止条件触发</div>
+          <div class="dashboard-grid" id="dashboardStatsGrid"></div>
+          <div class="dashboard-charts">
+            <div class="chart-card">
+              <div class="chart-title">智能体调用分布</div>
+              <div id="agentCallsChart" class="bar-chart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">风险等级分布</div>
+              <div id="riskTierChart" class="bar-chart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">思考步骤类型</div>
+              <div id="spanTypeChart" class="bar-chart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">终止条件触发</div>
+              <div id="terminationChart" class="bar-chart"></div>
+            </div>
+          </div>
+          <div class="chart-card" style="margin-top:12px">
+            <div class="chart-title">最近对话 trace</div>
+            <table id="recentSpansTable" class="trace-table">
+              <thead><tr><th>时间</th><th>智能体</th><th>步骤数</th><th>子智能体</th><th>风险</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
         <div class="panel-section">
           <div class="section-title">部署工件</div>
@@ -1300,6 +1380,88 @@ async function loadDashboard() {
       tb.appendChild(tr);
     });
   } catch (e) {}
+  // P9：对话维度 dashboard 概览页（agent/risk/span/token/termination）
+  try {
+    const r = await fetch("/api/dashboard");
+    const d = await r.json();
+    renderDashboardStats(d);
+  } catch (e) {}
+}
+
+// P9：渲染对话维度 dashboard 概览页（4 stat 卡片 + 4 bar-chart + 最近 trace 表）
+function renderDashboardStats(data) {
+  if (!data) return;
+  // 4 个 stat 卡片
+  const grid = document.getElementById("dashboardStatsGrid");
+  if (grid) {
+    grid.innerHTML = "";
+    const cards = [
+      ["总对话数", data.total_conversations || 0, "var(--accent-deep)"],
+      ["降级次数", data.degraded_count || 0, "var(--warn)"],
+      ["累计 token", ((data.token_usage_total || {}).total_tokens) || 0, "var(--gold)"],
+      ["终止触发", Object.values(data.termination_triggers || {}).reduce((a, b) => a + b, 0), "var(--err)"],
+    ];
+    cards.forEach(([l, v, c]) => {
+      const card = document.createElement("div");
+      card.className = "stat-card";
+      card.style.borderLeft = `2px solid ${c}`;
+      card.innerHTML = `<div class="stat-label">${l}</div><div class="stat-value">${v}</div>`;
+      grid.appendChild(card);
+    });
+  }
+  // 4 个 bar-chart
+  renderBarChart("agentCallsChart", data.agent_calls || {}, () => "var(--seal)");
+  renderBarChart(
+    "riskTierChart",
+    data.risk_tier_counts || {},
+    (label) => ({
+      R0: "var(--ok)", R1: "var(--ink-muted)", R2: "var(--warn)", R3: "var(--err)",
+    }[label] || "var(--accent-soft)")
+  );
+  renderBarChart(
+    "spanTypeChart",
+    data.span_type_counts || {},
+    (label) => ({
+      rule: "var(--gold)", agent: "var(--seal)", transfer: "var(--warn)", root: "var(--ink)",
+    }[label] || "var(--accent-soft)")
+  );
+  renderBarChart("terminationChart", data.termination_triggers || {}, () => "var(--ink)");
+  // 最近对话 trace 表（最新在前）
+  const tbody = document.querySelector("#recentSpansTable tbody");
+  if (tbody) {
+    tbody.innerHTML = "";
+    (data.recent_spans || []).slice().reverse().forEach(s => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${s.timestamp || ""}</td><td><code>${s.agent || ""}</code></td><td>${s.span_count || 0}</td><td>${s.subagent_count || 0}</td><td>${s.risk_tier || "R0"}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+// P9：纯 JS 水平条形图（用 div 宽度 % 表达比例，不用 canvas/svg）
+function renderBarChart(containerId, data, colorFn) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  const entries = Object.entries(data);
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="chart-empty">暂无数据</div>';
+    return;
+  }
+  const max = Math.max(...entries.map(([, v]) => v), 1);
+  entries.sort((a, b) => b[1] - a[1]);
+  entries.forEach(([label, value]) => {
+    const item = document.createElement("div");
+    item.className = "bar-item";
+    const pct = (value / max * 100).toFixed(1);
+    item.innerHTML = `
+      <div class="bar-label">${label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%;background:${colorFn(label)}"></div>
+        <span class="bar-value">${value}</span>
+      </div>`;
+    container.appendChild(item);
+  });
 }
 
 function renderTestGrid() {

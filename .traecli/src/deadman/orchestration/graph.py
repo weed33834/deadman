@@ -23,6 +23,7 @@ import logging
 from typing import Any, Callable, Awaitable
 
 from .state import ConversationState
+from .termination import TerminationCondition, default_termination
 from .nodes import (
     AGENT_NAMES,
     agent_node,
@@ -108,9 +109,17 @@ MAX_STEPS = 25
 # 设 3 次是保守阈值（连续 3 次同一 agent 几乎肯定是 router 失灵）
 STUCK_AGENT_REPEAT_LIMIT = 3
 
+# P10：模块级默认终止条件单例（无状态，可复用）
+# 等价于 MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(STUCK_AGENT_REPEAT_LIMIT)
+_default_termination: TerminationCondition = default_termination()
+
 
 def _is_stuck(state: ConversationState) -> tuple[bool, str]:
-    """卡死检测 - 借鉴 OpenManus BaseAgent.is_stuck 逻辑
+    """卡死检测 - 委托给 default_termination()，保留原签名以向后兼容
+
+    P10 后内部走可组合终止条件（借鉴 AutoGen TerminationCondition）：
+    默认等价于 MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(STUCK_AGENT_REPEAT_LIMIT)。
+    行为与原 P4 实现完全一致，只是把硬编码逻辑抽到 termination.py 便于组合扩展。
 
     判定条件（任一满足即卡死）：
     1. step_count > MAX_STEPS：节点执行数超限
@@ -119,14 +128,8 @@ def _is_stuck(state: ConversationState) -> tuple[bool, str]:
     Returns:
         (is_stuck, reason) - reason 在 is_stuck=True 时为卡死原因
     """
-    step_count = state.get("step_count", 0)
-    if step_count > MAX_STEPS:
-        return True, f"max_steps_exceeded:{step_count}/{MAX_STEPS}"
-    stuck_count = state.get("stuck_count", 0)
-    if stuck_count >= STUCK_AGENT_REPEAT_LIMIT:
-        last = state.get("last_agent_for_stuck", "")
-        return True, f"agent_stuck:{last}:{stuck_count}_repeats"
-    return False, ""
+    result = _default_termination.evaluate(state)
+    return result.should_terminate, result.reason
 
 
 def _increment_step(state: ConversationState) -> None:
@@ -164,12 +167,22 @@ class SequentialExecutor:
     不支持的高级特性：checkpointer、streaming、subgraph、时间旅行。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, termination: TerminationCondition | None = None) -> None:
+        """初始化顺序执行器
+
+        Args:
+            termination: 可选的终止条件。None 时用 default_termination()
+                （等价 P4 的 MAX_STEPS + STUCK_AGENT_REPEAT_LIMIT）。
+                可传入自定义组合条件，如：
+                default_termination() | TokenUsageTermination(50_000)
+        """
         self._nodes: dict[str, Callable[[ConversationState], Awaitable[dict[str, Any]]]] = {}
         self._edges: dict[str, str] = {}  # 固定边：source -> target
         self._conditional_edges: dict[str, tuple[Callable[[ConversationState], str], dict[str, str]]] = {}
         self._entry: str = ""
         self._interrupt_before: list[str] = []
+        # P10：可注入的终止条件（默认等价 P4 行为）
+        self._termination: TerminationCondition = termination or _default_termination
 
     def add_node(self, name: str, fn: Callable[[ConversationState], Awaitable[dict[str, Any]]]) -> None:
         """注册一个节点"""

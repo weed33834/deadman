@@ -29,7 +29,7 @@
 └────────────────┬─────────────────────────┘
                  │ MCP Protocol
 ┌────────────────▼─────────────────────────┐
-│  平台 MCP Server（13 工具）               │
+│  平台 MCP Server（15 工具）               │
 │  ├── check_rules（规则校验）              │
 │  ├── query_knowledge（知识库查询）        │
 │  ├── check_integrity（5 关自检）          │
@@ -670,6 +670,8 @@ mcp_servers:
 4. **审计日志**：每次 MCP 工具调用都记录 trace span
 
 ## 版本
+- v1.4（v5.1.0）12 个工具迁移到 `@mcp.tool_auto` 装饰器（type hints + Google-style docstring 自动生成 JSON Schema），保留手写 schema：check_integrity / check_rules（嵌套对象 + 内部 enum）。工具总数仍为 15。详见 [CHANGELOG.md](../../CHANGELOG.md) v5.1.0 P8 章节
+- v1.3（v4.6.1）新增 2 工具：`web_search_official`（仅返回官方源）+ `execute_code`（沙箱代码执行），工具总数 13 → 15
 - v1.2 工具列表与 server.py 对齐为 13 工具：删除 accept_transfer/log_trace/get_confidence_label，新增 web_search/read_file/write_file/invoke_subagent；log_trace 由 observability tracer 自动上报替代
 - v1.1 新增 4 工具（query_memory/initiate_debate/call_external_agent/execute_reflexion）+ query_knowledge 支持 LightRAG query_mode 和本体过滤 + check_integrity 集成 SelfCheckGPT
 - v1.0 初始 MCP Server 方案（7 工具 + FastMCP 实现 + 部署方式）

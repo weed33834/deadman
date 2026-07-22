@@ -398,8 +398,9 @@ class TestStuckDetection:
         state["step_count"] = 26
         stuck, reason = _is_stuck(state)
         assert stuck is True
-        assert "max_steps_exceeded" in reason
-        assert "26/25" in reason
+        # P10 后 reason 格式从 "max_steps_exceeded:26/25" 改为 "max_steps:26>25"
+        assert "max_steps" in reason
+        assert "26" in reason and "25" in reason
 
     def test_is_stuck_agent_repeat_exceeded(self):
         """stuck_count >= STUCK_AGENT_REPEAT_LIMIT=3 时判定为卡死"""
@@ -412,7 +413,7 @@ class TestStuckDetection:
         assert stuck is True
         assert "agent_stuck" in reason
         assert "death_aftercare" in reason
-        assert "3_repeats" in reason
+        assert "3" in reason  # P10 后 reason 含 stuck_count 数值
 
     def test_is_stuck_not_triggered_normal(self):
         """正常状态下不触发卡死"""

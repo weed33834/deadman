@@ -167,6 +167,38 @@ def _append_metric(state: ConversationState, key: str, value: Any) -> None:
     state["metrics"] = metrics
 
 
+def _accumulate_token_usage(
+    state: ConversationState, usage: dict[str, Any]
+) -> None:
+    """把单次 LLM 调用的 usage 累加到 state["metrics"]["token_usage"]
+
+    P10：供 TokenUsageTermination 评估本轮是否 token 超限。
+    各节点调用 LLM 后追加一行即可，无需关心初始化（首次调用自动建 0 基线）。
+
+    Args:
+        state: 会话状态
+        usage: LLMClient.last_usage 返回的 dict，含 prompt_tokens/completion_tokens/total_tokens
+    """
+    if not usage:
+        return
+    metrics = state.get("metrics", {})
+    cur = metrics.get(
+        "token_usage",
+        {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    )
+    cur["prompt_tokens"] = int(cur.get("prompt_tokens", 0)) + int(
+        usage.get("prompt_tokens", 0)
+    )
+    cur["completion_tokens"] = int(cur.get("completion_tokens", 0)) + int(
+        usage.get("completion_tokens", 0)
+    )
+    cur["total_tokens"] = int(cur.get("total_tokens", 0)) + int(
+        usage.get("total_tokens", 0)
+    )
+    metrics["token_usage"] = cur
+    state["metrics"] = metrics
+
+
 # =====================================================================
 # 节点 1: input_guard_node - L2 输入防护
 # =====================================================================
@@ -303,6 +335,8 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
                 [{"role": "user", "content": prompt}],
                 temperature=0.1,
             )
+            # P10：累加本轮 token usage（router 调用）
+            _accumulate_token_usage(state, router_llm.last_usage)
             agent = result.get("agent", "").strip()
             if agent in AGENT_NAMES:
                 selected_agent = agent
@@ -400,6 +434,8 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
                 [{"role": "user", "content": prompt}],
                 temperature=0.3,
             )
+            # P10：累加本轮 token usage（转介话术调用）
+            _accumulate_token_usage(state, respond_llm.last_usage)
         except Exception as e:
             logger.warning("生成转介话术失败，使用模板: %s", e)
             transfer_message = ""
@@ -498,6 +534,8 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                 {"role": "user", "content": user_input},
             ]
             draft_response = await respond_llm.chat(messages, temperature=0.3)
+            # P10：累加本轮 token usage，供 TokenUsageTermination 评估
+            _accumulate_token_usage(state, respond_llm.last_usage)
         except Exception as e:
             logger.warning("智能体 LLM 调用失败 [%s]: %s", current_agent, e)
             draft_response = (

@@ -2,6 +2,120 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v5.1.0（2026-07）编排韧性 + 前端可观测 + 工具 schema 自动化
+
+> 在 v5.0.0 基础上完成 P8/P9/P10 三项工程化任务 + 一个 LangGraph checkpointer 关键 bug 修复 + 前端用户流端到端测试。P10 借鉴 AutoGen `TerminationCondition` 把 P4 硬编码的卡死检测抽成可组合的 `|`（OR 短路）/ `&`（AND 全满足）条件对象；P9 给 Web UI 加 dashboard 概览页，把进程内对话统计（agent 调用次数 / 风险分级 / span 类型 / token 累计 / 终止触发原因）暴露给前端；P8 把 12 个 MCP 工具从手写 `input_schema` 迁移到 `tool_auto` 装饰器，靠 type hints + Google-style docstring 自动生成 JSON Schema。所有改动零新依赖（全用 stdlib + 现有 fastmcp/httpx），向后兼容（`default_termination()` 等价 P4 行为，`_is_stuck()` 保留原签名委托新机制）。
+
+### P10：可组合终止条件（借鉴 AutoGen TerminationCondition）
+
+- 新增 [orchestration/termination.py](.traecli/src/deadman/orchestration/termination.py)（311 行）：
+  - `TerminationResult` frozen dataclass（`should_terminate` / `reason` / `source`，不可变便于断言）
+  - `TerminationCondition` ABC：抽象 `evaluate(state) -> TerminationResult`，重载 `__or__` / `__and__` 返回组合对象
+  - `_OrTerminationCondition`：左侧终止即返回（短路），否则评估右侧
+  - `_AndTerminationCondition`：两侧都终止才终止，reason 拼接为 `(r1) AND (r2)`
+  - 6 个具体子类：
+    - `MaxStepsTermination(max_steps=25)`：节点执行步数超限（对应 AutoGen MaxMessageTermination）
+    - `StuckAgentTermination(repeat_limit=3)`：连续路由到同一 agent 超限（OpenManus 风格）
+    - `TokenUsageTermination(token_limit, field="total_tokens")`：本轮累计 token 超限（对应 AutoGen TokenUsageTermination）
+    - `MessageCountTermination(max_messages)`：本轮 agent 调用次数超限（agent_history 长度）
+    - `ExternalTermination()`：外部 `set()` 触发（用户点"停止" / 上游超时 / 运维干预）
+    - `TextMentionTermination(keyword, source_field="user_input")`：state 字段含关键词（对应 AutoGen TextMessageTermination）
+  - `default_termination()` 工厂：等价 P4 的 `MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(STUCK_AGENT_REPEAT_LIMIT)`
+- 修改 [orchestration/graph.py](.traecli/src/deadman/orchestration/graph.py)：
+  - 加模块级 `_default_termination` 单例（无状态可复用）
+  - `_is_stuck(state)` 改为委托：`result = _default_termination.evaluate(state); return result.should_terminate, result.reason`（保留原签名向后兼容）
+  - `SequentialExecutor.__init__` 加 `termination: TerminationCondition | None = None` 参数，可注入自定义组合条件
+- 修改 [orchestration/nodes.py](.traecli/src/deadman/orchestration/nodes.py)：
+  - 新增 `_accumulate_token_usage(state, usage)` helper：把 LLM 调用返回的 usage dict 累加到 `state["metrics"]["token_usage"]`
+  - 3 处 LLM 调用后追加调用：`router_node`（router_llm.chat_json 后）/ `user_confirm_node`（respond_llm.chat 后）/ `agent_node`（respond_llm.chat 后）
+  - 设计选择：不走 `cost_tracker`（进程级全局累积，跨会话串扰），走 state 本轮累计
+- 修改 [llm.py](.traecli/src/deadman/llm.py)：
+  - `__init__` 加 `self._last_usage: dict[str, int] = {}`
+  - `chat_with_tools` 成功后 `self._last_usage = dict(resp.usage or {})`
+  - 新增 `last_usage` property：`return dict(self._last_usage)`（供 nodes.py 累加）
+- 测试：[test_p10_termination.py](.traecli/src/tests/test_p10_termination.py) 38 个，覆盖：
+  - `TestMaxStepsTermination`(4) / `TestStuckAgentTermination`(3) / `TestTokenUsageTermination`(5)
+  - `TestMessageCountTermination`(2) / `TestExternalTermination`(3) / `TestTextMentionTermination`(3)
+  - `TestOrCombination`(4) / `TestAndCombination`(3) / `TestNestedCombination`(2)
+  - `TestDefaultTermination`(4) / `TestTerminationResult`(3) / `TestIsStuckDelegation`(2)
+  - 断言 `TerminationResult` 用 `==` 直接比较（frozen dataclass）
+- 向后兼容：`test_orchestration.py::TestStuckDetection` 仅 2 处断言文案适配新 reason 格式（`"max_steps_exceeded:26/25"` → `"max_steps:26>25"`），逻辑零改动
+
+### P9：前端 dashboard 概览页
+
+- 修改 [web/server.py](.traecli/src/deadman/web/server.py)：
+  - `WebServer.__init__` 加 `self._conversation_stats` 8 字段字典（total_conversations / degraded_count / agent_calls / risk_tier_counts / span_type_counts / token_usage_total / termination_triggers / recent_spans）
+  - GET 路由加 `elif path == "/api/dashboard": self._handle_dashboard()`
+  - `_handle_dashboard()`：返回 `copy.deepcopy(self._conversation_stats)`（防外部修改）
+  - `_record_conversation_stats(...)`：best-effort 累加，4 处接入点（_handle_chat graph 成功 / _handle_chat 降级 / _stream_chat graph 成功 / _stream_chat 降级）
+  - 进程内统计（非持久化）：重启即清零，避免跨会话串扰；recent_spans 保留最近 20 条
+- 修改 [web/static/index.html](.traecli/src/deadman/web/static/index.html)：
+  - HTML：`page-dashboard` 容器加「对话维度」section（dashboardStatsGrid + dashboard-charts 2x2 + recentSpansTable）
+  - CSS：`.dashboard-grid` / `.dashboard-charts` / `.chart-card` / `.bar-chart` / `.bar-item` / `.bar-label` / `.bar-track` / `.bar-fill` / `.bar-value` / `.trace-table`（沿用中式米色 + 印章红克制美学）
+  - JS：`loadDashboard()` 末尾追加 `/api/dashboard` fetch；新增 `renderDashboardStats(data)` + `renderBarChart(containerId, data, colorFn)`
+  - 4 张柱状图：智能体调用次数 / 风险分级分布 / span 类型分布 / 终止触发原因
+- 设计选择：进程内统计而非 SQLite 持久化（避免引入新依赖 + 避免跨会话 PII 串扰）；dashboard 仅展示聚合维度，不展示用户输入/响应内容
+
+### P8：12 个 MCP 工具迁移到 tool_auto
+
+- 修改 [mcp_server/server.py](.traecli/src/deadman/mcp_server/server.py)：
+  - 12 个工具从 `@mcp.tool(name=, description=, input_schema={...}, output_schema=...)` 改为 `@mcp.tool_auto(name=, description=, output_schema=...)`
+  - enum 字段从 schema dict 改为 `Literal[...]` type hint
+  - docstring 加 `Args:` 段（Google-style），`tool_auto` 解析后自动生成参数描述
+  - 迁移工具：`query_knowledge` / `read_file` / `write_file` / `invoke_subagent` / `query_memory` / `initiate_debate` / `call_external_agent` / `execute_reflexion` / `web_search` / `web_search_official` / `execute_code` / `init_transfer` / `report_incident`
+  - 保留手写 schema：`check_integrity` / `check_rules`（嵌套对象 + 内部 enum，auto 生成器无法表达）
+- 收益：参数 schema 与函数签名单一来源，避免 schema 与 type hint 漂移；新增工具只需写 type hints + docstring
+
+### P0-bug-fix：LangGraph checkpointer thread_id 缺失
+
+- 修复 [web/server.py](.traecli/src/deadman/web/server.py) 两处 `graph.ainvoke(state)` 调用：
+  - 原：`result_state = await graph.ainvoke(state)` —— LangGraph MemorySaver checkpointer 要求 `config["configurable"]["thread_id"]`，缺失抛 `ValueError: Checkpointer requires one or more of the following 'configurable' keys: thread_id, checkpoint_ns, checkpoint_id`
+  - 现：
+    ```python
+    thread_id = state.get("session_id") or state.get("user_id") or "default"
+    result_state = await graph.ainvoke(
+        state, config={"configurable": {"thread_id": thread_id}}
+    )
+    ```
+  - 影响范围：`_handle_chat` 与 `_stream_chat` 的 graph 路径；修复前每次对话都走降级 fallback（graph 失败 → 硬编码 system prompt），用户实际体验与文档承诺不一致
+  - 修复后 graph 路径正常执行，L0-L8 规则链重新生效
+
+### 前端用户流端到端测试
+
+- 新增 [tests/test_e2e_frontend_user_flow.py](.traecli/src/tests/test_e2e_frontend_user_flow.py) 7 个测试：
+  - 沙箱无 playwright/selenium/chromium，用 `httpx` + SSE 解析模拟浏览器交互
+  - SSE 解析：`event: trace` / `event: done` / `event: error` 三类事件分发，收到 done/error 后双层 break 退出（避免 httpx ReadTimeout）
+  - 超时配置：`httpx.Timeout(connect=5, read=60, write=5, pool=5)`（SSE 长连接 read 60s）
+  - 3 个复杂任务覆盖：
+    - 简单问候（death_aftercare 单轮直接回答）
+    - 法律争议转介（提到"法律争议"+"律师介入诉讼"应触发 transfer signal）
+    - 跨境遗产复杂场景（提到"外籍"+"跨境遗产"+"领事馆"+"跨国税务"应触发 cross_border_specialist）
+  - 验证点：HTML 完整性 / 静态资源 / API 端点 / dashboard 空状态 / 3 个 SSE 流 + dashboard 累加 / dashboard 数据结构 / 并发 2 用户
+  - 启动真实 `ThreadingHTTPServer`（daemon 线程）+ 固定端口 8769，不 mock HTTP 层
+  - 无 `LLM_API_KEY` 时后端走降级，但仍推送 SSE event + 累加 dashboard 统计（验证降级路径而非 happy path）
+
+### 测试与质量
+
+- 测试总数：873（v5.0.0 后）→ **918 passed + 1 skipped**（+45 net = P10 38 个 + E2E 7 个）
+- 新增测试文件：
+  - `test_p10_termination.py`（38 个）— P10 可组合终止条件
+  - `test_e2e_frontend_user_flow.py`（7 个）— 前端用户流端到端（文件名匹配 `test_*.py` 收集模式，被 pytest 默认收集）
+- 修改测试文件：
+  - `test_orchestration.py` — P10 reason 格式断言适配（2 处文案改动，逻辑零改动）
+- 全部测试用 `tmp_path` 隔离数据目录，不污染 `~/.deadman`
+- 全部 LLM 调用走 `mock_llm_client` fixture（conftest.py 注入），不实际调用外部 API
+- E2E 测试用真实 `ThreadingHTTPServer`（daemon 线程）+ httpx SSE 解析，不 mock HTTP 层
+- E2E 测试用 `scope="module"` 的 `server_base_url` fixture（`_get_free_port` + `_wait_for_server` 模式参考 `test_web_chat_graph.py`），所有 7 个测试共享同一 server 实例，让 dashboard 累加行为可被后续测试断言
+
+### 严格约束遵守
+
+- ✅ 未修改 `agents/*.md` / `rules/*.md` / `skills/*/SKILL.md`（仅引用，不改写）
+- ✅ 未引入新 pip 依赖（P10 用 stdlib `dataclasses` + `abc`；P9 用 stdlib `copy.deepcopy` + 进程内 dict；P8 用现有 fastmcp `tool_auto`；E2E 用现有 `httpx`）
+- ✅ 向后兼容：`default_termination()` 等价 P4 行为；`_is_stuck()` 保留原签名；`SequentialExecutor` 默认 termination 等价 P4
+- ✅ 不编造数据：dashboard 仅展示进程内聚合统计，不持久化不跨会话；token usage 走 state 本轮累计不走 cost_tracker
+- ✅ PII 安全：dashboard 不展示用户输入/响应内容，仅展示聚合维度
+- ✅ 不 commit
+
 ## v5.0.0（2026-07）PM v2 评估后的 P0 修复 + 竞品功能借鉴 + 触达路径扩展（PM 评估 62→~78/100）
 
 > 基于 PM v2 评估 [docs/pm-assessment-v2.md](docs/pm-assessment-v2.md)（62/100）与第二轮竞品调研 [docs/competitive-research-round2.md](docs/competitive-research-round2.md)（15 家国际产品：Cake / Everplans / Lantern / Empathy / Tomorrow / Fabric / Nolo WillMaker / Trust & Will / GoodTrust / FreeWill / Better Place Forests / eFuneral / Toast / Afterword / Willing）落地 4 个 Phase 的工作。重点闭环 PM v2 报告里 5 个 P0-gap 中的 3 个（gap-1 stream 走 graph / gap-2 ending-note auth 穿透 / gap-3 加密 v2），并把国际同行的成熟功能（悼文 / 通知信函 / Dead Man Switch / Plan Strength Score）借鉴本土化。Phase 17D 把全部新增能力暴露到 CLI 并完成 8 个联调场景回归。

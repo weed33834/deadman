@@ -5,7 +5,7 @@
 [![tests](https://github.com/weed33834/deadman/actions/workflows/tests.yml/badge.svg)](https://github.com/weed33834/deadman/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-5.0.0-6b5d4f.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.1.0-6b5d4f.svg)](CHANGELOG.md)
 
 ---
 
@@ -71,6 +71,13 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 ### 4 层记忆系统
 
 `working / episodic / semantic / procedural memory`，跨会话上下文保留。
+
+### 编排韧性与可观测（v5.1）
+
+- **可组合终止条件**（借鉴 AutoGen `TerminationCondition`）：6 个具体子类（MaxSteps / StuckAgent / TokenUsage / MessageCount / External / TextMention），用 `|`（OR 短路）/ `&`（AND 全满足）自由组合。`default_termination()` 等价 P4 的 `MAX_STEPS | STUCK_AGENT_REPEAT_LIMIT`，向后兼容
+- **本轮 token 累计**：LLM 调用后 `last_usage` → `state["metrics"]["token_usage"]` 累加（不走 cost_tracker 跨会话串扰），供 `TokenUsageTermination` 评估
+- **对话维度看板**：`/api/dashboard` 端点 + 前端 4 张柱状图 + 最近 trace span 表，进程内聚合统计（重启清零，不持久化不跨会话）
+- **MCP 工具 schema 自动化**：12 个工具迁移到 `@mcp.tool_auto`，靠 type hints + Google-style docstring 自动生成 JSON Schema，参数与函数签名单一来源
 
 ### 加密与隐私
 
@@ -384,6 +391,7 @@ Web UI（`http://localhost:8002`）包含：
 
 - **对话** —— 六个智能体可切换，SSE 流式响应，移动端响应式
 - **运维看板** —— 各领域反馈闭环状态、记忆分层条目数、部署工件校验
+- **对话维度看板**（v5.1）—— 进程内对话统计：智能体调用次数 / 风险分级分布 / span 类型分布 / 终止触发原因 / token 累计 / 降级计数 + 最近 20 条 trace span 表（仅展示聚合维度，不展示用户输入/响应内容）
 - **测试中心** —— 分领域运行诊断命令，查看延迟与可用性
 - **资源列表** —— 智能体与 MCP 工具清单
 - **onboarding 向导** —— 5 步引导（关系 / 地点 / 日期 / 已办事项 / 知情同意）
@@ -435,7 +443,7 @@ deadman/
         │   ├── web/                         #   Web UI + API（30+ 端点）
         │   ├── mcp_server/                  #   MCP Server（15 工具）
         │   ├── a2a/                         #   A2A 协议
-        │   ├── orchestration/               #   LangGraph 编排
+        │   ├── orchestration/               #   LangGraph 编排 + 可组合终止条件（v5.1）
         │   ├── memory/                      #   4 层记忆
         │   ├── auth/                        #   用户认证 + JWT
         │   ├── ending_note/                 #   终活笔记（9 章节 + 加密）
@@ -457,7 +465,7 @@ deadman/
         │   ├── notification/                #   主动通知护栏
         │   ├── observability/               #   OTel + Langfuse
         │   └── ...                          #   其余模块
-        └── tests/                           #   pytest 测试（800+）
+        └── tests/                           #   pytest 测试（900+）
 ```
 
 ## CLI 子命令总览
@@ -493,7 +501,7 @@ deadman --help
 
 | 文档 | 说明 |
 |------|------|
-| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.0.0） |
+| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.1.0） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | 行为准则 |
 | [SECURITY.md](SECURITY.md) | 安全策略与漏洞报告 |
@@ -513,7 +521,7 @@ deadman --help
 ## 测试
 
 ```bash
-# 全量回归（800+ 测试）
+# 全量回归（900+ 测试）
 cd deadman
 python -m pytest .traecli/src/tests/ -q
 
@@ -521,7 +529,7 @@ python -m pytest .traecli/src/tests/ -q
 # 见 .traecli/tests/scenarios.md
 ```
 
-当前测试规模：**820 passed + 1 skipped + 0 failed**。
+当前测试规模：**918 passed + 1 skipped + 0 failed**。
 
 ## 贡献
 

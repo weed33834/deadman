@@ -52,7 +52,7 @@ RUN pip install --no-cache-dir .
 FROM python:3.12-slim AS runtime
 
 # 构建参数（仅用于镜像元数据，不进入运行时环境）
-ARG DEADMAN_VERSION=5.0
+ARG DEADMAN_VERSION=5.1
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
 

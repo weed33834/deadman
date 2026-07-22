@@ -224,6 +224,7 @@
 - [ ] 新增/修改内容遵守现有规则体系，不削弱既有优先级链
 - [ ] 未引入代办/代查/出法律医学诊断意见/编造不确定信息的能力
 - [ ] 新增内容附置信度标注与来源透传
+- [ ] `python -m pytest .traecli/src/tests/ -q` 全量通过（当前 918 passed + 1 skipped）
 - [ ] `tests/golden-cases.md` 全部 20 case 通过
 - [ ] `tests/scenarios.md` 全部 8 场景通过
 - [ ] `agents/TEAM.md` 架构图与清单已更新（若涉及智能体变更）
@@ -231,6 +232,15 @@
 - [ ] `CHANGELOG.md` 已记录变更
 - [ ] 文件命名符合规范
 - [ ] 版本号已递增
+
+### pytest 测试规范
+
+- 新增功能必须配套 pytest 测试（`src/tests/` 目录），不依赖外部 LLM API（用 `mock_llm_client` fixture）
+- 涉及 Web 端点的改动优先用真实 `ThreadingHTTPServer` + 随机端口，不 mock HTTP 层
+- 涉及 SSE 流的端到端验证参考 `e2e_frontend_user_flow.py`（httpx + SSE 解析模拟浏览器）
+- 涉及编排终止条件的改动参考 `test_p10_termination.py`（frozen dataclass 用 `==` 断言）
+- 测试用 `tmp_path` 隔离数据目录，不污染 `~/.deadman`
+- 不引入新 pip 依赖（stdlib 优先）
 
 ## 联系与讨论
 

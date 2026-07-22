@@ -196,6 +196,11 @@ class LLMClient:
         self.base_url = base_url or settings.llm_base_url
         self.timeout = settings.llm_timeout
 
+        # P10：记录最近一次成功调用的 token usage，供 TerminationCondition 读取
+        # 注意：这是"最近一次"，不是"本轮累计"；本轮累计由 nodes.py 的
+        # _accumulate_token_usage helper 把这个值累加到 state["metrics"]["token_usage"]
+        self._last_usage: dict[str, int] = {}
+
         # 构建 fallback 链：主配置 + 环境变量配置的备用模型
         self._fallback_clients: list[LLMClient] = []
         for item in settings.llm_fallback_chain:
@@ -256,6 +261,8 @@ class LLMClient:
                 resp = await client._call_once(messages, temperature, max_tokens, tools, **kwargs)
                 # 成功后记录成本(实际 token 用量→成本)
                 self._track_cost(resp)
+                # P10：记录最近一次成功调用的 usage，供 TerminationCondition 读取
+                self._last_usage = dict(resp.usage or {})
                 return resp
             except Exception as e:
                 last_error = e
@@ -267,6 +274,15 @@ class LLMClient:
                 )
                 continue
         raise RuntimeError(f"所有 LLM 均调用失败，最后错误: {last_error}") from last_error
+
+    @property
+    def last_usage(self) -> dict[str, int]:
+        """最近一次成功调用的 token usage（副本，只读）
+
+        P10：供 nodes.py 的 _accumulate_token_usage helper 读取，
+        累加到 state["metrics"]["token_usage"] 供 TokenUsageTermination 评估。
+        """
+        return dict(self._last_usage)
 
     def _track_cost(self, resp: LLMResponse) -> None:
         """把本次调用的 token 用量记入成本追踪器(失败静默,不阻断主流程)"""

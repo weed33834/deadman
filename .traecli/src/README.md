@@ -45,14 +45,15 @@ deadman/
 ├── llm.py                 # LLM 客户端（多厂商）
 ├── rules_loader.py        # 规则加载器 + 规则校验器
 ├── cli.py                 # CLI 入口
-├── mcp_server/            # MCP Server（13 工具）
+├── mcp_server/            # MCP Server（15 工具，12 个用 tool_auto 自动 schema）
 │   ├── __init__.py
 │   └── server.py
 ├── orchestration/         # LangGraph 编排
 │   ├── __init__.py
 │   ├── state.py           # ConversationState
 │   ├── graph.py           # 主 Graph + SequentialExecutor 降级
-│   └── nodes.py           # 8 个节点 + 3 个路由
+│   ├── nodes.py           # 8 个节点 + 3 个路由
+│   └── termination.py     # 可组合终止条件（v5.1，借鉴 AutoGen TerminationCondition）
 ├── memory/                # 分层记忆
 │   ├── __init__.py
 │   ├── working.py         # 工作记忆

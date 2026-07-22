@@ -95,6 +95,21 @@ class WebServer:
         self.host = settings.mcp_server_host
         # Web UI 端口默认比 MCP +2（MCP=8000, A2A=8001, Web=8002）
         self.port = int(os.getenv("WEB_SERVER_PORT", "8002"))
+        # P9：进程内对话级统计（dashboard 概览页用，累加自 _handle_chat/_stream_chat）
+        self._conversation_stats: dict[str, Any] = {
+            "agent_calls": {},
+            "risk_tier_counts": {},
+            "span_type_counts": {},
+            "token_usage_total": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
+            "termination_triggers": {},
+            "total_conversations": 0,
+            "degraded_count": 0,
+            "recent_spans": [],
+        }
 
     def run(self, host: str | None = None, port: int | None = None) -> None:
         host = host or self.host
@@ -155,6 +170,9 @@ class WebServer:
                     self._handle_deploy_check()
                 elif path == "/api/health/all":
                     self._handle_health_all()
+                # === P9: 对话维度 dashboard 概览页（agent/risk/span/token/termination）===
+                elif path == "/api/dashboard":
+                    self._handle_dashboard()
                 elif path == "/metrics":
                     self._handle_metrics()
                 # === Phase 8: 用户认证（只追加）===
@@ -472,6 +490,22 @@ class WebServer:
                 try:
                     from ..observability import metrics_collector
                     self._send_json(200, metrics_collector.get_dashboard())
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_dashboard(self) -> None:
+                """P9：对话维度 dashboard - 返回 _conversation_stats 的深拷贝快照
+
+                数据由 _handle_chat / _stream_chat 在 graph 跑完后通过
+                server_ref._record_conversation_stats(...) 累加，包含：
+                - agent_calls / risk_tier_counts / span_type_counts
+                - token_usage_total / termination_triggers
+                - total_conversations / degraded_count / recent_spans
+                """
+                import copy
+                try:
+                    snapshot = copy.deepcopy(server_ref._conversation_stats)
+                    self._send_json(200, snapshot)
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -2150,7 +2184,12 @@ class WebServer:
         # 走 graph（含 input_guard / router / agent_node / rule_check / output_guard / respond）
         try:
             graph = build_main_graph()
-            result_state = await graph.ainvoke(state)
+            # P9-fix：LangGraph checkpointer 要求 configurable.thread_id
+            # 用 session_id 作为 thread_id（无 session_id 时用 user_id 兜底）
+            thread_id = state.get("session_id") or state.get("user_id") or "default"
+            result_state = await graph.ainvoke(
+                state, config={"configurable": {"thread_id": thread_id}}
+            )
 
             # 提取响应
             response = (
@@ -2194,6 +2233,17 @@ class WebServer:
                     "MemoryManager.after_turn 失败（不影响响应）: %s", exc
                 )
 
+            # P9：累加对话级统计（best-effort，失败不影响响应）
+            self._record_conversation_stats(
+                agent=actual_agent,
+                risk_tier=risk_tier,
+                trace_spans=list(result_state.get("trace_spans") or []),
+                subagent_called=list(result_state.get("subagent_called") or []),
+                metrics=dict(result_state.get("metrics") or {}),
+                degraded=False,
+                forced_terminate=bool(result_state.get("forced_terminate")),
+            )
+
             return {
                 "response": response,
                 "agent": actual_agent,
@@ -2225,6 +2275,16 @@ class WebServer:
             ] + [{"role": "user", "content": query}]
             try:
                 response = await llm_client.chat(messages, temperature=0.3)
+                # P9：累加对话级统计 - 降级路径
+                self._record_conversation_stats(
+                    agent=agent,
+                    risk_tier="R0",
+                    trace_spans=[],
+                    subagent_called=[],
+                    metrics={},
+                    degraded=True,
+                    forced_terminate=False,
+                )
                 return {
                     "response": response,
                     "agent": agent,
@@ -2233,6 +2293,16 @@ class WebServer:
                     "error": str(exc),
                 }
             except Exception as fallback_exc:
+                # P9：累加对话级统计 - 双重降级路径
+                self._record_conversation_stats(
+                    agent=agent,
+                    risk_tier="R0",
+                    trace_spans=[],
+                    subagent_called=[],
+                    metrics={},
+                    degraded=True,
+                    forced_terminate=False,
+                )
                 return {
                     "response": f"服务暂不可用: {fallback_exc}",
                     "agent": agent,
@@ -2379,7 +2449,11 @@ class WebServer:
         # 走 graph（与 _handle_chat 一致的规则链）
         try:
             graph = build_main_graph()
-            result_state = await graph.ainvoke(state)
+            # P9-fix：LangGraph checkpointer 要求 configurable.thread_id
+            thread_id = state.get("session_id") or state.get("user_id") or "default"
+            result_state = await graph.ainvoke(
+                state, config={"configurable": {"thread_id": thread_id}}
+            )
             response_text = (
                 result_state.get("final_response")
                 or result_state.get("draft_response", "")
@@ -2410,6 +2484,16 @@ class WebServer:
                 )
             except Exception as exc:
                 logger.warning("stream MemoryManager.after_turn 失败: %s", exc)
+            # P9：累加对话级统计 - graph 走通路径（best-effort）
+            self._record_conversation_stats(
+                agent=agent_normalized.replace("_", "-"),
+                risk_tier=risk_tier,
+                trace_spans=trace_spans,
+                subagent_called=subagent_called,
+                metrics=trace_metrics,
+                degraded=False,
+                forced_terminate=bool(result_state.get("forced_terminate")),
+            )
         except Exception as exc:
             logger.exception("stream graph 调用失败，降级到 SoulLoader")
             degraded = True
@@ -2436,6 +2520,16 @@ class WebServer:
                 wfile.write(f"event: error\ndata: {err}\n\n".encode("utf-8"))
                 wfile.flush()
                 return
+            # P9：累加对话级统计 - 降级路径（best-effort）
+            self._record_conversation_stats(
+                agent=agent_normalized.replace("_", "-"),
+                risk_tier="R0",
+                trace_spans=[],
+                subagent_called=[],
+                metrics={},
+                degraded=True,
+                forced_terminate=False,
+            )
 
         # 流式推送：按句号/换行/分号切块，模拟 token 级流式
         # 这样既保留了 SSE 的「逐块可见」体验，又确保规则链 100% 生效
@@ -2521,6 +2615,102 @@ class WebServer:
         if buf:
             chunks.append("".join(buf))
         return chunks
+
+    # ================================================================
+    # P9: 对话维度统计累加（dashboard 概览页用）
+    # ================================================================
+
+    def _record_conversation_stats(
+        self,
+        *,
+        agent: str | None,
+        risk_tier: str,
+        trace_spans: list[dict[str, Any]] | None,
+        subagent_called: list[str] | None,
+        metrics: dict[str, Any] | None,
+        degraded: bool,
+        forced_terminate: bool = False,
+    ) -> None:
+        """P9：累加对话级统计到 _conversation_stats
+
+        在 graph 跑完后调用，best-effort：失败不阻塞 chat 流程。
+        统计维度：
+        - agent_calls: 每个智能体被调用次数
+        - risk_tier_counts: R0/R1/R2/R3 分布
+        - span_type_counts: rule/agent/transfer/root 分布
+        - token_usage_total: 累计 prompt/completion/total tokens
+        - termination_triggers: 终止条件触发次数（按 source 统计）
+        - total_conversations: 总对话轮数
+        - degraded_count: 降级模式次数
+        - recent_spans: 最近 20 条对话 trace 摘要
+        """
+        try:
+            stats = self._conversation_stats
+            # 1. agent_calls
+            agent_key = agent or "unknown"
+            stats["agent_calls"][agent_key] = (
+                stats["agent_calls"].get(agent_key, 0) + 1
+            )
+            # 2. risk_tier_counts
+            tier = risk_tier or "R0"
+            stats["risk_tier_counts"][tier] = (
+                stats["risk_tier_counts"].get(tier, 0) + 1
+            )
+            # 3. span_type_counts
+            for span in trace_spans or []:
+                if not isinstance(span, dict):
+                    continue
+                st = span.get("span_type")
+                if st:
+                    stats["span_type_counts"][st] = (
+                        stats["span_type_counts"].get(st, 0) + 1
+                    )
+            # 4. token_usage_total
+            tu = (metrics or {}).get("token_usage") or {}
+            if isinstance(tu, dict):
+                for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                    stats["token_usage_total"][k] = (
+                        stats["token_usage_total"].get(k, 0)
+                        + int(tu.get(k, 0) or 0)
+                    )
+            # 5. termination_triggers
+            if forced_terminate:
+                source = "forced_terminate"
+                # 从 trace_spans 里找最后一条含 termination 信息的 span
+                for span in reversed(trace_spans or []):
+                    if not isinstance(span, dict):
+                        continue
+                    attrs = span.get("attributes") or {}
+                    if not isinstance(attrs, dict):
+                        continue
+                    if attrs.get("termination_source"):
+                        source = str(attrs["termination_source"])
+                        break
+                    if attrs.get("termination"):
+                        source = str(attrs["termination"])
+                        break
+                stats["termination_triggers"][source] = (
+                    stats["termination_triggers"].get(source, 0) + 1
+                )
+            # 6. total_conversations
+            stats["total_conversations"] = stats["total_conversations"] + 1
+            # 7. degraded_count
+            if degraded:
+                stats["degraded_count"] = stats["degraded_count"] + 1
+            # 8. recent_spans（最多 20 条）
+            stats["recent_spans"].append({
+                "agent": agent_key,
+                "span_count": len(trace_spans or []),
+                "subagent_count": len(subagent_called or []),
+                "risk_tier": tier,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            })
+            if len(stats["recent_spans"]) > 20:
+                stats["recent_spans"] = stats["recent_spans"][-20:]
+        except Exception as exc:
+            logger.warning(
+                "_record_conversation_stats 失败（不影响响应）: %s", exc
+            )
 
     # ================================================================
     # Phase 8: 用户认证与会话
