@@ -34,6 +34,8 @@
 │  ├── query_knowledge（知识库查询）        │
 │  ├── check_integrity（5 关自检）          │
 │  ├── web_search（网络搜索）               │
+│  ├── web_search_official（官方源搜索）    │
+│  ├── execute_code（沙箱代码执行）         │
 │  ├── read_file（读取文件）                │
 │  ├── write_file（写入文件）               │
 │  ├── invoke_subagent（调用子智能体）      │
@@ -639,7 +641,7 @@ Claude: tool_use 格式 + 手动实现
 
 ```
 支持 MCP 的平台（Claude/OpenAI Agents SDK/TRAE/自建）：
-  → 直接配置 MCP server，13 个工具自动可用
+  → 直接配置 MCP server，15 个工具自动可用
   
 不支持 MCP 的平台（百炼/元宝/...）：
   → 适配层把 MCP 工具转换为平台原生格式
@@ -664,7 +666,7 @@ mcp_servers:
 
 ## 安全考虑
 
-1. **MCP server 不暴露文件系统**：只通过定义好的 13 个工具访问；read_file/write_file 受权限隔离约束，仅允许访问指定目录
+1. **MCP server 不暴露文件系统**：只通过定义好的 15 个工具访问；read_file/write_file 受权限隔离约束，仅允许访问指定目录
 2. **PII 脱敏**：所有经过 MCP server 的数据先脱敏
 3. **权限隔离**：check_rules 只读 rules/，query_knowledge 只读 knowledge/，report_incident 只写 _incidents/
 4. **审计日志**：每次 MCP 工具调用都记录 trace span

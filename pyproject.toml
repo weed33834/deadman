@@ -24,9 +24,9 @@ classifiers = [
 ]
 
 dependencies = [
-    # MCP 协议
+    # MCP 协议（fastmcp>=3.0 用于 @mcp.tool_auto 自动 schema 生成，v5.1 P8 引入）
     "mcp>=1.0",
-    "fastmcp>=2.0",
+    "fastmcp>=3.0",
     # LangGraph 编排
     "langgraph>=1.0",
     "langchain-core>=1.0",
@@ -60,7 +60,7 @@ langfuse = ["langfuse>=4.0"]
 openai = ["openai>=1.50"]
 anthropic = ["anthropic>=0.50"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
-mcp = ["fastmcp>=2.0", "duckduckgo-search>=8.0"]
+mcp = ["fastmcp>=3.0", "duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.1", "datasets>=2.0"]
 all = [
     "deadman[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp,ragas]",

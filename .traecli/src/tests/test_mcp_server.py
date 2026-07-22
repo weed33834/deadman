@@ -1,7 +1,7 @@
 """测试 deadman.mcp_server - MCP Server 工具注册与调用
 
 覆盖点：
-  - list_tools 返回 13 个工具
+  - list_tools 返回 15 个工具
   - call_tool query_knowledge 知识库查询
   - call_tool check_rules 规则校验
 """

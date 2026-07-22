@@ -111,9 +111,11 @@
 
 - ✅ 未修改 `agents/*.md` / `rules/*.md` / `skills/*/SKILL.md`（仅引用，不改写）
 - ✅ 未引入新 pip 依赖（P10 用 stdlib `dataclasses` + `abc`；P9 用 stdlib `copy.deepcopy` + 进程内 dict；P8 用现有 fastmcp `tool_auto`；E2E 用现有 `httpx`）
+- ✅ 依赖下限校正（非新增依赖）：`fastmcp>=2.0` → `fastmcp>=3.0`（dependencies + mcp extra）。P8 的 `@mcp.tool_auto` 是 fastmcp 3.0（2026-02-18）引入的特性，2.x 安装会失败，下限必须提到 3.0。实际开发环境用 3.4.4（2026-07-09 发布）
 - ✅ 向后兼容：`default_termination()` 等价 P4 行为；`_is_stuck()` 保留原签名；`SequentialExecutor` 默认 termination 等价 P4
 - ✅ 不编造数据：dashboard 仅展示进程内聚合统计，不持久化不跨会话；token usage 走 state 本轮累计不走 cost_tracker
 - ✅ PII 安全：dashboard 不展示用户输入/响应内容，仅展示聚合维度
+- ✅ 文档校正：`mcp_server/README.md` 架构图工具列表从 13 个补齐为 15 个（补 `web_search_official` + `execute_code`，v1.3 新增但架构图漏更新）；`test_mcp_server.py` docstring 13 → 15
 - ✅ 不 commit
 
 ## v5.0.0（2026-07）PM v2 评估后的 P0 修复 + 竞品功能借鉴 + 触达路径扩展（PM 评估 62→~78/100）
