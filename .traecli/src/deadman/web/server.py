@@ -2368,6 +2368,13 @@ class WebServer:
         degraded = False
         risk_tier = "R0"
         safety_triggered = False
+        # P3：从 graph 结果中抽取 trace_spans，供前端渲染"思考过程"面板
+        # trace_spans 形如 [{"span_type": "rule", "name": "node.router", "attributes": {...}}]
+        # 前端按 span_type 区分渲染：rule/agent/transfer/root → 不同图标与配色
+        trace_spans: list[dict[str, Any]] = []
+        trace_metrics: dict[str, Any] = {}
+        subagent_called: list[str] = []
+        draft_response = ""
 
         # 走 graph（与 _handle_chat 一致的规则链）
         try:
@@ -2377,6 +2384,7 @@ class WebServer:
                 result_state.get("final_response")
                 or result_state.get("draft_response", "")
             )
+            draft_response = result_state.get("draft_response", "") or ""
             rule_check = result_state.get("rule_check")
             if rule_check is not None:
                 risk_tier = getattr(
@@ -2385,6 +2393,10 @@ class WebServer:
                 safety_triggered = bool(
                     getattr(rule_check, "safety_triggered", False)
                 )
+            # P3：抽取 trace_spans / metrics / subagent_called（降级时保持空）
+            trace_spans = list(result_state.get("trace_spans") or [])
+            trace_metrics = dict(result_state.get("metrics") or {})
+            subagent_called = list(result_state.get("subagent_called") or [])
             # 更新记忆
             try:
                 mm = MemoryManager()
@@ -2436,6 +2448,26 @@ class WebServer:
             wfile.write(f"data: {data}\n\n".encode("utf-8"))
             wfile.flush()
 
+        # P3：推送 trace 事件 - 把 graph 内部 trace_spans / metrics / subagent_called
+        # 一并推给前端，前端据此渲染"Agent 思考过程"可折叠时间线 + 工具调用卡片
+        # （借鉴 OpenHands ExpandableMessage：消息下方可展开查看 reasoning / tool calls）
+        # 降级路径（无 result_state）下 trace_spans 为空，前端自然不渲染面板
+        if trace_spans or subagent_called or trace_metrics:
+            trace_payload = {
+                "spans": trace_spans,
+                "metrics": trace_metrics,
+                "subagent_called": subagent_called,
+                "draft_response": draft_response,
+                "agent": agent_normalized.replace("_", "-"),
+                "degraded": degraded,
+            }
+            trace_data = json.dumps(trace_payload, ensure_ascii=False)
+            try:
+                wfile.write(f"event: trace\ndata: {trace_data}\n\n".encode("utf-8"))
+                wfile.flush()
+            except Exception as exc:  # pragma: no cover - 客户端断开等
+                logger.debug("trace 推送失败（客户端可能已断开）: %s", exc)
+
         # 结束事件：附带 safety_triggered 标记，前端可据此显示危机资源
         done_data = json.dumps(
             {
@@ -2443,6 +2475,7 @@ class WebServer:
                 "risk_tier": risk_tier,
                 "safety_triggered": safety_triggered,
                 "agent": agent_normalized.replace("_", "-"),
+                "has_trace": bool(trace_spans or subagent_called),
             },
             ensure_ascii=False,
         )

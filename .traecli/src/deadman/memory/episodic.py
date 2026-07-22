@@ -15,7 +15,7 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from ..config import settings
-from ..llm import llm_client
+from ..llm import get_llm_for_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -263,9 +263,13 @@ class EpisodicMemory:
             return []
 
     async def _summarize_turn(self, turn: dict) -> str:
-        """用 LLM 生成片段摘要；无 API key 或失败时回退到简单截断"""
+        """用 LLM 生成片段摘要；无 API key 或失败时回退到简单截断
+
+        P7: 多模型分工 - 摘要归入 summarizer 用例（便宜模型），借鉴 OpenDeepResearch。
+        """
         content = turn.get("content", "")
-        if not llm_client.api_key:
+        summarizer_llm = get_llm_for_use_case("summarizer")
+        if not summarizer_llm.api_key:
             return self._fallback_summary(turn)
         prompt = (
             "用一句话总结以下对话片段的核心信息（包含关键事实如人物/时间/地点/事件，"
@@ -275,7 +279,7 @@ class EpisodicMemory:
             f"智能体：{turn.get('agent', 'unknown')}\n"
         )
         try:
-            text = await llm_client.chat(
+            text = await summarizer_llm.chat(
                 [{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=120,

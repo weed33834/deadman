@@ -332,3 +332,196 @@ class TestHandleWhoami:
             conn.close()
         finally:
             pass  # daemon 线程会随进程退出
+
+
+# =====================================================================
+# P3：_stream_chat 推送 trace 事件（思考过程可视化）
+# =====================================================================
+
+
+class TestStreamChatTracePush:
+    """验证 _stream_chat 在 graph 返回 trace_spans 时推送 event: trace
+
+    覆盖点：
+    - graph 返回 trace_spans + subagent_called + metrics → SSE 流含 event: trace
+    - trace payload 字段完整（spans/subagent_called/metrics/agent/draft_response）
+    - 降级路径（graph 异常）不推送 trace
+    - 空 trace_spans（graph 跑通但无 span）不推送 trace
+    """
+
+    @staticmethod
+    def _make_wfile() -> MagicMock:
+        """构造 mock wfile，记录所有 write 调用便于断言"""
+        wfile = MagicMock()
+        # write 接受 bytes，flush 不报错
+        wfile.write = MagicMock(side_effect=lambda data: len(data) if isinstance(data, (bytes, bytearray)) else 0)
+        wfile.flush = MagicMock()
+        return wfile
+
+    @staticmethod
+    def _collect_written(wfile: MagicMock) -> str:
+        """把所有 write 调用的 bytes 参数拼成一个字符串"""
+        chunks = []
+        for call in wfile.write.call_args_list:
+            args, _ = call
+            if args and isinstance(args[0], (bytes, bytearray)):
+                chunks.append(args[0].decode("utf-8", errors="replace"))
+        return "".join(chunks)
+
+    async def test_stream_pushes_trace_event_when_graph_returns_spans(
+        self, web_server: WebServer
+    ):
+        """graph 返回 trace_spans 时，SSE 流应包含 event: trace"""
+        mock_graph = _make_mock_graph({
+            "final_response": "完整响应。",
+            "draft_response": "草稿。",
+            "current_agent": "death_aftercare",
+            "rule_check": None,
+            "trace_spans": [
+                {"span_type": "rule", "name": "node.input_guard",
+                 "attributes": {"passed": True}},
+                {"span_type": "agent", "name": "node.agent.death_aftercare",
+                 "attributes": {"tool_name": "query_knowledge",
+                                "tool_status": "ok",
+                                "tool_result": {"hits": 3}}},
+            ],
+            "subagent_called": ["death-aftercare-emotional"],
+            "metrics": {"tokens": 128, "latency_ms": 420},
+        })
+
+        wfile = self._make_wfile()
+        with patch(
+            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
+        ), patch(
+            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        ):
+            await web_server._stream_chat(wfile, "test", "death-aftercare", "u1")
+
+        written = self._collect_written(wfile)
+        # 应包含 event: trace 行
+        assert "event: trace" in written, f"未推送 trace 事件，实际写入:\n{written}"
+        # 应包含 event: done 行
+        assert "event: done" in written
+        # trace 应在 done 之前
+        assert written.index("event: trace") < written.index("event: done")
+
+        # 提取 trace 的 data 并校验字段
+        # 形如：event: trace\ndata: {...}\n\n
+        import re as _re
+        m = _re.search(r"event: trace\ndata: (.+)\n\n", written)
+        assert m, "trace 事件 data 行未找到"
+        payload = json.loads(m.group(1))
+        assert payload["agent"] == "death-aftercare"
+        assert payload["degraded"] is False
+        assert payload["draft_response"] == "草稿。"
+        assert len(payload["spans"]) == 2
+        assert payload["spans"][0]["name"] == "node.input_guard"
+        assert payload["spans"][1]["attributes"]["tool_name"] == "query_knowledge"
+        assert payload["subagent_called"] == ["death-aftercare-emotional"]
+        assert payload["metrics"]["tokens"] == 128
+
+    async def test_stream_done_has_has_trace_flag(self, web_server: WebServer):
+        """done 事件应携带 has_trace 标记，前端据此知道是否有思考面板"""
+        mock_graph = _make_mock_graph({
+            "final_response": "回复。",
+            "current_agent": "death-aftercare",
+            "rule_check": None,
+            "trace_spans": [{"span_type": "rule", "name": "x", "attributes": {}}],
+        })
+        wfile = self._make_wfile()
+        with patch(
+            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
+        ), patch(
+            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        ):
+            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+
+        written = self._collect_written(wfile)
+        import re as _re
+        m = _re.search(r"event: done\ndata: (.+)\n\n", written)
+        assert m
+        done = json.loads(m.group(1))
+        assert done["has_trace"] is True
+        assert done["agent"] == "death-aftercare"
+
+    async def test_stream_no_trace_when_spans_empty(self, web_server: WebServer):
+        """graph 跑通但 trace_spans 为空 → 不推送 trace 事件"""
+        mock_graph = _make_mock_graph({
+            "final_response": "回复。",
+            "current_agent": "death-aftercare",
+            "rule_check": None,
+            "trace_spans": [],
+            "subagent_called": [],
+            "metrics": {},
+        })
+        wfile = self._make_wfile()
+        with patch(
+            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
+        ), patch(
+            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        ):
+            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+
+        written = self._collect_written(wfile)
+        assert "event: trace" not in written, "空 trace 不应推送"
+        # done 事件中 has_trace 应为 False
+        import re as _re
+        m = _re.search(r"event: done\ndata: (.+)\n\n", written)
+        assert m
+        done = json.loads(m.group(1))
+        assert done["has_trace"] is False
+
+    async def test_stream_no_trace_on_degraded_path(self, web_server: WebServer):
+        """graph 异常降级到 llm_client 时，不应推送 trace"""
+        mock_graph = MagicMock()
+        mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph 挂了"))
+
+        mock_llm = MagicMock()
+        mock_llm.api_key = "test-key"
+        mock_llm.chat = AsyncMock(return_value="降级响应")
+
+        wfile = self._make_wfile()
+        with patch(
+            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
+        ), patch(
+            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        ), patch(
+            "deadman.llm.llm_client", mock_llm
+        ):
+            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+
+        written = self._collect_written(wfile)
+        assert "event: trace" not in written, "降级路径不应推送 trace"
+        assert "event: done" in written
+        # 降级路径的 done 仍应有 has_trace=False
+        import re as _re
+        m = _re.search(r"event: done\ndata: (.+)\n\n", written)
+        assert m
+        done = json.loads(m.group(1))
+        assert done["has_trace"] is False
+        assert done["degraded"] is True
+
+    async def test_stream_no_trace_when_llm_no_key(self, web_server: WebServer):
+        """降级路径下 LLM key 缺失 → 推送 error 事件后直接返回，无 trace 无 done"""
+        mock_graph = MagicMock()
+        mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph 挂了"))
+
+        mock_llm = MagicMock()
+        mock_llm.api_key = ""  # 无 key
+        mock_llm.chat = AsyncMock(return_value="should-not-call")
+
+        wfile = self._make_wfile()
+        with patch(
+            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
+        ), patch(
+            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        ), patch(
+            "deadman.llm.llm_client", mock_llm
+        ):
+            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+
+        written = self._collect_written(wfile)
+        assert "event: error" in written
+        assert "event: trace" not in written
+        assert "event: done" not in written
+

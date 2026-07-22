@@ -500,6 +500,188 @@
     .domain-grid { grid-template-columns: 1fr; }
     .topbar-right .status-text { display: none; }
   }
+
+  /* ============================================================
+   * P3 / 视觉精修：Agent 思考过程可视化 + 工具调用卡片 + 流式渲染
+   * 借鉴 OpenHands ExpandableMessage / AutoGen ToolCall 面板
+   * 配色延续中式米色印章红克制美学：rule=金，agent=印章红，transfer=琥珀，root=墨
+   * ============================================================ */
+
+  /* 消息淡入：借鉴 OpenHands Message 缓入动画 */
+  .message {
+    animation: msg-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 打字机光标 - 流式输出时附在 bubble 末尾 */
+  .typing-cursor {
+    display: inline-block; width: 7px; height: 14px;
+    background: var(--accent); margin-left: 2px; vertical-align: -2px;
+    animation: cursor-blink 0.9s steps(2) infinite;
+  }
+  @keyframes cursor-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  /* 思考过程折叠条（消息 meta 下方）*/
+  .trace-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 6px; padding: 4px 10px; cursor: pointer;
+    font-size: 11px; color: var(--accent-deep);
+    background: var(--paper-warm); border: 1px solid var(--line-soft);
+    border-radius: 2px; transition: all 0.18s;
+    letter-spacing: 0.5px; user-select: none;
+  }
+  .trace-toggle:hover {
+    background: var(--accent); color: var(--paper-warm); border-color: var(--accent);
+  }
+  .trace-toggle .caret {
+    display: inline-block; transition: transform 0.2s;
+    font-size: 9px; line-height: 1;
+  }
+  .trace-toggle.expanded .caret { transform: rotate(90deg); }
+  .trace-toggle .badge {
+    display: inline-block; padding: 0 5px; margin-left: 2px;
+    background: var(--seal); color: #fff; border-radius: 2px;
+    font-size: 10px; letter-spacing: 0;
+  }
+
+  /* 思考过程面板 */
+  .trace-panel {
+    margin-top: 8px; padding: 14px 16px 12px;
+    background: var(--paper-warm); border: 1px solid var(--line-soft);
+    border-left: 2px solid var(--gold);
+    font-size: 12px; max-height: 0; overflow: hidden;
+    opacity: 0; transition: max-height 0.28s ease, opacity 0.2s, padding 0.2s;
+    padding-top: 0; padding-bottom: 0;
+  }
+  .trace-panel.show {
+    max-height: 540px; opacity: 1; padding-top: 14px; padding-bottom: 12px;
+    overflow-y: auto;
+  }
+  .trace-panel-head {
+    font-family: "Songti SC", serif; font-size: 12px; font-weight: 500;
+    color: var(--accent-deep); margin-bottom: 10px;
+    letter-spacing: 1px; display: flex; justify-content: space-between;
+    align-items: center;
+  }
+  .trace-panel-head .agent-tag {
+    font-family: inherit; font-size: 10px; color: var(--ink-muted);
+    letter-spacing: 0.3px;
+  }
+
+  /* 时间线 */
+  .trace-timeline { position: relative; padding-left: 18px; }
+  .trace-timeline::before {
+    content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px;
+    width: 1px; background: var(--line);
+  }
+  .trace-step {
+    position: relative; padding: 5px 0 5px 4px; font-size: 11px;
+    color: var(--ink-soft); line-height: 1.6;
+  }
+  .trace-step::before {
+    content: ""; position: absolute; left: -13px; top: 9px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent-soft); border: 1.5px solid var(--paper-warm);
+  }
+  .trace-step.rule::before    { background: var(--gold); }
+  .trace-step.agent::before   { background: var(--seal); }
+  .trace-step.transfer::before{ background: var(--warn); }
+  .trace-step.root::before    { background: var(--ink); }
+  .trace-step-name {
+    font-family: "SF Mono", "Menlo", monospace; font-size: 10.5px;
+    color: var(--ink); letter-spacing: 0.2px;
+  }
+  .trace-step-attr {
+    color: var(--ink-muted); font-size: 10.5px; margin-top: 2px;
+    word-break: break-all;
+  }
+  .trace-step-attr code {
+    font-family: "SF Mono", "Menlo", monospace; font-size: 10px;
+    color: var(--accent-deep);
+  }
+
+  /* 工具调用卡片（attributes.tool_call / tool_name 存在时升级渲染）*/
+  .tool-card {
+    margin: 6px 0; padding: 8px 10px; background: #fff;
+    border: 1px solid var(--line-soft); border-left: 2px solid var(--seal);
+    font-size: 11px;
+  }
+  .tool-card-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .tool-card-name {
+    font-family: "SF Mono", "Menlo", monospace; font-size: 11px;
+    color: var(--seal); font-weight: 500;
+  }
+  .tool-card-status {
+    font-size: 10px; color: var(--ok); letter-spacing: 0.3px;
+  }
+  .tool-card-status.fail { color: var(--err); }
+  .tool-card-body {
+    font-family: "SF Mono", "Menlo", monospace; font-size: 10.5px;
+    color: var(--ink-soft); white-space: pre-wrap;
+    word-break: break-all; max-height: 88px; overflow-y: auto;
+  }
+
+  /* 风险等级标签（rule_check 风险分层）*/
+  .risk-pill {
+    display: inline-block; padding: 1px 7px; border-radius: 9px;
+    font-size: 10px; letter-spacing: 0.5px; margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .risk-pill.r0 { background: var(--ok-bg); color: var(--ok); }
+  .risk-pill.r1 { background: var(--paper-warm); color: var(--ink-soft); }
+  .risk-pill.r2 { background: var(--warn-bg); color: var(--warn); }
+  .risk-pill.r3 { background: var(--err-bg); color: var(--err); }
+
+  /* 顶部"正在思考"指示器（流式中显示在 status 旁）*/
+  .thinking-indicator {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--accent-deep);
+    background: var(--paper-warm); padding: 3px 9px;
+    border: 1px solid var(--line-soft); border-radius: 2px;
+  }
+  .thinking-indicator .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--seal);
+    animation: pulse-strong 1.1s ease-in-out infinite;
+  }
+  @keyframes pulse-strong {
+    0%, 100% { opacity: 0.3; transform: scale(0.85); }
+    50%      { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* 暗色模式 - 适配中式美学的"夜砚"主题（默认关闭，body.dark 启用）*/
+  body.dark {
+    --paper: #1c1a17; --paper-warm: #25221e;
+    --ink: #e8e2d6; --ink-soft: #b8b0a0; --ink-muted: #7a7468;
+    --line: #3a3530; --line-soft: #2e2a25;
+    --accent: #b8956a; --accent-deep: #d4b083; --accent-soft: #6b5d4f;
+    --seal: #c96565; --seal-soft: #8b3a3a;
+    --gold: #d4b083;
+    --ok-bg: #2a3530; --warn-bg: #3a3225; --err-bg: #3a2525;
+  }
+  body.dark .sidebar { background: #16140f; }
+  body.dark .sidebar-header { border-bottom-color: #2a2520; }
+  body.dark .nav-item:hover { background: #1f1c17; }
+  body.dark .nav-item.active { background: #1f1c17; }
+  body.dark .message.bot .bubble { background: #25221e; }
+  body.dark .tool-card { background: #1f1c17; }
+  body.dark .trace-panel { background: #1f1c17; }
+
+  /* 主题切换按钮（topbar 右侧）*/
+  .theme-toggle {
+    width: 28px; height: 28px; padding: 0; line-height: 1;
+    background: var(--paper-warm); color: var(--accent-deep);
+    border: 1px solid var(--line); border-radius: 4px;
+    font-size: 14px; cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center;
+    transition: all 0.18s;
+  }
+  .theme-toggle:hover { background: var(--accent); color: var(--paper-warm); }
 </style>
 </head>
 <body>
@@ -532,6 +714,7 @@
       <select id="agentSelect" onchange="currentAgent=this.value"></select>
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">就绪</span>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜砚主题">☾</button>
       <span id="authArea"></span>
     </div>
   </div>
@@ -835,8 +1018,130 @@ function addMessage(role, text, meta) {
   msg.appendChild(avatar); msg.appendChild(content);
   chatArea.appendChild(msg);
   chatArea.scrollTop = chatArea.scrollHeight;
-  return bubble;
+  // P3：返回 content 容器，方便在 bubble 下方插入 trace 思考过程面板
+  return { bubble, content };
 }
+
+// ============================================================
+// P3：Agent 思考过程可视化（借鉴 OpenHands ExpandableMessage）
+// 把后端推送的 trace 事件渲染为可折叠时间线 + 工具调用卡片
+// ============================================================
+
+// span_type 中文标签 + 步骤序号映射（用于 trace 面板头部摘要）
+const TRACE_TYPE_LABEL = {
+  rule: "规则链", agent: "智能体", transfer: "转介", root: "收尾",
+};
+
+// 把 trace 数据渲染为可折叠面板，附在 bot 消息 content（bubble 之后）
+function renderTracePanel(traceData, content, finalMeta) {
+  if (!traceData || !content) return;
+  const spans = traceData.spans || [];
+  const subagents = traceData.subagent_called || [];
+  const metrics = traceData.metrics || {};
+  const agentName = traceData.agent || "";
+  if (spans.length === 0 && subagents.length === 0) return;
+
+  // 折叠按钮
+  const toggle = document.createElement("div");
+  toggle.className = "trace-toggle";
+  toggle.innerHTML =
+    `<span class="caret">▶</span>` +
+    `<span>思考过程</span>` +
+    `<span class="badge">${spans.length}</span>`;
+  toggle.onclick = () => {
+    toggle.classList.toggle("expanded");
+    panel.classList.toggle("show");
+  };
+
+  // 面板
+  const panel = document.createElement("div");
+  panel.className = "trace-panel";
+
+  // 头部
+  const head = document.createElement("div");
+  head.className = "trace-panel-head";
+  let headHTML = `<span>思考过程 · ${spans.length} 步`;
+  if (subagents.length) headHTML += ` · 调用 ${subagents.length} 个子智能体`;
+  if (metrics && Object.keys(metrics).length) headHTML += ` · ${Object.keys(metrics).length} 项指标`;
+  headHTML += `</span>`;
+  if (agentName) headHTML += `<span class="agent-tag">${agentName}</span>`;
+  head.innerHTML = headHTML;
+  panel.appendChild(head);
+
+  // 时间线
+  const timeline = document.createElement("div");
+  timeline.className = "trace-timeline";
+
+  spans.forEach((span, idx) => {
+    const step = document.createElement("div");
+    step.className = "trace-step " + (span.span_type || "root");
+    const name = span.name || "(unnamed)";
+    const attrs = span.attributes || {};
+    let attrHTML = "";
+    // 把 attributes 关键字段渲染出来（截断过长的值）
+    const keys = Object.keys(attrs).filter(k =>
+      !["timestamp", "span_id"].includes(k)
+    ).slice(0, 4);
+    keys.forEach(k => {
+      let v = attrs[k];
+      if (typeof v === "object") v = JSON.stringify(v);
+      const vs = String(v);
+      const truncated = vs.length > 120 ? vs.slice(0, 120) + "…" : vs;
+      attrHTML += `<div class="trace-step-attr"><code>${k}</code> = ${truncated}</div>`;
+    });
+
+    // 工具调用卡片（attributes 里有 tool_name / tool_call 时升级渲染）
+    let toolCardHTML = "";
+    const toolName = attrs.tool_name || attrs.tool_call || attrs.tool;
+    if (toolName) {
+      const toolStatus = attrs.tool_status || attrs.status || "ok";
+      const toolResult = attrs.tool_result || attrs.result || "";
+      let resultStr = "";
+      if (toolResult) {
+        if (typeof toolResult === "object") resultStr = JSON.stringify(toolResult);
+        else resultStr = String(toolResult);
+      }
+      const truncatedResult = resultStr.length > 200 ? resultStr.slice(0, 200) + "…" : resultStr;
+      toolCardHTML =
+        `<div class="tool-card">` +
+        `<div class="tool-card-head">` +
+        `<span class="tool-card-name">🔧 ${toolName}</span>` +
+        `<span class="tool-card-status ${toolStatus === 'fail' ? 'fail' : ''}">${toolStatus}</span>` +
+        `</div>` +
+        (truncatedResult ? `<div class="tool-card-body">${truncatedResult}</div>` : "") +
+        `</div>`;
+    }
+
+    step.innerHTML =
+      `<div class="trace-step-name">${String(idx + 1).padStart(2, "0")}. ${name}</div>` +
+      attrHTML +
+      toolCardHTML;
+    timeline.appendChild(step);
+  });
+
+  panel.appendChild(timeline);
+  content.appendChild(toggle);
+  content.appendChild(panel);
+}
+
+// ============================================================
+// 主题切换（夜砚暗色模式）
+// ============================================================
+function toggleTheme() {
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("deadman-theme", isDark ? "dark" : "light");
+  const btn = document.getElementById("themeToggle");
+  if (btn) btn.textContent = isDark ? "☀" : "☾";
+}
+(function initTheme() {
+  try {
+    if (localStorage.getItem("deadman-theme") === "dark") {
+      document.body.classList.add("dark");
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.textContent = "☀";
+    }
+  } catch (e) {}
+})();
 
 async function send() {
   const text = input.value.trim();
@@ -846,16 +1151,28 @@ async function send() {
   history.push({ role: "user", content: text });
   streaming = true; sendBtn.disabled = true;
   statusDot.className = "status-dot busy";
-  statusText.textContent = "响应中";
-  const bubble = addMessage("bot", "");
+  statusText.innerHTML = '<span class="thinking-indicator"><span class="pulse-dot"></span>正在思考</span>';
+  const { bubble, content } = addMessage("bot", "");
   bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
   let full = "";
+  let traceData = null;
+  let doneInfo = null;
   try {
     const url = `/api/stream?query=${encodeURIComponent(text)}&agent=${encodeURIComponent(currentAgent)}`;
     const resp = await fetch(url, { headers: { ...authHeaders() } });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    // SSE 事件解析：追踪当前 event 类型，下个 data: 行按 event 类型分发
+    let currentEvent = "message";
+    // 节流渲染：避免每个 chunk 都重排 DOM（借鉴 OpenHands useTyping hook）
+    let pendingRender = false;
+    const flushRender = () => {
+      pendingRender = false;
+      bubble.innerHTML = renderBotContent(full) +
+        '<span class="typing-cursor"></span>';
+      chatArea.scrollTop = chatArea.scrollHeight;
+    };
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -863,11 +1180,37 @@ async function send() {
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
       for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+          continue;
+        }
         if (line.startsWith("data: ")) {
+          const payload = line.slice(6);
           try {
-            const d = JSON.parse(line.slice(6));
-            if (d.chunk) { full += d.chunk; bubble.textContent = full; chatArea.scrollTop = chatArea.scrollHeight; }
+            const d = JSON.parse(payload);
+            if (currentEvent === "trace") {
+              traceData = d;
+            } else if (currentEvent === "done") {
+              doneInfo = d;
+            } else if (currentEvent === "error") {
+              full += (full ? "\n" : "") + "⚠ " + (d.error || "未知错误");
+            } else {
+              // 默认 message 事件：累加 chunk
+              if (d.chunk) {
+                full += d.chunk;
+                if (!pendingRender) {
+                  pendingRender = true;
+                  requestAnimationFrame(flushRender);
+                }
+              }
+            }
           } catch (e) {}
+          // data 行处理完，重置 event 类型（SSE 协议：每对 event+data 为一个事件）
+          // 但浏览器 SSE 一般保持 event 直到下个 event: 行；这里采用保持语义，
+          // 仅在遇到新的 event: 行时才切换 currentEvent
+        } else if (line === "") {
+          // 空行 = 事件分隔，重置为默认 message
+          currentEvent = "message";
         }
       }
     }
@@ -881,13 +1224,34 @@ async function send() {
         full = data.response || "（无响应）";
       }
     }
-    bubble.textContent = full;
+    bubble.innerHTML = renderBotContent(full);
     history.push({ role: "assistant", content: full });
+
+    // P3：渲染思考过程面板（如果有 trace 数据）
+    let meta = "";
+    if (doneInfo) {
+      const parts = [];
+      if (doneInfo.agent) parts.push(doneInfo.agent.replace(/-/g, "_"));
+      if (doneInfo.risk_tier && doneInfo.risk_tier !== "R0") {
+        parts.push("风险 " + doneInfo.risk_tier);
+      }
+      if (doneInfo.degraded) parts.push("降级模式");
+      meta = parts.join(" · ");
+    }
+    if (traceData) {
+      renderTracePanel(traceData, content, meta);
+    } else if (meta) {
+      const m = document.createElement("div");
+      m.className = "meta"; m.textContent = meta;
+      content.appendChild(m);
+    }
+    chatArea.scrollTop = chatArea.scrollHeight;
   } catch (e) {
     bubble.textContent = "请求失败：" + e.message;
   } finally {
     streaming = false; sendBtn.disabled = false;
-    statusDot.className = "status-dot"; statusText.textContent = "就绪";
+    statusDot.className = "status-dot";
+    statusText.textContent = "就绪";
     // Phase 16C P2-gap-3：流式完成后渲染 tel: 链接
     applyTelLinks(bubble);
   }

@@ -25,6 +25,18 @@ class Settings:
     llm_base_url: str = os.getenv("LLM_BASE_URL", "")
     llm_timeout: int = int(os.getenv("LLM_TIMEOUT", "30"))
 
+    # === P7: 多模型分工 configuration（借鉴 OpenDeepResearch configuration.py）===
+    # 不同任务用不同模型以平衡成本与质量：
+    #   - router: 意图分类，调一次 LLM 返回 JSON，用便宜模型即可（默认 gpt-4o-mini）
+    #   - summarizer: 摘要/记忆压缩/上下文压缩，用便宜模型
+    #   - respond: 主响应生成（agent_node），需要质量，用强模型（默认 = LLM_MODEL）
+    # 未配置时全部回退到 LLM_MODEL（向后兼容）
+    # 格式："provider:model"，例如 "openai:gpt-4o-mini"
+    # 各 provider 的 api_key 从对应环境变量读取（OPENAI_API_KEY/ANTHROPIC_API_KEY/ZHIPU_API_KEY）
+    llm_model_router: str = os.getenv("LLM_MODEL_ROUTER", "")  # 空 = 用 LLM_MODEL
+    llm_model_summarizer: str = os.getenv("LLM_MODEL_SUMMARIZER", "")  # 空 = 用 LLM_MODEL
+    llm_model_respond: str = os.getenv("LLM_MODEL_RESPOND", "")  # 空 = 用 LLM_MODEL
+
     # === LLM Fallback 链（主 LLM 失败时按序尝试）===
     # 格式："provider:model" 逗号分隔，例如 "openai:gpt-4o,anthropic:claude-3-5-sonnet,zhipu:glm-4.6"
     # 每个 provider 的 api_key 从 {PROVIDER}_API_KEY 环境变量读取（OPENAI_API_KEY/ANTHROPIC_API_KEY/ZHIPU_API_KEY）

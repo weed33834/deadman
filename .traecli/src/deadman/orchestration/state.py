@@ -60,6 +60,12 @@ class ConversationState(TypedDict, total=False):
     trace_spans: list[dict[str, Any]]  # 本轮产生的 span
     metrics: dict[str, Any]  # 本轮指标
 
+    # === P4: 卡死检测与步数上限（借鉴 OpenManus BaseAgent.is_stuck + max_steps）===
+    step_count: int  # 本轮已执行的节点数（防止无限循环）
+    last_agent_for_stuck: str  # 上次路由到的 agent（用于检测连续路由到同一 agent）
+    stuck_count: int  # 连续路由到同一 agent 的次数
+    forced_terminate: bool  # 是否被强制终止（卡死或步数超限）
+
 
 def create_initial_state(
     user_input: str,
@@ -90,4 +96,8 @@ def create_initial_state(
         confidence_labels=[],
         trace_spans=[],
         metrics={},
+        step_count=0,
+        last_agent_for_stuck="",
+        stuck_count=0,
+        forced_terminate=False,
     )

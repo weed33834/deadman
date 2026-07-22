@@ -43,21 +43,24 @@ def mock_llm_client():
 def patch_llm(monkeypatch, mock_llm_client):
     """把 deadman.llm.llm_client 全局单例替换为 mock。
 
-    测试中需要全局 llm_client 时用这个 fixture。
+    P7 后 nodes.py / episodic.py 改用 get_llm_for_use_case(use_case) 获取客户端，
+    所以本 fixture 也 monkeypatch get_llm_for_use_case 让所有 use_case 返回 mock。
     """
     import deadman.llm as llm_module
 
     monkeypatch.setattr(llm_module, "llm_client", mock_llm_client)
-    # 同步替换已经导入到各模块的引用
+    # P7: get_llm_for_use_case 对任何 use_case 都返回 mock
+    monkeypatch.setattr(
+        llm_module, "get_llm_for_use_case", lambda use_case: mock_llm_client
+    )
+    # 清空 use_case 缓存避免污染后续测试
+    llm_module._llm_client_cache.clear()
+    # 同步替换已经导入到各模块的 llm_client 引用（仍直接持有 llm_client 的模块）
     import deadman.memory.manager as mm
-    import deadman.memory.episodic as ep
     import deadman.reflexion.engine as rfe
-    import deadman.orchestration.nodes as nodes
 
     monkeypatch.setattr(mm, "llm_client", mock_llm_client)
-    monkeypatch.setattr(ep, "llm_client", mock_llm_client)
     monkeypatch.setattr(rfe, "llm_client", mock_llm_client)
-    monkeypatch.setattr(nodes, "llm_client", mock_llm_client)
     return mock_llm_client
 
 

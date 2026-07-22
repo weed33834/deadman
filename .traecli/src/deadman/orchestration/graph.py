@@ -90,9 +90,61 @@ ROUTE_NEEDS_INTEGRITY = "needs_integrity_check"
 ROUTE_PASS_THROUGH = "pass_through"
 ROUTE_PROCEED_TRANSFER = "proceed_transfer"
 ROUTE_DECLINE_TRANSFER = "decline_transfer"
+# P4: 卡死或步数超限时强制路由到 respond
+ROUTE_FORCE_TERMINATE = "force_terminate"
 
 # interrupt_before 配置 - 转介确认前暂停
 INTERRUPT_BEFORE_NODES = [NODE_USER_CONFIRM]
+
+# =====================================================================
+# P4: 卡死检测与步数上限（借鉴 OpenManus BaseAgent.is_stuck + max_steps）
+# =====================================================================
+# 步数硬上限：单轮对话最多经过 25 个节点（input_guard + router + 6 agents *
+# 最多 3 次转介 + rule_check + integrity + output_guard + respond ≈ 25）
+# 触发后强制跳到 respond 节点输出兜底响应，避免死循环烧 token
+MAX_STEPS = 25
+# 连续路由到同一 agent 的次数上限：超过此值判定为"卡死"
+# OpenManus 默认 3 次，deadman 转 6 个 agent 之间可能正常连续路由 1-2 次，
+# 设 3 次是保守阈值（连续 3 次同一 agent 几乎肯定是 router 失灵）
+STUCK_AGENT_REPEAT_LIMIT = 3
+
+
+def _is_stuck(state: ConversationState) -> tuple[bool, str]:
+    """卡死检测 - 借鉴 OpenManus BaseAgent.is_stuck 逻辑
+
+    判定条件（任一满足即卡死）：
+    1. step_count > MAX_STEPS：节点执行数超限
+    2. stuck_count >= STUCK_AGENT_REPEAT_LIMIT：连续多次路由到同一 agent
+
+    Returns:
+        (is_stuck, reason) - reason 在 is_stuck=True 时为卡死原因
+    """
+    step_count = state.get("step_count", 0)
+    if step_count > MAX_STEPS:
+        return True, f"max_steps_exceeded:{step_count}/{MAX_STEPS}"
+    stuck_count = state.get("stuck_count", 0)
+    if stuck_count >= STUCK_AGENT_REPEAT_LIMIT:
+        last = state.get("last_agent_for_stuck", "")
+        return True, f"agent_stuck:{last}:{stuck_count}_repeats"
+    return False, ""
+
+
+def _increment_step(state: ConversationState) -> None:
+    """递增 step_count 并更新 stuck_count（在节点执行后调用）
+
+    stuck_count 逻辑：
+    - 若当前 agent == last_agent_for_stuck：stuck_count += 1
+    - 否则：stuck_count = 1（重置但记录新 agent）
+    """
+    step_count = state.get("step_count", 0) + 1
+    state["step_count"] = step_count
+    current = state.get("current_agent", "")
+    last = state.get("last_agent_for_stuck", "")
+    if current and current == last:
+        state["stuck_count"] = state.get("stuck_count", 0) + 1
+    elif current:
+        state["stuck_count"] = 1
+        state["last_agent_for_stuck"] = current
 
 
 # =====================================================================
@@ -179,6 +231,32 @@ class SequentialExecutor:
             # 后续节点正常检查 interrupt
             resuming = False
 
+            # P4: 卡死检测 - 执行节点前检查是否已卡死
+            stuck, stuck_reason = _is_stuck(state)
+            if stuck and current != NODE_RESPOND:
+                logger.warning(
+                    "SequentialExecutor 检测到卡死 reason=%s，强制跳转到 respond 节点",
+                    stuck_reason,
+                )
+                state["forced_terminate"] = True
+                # 兜底响应：若 draft_response 为空则填入
+                if not state.get("draft_response"):
+                    state["draft_response"] = (
+                        "抱歉，系统在处理您的请求时检测到循环或超限，"
+                        "已强制终止本轮处理。请尝试重新表述您的问题，"
+                        "或拆分为更具体的小问题逐个询问。"
+                    )
+                # 追加 trace span 便于排查
+                spans = state.get("trace_spans", [])
+                spans.append({
+                    "span_type": "system",
+                    "name": "forced_terminate",
+                    "attributes": {"reason": stuck_reason, "step_count": state.get("step_count", 0)},
+                })
+                state["trace_spans"] = spans
+                current = NODE_RESPOND
+                continue
+
             # 执行节点
             node_fn = self._nodes.get(current)
             if node_fn is not None:
@@ -191,6 +269,9 @@ class SequentialExecutor:
                     # 异常不中断流程，继续到下一节点
             else:
                 logger.warning("节点 %s 未注册，跳过", current)
+
+            # P4: 节点执行后递增 step_count + 更新 stuck_count
+            _increment_step(state)
 
             # 确定下一节点
             if current in self._conditional_edges:
@@ -253,6 +334,7 @@ def _build_sequential_executor() -> SequentialExecutor:
     # === 路由边（条件） - router 之后 ===
     route_mapping: dict[str, str] = {name: name for name in AGENT_NAMES}
     route_mapping[ROUTE_AWAIT_TRANSFER] = NODE_USER_CONFIRM
+    route_mapping[ROUTE_FORCE_TERMINATE] = NODE_RESPOND  # P4: 卡死时直接跳 respond
     executor.add_conditional_edges(NODE_ROUTER, route_to_agent, route_mapping)
 
     # === 用户确认转介后 ===
@@ -311,6 +393,7 @@ def _build_langgraph():
     # === 路由边（条件） - router 之后 ===
     route_mapping: dict[str, str] = {name: name for name in AGENT_NAMES}
     route_mapping[ROUTE_AWAIT_TRANSFER] = NODE_USER_CONFIRM
+    route_mapping[ROUTE_FORCE_TERMINATE] = NODE_RESPOND  # P4: 卡死时直接跳 respond
     graph.add_conditional_edges(NODE_ROUTER, route_to_agent, route_mapping)
 
     # === 用户确认转介后 ===

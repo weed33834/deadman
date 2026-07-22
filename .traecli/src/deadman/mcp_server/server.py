@@ -34,7 +34,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal, get_args, get_origin
 
 from ..config import settings
 from ..types import (
@@ -364,6 +364,218 @@ def _ingest_knowledge_files() -> None:
 # 工具定义与服务端
 # =====================================================================
 
+# ---------- P6: 自动 schema 生成（借鉴 smolagents @tool 装饰器）----------
+
+import inspect
+
+_PY_TYPE_TO_JSON: dict[type, str] = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    list: "array",
+    dict: "object",
+}
+
+
+def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
+    """把 Python type hint 转为 JSON Schema 片段
+
+    支持：
+    - 基本类型：str/int/float/bool → string/integer/number/boolean
+    - list[str] / List[str] → {"type": "array", "items": {"type": "string"}}
+    - dict[str, Any] → {"type": "object"}
+    - Optional[T] / T | None → 解包 T
+    - Literal["a", "b"] → {"type": "string", "enum": ["a", "b"]}
+    - str | None (Union) → 解包非 None 部分
+    """
+    # 处理 None
+    if annotation is None or annotation is type(None):
+        return {"type": "null"}
+
+    origin = get_origin(annotation)
+
+    # Optional[T] / Union[T, None] / T | None
+    if origin is not None:
+        # Python 3.10+ X | Y 语法：get_origin 返回 types.UnionType
+        # Python 3.9- Optional[T]：get_origin 返回 typing.Union
+        union_types = None
+        try:
+            import types  # noqa: F401
+
+            if hasattr(types, "UnionType") and isinstance(annotation, types.UnionType):
+                union_types = get_args(annotation)
+        except ImportError:  # pragma: no cover
+            pass
+        if union_types is None:
+            try:
+                from typing import Union  # noqa: F401
+
+                if origin is Union:
+                    union_types = get_args(annotation)
+            except ImportError:  # pragma: no cover
+                pass
+        if union_types is not None:
+            # 过滤 NoneType，取第一个非 None 类型
+            non_none = [t for t in union_types if t is not type(None)]
+            if len(non_none) == 1:
+                return _python_type_to_json_schema(non_none[0])
+            # 多个非 None 类型：用 anyOf
+            return {"anyOf": [_python_type_to_json_schema(t) for t in non_none]}
+
+    # Literal["a", "b"] → enum
+    if origin is Literal:
+        args = get_args(annotation)
+        if not args:
+            return {"type": "string"}
+        # 推断类型
+        first = args[0]
+        if isinstance(first, str):
+            return {"type": "string", "enum": list(args)}
+        if isinstance(first, int):
+            return {"type": "integer", "enum": list(args)}
+        if isinstance(first, float):
+            return {"type": "number", "enum": list(args)}
+        return {"enum": list(args)}
+
+    # list[T] / List[T]
+    if origin is list:
+        args = get_args(annotation)
+        items_schema = _python_type_to_json_schema(args[0]) if args else {}
+        return {"type": "array", "items": items_schema}
+
+    # dict[K, V] / Dict[K, V] → object
+    if origin is dict:
+        return {"type": "object"}
+
+    # 基本类型
+    if isinstance(annotation, type):
+        json_type = _PY_TYPE_TO_JSON.get(annotation)
+        if json_type:
+            return {"type": json_type}
+
+    # 兜底：未知类型用 string
+    return {"type": "string"}
+
+
+def _extract_docstring_description(fn: Callable[..., Any]) -> str:
+    """提取 docstring 首段作为工具描述"""
+    doc = inspect.getdoc(fn) or ""
+    if not doc:
+        return ""
+    # 首段 = 第一个空行之前的内容
+    parts = doc.split("\n\n", 1)
+    return parts[0].strip()
+
+
+def _parse_docstring_args(fn: Callable[..., Any]) -> dict[str, str]:
+    """解析 Google-style docstring 的 Args: 段，返回 {param_name: description}
+
+    支持格式：
+        Args:
+            query: 搜索查询语句
+            max_results: 最大结果数，默认 5
+                可多行延续描述
+            another: 另一个参数
+    """
+    doc = inspect.getdoc(fn) or ""
+    if not doc:
+        return {}
+
+    lines = doc.split("\n")
+    in_args = False
+    result: dict[str, str] = {}
+    current_param: str | None = None
+    current_desc: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not in_args:
+            # 检测 Args: 段开始
+            if stripped == "Args:" or stripped.startswith("Args:"):
+                in_args = True
+            continue
+
+        # 在 Args 段内：遇到非缩进行 = 段结束
+        if line and not line[0].isspace() and stripped:
+            # 如 Returns: / Raises: / Yields: 等新段
+            break
+
+        # 空行跳过（不结束段，允许段内空行）
+        if not stripped:
+            continue
+
+        # 尝试匹配新参数：word: description
+        m = re.match(r"^(\w+):\s*(.*)$", stripped)
+        if m:
+            if current_param:
+                result[current_param] = " ".join(current_desc).strip()
+            current_param = m.group(1)
+            current_desc = [m.group(2)] if m.group(2) else []
+        else:
+            # 缩进行的延续描述
+            if current_param:
+                current_desc.append(stripped)
+
+    if current_param:
+        result[current_param] = " ".join(current_desc).strip()
+    return result
+
+
+def _build_schema_from_signature(fn: Callable[..., Any]) -> dict[str, Any]:
+    """从函数签名 + docstring 自动生成 JSON Schema
+
+    - 参数类型来自 type hints（_python_type_to_json_schema）
+      注意：模块若启用 `from __future__ import annotations`，type hints 会是字符串，
+      需用 typing.get_type_hints() 解析为真实类型。
+    - 参数描述来自 docstring 的 Args: 段
+    - required = 无默认值的参数
+    - 默认值填入 default 字段
+    """
+    import typing as _typing
+
+    # 解析字符串形式的 type hints（PEP 563 / from __future__ import annotations）
+    try:
+        hints = _typing.get_type_hints(fn)
+    except Exception:
+        hints = {}
+
+    sig = inspect.signature(fn)
+    docstring_args = _parse_docstring_args(fn)
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+
+    for param_name, param in sig.parameters.items():
+        if param_name in ("self", "cls"):
+            continue
+        # 跳过 *args / **kwargs
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+
+        # 优先用解析后的 type hint，否则回退到 str
+        annotation = hints.get(param_name, str)
+        schema = _python_type_to_json_schema(annotation)
+
+        # 合并 docstring 描述
+        desc = docstring_args.get(param_name)
+        if desc:
+            schema["description"] = desc
+
+        # 默认值
+        if param.default is not inspect.Parameter.empty:
+            schema["default"] = param.default
+        else:
+            required.append(param_name)
+
+        properties[param_name] = schema
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+    }
+
+
 @dataclass
 class ToolDef:
     """单个工具的定义"""
@@ -433,6 +645,49 @@ class McpServer:
 
         def decorator(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
             self.register_tool(name, description, input_schema, fn, output_schema)
+            return fn
+
+        return decorator
+
+    def tool_auto(
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        output_schema: dict[str, Any] | None = None,
+    ) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
+        """P6: 装饰器 - 从函数签名 + docstring 自动生成 input_schema
+
+        借鉴 smolagents @tool 装饰器模式：用 type hints 推 JSON Schema 类型，
+        用 Google-style docstring 的 Args: 段提取参数描述，用默认值判断 required。
+
+        优势：单一信息源（函数签名即 schema），新增工具时无需手写 JSON Schema。
+        限制：无法表达 enum 约束（用 Literal 类型提示代替）；描述需写在 docstring。
+
+        用法：
+            @mcp.tool_auto(name="my_tool", description="简短描述")
+            async def my_tool(query: str, max_results: int = 5) -> dict:
+                \"\"\"详细描述。
+
+                Args:
+                    query: 搜索查询语句
+                    max_results: 最大结果数，默认 5
+                \"\"\"
+                ...
+
+        Args:
+            name: 工具名（默认取 fn.__name__）
+            description: 工具描述（默认取 docstring 首段）
+            output_schema: 输出 schema（仍需手写，因输出结构复杂）
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+            tool_name = name or fn.__name__
+            tool_desc = description or _extract_docstring_description(fn)
+            input_schema = _build_schema_from_signature(fn)
+            self.register_tool(tool_name, tool_desc, input_schema, fn, output_schema)
             return fn
 
         return decorator
@@ -2277,33 +2532,13 @@ async def init_transfer(
 # 工具 13: report_incident
 # =====================================================================
 
-@mcp.tool(
+@mcp.tool_auto(
     name="report_incident",
     description=(
         "上报安全事件（如注入攻击、规则违反、安全隐患等）。"
         "生成唯一 incident_id 并记录到日志，返回 status=logged。"
         "用于审计与安全监控，不阻断当前流程。"
     ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "incident_type": {
-                "type": "string",
-                "description": "事件类型",
-                "enum": ["injection_attempt", "rule_violation", "safety_concern", "other"],
-            },
-            "description": {"type": "string", "description": "事件描述"},
-            "severity": {
-                "type": "string",
-                "description": "严重程度",
-                "enum": ["low", "medium", "high", "critical"],
-                "default": "medium",
-            },
-            "user_input": {"type": "string", "description": "触发事件的用户输入", "default": ""},
-            "agent_name": {"type": "string", "description": "相关智能体名", "default": ""},
-        },
-        "required": ["incident_type", "description"],
-    },
     output_schema={
         "type": "object",
         "properties": {
@@ -2314,9 +2549,9 @@ async def init_transfer(
     },
 )
 async def report_incident(
-    incident_type: str,
+    incident_type: Literal["injection_attempt", "rule_violation", "safety_concern", "other"],
     description: str,
-    severity: str = "medium",
+    severity: Literal["low", "medium", "high", "critical"] = "medium",
     user_input: str = "",
     agent_name: str = "",
 ) -> dict[str, Any]:
@@ -2324,6 +2559,13 @@ async def report_incident(
 
     生成 incident_id 并记录日志，返回 logged=true。
     不阻断当前流程，仅做审计记录。
+
+    Args:
+        incident_type: 事件类型（injection_attempt/rule_violation/safety_concern/other）
+        description: 事件描述
+        severity: 严重程度（low/medium/high/critical），默认 medium
+        user_input: 触发事件的用户输入，默认空
+        agent_name: 相关智能体名，默认空
     """
     incident_id = str(uuid.uuid4())
     # 记录到日志（审计用途）

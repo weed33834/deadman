@@ -14,7 +14,7 @@ import re
 from typing import Any
 
 from ..config import settings
-from ..llm import llm_client
+from ..llm import get_llm_for_use_case
 from ..rules_loader import rule_checker, rule_loader
 from ..types import RuleCheckResult, RiskTier, TransferSummary
 from .state import ConversationState
@@ -278,8 +278,10 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
     selected_agent = DEFAULT_AGENT
     reason = "default_fallback"
 
-    # 尝试用 LLM 做意图分类
-    if llm_client and llm_client.api_key:
+    # P7: 多模型分工 - 路由用便宜模型（LLM_MODEL_ROUTER 或回退主模型）
+    # 借鉴 OpenDeepResearch configuration.py 按用例分配模型
+    router_llm = get_llm_for_use_case("router")
+    if router_llm and router_llm.api_key:
         try:
             agent_descriptions = _load_agent_descriptions()
             prompt = (
@@ -297,7 +299,7 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
                 "7. 默认选择 death_aftercare\n\n"
                 "输出 JSON：{\"agent\": \"智能体名\", \"reason\": \"简短理由\", \"confidence\": 0.0-1.0}"
             )
-            result = await llm_client.chat_json(
+            result = await router_llm.chat_json(
                 [{"role": "user", "content": prompt}],
                 temperature=0.1,
             )
@@ -374,8 +376,10 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
             }
 
     # 生成转介话术（transfer_confirmed 为 None，即首次询问）
+    # P7: 转介话术需 tone 质量，归入 respond 用例（强模型）
     transfer_message = ""
-    if llm_client and llm_client.api_key:
+    respond_llm = get_llm_for_use_case("respond")
+    if respond_llm and respond_llm.api_key:
         try:
             prompt = (
                 "你是身后事平台的转介引导员。根据转介摘要生成一段简短的转介话术。\n\n"
@@ -392,7 +396,7 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
                 "4. 提供明确的\"是/否\"选择\n"
                 "5. 语气温和克制（tone-framework）"
             )
-            transfer_message = await llm_client.chat(
+            transfer_message = await respond_llm.chat(
                 [{"role": "user", "content": prompt}],
                 temperature=0.3,
             )
@@ -484,14 +488,16 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     existing_prefix = state.get("draft_response", "")
 
     # 调用 LLM 生成响应
+    # P7: 主响应归入 respond 用例（强模型）；借鉴 OpenDeepResearch 多模型分工
     draft_response = ""
-    if llm_client and llm_client.api_key:
+    respond_llm = get_llm_for_use_case("respond")
+    if respond_llm and respond_llm.api_key:
         try:
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input},
             ]
-            draft_response = await llm_client.chat(messages, temperature=0.3)
+            draft_response = await respond_llm.chat(messages, temperature=0.3)
         except Exception as e:
             logger.warning("智能体 LLM 调用失败 [%s]: %s", current_agent, e)
             draft_response = (
@@ -543,6 +549,17 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
         "transfer_detected": transfer_target is not None,
     })
     updates["trace_spans"] = state.get("trace_spans", [])
+
+    # P4: 节点执行后递增 step_count + 更新 stuck_count
+    # 借鉴 OpenManus BaseAgent.max_steps；LangGraph 与 SequentialExecutor 共用此逻辑
+    step_count = state.get("step_count", 0) + 1
+    updates["step_count"] = step_count
+    last_agent = state.get("last_agent_for_stuck", "")
+    if current_agent and current_agent == last_agent:
+        updates["stuck_count"] = state.get("stuck_count", 0) + 1
+    elif current_agent:
+        updates["stuck_count"] = 1
+        updates["last_agent_for_stuck"] = current_agent
 
     return updates
 
@@ -819,13 +836,38 @@ def route_to_agent(state: ConversationState) -> str:
     返回值：
     - AGENT_NAMES 中的某个智能体名 → 路由到对应 agent node
     - "await_transfer_confirm" → 路由到 user_confirm_node
+    - "force_terminate" → P4 卡死或步数超限时跳到 respond
 
     路由优先级：
+    0. P4: 卡死检测（最先检查）→ 强制路由到 respond
     1. 待确认转介且用户已确认 → 路由到目标智能体
     2. 待确认转介但未询问 → 路由到用户确认节点
     3. 安全优先触发 → 强制路由到 death_aftercare
     4. 正常路由 → 路由到 current_agent
     """
+    # 0. P4: 卡死检测 - 最先检查，避免在已卡死后还路由到 agent
+    # 借鉴 OpenManus BaseAgent.is_stuck：step_count 超限或连续路由同一 agent
+    step_count = state.get("step_count", 0)
+    stuck_count = state.get("stuck_count", 0)
+    STUCK_REPEAT_LIMIT = 3  # 与 graph.py STUCK_AGENT_REPEAT_LIMIT 一致
+    MAX_STEPS = 25  # 与 graph.py MAX_STEPS 一致
+    if step_count > MAX_STEPS or stuck_count >= STUCK_REPEAT_LIMIT:
+        # 标记 forced_terminate 供 respond_node 加 span
+        state["forced_terminate"] = True
+        if not state.get("draft_response"):
+            state["draft_response"] = (
+                "抱歉，系统在处理您的请求时检测到循环或超限，"
+                "已强制终止本轮处理。请尝试重新表述您的问题，"
+                "或拆分为更具体的小问题逐个询问。"
+            )
+        logger.warning(
+            "route_to_agent 检测到卡死 step_count=%s stuck_count=%s，"
+            "强制路由到 respond",
+            step_count,
+            stuck_count,
+        )
+        return "force_terminate"
+
     # 1. 待确认转介且用户已确认 → 路由到目标智能体
     pending = state.get("pending_transfer")
     if pending and state.get("transfer_confirmed") is True:

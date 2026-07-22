@@ -332,7 +332,6 @@ class TestBuildMainGraph:
     """测试 build_main_graph 图构建"""
 
     def test_returns_executor(self):
-        # 应返回可执行对象
         graph = build_main_graph()
         assert graph is not None
 
@@ -366,3 +365,125 @@ class TestBuildMainGraph:
 
         # 应最终产出了 final_response 或 draft_response
         assert isinstance(result, dict)
+
+
+# =====================================================================
+# P4: 卡死检测与步数上限测试
+# =====================================================================
+
+
+class TestStuckDetection:
+    """P4: 借鉴 OpenManus BaseAgent.is_stuck + max_steps 的卡死检测
+
+    覆盖：
+    - step_count 超限强制终止
+    - stuck_count 连续路由同一 agent 强制终止
+    - route_to_agent 返回 "force_terminate"
+    - forced_terminate 标记 + 兜底响应
+    """
+
+    def test_initial_state_has_stuck_fields(self):
+        """create_initial_state 应包含 P4 字段且初始化为零值"""
+        state = create_initial_state("x")
+        assert state["step_count"] == 0
+        assert state["stuck_count"] == 0
+        assert state["last_agent_for_stuck"] == ""
+        assert state["forced_terminate"] is False
+
+    def test_is_stuck_step_count_exceeded(self):
+        """step_count 超过 MAX_STEPS=25 时判定为卡死"""
+        from deadman.orchestration.graph import _is_stuck, MAX_STEPS
+        assert MAX_STEPS == 25
+        state = create_initial_state("x")
+        state["step_count"] = 26
+        stuck, reason = _is_stuck(state)
+        assert stuck is True
+        assert "max_steps_exceeded" in reason
+        assert "26/25" in reason
+
+    def test_is_stuck_agent_repeat_exceeded(self):
+        """stuck_count >= STUCK_AGENT_REPEAT_LIMIT=3 时判定为卡死"""
+        from deadman.orchestration.graph import _is_stuck, STUCK_AGENT_REPEAT_LIMIT
+        assert STUCK_AGENT_REPEAT_LIMIT == 3
+        state = create_initial_state("x")
+        state["stuck_count"] = 3
+        state["last_agent_for_stuck"] = "death_aftercare"
+        stuck, reason = _is_stuck(state)
+        assert stuck is True
+        assert "agent_stuck" in reason
+        assert "death_aftercare" in reason
+        assert "3_repeats" in reason
+
+    def test_is_stuck_not_triggered_normal(self):
+        """正常状态下不触发卡死"""
+        from deadman.orchestration.graph import _is_stuck
+        state = create_initial_state("x")
+        state["step_count"] = 5
+        state["stuck_count"] = 1
+        stuck, reason = _is_stuck(state)
+        assert stuck is False
+        assert reason == ""
+
+    def test_route_to_agent_force_terminate_on_stuck(self):
+        """route_to_agent 在卡死时应返回 'force_terminate'"""
+        from deadman.orchestration.nodes import route_to_agent
+        state = create_initial_state("x")
+        state["step_count"] = 30  # 超限
+        result = route_to_agent(state)
+        assert result == "force_terminate"
+        assert state["forced_terminate"] is True
+        # 应填入兜底响应
+        assert "强制终止" in state["draft_response"]
+
+    def test_route_to_agent_force_terminate_on_repeat(self):
+        """route_to_agent 在连续重复 agent 时应返回 'force_terminate'"""
+        from deadman.orchestration.nodes import route_to_agent
+        state = create_initial_state("x")
+        state["stuck_count"] = 3
+        state["last_agent_for_stuck"] = "legal_advisor"
+        result = route_to_agent(state)
+        assert result == "force_terminate"
+
+    def test_route_to_agent_normal_when_not_stuck(self):
+        """正常状态下 route_to_agent 应正常路由"""
+        from deadman.orchestration.nodes import route_to_agent
+        state = create_initial_state("x")
+        state["current_agent"] = "death_aftercare"
+        result = route_to_agent(state)
+        assert result == "death_aftercare"
+        assert state.get("forced_terminate") is False
+
+    async def test_sequential_executor_terminates_on_stuck(self):
+        """SequentialExecutor 在卡死时应强制跳到 respond 节点而非无限循环"""
+        from deadman.orchestration.nodes import respond_node
+        graph = SequentialExecutor()
+        # 注册一个会无限自循环的节点（模拟 router 失灵）
+        async def fake_router(state):
+            # 永远返回同一 agent，模拟卡死
+            return {"current_agent": "death_aftercare", "step_count": state.get("step_count", 0) + 1}
+        # 让 stuck_count 直接涨到 4，触发卡死
+        async def stuck_agent(state):
+            return {
+                "current_agent": "death_aftercare",
+                "stuck_count": state.get("stuck_count", 0) + 1,
+                "step_count": state.get("step_count", 0) + 1,
+                "draft_response": "mock",
+            }
+        graph.add_node("input_guard", fake_router)
+        graph.add_node("router", stuck_agent)
+        graph.add_node("death_aftercare", stuck_agent)
+        graph.add_node("respond", respond_node)
+        graph.set_entry_point("input_guard")
+        graph.add_edge("input_guard", "router")
+        graph.add_conditional_edges("router", lambda s: "death_aftercare", {"death_aftercare": "death_aftercare"})
+        graph.add_edge("death_aftercare", "router")  # 死循环
+        graph.add_edge("respond", None)  # END
+
+        state = create_initial_state("x")
+        # 不设 stuck_count 初始值，让节点累加；执行到 step_count>25 或 stuck_count>=3 时应被 P4 拦截
+        result = await graph.ainvoke(state)
+        # 应被强制终止
+        assert result.get("forced_terminate") is True
+        # 应有 forced_terminate span
+        spans = result.get("trace_spans", [])
+        assert any(s.get("name") == "forced_terminate" for s in spans)

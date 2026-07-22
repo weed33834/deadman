@@ -763,3 +763,82 @@ async def fetch_provider_models(provider: str) -> list[dict[str, Any]]:
 
 # 全局单例
 llm_client = LLMClient()
+
+
+# =====================================================================
+# P7: 多模型分工（借鉴 OpenDeepResearch configuration.py）
+# =====================================================================
+# use_case → LLMClient 缓存，避免每次构造都创建新的 SDK client
+_llm_client_cache: dict[str, LLMClient] = {}
+
+
+def get_llm_for_use_case(use_case: str) -> LLMClient:
+    """按用例获取 LLM 客户端（借鉴 OpenDeepResearch 多模型分工）
+
+    不同任务用不同模型以平衡成本与质量：
+    - "router": 意图分类（用 LLM_MODEL_ROUTER 或回退主模型）
+    - "summarizer": 摘要/记忆压缩（用 LLM_MODEL_SUMMARIZER 或回退主模型）
+    - "respond": 主响应（用 LLM_MODEL_RESPOND 或回退主模型）
+    - 其他/默认: 主 LLM
+
+    所有 use_case 共享主 LLM 的 fallback 链；专用模型未配置时全部回退到主 LLM。
+    缓存按 use_case 复用 LLMClient 实例，避免重复创建 SDK client。
+
+    Args:
+        use_case: "router" / "summarizer" / "respond" / 其他
+
+    Returns:
+        对应的 LLMClient 实例（已缓存）
+    """
+    if use_case in _llm_client_cache:
+        return _llm_client_cache[use_case]
+
+    # 按 use_case 取专用模型配置
+    model_spec = ""
+    if use_case == "router":
+        model_spec = settings.llm_model_router
+    elif use_case == "summarizer":
+        model_spec = settings.llm_model_summarizer
+    elif use_case == "respond":
+        model_spec = settings.llm_model_respond
+
+    # 未配置专用模型 → 回退主 LLM（避免无谓的 client 构造）
+    if not model_spec:
+        _llm_client_cache[use_case] = llm_client
+        return llm_client
+
+    # 解析 "provider:model" 格式
+    if ":" not in model_spec:
+        # 仅 model 名，沿用主 provider
+        client = LLMClient(
+            provider=settings.llm_provider,
+            model=model_spec,
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+        )
+    else:
+        provider, model = model_spec.split(":", 1)
+        defaults = _PROVIDER_DEFAULTS.get(provider, {})
+        env_key = defaults.get("env_key", "")
+        api_key = os.getenv(env_key, "") if env_key else settings.llm_api_key
+        base_url = defaults.get("base_url", "") or settings.llm_base_url
+        if not api_key:
+            logger.warning(
+                "use_case=%s 配置的 provider=%s 未设置 API key (%s)，回退主 LLM",
+                use_case, provider, env_key,
+            )
+            _llm_client_cache[use_case] = llm_client
+            return llm_client
+        client = LLMClient(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+        )
+
+    logger.info(
+        "P7 多模型分工: use_case=%s → provider=%s model=%s",
+        use_case, client.provider, client.model,
+    )
+    _llm_client_cache[use_case] = client
+    return client
