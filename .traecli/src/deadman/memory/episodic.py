@@ -3,14 +3,22 @@
 类比人回忆"上次什么时候说了什么"。
 用内存 dict 模拟向量库；语义检索用关键词匹配模拟（不需要真正的 embedding）。
 Graphiti 集成为可选项。
+
+P2 增强:
+    - P2.1 向量库接入:recall_by_semantic 在 VECTOR_STORE_ENABLED 时优先走向量库
+    - P2.2 TTL + LRU:EPISODE_TTL_DAYS + EPISODE_MAX_COUNT + archived/last_accessed_at
+    - P2.3 Graphiti 深度集成:recall_by_graphiti 用 Graphiti 真实图搜索
+    - P2.6 遗忘曲线:forgetting_score 加权召回排序
 """
 
 from __future__ import annotations
 
 import logging
+import math
+import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -18,6 +26,40 @@ from ..config import settings
 from ..llm import get_llm_for_use_case
 
 logger = logging.getLogger(__name__)
+
+# =====================================================================
+# P2 feature flags - 默认全部关闭
+# =====================================================================
+EPISODIC_TTL_ENABLED: bool = os.environ.get(
+    "DEADMAN_EPISODIC_TTL_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+GRAPHITI_DEEP_ENABLED: bool = os.environ.get(
+    "DEADMAN_GRAPHITI_DEEP_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+FORGETTING_CURVE_ENABLED: bool = os.environ.get(
+    "DEADMAN_FORGETTING_CURVE_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+# 向量库 feature flag(从 vector_store 模块导入避免重复读 env)
+try:
+    from .vector_store import VECTOR_STORE_ENABLED as _VS_FLAG
+    from .vector_store import get_vector_store as _get_vector_store
+except Exception:  # pragma: no cover - 极端情况
+    _VS_FLAG = False
+    _get_vector_store = lambda *a, **kw: None  # type: ignore
+
+# =====================================================================
+# P2.2 TTL + LRU 常量
+# =====================================================================
+EPISODE_TTL_DAYS: int = int(os.environ.get("DEADMAN_EPISODE_TTL_DAYS", "365"))
+EPISODE_MAX_COUNT: int = int(os.environ.get("DEADMAN_EPISODE_MAX_COUNT", "10000"))
+# archived 后多少天物理删除
+EPISODE_ARCHIVE_GRACE_DAYS: int = 30
+
+# P2.6 遗忘曲线衰减常数(30 天衰减到 37%)
+FORGETTING_DECAY_DAYS: int = 30
 
 # 简单中英文停用词，用于关键词过滤
 _STOPWORDS = {
@@ -70,6 +112,12 @@ class Episode:
     summary: str = ""
     # 关键词列表，模拟 embedding 用于语义检索
     keywords: list[str] = field(default_factory=list)
+    # === P2.2 TTL + LRU 字段(默认值保证旧路径不变) ===
+    archived: bool = False
+    last_accessed_at: Optional[datetime] = None
+    archived_at: Optional[datetime] = None
+    # === P2.6 遗忘曲线:重要性(0.0-1.0),默认 0.5 ===
+    importance: float = 0.5
 
 
 class EpisodicMemory:
@@ -78,6 +126,10 @@ class EpisodicMemory:
     用内存 dict 模拟向量库：
         - _store: episode_id -> Episode  （主存储）
         - _by_session: session_id -> [episode_id, ...]  （会话时间索引）
+
+    P2.2 TTL + LRU(EPISODIC_TTL_ENABLED 开启时生效):
+        - TTL 过期标记 archived=True,EPISODE_ARCHIVE_GRACE_DAYS 天后物理删
+        - 超过 EPISODE_MAX_COUNT 时按 last_accessed_at LRU 淘汰
     """
 
     def __init__(self, graphiti_client: Any = None):
@@ -85,6 +137,24 @@ class EpisodicMemory:
         self._by_session: dict[str, list[str]] = {}
         self.graphiti = graphiti_client
         self._retention_years = settings.memory_retention_years
+        # P2.1 向量库引用(惰性初始化)
+        self._vector_store: Any = None
+        self._vector_store_initialized: bool = False
+
+    # ==================================================================
+    # P2.1 向量库惰性获取
+    # ==================================================================
+    @property
+    def vector_store(self) -> Any:
+        """惰性获取向量库单例。VECTOR_STORE_ENABLED=0 时返回 None。"""
+        if not self._vector_store_initialized:
+            try:
+                self._vector_store = _get_vector_store()
+            except Exception as exc:  # pragma: no cover - 极端情况
+                logger.warning("向量库初始化失败: %s", exc)
+                self._vector_store = None
+            self._vector_store_initialized = True
+        return self._vector_store
 
     async def archive_turn(self, session_id: str, turn: dict) -> Optional[Episode]:
         """把工作记忆溢出的轮次归档到情景记忆。
@@ -99,10 +169,11 @@ class EpisodicMemory:
         keywords = _extract_keywords(content) + _extract_keywords(summary)
 
         # 3. 构造 Episode 并存入内存 dict
+        now = datetime.now(timezone.utc)
         episode = Episode(
             episode_id=turn.get("turn_id") or str(uuid4()),
             session_id=session_id,
-            timestamp=turn.get("timestamp") or datetime.now(timezone.utc),
+            timestamp=turn.get("timestamp") or now,
             agent=turn.get("agent", "unknown"),
             user_message=content if turn.get("role") == "user" else "",
             assistant_response=content if turn.get("role") == "assistant" else "",
@@ -114,10 +185,39 @@ class EpisodicMemory:
             risk_tier=turn.get("risk_tier", "R0"),
             summary=summary,
             keywords=list(set(keywords)),
+            last_accessed_at=now,
+            importance=float(turn.get("importance", 0.5)),
         )
 
         self._store[episode.episode_id] = episode
         self._by_session.setdefault(session_id, []).append(episode.episode_id)
+
+        # P2.2 TTL + LRU(仅在 EPISODIC_TTL_ENABLED 启用时执行)
+        if EPISODIC_TTL_ENABLED:
+            try:
+                self._apply_ttl_filter()
+                self._apply_lru_eviction()
+            except Exception as exc:  # pragma: no cover - 韧性
+                logger.warning("TTL/LRU 维护失败: %s", exc)
+
+        # P2.1 向量库同步(VECTOR_STORE_ENABLED 启用时)
+        if _VS_FLAG and self.vector_store is not None:
+            try:
+                text_for_vec = (
+                    episode.summary or episode.user_message or episode.assistant_response
+                )
+                self.vector_store.add(
+                    id=episode.episode_id,
+                    text=text_for_vec,
+                    metadata={
+                        "session_id": session_id,
+                        "agent": episode.agent,
+                        "timestamp": episode.timestamp.isoformat()
+                        if episode.timestamp else "",
+                    },
+                )
+            except Exception as exc:
+                logger.warning("向量库同步失败,降级关键词匹配: %s", exc)
 
         # 4. 可选：同步到 Graphiti（时态记忆）
         if self.graphiti is not None:
@@ -144,7 +244,11 @@ class EpisodicMemory:
             ep = self._store.get(eid)
             if ep is None:
                 continue
+            # P2.2 archived 不召回(仅在 TTL 启用时生效)
+            if EPISODIC_TTL_ENABLED and ep.archived:
+                continue
             if start <= ep.timestamp <= end:
+                self._touch_access(ep)
                 result.append(ep)
         result.sort(key=lambda e: e.timestamp)
         return result
@@ -158,7 +262,19 @@ class EpisodicMemory:
             key=lambda eid: self._store[eid].timestamp if eid in self._store else datetime.min,
             reverse=True,
         )
-        return [self._store[eid] for eid in ranked[:n] if eid in self._store]
+        out: list[Episode] = []
+        for eid in ranked:
+            ep = self._store.get(eid)
+            if ep is None:
+                continue
+            # P2.2 archived 不召回
+            if EPISODIC_TTL_ENABLED and ep.archived:
+                continue
+            self._touch_access(ep)
+            out.append(ep)
+            if len(out) >= n:
+                break
+        return out
 
     def recall_by_semantic(
         self,
@@ -168,18 +284,57 @@ class EpisodicMemory:
     ) -> list[Episode]:
         """按语义相似度回忆。
 
-        Graphiti 可用时优先用其语义搜索（真实 embedding），
-        不可用或失败时降级为关键词匹配模拟。
+        优先级:
+            1. P2.1 向量库(VECTOR_STORE_ENABLED and self.vector_store)
+            2. Graphiti 可用时优先用其语义搜索(真实 embedding)
+            3. 降级：关键词匹配模拟
 
         Args:
             query: 查询文本
             top_k: 返回前 K 个最相关片段
             session_id: 可选，限定会话范围
         """
+        # P2.1 向量库优先(VECTOR_STORE_ENABLED 启用且单例就绪)
+        if _VS_FLAG and self.vector_store is not None:
+            try:
+                vec_results = self.vector_store.query(query, top_k=top_k * 2)
+                episodes: list[Episode] = []
+                for hit in vec_results:
+                    eid = hit.get("id")
+                    if not eid:
+                        continue
+                    ep = self._store.get(str(eid))
+                    if ep is None:
+                        continue
+                    # P2.2 archived 不召回
+                    if EPISODIC_TTL_ENABLED and ep.archived:
+                        continue
+                    if session_id and ep.session_id != session_id:
+                        continue
+                    self._touch_access(ep)
+                    episodes.append(ep)
+                    if len(episodes) >= top_k:
+                        break
+                if episodes:
+                    # P2.6 遗忘曲线加权重排
+                    if FORGETTING_CURVE_ENABLED:
+                        episodes.sort(
+                            key=lambda e: self.forgetting_score(e), reverse=True
+                        )
+                    return episodes
+                # 向量库查询无命中,继续走降级路径
+            except Exception as exc:
+                logger.warning("向量库查询失败,降级关键词匹配: %s", exc)
+
         # Graphiti 可用时优先用其语义搜索
         if self.graphiti is not None:
             graphiti_results = self._graphiti_search(query, top_k)
             if graphiti_results:
+                # P2.6 遗忘曲线加权重排
+                if FORGETTING_CURVE_ENABLED:
+                    graphiti_results.sort(
+                        key=lambda e: self.forgetting_score(e), reverse=True
+                    )
                 return graphiti_results
 
         # 降级：关键词匹配模拟
@@ -187,9 +342,12 @@ class EpisodicMemory:
         if not query_kw:
             return []
 
-        scored: list[tuple[int, Episode]] = []
+        scored: list[tuple[float, Episode]] = []
         for ep in self._store.values():
             if session_id and ep.session_id != session_id:
+                continue
+            # P2.2 archived 不召回
+            if EPISODIC_TTL_ENABLED and ep.archived:
                 continue
             # 匹配预提取的关键词 + 现场提取 summary/user_message 关键词
             ep_kw = set(ep.keywords)
@@ -197,10 +355,61 @@ class EpisodicMemory:
             ep_kw |= set(_extract_keywords(ep.user_message))
             overlap = len(query_kw & ep_kw)
             if overlap > 0:
-                scored.append((overlap, ep))
+                # P2.6 遗忘曲线加权
+                if FORGETTING_CURVE_ENABLED:
+                    score = overlap * self.forgetting_score(ep)
+                else:
+                    score = float(overlap)
+                scored.append((score, ep))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [ep for _, ep in scored[:top_k]]
+        out = [ep for _, ep in scored[:top_k]]
+        for ep in out:
+            self._touch_access(ep)
+        return out
+
+    # ==================================================================
+    # P2.3 Graphiti 深度集成 - 真实图搜索
+    # ==================================================================
+    async def recall_by_graphiti(
+        self, query: str, top_k: int = 3
+    ) -> list[Episode]:
+        """用 Graphiti 真实图搜索(深度集成,非 fallback)。
+
+        降级链:
+            1. GRAPHITI_DEEP_ENABLED=0 → 走 recall_by_semantic
+            2. self.graphiti is None → 走 recall_by_semantic
+            3. Graphiti.search 抛错 → 走 recall_by_semantic
+        """
+        if not GRAPHITI_DEEP_ENABLED:
+            return self.recall_by_semantic(query, top_k=top_k)
+        if self.graphiti is None:
+            logger.debug("Graphiti 不可用,recall_by_graphiti 降级到语义召回")
+            return self.recall_by_semantic(query, top_k=top_k)
+        try:
+            import inspect
+
+            raw = self.graphiti.search(query, num_results=top_k)
+            if inspect.isawaitable(raw):
+                try:
+                    raw = await raw  # type: ignore[assignment]
+                except RuntimeError:
+                    # 已在事件循环中且无法 await,降级
+                    return self.recall_by_semantic(query, top_k=top_k)
+            if not isinstance(raw, list):
+                return self.recall_by_semantic(query, top_k=top_k)
+            episodes = self._graphiti_results_to_episodes(raw)
+            if not episodes:
+                return self.recall_by_semantic(query, top_k=top_k)
+            # P2.6 遗忘曲线加权重排
+            if FORGETTING_CURVE_ENABLED:
+                episodes.sort(key=lambda e: self.forgetting_score(e), reverse=True)
+            for ep in episodes:
+                self._touch_access(ep)
+            return episodes
+        except Exception as exc:
+            logger.warning("Graphiti 深度搜索失败,降级到语义召回: %s", exc)
+            return self.recall_by_semantic(query, top_k=top_k)
 
     def _graphiti_search(self, query: str, top_k: int) -> list[Episode]:
         """尝试用 Graphiti 语义搜索，安全降级。
@@ -227,40 +436,167 @@ class EpisodicMemory:
 
             if not isinstance(raw, list):
                 return []
-
-            # 将 Graphiti 结果转为 Episode
-            episodes: list[Episode] = []
-            for item in raw:
-                if isinstance(item, dict):
-                    data = item
-                else:
-                    data = vars(item) if hasattr(item, "__dict__") else {}
-                ts = data.get("created_at") or data.get("timestamp")
-                if isinstance(ts, str):
-                    try:
-                        ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                    except ValueError:
-                        ts = datetime.now(timezone.utc)
-                elif ts is None:
-                    ts = datetime.now(timezone.utc)
-
-                episodes.append(
-                    Episode(
-                        episode_id=str(data.get("uuid", data.get("id", ""))),
-                        session_id=str(data.get("session_id", "")),
-                        timestamp=ts,
-                        agent=str(data.get("agent", "graphiti")),
-                        user_message="",
-                        assistant_response=str(
-                            data.get("content", data.get("summary", ""))
-                        ),
-                        summary=str(data.get("summary", data.get("content", ""))),
-                    )
-                )
-            return episodes
+            return self._graphiti_results_to_episodes(raw)
         except Exception as e:
             logger.warning(f"Graphiti 查询失败，降级到关键词匹配: {e}")
             return []
+
+    def _graphiti_results_to_episodes(self, raw: list) -> list[Episode]:
+        """把 Graphiti 原始结果转为 Episode 列表"""
+        episodes: list[Episode] = []
+        for item in raw:
+            if isinstance(item, dict):
+                data = item
+            else:
+                data = vars(item) if hasattr(item, "__dict__") else {}
+            ts = data.get("created_at") or data.get("timestamp")
+            if isinstance(ts, str):
+                try:
+                    ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except ValueError:
+                    ts = datetime.now(timezone.utc)
+            elif ts is None:
+                ts = datetime.now(timezone.utc)
+
+            episodes.append(
+                Episode(
+                    episode_id=str(data.get("uuid", data.get("id", ""))),
+                    session_id=str(data.get("session_id", "")),
+                    timestamp=ts,
+                    agent=str(data.get("agent", "graphiti")),
+                    user_message="",
+                    assistant_response=str(
+                        data.get("content", data.get("summary", ""))
+                    ),
+                    summary=str(data.get("summary", data.get("content", ""))),
+                )
+            )
+        return episodes
+
+    # ==================================================================
+    # P2.2 TTL + LRU 实现
+    # ==================================================================
+    def _touch_access(self, episode: Episode) -> None:
+        """更新 last_accessed_at(仅 TTL 启用时,关闭时旧路径不调用)"""
+        if EPISODIC_TTL_ENABLED:
+            episode.last_accessed_at = datetime.now(timezone.utc)
+
+    def _apply_ttl_filter(self, now: Optional[datetime] = None) -> int:
+        """TTL 过滤:过期 episode 标记 archived=True,30 天后才物理删。
+
+        Returns:
+            本次标记 archived 的数量(物理删除的不计入)
+        """
+        if not EPISODIC_TTL_ENABLED:
+            return 0
+        if now is None:
+            now = datetime.now(timezone.utc)
+        ttl_cutoff = now - timedelta(days=EPISODE_TTL_DAYS)
+        archive_purge_cutoff = now - timedelta(days=EPISODE_ARCHIVE_GRACE_DAYS)
+        marked = 0
+        to_purge: list[str] = []
+        for eid, ep in self._store.items():
+            # 已 archived 超过 grace 期 → 物理删
+            if ep.archived:
+                archived_at = ep.archived_at or ep.last_accessed_at or ep.timestamp
+                if archived_at < archive_purge_cutoff:
+                    to_purge.append(eid)
+                continue
+            # 未 archived 但 timestamp 过 TTL → 标记 archived
+            # (用 timestamp 作 TTL 基准,反映"创建时间")
+            ts = ep.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts < ttl_cutoff:
+                ep.archived = True
+                ep.archived_at = now
+                marked += 1
+        # 物理删除 archived 已超 grace 期的
+        for eid in to_purge:
+            self._purge_episode(eid)
+        return marked
+
+    def _apply_lru_eviction(self) -> int:
+        """LRU 淘汰:超过 EPISODE_MAX_COUNT 时按 last_accessed_at 淘汰最久未访问。
+
+        archived episode 优先被淘汰(它们已不在召回路径中)。
+        Returns:
+            本次淘汰数量
+        """
+        if not EPISODIC_TTL_ENABLED:
+            return 0
+        if len(self._store) <= EPISODE_MAX_COUNT:
+            return 0
+        excess = len(self._store) - EPISODE_MAX_COUNT
+        now = datetime.now(timezone.utc)
+
+        def _access_ts(ep: Episode) -> datetime:
+            ts = ep.last_accessed_at or ep.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return ts
+
+        # 排序:archived 优先淘汰;同状态按 last_accessed_at 升序
+        candidates = sorted(
+            self._store.items(),
+            key=lambda kv: (not kv[1].archived, _access_ts(kv[1])),
+        )
+        evicted = 0
+        for eid, _ep in candidates:
+            if evicted >= excess:
+                break
+            self._purge_episode(eid)
+            evicted += 1
+        return evicted
+
+    def _purge_episode(self, episode_id: str) -> None:
+        """物理删除一个 episode(从 _store + _by_session + 向量库)"""
+        ep = self._store.pop(episode_id, None)
+        if ep is None:
+            return
+        # 从会话索引移除
+        sess = ep.session_id
+        if sess in self._by_session:
+            try:
+                self._by_session[sess].remove(episode_id)
+            except ValueError:
+                pass
+            if not self._by_session[sess]:
+                del self._by_session[sess]
+        # 从向量库移除
+        if _VS_FLAG and self.vector_store is not None:
+            try:
+                self.vector_store.delete(episode_id)
+            except Exception as exc:  # pragma: no cover - 韧性
+                logger.warning("向量库删除失败: %s", exc)
+
+    # ==================================================================
+    # P2.6 遗忘曲线(Ebbinghaus)
+    # ==================================================================
+    def forgetting_score(self, episode: Episode) -> float:
+        """遗忘曲线评分:score = importance * exp(-delta_days / 30)
+
+        Args:
+            episode: 单个片段
+
+        Returns:
+            0.0-1.0 之间的遗忘加权分;近期+高重要性 → 接近 importance,
+            30 天前 → importance * 0.37,60 天前 → importance * 0.13。
+            FORGETTING_CURVE_ENABLED=0 时返回 importance(无衰减)。
+        """
+        importance = float(getattr(episode, "importance", 0.5) or 0.5)
+        importance = max(0.0, min(1.0, importance))
+        if not FORGETTING_CURVE_ENABLED:
+            return importance
+        now = datetime.now(timezone.utc)
+        ref = episode.last_accessed_at or episode.timestamp
+        if ref is None:
+            return importance
+        if ref.tzinfo is None:
+            ref = ref.replace(tzinfo=timezone.utc)
+        delta_days = max(0.0, (now - ref).total_seconds() / 86400.0)
+        decay = math.exp(-delta_days / float(FORGETTING_DECAY_DAYS))
+        return importance * decay
 
     async def _summarize_turn(self, turn: dict) -> str:
         """用 LLM 生成片段摘要；无 API key 或失败时回退到简单截断

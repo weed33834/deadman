@@ -3,11 +3,15 @@
 类比人的知识库："我爸叫张三，是北京人"这类事实。
 含矛盾检测：字段旧值与新值不同时触发 _handle_contradiction。
 Graphiti / LightRAG 集成为可选项。
+
+P2.3 Graphiti 深度集成:reason_about_facts 用 Graphiti 做事实推理
+(如"用户的兄弟是否有继承权")。feature flag DEADMAN_GRAPHITI_DEEP_ENABLED=0。
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING, Optional
@@ -17,6 +21,13 @@ if TYPE_CHECKING:
     from .working import WorkingMemory
 
 logger = logging.getLogger(__name__)
+
+# =====================================================================
+# P2.3 feature flag - 默认关闭
+# =====================================================================
+GRAPHITI_DEEP_ENABLED: bool = os.environ.get(
+    "DEADMAN_GRAPHITI_DEEP_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
 
 
 @dataclass
@@ -248,3 +259,63 @@ class SemanticMemory:
         items = self.pending_contradictions
         self.pending_contradictions = []
         return items
+
+    # ==================================================================
+    # P2.3 Graphiti 深度集成 - 事实推理
+    # ==================================================================
+    async def reason_about_facts(self, query: str, facts: list[Fact]) -> str:
+        """用 Graphiti 做事实推理(如"用户的兄弟是否有继承权")。
+
+        降级链:
+            1. GRAPHITI_DEEP_ENABLED=0 → 返回基于本地 facts 的拼接文本
+            2. self.graphiti is None → 返回本地 facts 拼接
+            3. Graphiti.search 抛错 → 返回本地 facts 拼接
+
+        Args:
+            query: 推理问题(如"用户的兄弟是否有继承权")
+            facts: 相关事实列表(来自 query_facts)
+
+        Returns:
+            推理结论文本
+        """
+        # 本地兜底:把 facts 拼成可读文本(降级路径通用出口)
+        def _local_summary() -> str:
+            if not facts:
+                return f"无可推理事实支撑问题: {query}"
+            lines = [f"基于本地 {len(facts)} 条事实关于 '{query}' 的总结:"]
+            for f in facts[:10]:
+                lines.append(f"- [{f.fact_type}] {f.content}")
+            return "\n".join(lines)
+
+        if not GRAPHITI_DEEP_ENABLED:
+            return _local_summary()
+        if self.graphiti is None:
+            logger.debug("Graphiti 不可用,reason_about_facts 降级本地总结")
+            return _local_summary()
+        try:
+            import inspect
+
+            # 把 query + facts 上下文喂给 Graphiti 做图查询
+            context_str = "; ".join(f.content for f in facts[:5])
+            full_query = f"{query} (上下文事实: {context_str})" if context_str else query
+            raw = self.graphiti.search(full_query, num_results=3)
+            if inspect.isawaitable(raw):
+                try:
+                    raw = await raw  # type: ignore[assignment]
+                except RuntimeError:
+                    return _local_summary()
+            if not isinstance(raw, list) or not raw:
+                return _local_summary()
+            # 把 Graphiti 结果整合为推理结论
+            lines = [f"基于 Graphiti 图推理关于 '{query}' 的结论:"]
+            for item in raw:
+                if isinstance(item, dict):
+                    content = item.get("content") or item.get("summary") or ""
+                else:
+                    content = getattr(item, "content", "") or getattr(item, "summary", "")
+                if content:
+                    lines.append(f"- {content}")
+            return "\n".join(lines) if len(lines) > 1 else _local_summary()
+        except Exception as exc:
+            logger.warning("Graphiti 事实推理失败,降级本地总结: %s", exc)
+            return _local_summary()

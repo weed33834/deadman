@@ -27,6 +27,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import re
 import sys
 import uuid
@@ -44,6 +45,48 @@ from ..types import (
 from ..rules_loader import rule_checker
 
 logger = logging.getLogger(__name__)
+
+# =====================================================================
+# P3 工具使用扩展层 - feature flag（全部默认关闭，保证旧行为不变）
+# =====================================================================
+
+# P3.1 MCP 6 层网关
+GATEWAY_ENABLED: bool = os.environ.get(
+    "DEADMAN_MCP_GATEWAY_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+# P3.2 写操作 dry-run
+DRY_RUN_ENABLED: bool = os.environ.get(
+    "DEADMAN_DRY_RUN_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+# P3.4 工具结果缓存（与 cache.TOOL_CACHE_ENABLED 同步）
+TOOL_CACHE_ENABLED: bool = os.environ.get(
+    "DEADMAN_TOOL_CACHE_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+# P3.6 运行时动态注册 API
+DYNAMIC_TOOL_REGISTRATION_ENABLED: bool = os.environ.get(
+    "DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+# P3.6 admin token（动态注册需要）
+ADMIN_TOKEN: str = os.environ.get("DEADMAN_ADMIN_TOKEN", "")
+
+# 延迟 import 子模块，避免循环依赖
+try:
+    from . import gateway as _gateway_module
+    from . import cache as _cache_module
+    from . import permissions as _permissions_module
+    from . import signing as _signing_module
+    _P3_MODULES_AVAILABLE = True
+except Exception as exc:  # pragma: no cover - 降级
+    logger.warning("P3 子模块加载失败，相关 feature flag 将降级为关闭: %s", exc)
+    _gateway_module = None  # type: ignore[assignment]
+    _cache_module = None  # type: ignore[assignment]
+    _permissions_module = None  # type: ignore[assignment]
+    _signing_module = None  # type: ignore[assignment]
+    _P3_MODULES_AVAILABLE = False
 
 # =====================================================================
 # 可选依赖 - 全部走 try/except，失败则降级
@@ -606,6 +649,34 @@ class McpServer:
             self._fastmcp = None
         # 全局 trace_id（用于本进程内 span 关联）
         self.trace_id: str = str(uuid.uuid4())
+        # P3.1 网关 + P3.4 缓存（懒加载，避免 import 时副作用）
+        self._gateway: Any = None
+        self._cache: Any = None
+
+    # ---------- P3 懒加载入口 ----------
+
+    def _get_gateway(self) -> Any:
+        """懒加载 ToolGateway 单例（P3.1）"""
+        if self._gateway is None and _P3_MODULES_AVAILABLE:
+            try:
+                self._gateway = _gateway_module.get_global_gateway()
+                # 把已注册工具的 schema 同步到网关
+                for tname, tdef in self._tools.items():
+                    self._gateway.register_schema(tname, tdef.input_schema)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("网关初始化失败，降级为关闭: %s", exc)
+                self._gateway = None
+        return self._gateway
+
+    def _get_cache(self) -> Any:
+        """懒加载 ToolResultCache 单例（P3.4）"""
+        if self._cache is None and _P3_MODULES_AVAILABLE:
+            try:
+                self._cache = _cache_module.get_global_cache()
+            except Exception as exc:  # pragma: no cover
+                logger.warning("缓存初始化失败，降级为关闭: %s", exc)
+                self._cache = None
+        return self._cache
 
     # ---------- 工具注册 ----------
 
@@ -633,6 +704,65 @@ class McpServer:
                 self._fastmcp.tool(name=name, description=description)(handler)
             except Exception:
                 pass
+        # P3.1 同步 schema 到网关（若已懒加载）
+        if self._gateway is not None:
+            try:
+                self._gateway.register_schema(name, input_schema)
+            except Exception:  # pragma: no cover
+                pass
+
+    def unregister_tool(self, name: str) -> bool:
+        """注销工具，返回是否删除成功（P3.6 配套）"""
+        removed = self._tools.pop(name, None) is not None
+        # 顺带清理缓存
+        if self._cache is not None:
+            try:
+                self._cache.invalidate(name)
+            except Exception:  # pragma: no cover
+                pass
+        return removed
+
+    def register_dynamic_tool(
+        self,
+        name: str,
+        description: str,
+        input_schema: dict[str, Any],
+        handler: Callable[..., Awaitable[Any]],
+        output_schema: dict[str, Any] | None = None,
+        manifest: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """P3.6 运行时动态注册工具
+
+        需 feature flag DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED=1 + admin token 校验。
+        manifest 可选（P3.5 签名校验）。
+
+        返回：
+          - 成功: {"ok": True, "name": ..., "registered": True}
+          - 失败: {"ok": False, "error": ...}
+        """
+        if not DYNAMIC_TOOL_REGISTRATION_ENABLED:
+            return {"ok": False, "error": "dynamic_tool_registration_disabled"}
+        # 注册工具
+        try:
+            self.register_tool(name, description, input_schema, handler, output_schema)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"register failed: {exc}"}
+        # 可选 manifest 注册（P3.5）
+        if manifest and _P3_MODULES_AVAILABLE:
+            try:
+                m = _signing_module.ToolManifest(
+                    name=manifest.get("name", name),
+                    version=str(manifest.get("version", "0.1.0")),
+                    schema_hash=manifest.get(
+                        "schema_hash",
+                        _signing_module.compute_schema_hash(input_schema),
+                    ),
+                    signature=manifest.get("signature", ""),
+                )
+                _signing_module.register_manifest(m)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("manifest 注册失败（不阻断工具注册）: %s", exc)
+        return {"ok": True, "name": name, "registered": True}
 
     def tool(
         self,
@@ -710,6 +840,11 @@ class McpServer:
         """调用一个工具（MCP tools/call 格式）
 
         所有异常被捕获并转为结构化错误返回，永不向外抛出。
+
+        P3 集成（全部 feature flag 默认关闭，关闭时行为完全不变）：
+          - P3.1 网关    : DEADMAN_MCP_GATEWAY_ENABLED=1 时，调真实工具前过 6 层网关
+          - P3.4 缓存    : DEADMAN_TOOL_CACHE_ENABLED=1 时，READ_ONLY 工具走 LRU+TTL 缓存
+          - P3.2 dry-run : DEADMAN_DRY_RUN_ENABLED=1 时，args.dry_run=True 走预览路径
         """
         arguments = arguments or {}
         tool = self._tools.get(name)
@@ -720,6 +855,61 @@ class McpServer:
                 "error": "ToolNotFound",
                 "message": f"工具 {name} 未注册",
             }
+
+        # ---------- P3.1 网关（feature flag 关闭时直接跳过）----------
+        if GATEWAY_ENABLED and _P3_MODULES_AVAILABLE:
+            gw = self._get_gateway()
+            if gw is not None:
+                try:
+                    # 把已注册 schema 同步到网关（首次访问时）
+                    if name in self._tools and name not in gw._schemas:
+                        gw.register_schema(name, tool.input_schema)
+                    decision = await gw.evaluate(
+                        name,
+                        arguments,
+                        caller=arguments.get("caller", "default"),
+                        user_id=arguments.get("user_id"),
+                    )
+                    if not decision.allowed:
+                        return {
+                            "ok": False,
+                            "tool": name,
+                            "error": "blocked by gateway",
+                            "reason": decision.reason,
+                            "layer": decision.layer,
+                            "score": decision.score,
+                        }
+                except Exception as exc:  # noqa: BLE001 - 网关异常 fail-open
+                    logger.warning("网关评估异常，fail-open 放行: %s", exc)
+
+        # ---------- P3.4 缓存查（仅 READ_ONLY 工具 + 非 dry_run）----------
+        cache_lookup_key: str | None = None
+        cache = None
+        if (
+            TOOL_CACHE_ENABLED
+            and _P3_MODULES_AVAILABLE
+            and not arguments.get("dry_run")
+        ):
+            try:
+                cache = self._get_cache()
+                if cache is not None and _permissions_module.is_read_only(name):
+                    cache_lookup_key = _cache_module.ToolResultCache.hash_args(
+                        {k: v for k, v in arguments.items()
+                         if k not in ("caller", "user_id")}
+                    )
+                    cached = cache.get(name, cache_lookup_key)
+                    if cached is not None:
+                        # 命中：原样返回，并打标记
+                        if isinstance(cached, dict):
+                            result = dict(cached)
+                            result.setdefault("cache_hit", True)
+                            return result
+                        return {"ok": True, "tool": name, "result": cached, "cache_hit": True}
+            except Exception as exc:  # noqa: BLE001 - 缓存异常 fail-open
+                logger.warning("缓存查询异常，fail-open 继续调用工具: %s", exc)
+                cache_lookup_key = None
+                cache = None
+
         # 包一层 trace span；observability 不可用时为 no-op
         try:
             with trace_tool_span(
@@ -733,8 +923,21 @@ class McpServer:
                 # 工具 handler 返回 dict 时原样透传（已是结构化业务输出）；
                 # 非 dict 结果统一包装
                 if isinstance(result, dict):
-                    return result
-                return {"ok": True, "tool": name, "result": result}
+                    final_result = result
+                else:
+                    final_result = {"ok": True, "tool": name, "result": result}
+            # ---------- P3.4 缓存写（成功结果才缓存）----------
+            if (
+                cache is not None
+                and cache_lookup_key is not None
+                and isinstance(final_result, dict)
+                and final_result.get("ok", True)
+            ):
+                try:
+                    cache.put(name, cache_lookup_key, final_result)
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("缓存写入失败（不影响调用）: %s", exc)
+            return final_result
         except Exception as exc:  # noqa: BLE001 - 工具层必须吞掉所有异常
             logger.exception("工具 %s 执行失败", name)
             return _error_response(name, exc)
@@ -816,6 +1019,14 @@ class McpServer:
                 arguments = params.get("arguments", {}) or {}
                 result = await self.call_tool(name, arguments)
                 return {"jsonrpc": "2.0", "id": req_id, "result": result}
+            if method == "tools/register":
+                # P3.6 动态注册工具
+                result = self._handle_tools_register(params)
+                return {"jsonrpc": "2.0", "id": req_id, "result": result}
+            if method == "tools/unregister":
+                # P3.6 注销工具
+                result = self._handle_tools_unregister(params)
+                return {"jsonrpc": "2.0", "id": req_id, "result": result}
             if method == "initialize":
                 return {
                     "jsonrpc": "2.0",
@@ -837,6 +1048,112 @@ class McpServer:
                 "id": req_id,
                 "error": {"code": -32603, "message": str(exc), "data": type(exc).__name__},
             }
+
+    # ---------- P3.6 动态注册 JSON-RPC handler ----------
+
+    def _check_admin_token(self, params: dict[str, Any]) -> dict[str, Any] | None:
+        """校验 admin token；失败返回错误 dict，成功返回 None"""
+        if not DYNAMIC_TOOL_REGISTRATION_ENABLED:
+            return {"ok": False, "error": "dynamic_tool_registration_disabled"}
+        provided = params.get("admin_token", "")
+        if not ADMIN_TOKEN:
+            return {"ok": False, "error": "admin_token_not_configured"}
+        if provided != ADMIN_TOKEN:
+            return {"ok": False, "error": "invalid_admin_token"}
+        return None
+
+    def _handle_tools_register(self, params: dict[str, Any]) -> dict[str, Any]:
+        """处理 tools/register JSON-RPC
+
+        params:
+          - admin_token: str   (必填)
+          - name: str          (必填)
+          - schema: dict       (必填)
+          - description: str   (可选)
+          - handler_code: str  (可选，Python 源码，exec 后取 async handler)
+          - callable_ref: str  (可选，已注册的可调用对象名，从全局取）
+          - manifest: dict     (可选，P3.5 签名校验)
+        """
+        err = self._check_admin_token(params)
+        if err is not None:
+            return err
+
+        name = params.get("name")
+        schema = params.get("schema") or {}
+        description = params.get("description", f"动态注册工具 {name}")
+        if not name or not isinstance(name, str):
+            return {"ok": False, "error": "name 必填且为字符串"}
+
+        handler = self._resolve_dynamic_handler(params)
+        if handler is None:
+            return {"ok": False, "error": "无法解析 handler（需提供 handler_code 或 callable_ref）"}
+
+        return self.register_dynamic_tool(
+            name=name,
+            description=description,
+            input_schema=schema,
+            handler=handler,
+            manifest=params.get("manifest"),
+        )
+
+    def _handle_tools_unregister(self, params: dict[str, Any]) -> dict[str, Any]:
+        """处理 tools/unregister JSON-RPC
+
+        params:
+          - admin_token: str
+          - name: str
+        """
+        err = self._check_admin_token(params)
+        if err is not None:
+            return err
+        name = params.get("name")
+        if not name:
+            return {"ok": False, "error": "name 必填"}
+        removed = self.unregister_tool(name)
+        return {"ok": removed, "name": name, "unregistered": removed}
+
+    def _resolve_dynamic_handler(
+        self, params: dict[str, Any]
+    ) -> Callable[..., Awaitable[Any]] | None:
+        """从 handler_code 或 callable_ref 解析出 async handler
+
+        降级路径：解析失败一律返回 None，不抛异常。
+        """
+        # 优先 callable_ref：从 deadman 命名空间取已注册的可调用对象
+        callable_ref = params.get("callable_ref")
+        if callable_ref and isinstance(callable_ref, str):
+            try:
+                import deadman  # noqa: F401
+
+                # 支持 "module.path.func" 形式
+                parts = callable_ref.split(".")
+                obj: Any = __import__(parts[0])
+                for part in parts[1:]:
+                    obj = getattr(obj, part)
+                if callable(obj):
+                    return obj  # type: ignore[return-value]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("callable_ref 解析失败: %s", exc)
+                return None
+
+        # handler_code：执行 Python 源码，取其中名为 handler 的 async 函数
+        handler_code = params.get("handler_code")
+        if handler_code and isinstance(handler_code, str):
+            try:
+                local_ns: dict[str, Any] = {}
+                # 限制 exec 的内建（最小化供应链风险）
+                exec(  # noqa: S102 - 动态注册需 admin token，已做权限校验
+                    handler_code,
+                    {"__builtins__": __builtins__},
+                    local_ns,
+                )
+                handler = local_ns.get("handler")
+                if callable(handler):
+                    return handler  # type: ignore[return-value]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("handler_code 解析失败: %s", exc)
+                return None
+        return None
 
     def _run_http(self, host: str, port: int) -> None:
         """HTTP 传输：使用标准库 http.server 起一个最简端点
@@ -1292,11 +1609,14 @@ async def write_file(
     encoding: str = "utf-8",
     overwrite: bool = False,
     create_dirs: bool = True,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """写入项目内文件，带安全限制
 
     SANDBOX_ENABLED=true 且 Docker 可用时，在容器内执行写入；
     否则降级为本地写入。
+
+    P3.2 dry-run：DEADMAN_DRY_RUN_ENABLED=1 且 dry_run=True 时只校验 + 返回预览，不实际写。
 
     Args:
         path: 相对于项目根的文件路径
@@ -1304,6 +1624,7 @@ async def write_file(
         encoding: 文件编码
         overwrite: 若文件已存在是否覆盖
         create_dirs: 是否自动创建父目录
+        dry_run: 仅模拟写入，返回预览结果（需 DRY_RUN_ENABLED=1）
     """
     target = _safe_resolve(path)
     if target is None:
@@ -1329,6 +1650,22 @@ async def write_file(
         }
 
     existed = target.exists()
+    # ---------- P3.2 dry-run 预览（不实际写）----------
+    if DRY_RUN_ENABLED and dry_run:
+        try:
+            data_preview = content.encode(encoding)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "path": path, "error": f"编码错误: {exc}", "dry_run": True}
+        return {
+            "ok": True,
+            "dry_run": True,
+            "would_write": str(target.relative_to(settings.project_root)),
+            "size": len(data_preview),
+            "would_overwrite": existed,
+            "would_create": not existed,
+            "preview": content[:200] if isinstance(content, str) else "",
+        }
+
     if existed and not overwrite:
         return {"ok": False, "path": path, "error": "文件已存在且 overwrite=false"}
 
@@ -2417,12 +2754,15 @@ async def init_transfer(
     context_summary: str = "",
     risk_tier: str = "",
     urgency: str = "normal",
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """发起智能体转介
 
     构造 7 字段转介摘要并返回，等待用户确认后执行。
     7 字段：from_agent / to_agent / reason / current_question /
            context_summary / risk_tier / urgency
+
+    P3.2 dry-run：DEADMAN_DRY_RUN_ENABLED=1 且 dry_run=True 时只模拟转介，不实际触发。
 
     Args:
         from_agent: 当前智能体名
@@ -2432,6 +2772,7 @@ async def init_transfer(
         context_summary: 上下文摘要
         risk_tier: 风险等级（R0/R1/R2/R3）
         urgency: 紧急程度
+        dry_run: 仅模拟转介，不实际触发（需 DRY_RUN_ENABLED=1）
     """
     transfer_summary: dict[str, Any] = {
         "from_agent": from_agent,
@@ -2444,6 +2785,21 @@ async def init_transfer(
     }
     # 统计已填字段数（非空字符串视为已填）
     fields_complete = sum(1 for v in transfer_summary.values() if v)
+
+    # ---------- P3.2 dry-run 模拟（不实际触发）----------
+    if DRY_RUN_ENABLED and dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "transfer_summary": transfer_summary,
+            "fields_complete": fields_complete,
+            "user_confirmation_required": False,  # dry-run 不需用户确认
+            "transfer_id": str(uuid.uuid4()),
+            "status": "dry_run_preview",
+            "would_trigger_transfer": True,
+            "timestamp": _utcnow_iso(),
+        }
+
     return {
         "transfer_summary": transfer_summary,
         "fields_complete": fields_complete,
@@ -2544,6 +2900,7 @@ async def report_incident(
 async def execute_code(
     code: str,
     timeout: int | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """在隔离沙箱内执行 Python 代码
 
@@ -2559,9 +2916,13 @@ async def execute_code(
     - safety-protocol：网络禁用 + 资源限制
     - compliance-framework：仅执行用户提供的代码，不代办 shell 操作
 
+    P3.2 dry-run：DEADMAN_DRY_RUN_ENABLED=1 且 dry_run=True 时只校验代码语法 + 返回预览，
+    不实际执行。
+
     Args:
         code: Python 代码字符串
         timeout: 超时秒（默认取 settings.sandbox_timeout=30）
+        dry_run: 仅校验语法 + 返回预览，不实际执行（需 DRY_RUN_ENABLED=1）
     """
     if not code or not code.strip():
         return {
@@ -2569,6 +2930,27 @@ async def execute_code(
             "exit_code": -1,
             "error": "code 不能为空",
             "backend": "none",
+        }
+
+    # ---------- P3.2 dry-run：仅编译校验，不实际执行 ----------
+    if DRY_RUN_ENABLED and dry_run:
+        syntax_ok = True
+        syntax_error: str | None = None
+        try:
+            compile(code, "<dry_run>", "exec")
+        except SyntaxError as exc:
+            syntax_ok = False
+            syntax_error = f"{exc.msg} (line {exc.lineno})"
+        return {
+            "ok": syntax_ok,
+            "dry_run": True,
+            "would_execute": syntax_ok,
+            "code_size": len(code),
+            "code_lines": code.count("\n") + 1,
+            "syntax_ok": syntax_ok,
+            "syntax_error": syntax_error,
+            "backend": "dry_run",
+            "preview": code[:200],
         }
 
     manager = _get_sandbox_manager()

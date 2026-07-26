@@ -6,12 +6,65 @@
 
 存储模型：纯内存，按 (category, metric_name, tags) 聚合。
 指标命名约定：`<category>.<metric_name>`，例如 `quality.rule_violation_rate`。
+
+P6.2 新增：SLI/SLO 看板（compute_sli / compute_slo_status）
+- SLI（Service Level Indicator）：从现有 metrics 计算 4 个关键 SLI
+- SLO（Service Level Objective）：SLI vs SLO 目标对比 + error budget 余量
+- feature flag DEADMAN_SLO_DASHBOARD_ENABLED=0 默认关闭
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import Any, Optional
+
+
+# =====================================================================
+# P6.2: SLI/SLO 看板 feature flag - 默认关闭
+# =====================================================================
+SLO_DASHBOARD_ENABLED: bool = os.environ.get(
+    "DEADMAN_SLO_DASHBOARD_ENABLED", "0"
+).lower() in ("1", "true", "yes", "on")
+
+
+# =====================================================================
+# P6.2: SLO 目标表
+# 每个 SLI 的目标值 + error budget（允许违反的时间/请求占比）
+# 目标方向：
+#   - latency_p95: 小于目标（lower is better），error_budget=1-target/window
+#   - faithfulness / tool_call_success_rate / user_satisfaction: 大于等于目标
+# =====================================================================
+SLO_TARGETS: dict[str, dict[str, float]] = {
+    "latency_p95": {
+        "target": 3000.0,        # 目标：< 3000ms
+        "direction": "lower",    # 越低越好
+        "error_budget": 0.05,    # 允许 5% 请求超过目标
+        "unit": "ms",
+        "description": "P95 响应延迟",
+    },
+    "faithfulness": {
+        "target": 0.7,           # 目标：≥ 0.7
+        "direction": "higher",   # 越高越好
+        "error_budget": 0.05,    # 允许 5% 请求低于目标
+        "unit": "score",
+        "description": "RAGAS faithfulness 得分",
+    },
+    "tool_call_success_rate": {
+        "target": 0.95,
+        "direction": "higher",
+        "error_budget": 0.05,
+        "unit": "rate",
+        "description": "工具调用成功率",
+    },
+    "user_satisfaction": {
+        "target": 0.8,
+        "direction": "higher",
+        "error_budget": 0.05,
+        "unit": "score",
+        "description": "用户满意度",
+    },
+}
 
 
 # === 11 大类指标分类 ===
@@ -391,6 +444,119 @@ class MetricsCollector:
                     else:
                         lines.append(f"{prom_name} {last_value}")
         return "\n".join(lines) + "\n" if lines else ""
+
+    # === P6.2: SLI/SLO 看板 ===
+
+    def compute_sli(self) -> dict[str, float]:
+        """从现有 metrics 计算 4 个 SLI（Service Level Indicator）
+
+        Returns:
+            {
+                "latency_p95": float,                # efficiency.first_response_latency_p95 的 last 值
+                "faithfulness": float,               # knowledge.faithfulness 的 last 值
+                "tool_call_success_rate": float,     # 1 - quality.subagent_call_failure_rate
+                "user_satisfaction": float,          # quality.disclaimer_inclusion_rate 作为代理指标
+            }
+            无数据时各 SLI 默认为 0.0
+
+        feature flag 关闭时返回空 dict。
+        """
+        if not SLO_DASHBOARD_ENABLED:
+            return {}
+
+        sli: dict[str, float] = {}
+        # latency_p95：取 efficiency.first_response_latency_p95 的 last 值
+        latency = self.get_metric("efficiency.first_response_latency_p95")
+        sli["latency_p95"] = float(latency.get("last", 0.0) or 0.0)
+
+        # faithfulness：取 knowledge.faithfulness 的 last 值
+        faith = self.get_metric("knowledge.faithfulness")
+        sli["faithfulness"] = float(faith.get("last", 0.0) or 0.0)
+
+        # tool_call_success_rate：1 - subagent_call_failure_rate（兜底 0）
+        failure = self.get_metric("quality.subagent_call_failure_rate")
+        failure_rate = float(failure.get("last", 0.0) or 0.0)
+        # 失败率应在 [0, 1] 区间，超出时按 0/1 截断
+        failure_rate = max(0.0, min(1.0, failure_rate))
+        sli["tool_call_success_rate"] = 1.0 - failure_rate
+
+        # user_satisfaction：用 quality.disclaimer_inclusion_rate 作为代理指标
+        # （平台未直接采集用户满意度，先以合规性指标代理，便于 SLO 看板跑通）
+        sat = self.get_metric("quality.disclaimer_inclusion_rate")
+        sli["user_satisfaction"] = float(sat.get("last", 0.0) or 0.0)
+
+        return sli
+
+    def compute_slo_status(self) -> dict[str, dict[str, Any]]:
+        """SLI vs SLO 目标对比 + error budget 余量
+
+        Returns:
+            {
+                sli_name: {
+                    "sli_value": float,
+                    "target": float,
+                    "direction": "lower" | "higher",
+                    "met": bool,                  # SLI 是否满足 SLO 目标
+                    "margin": float,              # SLI 与目标的差距（正=满足，负=违反）
+                    "error_budget_total": float,  # 总 error budget（来自 SLO_TARGETS）
+                    "error_budget_remaining": float,  # 剩余 budget（粗略估算）
+                    "description": str,
+                    "unit": str,
+                },
+                ...
+            }
+            feature flag 关闭时返回空 dict。
+        """
+        if not SLO_DASHBOARD_ENABLED:
+            return {}
+
+        sli_values = self.compute_sli()
+        status: dict[str, dict[str, Any]] = {}
+
+        for sli_name, target_info in SLO_TARGETS.items():
+            target = float(target_info.get("target", 0.0))
+            direction = str(target_info.get("direction", "higher"))
+            error_budget = float(target_info.get("error_budget", 0.0))
+            description = str(target_info.get("description", ""))
+            unit = str(target_info.get("unit", ""))
+
+            sli_value = float(sli_values.get(sli_name, 0.0))
+
+            # 判定 SLI 是否满足 SLO
+            if direction == "lower":
+                # latency 类：值越小越好，满足条件 = value < target
+                met = sli_value < target
+                margin = target - sli_value  # 正=满足（有富余），负=违反
+            else:
+                # faithfulness / success_rate / satisfaction：值越大越好
+                met = sli_value >= target
+                margin = sli_value - target  # 正=满足，负=违反
+
+            # error budget 余量：粗略估算
+            # - 满足 SLO 时，剩余 budget = error_budget（满额可用）
+            # - 违反 SLO 时，剩余 budget = max(0, error_budget - |margin|/target)
+            #   |margin|/target 是相对违反比例，超出 error_budget 则耗尽
+            if met:
+                error_budget_remaining = error_budget
+            else:
+                violation_ratio = abs(margin) / target if target > 0 else 1.0
+                error_budget_remaining = max(
+                    0.0, error_budget - violation_ratio
+                )
+
+            status[sli_name] = {
+                "sli_value": sli_value,
+                "target": target,
+                "direction": direction,
+                "met": met,
+                "margin": margin,
+                "error_budget_total": error_budget,
+                "error_budget_remaining": error_budget_remaining,
+                "description": description,
+                "unit": unit,
+            }
+
+        return status
 
     # === 内部工具 ===
 

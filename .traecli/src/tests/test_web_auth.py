@@ -156,15 +156,15 @@ class TestMeEndpoint:
     def test_me_without_token_returns_401(self, tmp_path: Path, monkeypatch):
         # 无 token 访问 /api/auth/me：_handle_auth_me 返回 None（do_POST 转为 401）
         server = _make_web_server(tmp_path, monkeypatch)
-        resp = asyncio.run(server._handle_auth_me({}))
+        resp = server._handle_auth_me({})
         assert resp is None
 
     def test_me_with_invalid_token_returns_none(self, tmp_path: Path, monkeypatch):
         # 无效 token：返回 None
         server = _make_web_server(tmp_path, monkeypatch)
-        resp = asyncio.run(server._handle_auth_me({
+        resp = server._handle_auth_me({
             "Authorization": "Bearer invalid.token.here",
-        }))
+        })
         assert resp is None
 
     def test_me_with_valid_token_returns_user(self, tmp_path: Path, monkeypatch):
@@ -177,9 +177,9 @@ class TestMeEndpoint:
             "display_name": "Alice",
         }))
         # 用 token 调 me
-        resp = asyncio.run(server._handle_auth_me({
+        resp = server._handle_auth_me({
             "Authorization": f"Bearer {reg_resp['token']}",
-        }))
+        })
         assert resp is not None
         assert resp["email"] == "alice@example.com"
         assert resp["display_name"] == "Alice"
@@ -253,12 +253,12 @@ class TestRefreshEndpoint:
             "email": "alice@example.com",
             "password": "password123",
         }))
-        resp = asyncio.run(server._handle_auth_refresh({
+        resp = server._handle_auth_refresh({
             "Authorization": f"Bearer {reg_resp['token']}",
-        }))
+        })
         assert resp is None
 
     def test_refresh_without_token_returns_none(self, tmp_path: Path, monkeypatch):
         server = _make_web_server(tmp_path, monkeypatch)
-        resp = asyncio.run(server._handle_auth_refresh({}))
+        resp = server._handle_auth_refresh({})
         assert resp is None

@@ -277,5 +277,94 @@ async def fetch_deepset_prompts() -> list[dict[str, Any]]:
         return []
 
 
+# =====================================================================
+# P1.6 CoT 推理模板 - reasoning / planning / verification / reflection
+# =====================================================================
+# 设计（对齐 v1.2 计划文档 P1.6）：
+#   - 4 类模板覆盖显式 CoT 推理全流程：推理 → 规划 → 验证 → 反思
+#   - 模板用 Jinja2（已装则用）或简单 {{var}} 替换（参考 render_template）
+#   - get_cot_template(name, **vars) 统一入口
+#   - 未知模板名返回空字符串（韧性优先，不抛异常）
+# 这些模板供 P1.1/P1.2/P1.3/P1.5 模块复用，亦可被 agent_node 注入 system_prompt。
+# 无独立 feature flag（模板本身是被动资源，仅在调用方启用对应 feature flag 时生效）。
+
+COT_TEMPLATES: dict[str, str] = {
+    "reasoning": (
+        "请对以下问题进行显式 Chain-of-Thought 推理。\n"
+        "\n"
+        "问题：{{ question }}\n"
+        "上下文：{{ context }}\n"
+        "\n"
+        "请按以下步骤推理（让我一步步思考）：\n"
+        "1. 理解问题核心与已知信息\n"
+        "2. 列出关键事实与约束\n"
+        "3. 逐步推导中间结论\n"
+        "4. 给出最终答案\n"
+        "\n"
+        "推理过程："
+    ),
+    "planning": (
+        "将以下问题拆解为可执行的子步骤（Plan-and-Execute 风格）。\n"
+        "\n"
+        "问题：{{ question }}\n"
+        "\n"
+        "请输出 JSON（步骤数 1-5，depends_on 只能引用前序 step_id）：\n"
+        "{\n"
+        '  "steps": [\n'
+        '    {"step_id": "s1", "action": "动作描述", "tool_hint": "工具名", '
+        '"depends_on": [], "expected_output": "预期输出"}\n'
+        "  ]\n"
+        "}\n"
+        "\n"
+        "只输出 JSON，不要其他文本："
+    ),
+    "verification": (
+        "请验证以下回答是否正确、完整（Self-Verification）。\n"
+        "\n"
+        "问题：{{ question }}\n"
+        "我的回答：{{ answer }}\n"
+        "\n"
+        "请按以下维度检查：\n"
+        "1. 事实准确性\n"
+        "2. 逻辑一致性\n"
+        "3. 完整性\n"
+        "4. 是否有编造内容\n"
+        "\n"
+        '输出 JSON：{"passed": true|false, "score": 0.0-1.0, "issues": ["问题1", "问题2"]}'
+    ),
+    "reflection": (
+        "上次尝试失败，请反思原因并生成调整策略（Reflexion）。\n"
+        "\n"
+        "任务：{{ task }}\n"
+        "失败原因：{{ failure_reason }}\n"
+        "上次输出：{{ previous_output }}\n"
+        "\n"
+        "请反思：\n"
+        "1. 失败的根本原因（不要只看表面）\n"
+        "2. 应如何调整 prompt / 参数 / 策略\n"
+        "3. 下次尝试的具体调整\n"
+        "\n"
+        '输出 JSON：{"failure_type": "...", "reason": "...", "adjustment": "...", '
+        '"adjusted_params": {}}'
+    ),
+}
+
+
+def get_cot_template(name: str, **vars: Any) -> str:
+    """按名称取 CoT 模板，并用 vars 渲染。
+
+    Args:
+        name: 模板名（reasoning / planning / verification / reflection）
+        **vars: 模板变量（如 question="..." / answer="..."）
+
+    Returns:
+        渲染后的字符串；未知模板名返回空字符串（不抛异常）。
+    """
+    template = COT_TEMPLATES.get(name)
+    if template is None:
+        return ""
+    return render_template(template, vars)
+
+
 # 全局单例
 local_prompt_store = LocalPromptStore()

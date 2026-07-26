@@ -8,6 +8,10 @@
 
 MemoryManager 统一管理 4 层记忆，提供 start_session / build_context_for_llm /
 after_turn 三个核心入口。
+
+P2 增强层(feature flag 默认关闭):
+    - vector_store: Chroma/InMemory 向量库(DEADMAN_VECTOR_STORE_ENABLED)
+    - shared_knowledge: 跨用户匿名知识共享(DEADMAN_SHARED_KNOWLEDGE_ENABLED)
 """
 
 from __future__ import annotations

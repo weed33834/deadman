@@ -1,25 +1,53 @@
-"""A2A v1.0 Server - AgentCard 发布 + tasks/send 处理
+"""A2A v1.0 / v1.2 Server - AgentCard 发布 + tasks/send 处理
 
 端点：
   GET  /.well-known/agent.json     -> 返回 AgentCard
-  POST /a2a                        -> JSON-RPC 2.0（tasks/send, tasks/get）
-  POST /a2a/subscribe              -> SSE 流式更新（tasks/sendSubscribe）
+  POST /a2a                        -> JSON-RPC 2.0（tasks/send, tasks/get, tasks/cancel）
+  POST /a2a                        -> JSON-RPC 2.0 v1.2 扩展（feature flag 控制）：
+                                       - tasks/sendSubscribe: SSE 流式任务更新
+                                       - tasks/sendPush: Webhook 推送
+  GET  /a2a/subscribe?task_id=...  -> SSE 流式端点（v1.2）
 
 用标准库 http.server 实现，与 MCP Server 保持一致的降级策略。
+
+P4.4 v1.2 升级（feature flag DEADMAN_A2A_V12_ENABLED=0 默认关闭）：
+- 仅 v1.2 开启时启用 sendSubscribe / sendPush / 签名认证
+- v1.0 行为完全不变（tasks/send/get/cancel 路径不动）
+- cryptography 可选依赖；缺失时签名认证降级为 no-op（仅记 warning）
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import uuid
-from typing import Any
+from typing import Any, AsyncIterator
 
 from ..config import settings
-from .models import A2ATask, AgentCard, AgentCardSkill, TaskState
+from .models import A2A_V12_ENABLED, A2ATask, AgentCard, AgentCardSkill, PushNotificationConfig, TaskState
 
 logger = logging.getLogger(__name__)
+
+# =====================================================================
+# 可选依赖 - httpx（webhook 推送）/ cryptography（签名认证）
+# =====================================================================
+try:
+    import httpx
+
+    _HAS_HTTPX = True
+except ImportError:
+    _HAS_HTTPX = False
+
+try:
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, rsa
+    from cryptography.exceptions import InvalidSignature
+
+    _HAS_CRYPTOGRAPHY = True
+except ImportError:
+    _HAS_CRYPTOGRAPHY = False
 
 
 def _build_default_card() -> AgentCard:
@@ -95,24 +123,58 @@ class A2AServer:
         self.card = card or _build_default_card()
         # 任务存储（进程内 dict；生产环境可换 Redis/DB）
         self._tasks: dict[str, A2ATask] = {}
+        # P4.4 v1.2：webhook 推送配置订阅（task_id -> PushNotificationConfig）
+        self._push_subscriptions: dict[str, PushNotificationConfig] = {}
 
     def get_card(self) -> dict[str, Any]:
         """返回 AgentCard"""
         return self.card.to_dict()
 
     async def handle_jsonrpc(self, req: dict[str, Any]) -> dict[str, Any]:
-        """处理 JSON-RPC 2.0 请求"""
+        """处理 JSON-RPC 2.0 请求
+
+        v1.0 方法：tasks/send / tasks/get / tasks/cancel（始终可用）
+        v1.2 方法：tasks/sendSubscribe / tasks/sendPush（feature flag 控制）
+        """
         req_id = req.get("id")
         method = req.get("method", "")
         params = req.get("params", {}) or {}
 
         try:
+            # === v1.0 方法（行为不变）===
             if method == "tasks/send":
                 return await self._tasks_send(req_id, params)
             if method == "tasks/get":
                 return self._tasks_get(req_id, params)
             if method == "tasks/cancel":
                 return self._tasks_cancel(req_id, params)
+
+            # === v1.2 方法（feature flag 控制）===
+            if method == "tasks/sendSubscribe":
+                if not A2A_V12_ENABLED:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "error": {
+                            "code": -32601,
+                            "message": "Method not found (A2A v1.2 disabled): "
+                                       f"{method}",
+                        },
+                    }
+                return await self._tasks_send_subscribe(req_id, params)
+            if method == "tasks/sendPush":
+                if not A2A_V12_ENABLED:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "error": {
+                            "code": -32601,
+                            "message": "Method not found (A2A v1.2 disabled): "
+                                       f"{method}",
+                        },
+                    }
+                return await self._tasks_send_push(req_id, params)
+
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -223,58 +285,372 @@ class A2AServer:
         task.state = TaskState.CANCELED
         return {"jsonrpc": "2.0", "id": req_id, "result": task.to_dict()}
 
-    def run(self, host: str | None = None, port: int | None = None) -> None:
-        """启动 A2A HTTP Server"""
-        host = host or settings.mcp_server_host
-        port = port or (settings.mcp_server_port + 1)  # 默认比 MCP 端口 +1
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    # ==================================================================
+    # P4.4 v1.2 方法（feature flag DEADMAN_A2A_V12_ENABLED=1 启用）
+    # ==================================================================
 
-        server_ref = self
+    async def _tasks_send_subscribe(
+        self, req_id: Any, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """处理 tasks/sendSubscribe - SSE 流式任务更新
 
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-                logger.debug("A2A HTTP %s - %s", self.address_string(), format % args)
+        与 tasks/send 类似接收任务，但返回值包含一系列 SSE 事件，
+        调用方可按 text/event-stream 解析。HTTP handler 会把 events
+        字段格式化为 SSE wire 格式（data: ...\\n\\n）。
 
-            def _send_json(self, status: int, payload: Any) -> None:
-                body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
+        params 同 tasks/send（skill_id / message / metadata）
 
-            def do_GET(self) -> None:  # noqa: N802
-                # AgentCard endpoint
-                if self.path == "/.well-known/agent.json":
-                    self._send_json(200, server_ref.get_card())
-                elif self.path == "/a2a/health":
-                    self._send_json(200, {"status": "ok", "card": server_ref.card.name})
-                else:
-                    self._send_json(404, {"error": "not found"})
+        Returns:
+            {
+                "jsonrpc": "2.0", "id": req_id,
+                "result": {"task": task.to_dict(), "events": [
+                    {"event": "working", "data": {...}},
+                    {"event": "completed", "data": {...}},
+                ]},
+                "_streaming": True  # 标记 HTTP handler 切换 SSE 响应
+            }
 
-            def do_POST(self) -> None:  # noqa: N802
-                if self.path != "/a2a":
-                    self._send_json(404, {"error": "not found"})
-                    return
-                length = int(self.headers.get("Content-Length", "0"))
-                raw = self.rfile.read(length) if length else b"{}"
-                try:
-                    req = json.loads(raw.decode("utf-8"))
-                except json.JSONDecodeError as exc:
-                    self._send_json(400, {"error": f"invalid json: {exc}"})
-                    return
-                resp = asyncio.run(server_ref.handle_jsonrpc(req))
+        降级路径：
+        - v1.2 关闭 → handle_jsonrpc 已返回 -32601（不会到这里）
+        - LLM 不可用 → events 仍包含 working + failed 两个事件，task.state=FAILED
+        """
+        # 复用 _tasks_send 执行任务，拿到最终 task 状态
+        send_result = await self._tasks_send(req_id, params)
+        # _tasks_send 返回的 result 是 task.to_dict()
+        task_dict = send_result.get("result", {}) if "result" in send_result else {}
+        task_id = task_dict.get("id", "")
+        task = self._tasks.get(task_id)
+
+        # 构造 SSE 事件序列：working → completed/failed
+        events: list[dict[str, Any]] = []
+        events.append({
+            "event": "working",
+            "data": {"task_id": task_id, "state": "working"},
+        })
+        if task is not None:
+            if task.state == TaskState.COMPLETED:
+                events.append({
+                    "event": "completed",
+                    "data": {
+                        "task_id": task_id,
+                        "state": "completed",
+                        "result": task.result,
+                    },
+                })
+            elif task.state == TaskState.FAILED:
+                events.append({
+                    "event": "failed",
+                    "data": {
+                        "task_id": task_id,
+                        "state": "failed",
+                        "error": task.error,
+                    },
+                })
+            else:
+                events.append({
+                    "event": "update",
+                    "data": {"task_id": task_id, "state": task.state.value},
+                })
+
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {"task": task_dict, "events": events},
+            "_streaming": True,  # HTTP handler 据此切 SSE wire 格式
+        }
+
+    async def _tasks_send_push(
+        self, req_id: Any, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """处理 tasks/sendPush - Webhook 推送
+
+        接收 {task_id, webhook_url, event_type}，用 httpx POST 到 webhook_url，
+        把任务当前状态推送给订阅方。
+
+        params:
+            - task_id: 已存在的任务 ID
+            - webhook_url: 接收推送的 URL
+            - event_type: 事件类型（如 "task.completed"）
+            - token: 可选 bearer token（Authorization header）
+
+        Returns:
+            {"jsonrpc": "2.0", "id": req_id, "result": {
+                "pushed": bool, "status_code": int, "error": str
+            }}
+
+        降级路径：
+        - v1.2 关闭 → handle_jsonrpc 已返回 -32601
+        - task 不存在 → 返回 -32602 错误
+        - httpx 不可用 → pushed=False, error="httpx 不可用"
+        - webhook 调用失败 → pushed=False, error=异常信息
+        """
+        task_id = params.get("task_id", "")
+        webhook_url = params.get("webhook_url", "")
+        event_type = params.get("event_type", "task.update")
+        token = params.get("token", "")
+
+        task = self._tasks.get(task_id)
+        if task is None:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {"code": -32602, "message": f"任务不存在: {task_id}"},
+            }
+
+        # 构造推送 payload
+        payload = {
+            "event": event_type,
+            "task_id": task_id,
+            "task": task.to_dict(),
+            "pushed_at": _now_iso(),
+        }
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        # httpx 不可用 → 降级返回 pushed=False
+        if not _HAS_HTTPX:
+            logger.warning("httpx 不可用，webhook 推送失败: %s", webhook_url)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "pushed": False,
+                    "status_code": 0,
+                    "error": "httpx 不可用",
+                },
+            }
+
+        # POST 到 webhook
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(webhook_url, json=payload, headers=headers)
+            pushed = 200 <= resp.status_code < 300
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "pushed": pushed,
+                    "status_code": resp.status_code,
+                    "error": "" if pushed else f"HTTP {resp.status_code}",
+                },
+            }
+        except Exception as exc:
+            logger.warning("webhook 推送异常: %s", exc)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "pushed": False,
+                    "status_code": 0,
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+            }
+
+    # ==================================================================
+    # P4.4 v1.2 AgentCard 签名认证（cryptography 可选）
+    # ==================================================================
+
+    def sign_agent_card(
+        self, private_key_pem: str | None = None
+    ) -> str | None:
+        """对当前 AgentCard 做 SHA-256 签名
+
+        Args:
+            private_key_pem: PEM 格式私钥；None 时自动生成临时 RSA 密钥对
+                             （仅用于测试 / 演示，生产应显式传入）
+
+        Returns:
+            hex 签名；cryptography 不可用或 v1.2 关闭时返回 None
+
+        降级路径：
+        - v1.2 关闭 → 返回 None
+        - cryptography 不可用 → 返回 None（记 warning）
+        """
+        if not A2A_V12_ENABLED:
+            return None
+        if not _HAS_CRYPTOGRAPHY:
+            logger.warning("cryptography 不可用，AgentCard 签名降级为 None")
+            return None
+        try:
+            if private_key_pem:
+                private_key = serialization.load_pem_private_key(
+                    private_key_pem.encode("utf-8"), password=None
+                )
+            else:
+                private_key = rsa.generate_private_key(
+                    public_exponent=65537, key_size=2048
+                )
+            # 对 AgentCard 的 canonical JSON 做 SHA-256 with RSA 签名
+            card_bytes = json.dumps(
+                self.card.to_dict(), sort_keys=True, ensure_ascii=False
+            ).encode("utf-8")
+            signature = private_key.sign(
+                card_bytes,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH,
+                ),
+                hashes.SHA256(),
+            )
+            return signature.hex()
+        except Exception as exc:
+            logger.warning("AgentCard 签名失败: %s", exc)
+            return None
+
+    def verify_agent_card_signature(
+        self,
+        public_key_pem: str,
+        signature_hex: str,
+        card_dict: dict[str, Any] | None = None,
+    ) -> bool:
+        """校验 AgentCard 签名
+
+        Args:
+            public_key_pem: PEM 格式公钥
+            signature_hex: hex 签名
+            card_dict: 待校验的 AgentCard dict；None 用当前 card
+
+        Returns:
+            True/False；v1.2 关闭或 cryptography 不可用 → 返回 False
+        """
+        if not A2A_V12_ENABLED:
+            return False
+        if not _HAS_CRYPTOGRAPHY:
+            logger.warning("cryptography 不可用，AgentCard 签名校验返回 False")
+            return False
+        try:
+            public_key = serialization.load_pem_public_key(
+                public_key_pem.encode("utf-8")
+            )
+            card_data = card_dict if card_dict is not None else self.card.to_dict()
+            card_bytes = json.dumps(
+                card_data, sort_keys=True, ensure_ascii=False
+            ).encode("utf-8")
+            signature = bytes.fromhex(signature_hex)
+            public_key.verify(
+                signature,
+                card_bytes,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH,
+                ),
+                hashes.SHA256(),
+            )
+            return True
+        except InvalidSignature:
+            return False
+        except Exception as exc:
+            logger.warning("AgentCard 签名校验异常: %s", exc)
+            return False
+
+
+# =====================================================================
+# v1.2 辅助函数
+# =====================================================================
+
+
+def _now_iso() -> str:
+    """当前时间 ISO 字符串（避免循环 import datetime）"""
+    from datetime import datetime
+    return datetime.now().isoformat()
+
+
+def format_sse_events(events: list[dict[str, Any]]) -> str:
+    """把 events 列表格式化为 SSE wire 格式字符串
+
+    SSE 规范：每条事件 `event: NAME\\ndata: JSON\\n\\n`
+    """
+    chunks: list[str] = []
+    for ev in events:
+        event_name = ev.get("event", "message")
+        data = ev.get("data", {})
+        chunks.append(f"event: {event_name}")
+        chunks.append(f"data: {json.dumps(data, ensure_ascii=False)}")
+        chunks.append("")  # 空行分隔
+    return "\n".join(chunks) + "\n"
+
+
+# =====================================================================
+# A2AServer.run - HTTP Server 启动（在类外补回，避免类定义中途插入）
+# =====================================================================
+
+
+def _a2a_server_run(self: "A2AServer", host: str | None = None, port: int | None = None) -> None:
+    """A2AServer.run 的实际实现（绑定到类作为 run 方法）"""
+    host = host or settings.mcp_server_host
+    port = port or (settings.mcp_server_port + 1)  # 默认比 MCP 端口 +1
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    server_ref = self
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+            logger.debug("A2A HTTP %s - %s", self.address_string(), format % args)
+
+        def _send_json(self, status: int, payload: Any) -> None:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send_sse(self, events: list[dict[str, Any]]) -> None:
+            """v1.2: 发送 SSE 流式响应（text/event-stream）"""
+            body = format_sse_events(events).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:  # noqa: N802
+            # AgentCard endpoint
+            if self.path == "/.well-known/agent.json":
+                self._send_json(200, server_ref.get_card())
+            elif self.path == "/a2a/health":
+                self._send_json(200, {"status": "ok", "card": server_ref.card.name})
+            else:
+                self._send_json(404, {"error": "not found"})
+
+        def do_POST(self) -> None:  # noqa: N802
+            if self.path != "/a2a":
+                self._send_json(404, {"error": "not found"})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                req = json.loads(raw.decode("utf-8"))
+            except json.JSONDecodeError as exc:
+                self._send_json(400, {"error": f"invalid json: {exc}"})
+                return
+            resp = asyncio.run(server_ref.handle_jsonrpc(req))
+            # v1.2: sendSubscribe 返回 _streaming 标记 → 切 SSE wire 格式
+            if isinstance(resp, dict) and resp.get("_streaming") is True:
+                result = resp.get("result", {}) or {}
+                events = result.get("events", []) if isinstance(result, dict) else []
+                # 去掉内部标记后再发 SSE
+                resp.pop("_streaming", None)
+                self._send_sse(events)
+            else:
                 self._send_json(200, resp)
 
-        httpd = ThreadingHTTPServer((host, port), Handler)
-        logger.info(
-            "A2A Server listening on http://%s:%d/.well-known/agent.json", host, port
-        )
-        print(f"A2A Server listening on http://{host}:{port}/.well-known/agent.json")
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            httpd.shutdown()
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    logger.info(
+        "A2A Server listening on http://%s:%d/.well-known/agent.json", host, port
+    )
+    print(f"A2A Server listening on http://{host}:{port}/.well-known/agent.json")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        httpd.shutdown()
+
+
+# 绑定到 A2AServer 类作为 run 方法
+A2AServer.run = _a2a_server_run  # type: ignore[attr-defined]
 
 
 # 全局单例

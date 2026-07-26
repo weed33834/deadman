@@ -173,9 +173,10 @@ class ReflexionEngine:
                     if evaluation["success"]:
                         # 成功：若重试过，记录成功调整策略到跨会话记忆
                         if attempt > 1 and self.failures and self.reflections:
-                            await self._record_successful_adjustment(
+                            await self._record_adjustment(
                                 self.failures[-1].get("failure_type", "unknown"),
                                 self.reflections[-1].get("adjustment_strategy", ""),
+                                success=True,
                             )
                         final_result = {
                             "success": True,
@@ -214,6 +215,14 @@ class ReflexionEngine:
 
                 # 3. 最后一次尝试不再反思/调整，直接跳出进入 fallback
                 if attempt >= max_retries:
+                    # P0.3: 重试耗尽时记录失败调整到反思记忆
+                    # (与成功路径对称,使 failure_patterns.count 反映真实失败频次)
+                    if self.failures and self.reflections:
+                        await self._record_adjustment(
+                            self.failures[-1].get("failure_type", "unknown"),
+                            self.reflections[-1].get("adjustment_strategy", ""),
+                            success=False,
+                        )
                     break
 
                 # 4. Reflexion：用 LLM 分析失败原因
@@ -533,17 +542,58 @@ class ReflexionEngine:
     async def _record_successful_adjustment(
         self, failure_type: str, adjustment_strategy: str
     ) -> None:
-        """记录成功的调整策略到跨会话记忆（若 memory_store 不可用则跳过）"""
+        """记录成功的调整策略到跨会话记忆（若 memory_store 不可用则跳过）
+
+        向后兼容包装:P0.3 之前只记录成功路径。P0.3 后改用 _record_adjustment,
+        同时记录成功/失败以支持反思质量评估。
+        """
+        await self._record_adjustment(
+            failure_type=failure_type,
+            adjustment_strategy=adjustment_strategy,
+            success=True,
+        )
+
+    async def _record_adjustment(
+        self,
+        failure_type: str,
+        adjustment_strategy: str,
+        success: bool = True,
+    ) -> None:
+        """记录单次反思调整结果到跨会话记忆
+
+        P0.3 升级:
+        - 同时记录成功/失败(反思质量评估需要)
+        - 更新 failure_patterns.count(每失败一次 +1)
+        - 更新 successful_adjustments.success_count / total_count
+        - 跨 agent 共享统计(shared_patterns)自动更新
+
+        Args:
+            failure_type: 失败模式标识
+            adjustment_strategy: 调整策略描述
+            success: 本次是否成功(默认 True,兼容旧调用方)
+        """
         if not self.memory_store:
             return
         try:
-            await self.memory_store.record_successful_adjustment(
-                agent_name=self.agent_name,
-                failure_type=failure_type,
-                adjustment_strategy=adjustment_strategy,
-            )
+            # 优先用新的 record_successful_adjustment(支持 success 参数)
+            # 旧版 memory_store 可能不支持 success 参数,捕获 TypeError 后降级
+            try:
+                await self.memory_store.record_successful_adjustment(
+                    agent_name=self.agent_name,
+                    failure_type=failure_type,
+                    adjustment_strategy=adjustment_strategy,
+                    success=success,
+                )
+            except TypeError:
+                # 旧版签名:不支持 success 参数,降级为只记成功路径
+                if success:
+                    await self.memory_store.record_successful_adjustment(
+                        agent_name=self.agent_name,
+                        failure_type=failure_type,
+                        adjustment_strategy=adjustment_strategy,
+                    )
         except Exception as e:
-            logger.warning("记录成功调整策略失败: %s", e)
+            logger.warning("记录调整策略失败(%s): %s", "成功" if success else "失败", e)
 
     # === trace span 辅助方法（observability 不可用时全部安全跳过） ===
 

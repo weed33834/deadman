@@ -61,7 +61,7 @@ openai = ["openai>=1.50"]
 anthropic = ["anthropic>=0.50"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
 mcp = ["fastmcp>=3.0", "duckduckgo-search>=8.0"]
-ragas = ["ragas>=0.1", "datasets>=2.0"]
+ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
 all = [
     "deadman[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp,ragas]",
 ]
@@ -86,3 +86,8 @@ target-version = "py310"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"'). Used for RAGAS / red-team / integration tests that burn tokens.",
+    "ragas: marks tests that require ragas package installed.",
+    "integration: marks tests that require external services (LLM API / Neo4j / Chroma).",
+]

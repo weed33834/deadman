@@ -214,6 +214,40 @@ class CaseRunner:
             "trace_id": str(uuid.uuid4()),
         }
 
+    # ==============================================================
+    # P6.3: 从 trace JSONL 加载 case（feature flag 开启时启用）
+    # ==============================================================
+
+    @staticmethod
+    def load_from_trace_jsonl(path: str) -> list[dict[str, Any]]:
+        """从 trace JSONL 文件加载 eval case（P6.3 新增）
+
+        把生产 trace 一键转为 eval case，用于：
+        - 把生产失败 trace 转为回归 case
+        - 把 trace 中的 user_input + LLM_JUDGE 判定结果作为 expected_behavior
+
+        Feature flag DEADMAN_TRACE_TO_EVAL_ENABLED=0 默认关闭：
+            - 关闭时返回空列表（不抛异常）
+            - 开启时调用 TraceToEvalConverter.convert
+
+        Args:
+            path: trace JSONL 文件路径
+
+        Returns:
+            eval case 列表；feature flag 关闭/文件读取失败时返回空列表
+        """
+        try:
+            from ..observability.trace_to_eval import TraceToEvalConverter
+        except ImportError:
+            logger.warning("无法导入 TraceToEvalConverter，跳过 trace 加载")
+            return []
+        try:
+            converter = TraceToEvalConverter()
+            return converter.convert(path)
+        except Exception as e:
+            logger.warning("从 trace JSONL 加载 case 失败: %s", e)
+            return []
+
 
 async def run_all_cases(cases_dir: str | Path) -> dict[str, Any]:
     """运行目录下所有 YAML case

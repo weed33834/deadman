@@ -162,6 +162,8 @@ class WebServer:
                     self._handle_tools()
                 elif path == "/api/obs/dashboard":
                     self._handle_obs_dashboard()
+                elif path == "/api/slo":
+                    self._handle_slo_dashboard()
                 elif path == "/api/llm/health":
                     self._handle_health_file("llm_health.json")
                 elif path == "/api/memory/state":
@@ -313,7 +315,7 @@ class WebServer:
                         self._send_json(500, {"error": f"server error: {exc}"})
                 elif path == "/api/auth/refresh":
                     headers = self._get_headers_dict()
-                    resp = asyncio.run(server_ref._handle_auth_refresh(headers))
+                    resp = server_ref._handle_auth_refresh(headers)
                     if resp is None:
                         self._send_json(401, {"error": "token 无效或无需刷新"})
                     else:
@@ -490,6 +492,42 @@ class WebServer:
                 try:
                     from ..observability import metrics_collector
                     self._send_json(200, metrics_collector.get_dashboard())
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_slo_dashboard(self) -> None:
+                """P6.2: SLI/SLO 看板端点
+
+                返回 SLI 当前值 + SLO 目标对比 + error budget 余量。
+                feature flag DEADMAN_SLO_DASHBOARD_ENABLED=0 时返回空 payload（不报错）。
+                """
+                try:
+                    from ..observability.metrics import (
+                        SLO_DASHBOARD_ENABLED,
+                        SLO_TARGETS,
+                        metrics_collector,
+                    )
+                    if not SLO_DASHBOARD_ENABLED:
+                        self._send_json(
+                            200,
+                            {
+                                "enabled": False,
+                                "sli": {},
+                                "slo": {},
+                                "targets": {},
+                                "message": "SLO dashboard disabled (DEADMAN_SLO_DASHBOARD_ENABLED=0)",
+                            },
+                        )
+                        return
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "sli": metrics_collector.compute_sli(),
+                            "slo": metrics_collector.compute_slo_status(),
+                            "targets": SLO_TARGETS,
+                        },
+                    )
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -2798,7 +2836,7 @@ class WebServer:
             "display_name": user.get("display_name", ""),
         }
 
-    async def _handle_auth_me(self, headers: dict) -> dict | None:
+    def _handle_auth_me(self, headers: dict) -> dict | None:
         """GET /api/auth/me
         需要 Authorization 头
         返回 {user_id, email, display_name, role, family_id, created_at}
@@ -2808,7 +2846,7 @@ class WebServer:
             return None
         return user
 
-    async def _handle_auth_refresh(self, headers: dict) -> dict | None:
+    def _handle_auth_refresh(self, headers: dict) -> dict | None:
         """POST /api/auth/refresh
         需要 Authorization 头
         返回新 token（剩余有效期 < 1 天时）；否则返回 None

@@ -66,6 +66,22 @@ class ConversationState(TypedDict, total=False):
     stuck_count: int  # 连续路由到同一 agent 的次数
     forced_terminate: bool  # 是否被强制终止（卡死或步数超限）
 
+    # === P4.2: Scratchpad（按 agent_name 索引的草稿本）===
+    # feature flag DEADMAN_SCRATCHPAD_ENABLED=0 默认关闭；
+    # 关闭时该字段保持 {}，行为完全不变
+    scratchpads: dict[str, list[str]]
+
+    # === P4.1: Handoff 上下文（确认转介后构造的 HandoffContext 快照）===
+    # feature flag DEADMAN_HANDOFF_ENABLED=0 默认关闭；
+    # 关闭时该字段保持 None，行为完全不变
+    handoff_context: Any
+
+    # === P5.3: GUID 沙箱（input_guard_node 检测到外部内容时填充）===
+    # feature flag DEADMAN_GUID_SANDBOX_ENABLED=0 默认关闭；
+    # 关闭时这两个字段不存在，行为完全不变
+    guid_sandbox_wrapped_input: str  # 用 GUID 包裹后的 user_input
+    guid_sandbox_preamble: str  # 注入 system_prompt 的沙箱说明
+
 
 def create_initial_state(
     user_input: str,
@@ -100,4 +116,6 @@ def create_initial_state(
         last_agent_for_stuck="",
         stuck_count=0,
         forced_terminate=False,
+        scratchpads={},
+        handoff_context=None,
     )

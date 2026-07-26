@@ -144,6 +144,129 @@ def cmd_eval_list(args):
     print(f"\nCase 总数: {len(cases)}")
 
 
+def cmd_eval_ragas(args):
+    """运行 RAGAS 评估(9 维度 + 质量门 + 降级保护)
+
+    用法:
+        deadman eval-ragas --cases-dir tests/automated/cases
+        deadman eval-ragas --quick                 # 仅跑 faithfulness + answer_relevancy
+        deadman eval-ragas --quality-gate 0.8       # 自定义质量门阈值
+        deadman eval-ragas --output results.jsonl   # 输出 JSONL 报告
+
+    降级行为:
+        - ragas 包未安装 → 打印提示,退出码 0(不阻断 CI)
+        - LLM api_key 未配置 → 跳过 RAGAS 评估,仅打印 case 清单
+        - faithfulness < threshold → 退出码 2(质量门未通过,CI 阻断 merge)
+    """
+    import json
+    from datetime import datetime
+
+    from .config import settings
+    from .evaluation.ragas_evaluator import (
+        DEFAULT_QUALITY_GATE_THRESHOLD,
+        QualityGateError,
+        RAGASEvaluator,
+        run_ragas_batch,
+    )
+
+    cases_dir = args.cases_dir or str(settings.tests_dir / "automated" / "cases")
+    threshold = float(args.quality_gate or DEFAULT_QUALITY_GATE_THRESHOLD)
+    quick_mode = bool(args.quick)
+    output_file = args.output
+
+    evaluator = RAGASEvaluator(
+        quality_gate_threshold=threshold,
+        quick_mode=quick_mode,
+    )
+
+    if not evaluator.available:
+        print("[RAGAS] ragas/datasets 包未安装,跳过评估")
+        print("       pip install deadman[ragas] 后可启用")
+        print("       退出码 0(不阻断 CI)")
+        return
+
+    print(f"\n=== RAGAS 评估启动 ===")
+    print(f"cases_dir: {cases_dir}")
+    print(f"quick_mode: {quick_mode}")
+    print(f"quality_gate_threshold: {threshold}")
+    print(f"output: {output_file or '(stdout)'}")
+    print()
+
+    # 批量评估
+    summary = asyncio.run(
+        run_ragas_batch(
+            cases_dir=cases_dir,
+            evaluator=evaluator,
+            output_file=output_file,
+        )
+    )
+
+    # 打印汇总
+    print("=== RAGAS 评估汇总 ===")
+    print(f"总数: {summary['total']}")
+    print(f"已评估: {summary['evaluated']}")
+    print(f"降级: {summary['degraded']}")
+    print(f"质量门通过: {summary['quality_gate_passed']}")
+
+    if args.verbose:
+        for record in summary.get("results", []):
+            case_id = record.get("case_id", "?")
+            result = record.get("result", {})
+            metrics = result.get("metrics", {})
+            gate = result.get("quality_gate_passed")
+            degraded = result.get("degraded")
+            metrics_str = ", ".join(
+                f"{k}={v:.2f}" for k, v in metrics.items() if isinstance(v, (int, float))
+            )
+            print(
+                f"  case-{case_id}: degraded={degraded}, gate={gate}, "
+                f"metrics={metrics_str}"
+            )
+
+    # 写 health 文件
+    data_dir = settings.project_root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    health_file = data_dir / "ragas_health.json"
+    payload = {
+        "evaluated_at": datetime.now().isoformat(),
+        "cases_dir": cases_dir,
+        "summary": {
+            "total": summary["total"],
+            "evaluated": summary["evaluated"],
+            "degraded": summary["degraded"],
+            "quality_gate_passed": summary["quality_gate_passed"],
+        },
+        "threshold": threshold,
+        "quick_mode": quick_mode,
+        "results": summary.get("results", []),
+    }
+    try:
+        with open(health_file, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        print(f"\n[反馈闭环] RAGAS 评估结果已写入 {health_file}")
+    except OSError as e:
+        print(f"[警告] 写入失败: {e}")
+
+    # 质量门判定
+    evaluated = summary["evaluated"]
+    if evaluated == 0:
+        print("\n[质量门] 无可评估结果,退出码 0")
+        return
+
+    if summary["degraded"] == evaluated:
+        # 全部降级(LLM 不可用) → 不阻断 CI
+        print("\n[质量门] 全部降级(LLM 不可用?),退出码 0")
+        return
+
+    passed = summary["quality_gate_passed"]
+    pass_rate = passed / evaluated if evaluated else 0
+    if pass_rate < 1.0 and args.fail_fast:
+        print(
+            f"\n[质量门] 通过率 {pass_rate:.1%} < 100%,faithfulness 阈值 {threshold}"
+        )
+        raise SystemExit(2)
+
+
 def cmd_run(args):
     """运行单次对话"""
     from .orchestration.graph import build_main_graph, create_initial_state
@@ -3542,6 +3665,33 @@ def main():
     # eval-list 子命令 - 列出评估 case 清单
     subparsers.add_parser("eval-list", help="列出本地评估 case 清单")
 
+    # eval-ragas 子命令 - P0.2 RAGAS 9 维度评估
+    ragas_parser = subparsers.add_parser(
+        "eval-ragas",
+        help="运行 RAGAS 9 维度评估(质量门 + 降级保护,CI 友好)",
+    )
+    ragas_parser.add_argument("--cases-dir", help="YAML case 目录路径")
+    ragas_parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="仅跑 faithfulness + answer_relevancy(加速本地迭代)",
+    )
+    ragas_parser.add_argument(
+        "--quality-gate",
+        type=float,
+        default=None,
+        help="faithfulness 质量门阈值(默认 0.7)",
+    )
+    ragas_parser.add_argument(
+        "--output",
+        help="输出 JSONL 报告路径(可选)",
+    )
+    ragas_parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="质量门未通过时退出码 2(CI 阻断 merge)",
+    )
+
     # run 子命令
     run_parser = subparsers.add_parser("run", help="运行单次对话")
     run_parser.add_argument("input", help="用户输入")
@@ -3921,6 +4071,8 @@ def main():
         cmd_eval(args)
     elif args.command == "eval-list":
         cmd_eval_list(args)
+    elif args.command == "eval-ragas":
+        cmd_eval_ragas(args)
     elif args.command == "run":
         cmd_run(args)
     elif args.command == "llm-test":

@@ -50,6 +50,7 @@ StateGraph = None  # type: ignore
 END = None  # type: ignore
 MemorySaver = None  # type: ignore
 SqliteSaver = None  # type: ignore
+AsyncSqliteSaver = None  # type: ignore
 
 try:
     from langgraph.graph import StateGraph as _StateGraph, END as _END  # type: ignore
@@ -60,15 +61,25 @@ try:
     MemorySaver = _MemorySaver
     LANGGRAPH_AVAILABLE = True
     # SqliteSaver 是独立可选依赖（langgraph-checkpoint-sqlite）
+    # 优先使用 AsyncSqliteSaver：web/api_chat 走 await graph.ainvoke() 异步路径，
+    # 同步 SqliteSaver 不支持 async 方法（NotImplementedError）。
+    try:
+        from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver as _AsyncSqliteSaver  # type: ignore
+
+        AsyncSqliteSaver = _AsyncSqliteSaver
+    except ImportError:
+        logger.info(
+            "langgraph-checkpoint-sqlite[aio] 不可用，"
+            "异步 checkpointer 降级为 MemorySaver。"
+            "pip install langgraph-checkpoint-sqlite aiosqlite 后可获得持久化 checkpoint。"
+        )
+    # 同步 SqliteSaver 仅用于 CLI 同步路径
     try:
         from langgraph.checkpoint.sqlite import SqliteSaver as _SqliteSaver  # type: ignore
 
         SqliteSaver = _SqliteSaver
     except ImportError:
-        logger.info(
-            "langgraph-checkpoint-sqlite 不可用，checkpointer 降级为 MemorySaver（进程重启即丢）。"
-            "pip install langgraph-checkpoint-sqlite 后可获得持久化 checkpoint。"
-        )
+        pass
 except ImportError:
     logger.info(
         "langgraph 不可用，编排将降级为 SequentialExecutor（顺序执行）模式。"
@@ -434,29 +445,18 @@ def _build_langgraph():
     graph.add_edge(NODE_RESPOND, END)
 
     # === 编译 ===
-    # checkpointer 优先级：SqliteSaver（持久化）> MemorySaver（内存）> None
+    # checkpointer 选择策略：
+    #   - 当前 web 路径用 await graph.ainvoke() 异步调用，
+    #     AsyncSqliteSaver 需要 aiosqlite.Connection（无法在 sync build_main_graph 内创建）；
+    #     sync SqliteSaver 不支持 async API（NotImplementedError）。
+    #   - 因此 web 路径用 MemorySaver（同时支持 sync/async），跨会话持久化由
+    #     MemoryManager.after_turn + 文件存储独立负责（不依赖 checkpointer）。
+    #   - CLI 同步路径可继续用 SqliteSaver（持久化 CLI 对话状态）。
     checkpointer = None
-    if SqliteSaver is not None:
-        try:
-            import sqlite3
-            from pathlib import Path
-
-            from ..config import settings
-
-            db_path = settings.checkpoint_db_path
-            if db_path:
-                Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-                conn = sqlite3.connect(db_path, check_same_thread=False)
-                checkpointer = SqliteSaver(conn)
-                logger.info("checkpointer 使用 SqliteSaver（持久化到 %s）", db_path)
-        except Exception as e:
-            logger.warning("SqliteSaver 初始化失败，尝试降级到 MemorySaver: %s", e)
-            checkpointer = None
-
-    if checkpointer is None and MemorySaver is not None:
+    if MemorySaver is not None:
         try:
             checkpointer = MemorySaver()
-            logger.info("checkpointer 降级为 MemorySaver（进程重启即丢）")
+            logger.info("checkpointer 使用 MemorySaver（兼容 sync+async，跨会话状态由 MemoryManager 负责）")
         except Exception as e:
             logger.warning("MemorySaver 初始化失败，编译无 checkpointer: %s", e)
 
