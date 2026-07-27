@@ -157,6 +157,9 @@ class BudgetCoordinator:
         }
         # 待释放的预分配:{allocation_id: BudgetAllocation}
         self._allocations: dict[str, BudgetAllocation] = {}
+        # 细粒度覆盖: {(scope, scope_id): {dimension: limit}}
+        # 用于 TENANT/USER 级别的 per-entity 限额覆盖
+        self._scope_overrides: dict[tuple[str, str], dict[BudgetDimension, int]] = {}
         # 上限配置
         self._limits: dict[BudgetScope, dict[BudgetDimension, int]] = {
             BudgetScope.GLOBAL: global_limits or {
@@ -224,7 +227,7 @@ class BudgetCoordinator:
             chain = self._scope_chain(scope, scope_id)
             for s, sid in chain:
                 used = self._usage[s].get(sid, {}).get(dimension, 0)
-                limit = self._limits[s].get(dimension, 0)
+                limit = self._get_limit(s, sid, dimension)
                 if limit > 0 and used + amount > limit:
                     # 超限
                     if strict:
@@ -307,7 +310,7 @@ class BudgetCoordinator:
         with self._lock:
             self._load()
             used = self._usage[scope].get(scope_id, {}).get(dimension, 0)
-            limit = self._limits[scope].get(dimension, 0)
+            limit = self._get_limit(scope, scope_id, dimension)
             remaining = max(0, limit - used) if limit > 0 else -1
             util = used / limit if limit > 0 else 0.0
             return {
@@ -327,14 +330,21 @@ class BudgetCoordinator:
         limit: int,
         scope_id: Optional[str] = None,  # 仅 TENANT / USER 级别生效
     ) -> None:
-        """设置 / 覆盖 limit(管理用)。"""
+        """设置 / 覆盖 limit(管理用)。
+
+        当 scope_id 不为空且 scope 为 TENANT/USER 时，存储 per-entity 覆盖值，
+        使不同租户/用户可拥有独立限额。
+        """
         with self._lock:
-            self._limits[scope][dimension] = limit
-            # 租户级 / 用户级覆盖(用 scope_id 区分)
             if scope_id and scope in (BudgetScope.TENANT, BudgetScope.USER):
-                # 简化:用 _limits 字典存储 scope_id 限值
-                # 实际实现可用 nested dict
-                pass
+                # per-entity 覆盖：存入 _scope_overrides
+                override_key = (scope.value, scope_id)
+                if override_key not in self._scope_overrides:
+                    self._scope_overrides[override_key] = {}
+                self._scope_overrides[override_key][dimension] = limit
+            else:
+                # 全局 scope 级默认值
+                self._limits[scope][dimension] = limit
             self._save()
 
     def reset_session(self, session_id: str) -> None:
@@ -353,6 +363,19 @@ class BudgetCoordinator:
     # ==================================================================
     # 内部
     # ==================================================================
+
+    def _get_limit(
+        self,
+        scope: BudgetScope,
+        scope_id: str,
+        dimension: BudgetDimension,
+    ) -> int:
+        """获取有效 limit：优先 per-entity 覆盖，否则用 scope 级默认值。"""
+        override_key = (scope.value, scope_id)
+        override = self._scope_overrides.get(override_key)
+        if override and dimension in override:
+            return override[dimension]
+        return self._limits[scope].get(dimension, 0)
 
     def _scope_chain(
         self,
@@ -444,6 +467,14 @@ class BudgetCoordinator:
                     self._limits[scope] = {
                         BudgetDimension(d): v for d, v in dim_limits.items()
                     }
+                # 加载 per-entity 覆盖
+                for key_str, dim_limits in data.get("scope_overrides", {}).items():
+                    # key_str 格式: "scope:scope_id"
+                    parts = key_str.split(":", 1)
+                    if len(parts) == 2:
+                        self._scope_overrides[(parts[0], parts[1])] = {
+                            BudgetDimension(d): v for d, v in dim_limits.items()
+                        }
         except Exception as e:
             logger.warning("Load budget store failed: %s", e)
         self._loaded = True
@@ -466,6 +497,10 @@ class BudgetCoordinator:
                 "limits": {
                     scope.value: {d.value: v for d, v in dims.items()}
                     for scope, dims in self._limits.items()
+                },
+                "scope_overrides": {
+                    f"{scope_val}:{sid}": {d.value: v for d, v in dims.items()}
+                    for (scope_val, sid), dims in self._scope_overrides.items()
                 },
                 "updated_at": time.time(),
             }

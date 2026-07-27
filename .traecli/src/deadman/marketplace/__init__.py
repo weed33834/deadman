@@ -60,6 +60,11 @@ from .sandbox import (
     MarketplaceSandbox,
     get_marketplace_sandbox,
 )
+from .skill_manager import (
+    SkillError,
+    SkillManager,
+    get_skill_manager,
+)
 
 
 def get_marketplace() -> MarketplaceRegistry:
@@ -102,4 +107,8 @@ __all__ = [
     "SandboxResult",
     "MarketplaceSandbox",
     "get_marketplace_sandbox",
+    # skill_manager
+    "SkillError",
+    "SkillManager",
+    "get_skill_manager",
 ]

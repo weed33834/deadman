@@ -53,7 +53,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-import re
 import threading
 import time
 from collections import Counter, defaultdict, deque
@@ -62,6 +61,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from ...feature_flags import is_enabled
+from ....utils.text_similarity import tokenize, jaccard_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -159,42 +159,13 @@ class ConvergenceAlert:
 
 
 # =====================================================================
-# 文本相似度计算(轻量级,无外部依赖)
+# 文本相似度计算 - 使用共享 text_similarity 模块
 # =====================================================================
-
-def _tokenize(text: str) -> set[str]:
-    """简单分词(中英文混合)。"""
-    if not text:
-        return set()
-    # 中文按字 / 英文按词
-    tokens = set()
-    # 英文词
-    for match in re.finditer(r"[a-zA-Z_][a-zA-Z0-9_]{1,}", text.lower()):
-        tokens.add(match.group())
-    # 中文 bigram(2-gram)
-    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
-    for i in range(len(chinese_chars) - 1):
-        tokens.add(chinese_chars[i] + chinese_chars[i + 1])
-    # 数字串
-    for match in re.finditer(r"\d{3,}", text):
-        tokens.add(match.group())
-    return tokens
-
-
-def _jaccard_similarity(set_a: set[str], set_b: set[str]) -> float:
-    """Jaccard 相似度。"""
-    if not set_a and not set_b:
-        return 1.0  # 都为空视为相同
-    if not set_a or not set_b:
-        return 0.0
-    intersection = len(set_a & set_b)
-    union = len(set_a | set_b)
-    return intersection / union if union > 0 else 0.0
 
 
 def _text_similarity(text_a: str, text_b: str) -> float:
-    """文本相似度(Jaccard on tokens,0-1)。"""
-    return _jaccard_similarity(_tokenize(text_a), _tokenize(text_b))
+    """文本相似度(Jaccard on tokens, 0-1)。"""
+    return jaccard_similarity(tokenize(text_a), tokenize(text_b))
 
 
 # =====================================================================

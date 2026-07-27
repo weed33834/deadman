@@ -379,6 +379,28 @@ class EndingNoteStore:
                 logger.warning("v1->v2 迁移失败 user=%s: %s", user_id, e)
         return note
 
+    def delete_section(self, user_id: str, section_key: str) -> bool:
+        """删除（清空）笔记中的某个章节
+
+        Args:
+            user_id: 笔记所有者
+            section_key: 章节 key（personal_info/family_relations/.../will_intent）
+
+        Returns:
+            True 如果章节被成功清空；False 如果笔记不存在
+        """
+        from .models import SECTION_KEYS
+
+        note = self.load(user_id)
+        if note is None:
+            return False
+        if section_key not in SECTION_KEYS:
+            raise ValueError(f"未知章节 key: {section_key}")
+        setattr(note, section_key, None)
+        note.touch()
+        self.save(note)
+        return True
+
     def delete(self, user_id: str) -> bool:
         """删除笔记及其衍生文件（shares/incoming/pending_deliveries）
 

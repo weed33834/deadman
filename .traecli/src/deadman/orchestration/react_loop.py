@@ -31,11 +31,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from ..llm import LLMClient, get_llm_for_use_case
+from ..utils.text_similarity import tokenize as _tokenize, jaccard_similarity as _jaccard_sim
 
 logger = logging.getLogger(__name__)
 
@@ -218,38 +218,13 @@ def _format_observation(result: Any) -> tuple[str, Any]:
 
 
 # =====================================================================
-# Stuck 检测 - Jaccard 相似度
+# Stuck 检测 - 使用共享 text_similarity 模块
 # =====================================================================
 
 
-def _tokenize(text: str) -> set[str]:
-    """简单分词:中文按字符,英文按词;小写化。
-
-    避免中文整串被当成一个 token(否则"北京户口注销"vs"北京户口办理"无共同 token)。
-    """
-    text = text.lower()
-    tokens: set[str] = set()
-    # 英文/数字词
-    for m in re.findall(r"[a-z0-9]+", text):
-        if len(m) >= 2:
-            tokens.add(m)
-    # 中文按字符(每个汉字一个 token)
-    for ch in text:
-        if "\u4e00" <= ch <= "\u9fff":
-            tokens.add(ch)
-    return tokens
-
-
 def _jaccard_similarity(a: str, b: str) -> float:
-    """Jaccard 相似度:|A∩B| / |A∪B|。空集返回 0。"""
-    sa, sb = _tokenize(a), _tokenize(b)
-    if not sa and not sb:
-        return 1.0
-    if not sa or not sb:
-        return 0.0
-    inter = len(sa & sb)
-    union = len(sa | sb)
-    return inter / union if union else 0.0
+    """Jaccard 相似度（代理到共享模块）。"""
+    return _jaccard_sim(_tokenize(a), _tokenize(b))
 
 
 # =====================================================================

@@ -82,6 +82,10 @@ _CLI_COMMANDS = {
     "reflexion-list", "reflexion-test", "reflexion-ping",
     # 技能
     "skill-list", "skill-validate",
+    # Alignment / Governance / Multimodal
+    "alignment-status", "alignment-train",
+    "governance-status", "governance-check",
+    "multimodal-status", "multimodal-test",
 }
 
 
@@ -262,6 +266,19 @@ class WebServer:
                 elif path.startswith("/api/onboarding/step/"):
                     step_str = path[len("/api/onboarding/step/"):]
                     self._handle_onboarding_step(step_str)
+                # === Skill Management GET 路由（只追加）===
+                elif path == "/api/skills":
+                    self._handle_skills_list()
+                elif path.startswith("/api/skills/"):
+                    skill_name = path[len("/api/skills/"):]
+                    self._handle_skill_get(skill_name)
+                # === Alignment / Governance / Multimodal GET 路由（只追加）===
+                elif path == "/api/alignment/status":
+                    self._handle_alignment_status()
+                elif path == "/api/governance/status":
+                    self._handle_governance_status()
+                elif path == "/api/multimodal/status":
+                    self._handle_multimodal_status()
                 else:
                     # 静态文件（CSS/JS）
                     static_file = _STATIC_DIR / path.lstrip("/")
@@ -406,6 +423,29 @@ class WebServer:
                     self._handle_support_ticket_reply(ticket_id)
                 elif path == "/api/onboarding":
                     self._handle_onboarding_save()
+                # === Skill Management POST 路由（只追加）===
+                elif path == "/api/skills/import":
+                    self._handle_skill_import()
+                elif path == "/api/skills/generate":
+                    self._handle_skill_generate()
+                elif path == "/api/skills":
+                    self._handle_skill_create()
+                elif path.startswith("/api/skills/") and path.endswith("/invoke"):
+                    skill_name = path[len("/api/skills/"):-len("/invoke")]
+                    self._handle_skill_invoke(skill_name)
+                else:
+                    self.send_error(404, "Not Found")
+
+            def do_PUT(self) -> None:  # noqa: N802
+                """PUT 路由：vault item 更新 / support ticket 状态更新"""
+                parsed = urlparse(self.path)
+                path = parsed.path
+                if path.startswith("/api/vault/items/"):
+                    item_id = path[len("/api/vault/items/"):]
+                    self._handle_vault_item_update(item_id)
+                elif path.startswith("/api/support/tickets/") and path.endswith("/status"):
+                    ticket_id = path[len("/api/support/tickets/"):-len("/status")]
+                    self._handle_support_ticket_update_status(ticket_id)
                 else:
                     self.send_error(404, "Not Found")
 
@@ -416,13 +456,21 @@ class WebServer:
                 query = parse_qs(parsed.query)
                 if path == "/api/ending-note/share":
                     self._handle_ending_note_unshare(query)
+                elif path == "/api/ending-note/section":
+                    self._handle_ending_note_section_delete()
                 # === Phase 11/12: 保险库 / 文档提取 DELETE 路由（只追加）===
                 elif path.startswith("/api/vault/items/"):
                     item_id = path[len("/api/vault/items/"):]
                     self._handle_vault_item_delete(item_id)
+                elif path == "/api/onboarding":
+                    self._handle_onboarding_delete()
                 elif path.startswith("/api/documents/"):
                     doc_id = path[len("/api/documents/"):]
                     self._handle_document_delete(doc_id)
+                # === Skill Management DELETE 路由（只追加）===
+                elif path.startswith("/api/skills/"):
+                    skill_name = path[len("/api/skills/"):]
+                    self._handle_skill_delete(skill_name)
                 else:
                     self.send_error(404, "Not Found")
 
@@ -946,6 +994,56 @@ class WebServer:
                     "disclaimer": self._ending_note_disclaimer(),
                 })
 
+            def _handle_ending_note_section_delete(self) -> None:
+                """DELETE /api/ending-note/section - 删除（清空）某个章节
+
+                body: { "section_id": "<section_key>" }
+                """
+                from deadman.ending_note.store import EndingNoteStore
+
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                user_id = user["user_id"]
+
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8")) if raw else {}
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+
+                section_key = req.get("section_id")
+                if not section_key:
+                    self._send_json(400, {
+                        "error": "缺少 section_id",
+                        "disclaimer": self._ending_note_disclaimer(),
+                    })
+                    return
+
+                store = EndingNoteStore()
+                try:
+                    ok = store.delete_section(user_id, section_key)
+                except ValueError as exc:
+                    self._send_json(400, {
+                        "error": str(exc),
+                        "disclaimer": self._ending_note_disclaimer(),
+                    })
+                    return
+                if not ok:
+                    self._send_json(404, {
+                        "error": "笔记不存在",
+                        "disclaimer": self._ending_note_disclaimer(),
+                    })
+                    return
+                self._send_json(200, {
+                    "ok": True,
+                    "deleted_section": section_key,
+                    "disclaimer": self._ending_note_disclaimer(),
+                })
+
             def _handle_ending_note_shared_with_me(self, query: dict[str, list[str]]) -> None:
                 """GET /api/ending-note/shared-with-me?user_id=xxx - 共享给我的笔记"""
                 from deadman.ending_note.store import EndingNoteStore
@@ -1134,6 +1232,53 @@ class WebServer:
                     self._send_json(200, {"deleted": True})
                 else:
                     self._send_json(404, {"error": "条目不存在或无权限"})
+
+            def _handle_vault_item_update(self, item_id: str) -> None:
+                """PUT /api/vault/items/<id> - 更新条目（仅 owner）
+
+                body: {title?, content?, metadata?, beneficiary_user_ids?,
+                       delivery_trigger?, delivery_date?}
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                try:
+                    from deadman.vault.store import VaultStore
+                    store = VaultStore()
+                    # 构造 updates 字典，只包含请求中提供的字段
+                    updates: dict[str, Any] = {}
+                    for field in ("title", "content", "metadata",
+                                  "beneficiary_user_ids", "delivery_trigger",
+                                  "delivery_date"):
+                        if field in req:
+                            updates[field] = req[field]
+                    # delivery_date 字符串转 datetime
+                    if "delivery_date" in updates and updates["delivery_date"]:
+                        try:
+                            from datetime import datetime as _dt
+                            updates["delivery_date"] = _dt.fromisoformat(
+                                str(updates["delivery_date"])
+                            )
+                        except (TypeError, ValueError):
+                            pass
+                    item = store.update_item(item_id, user["user_id"], updates)
+                    if item is None:
+                        self._send_json(404, {"error": "条目不存在或无权限"})
+                        return
+                    self._send_json(200, item.to_index_dict())
+                except ValueError as exc:
+                    self._send_json(400, {"error": str(exc)})
+                except Exception as exc:
+                    logger.exception("vault item update failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
 
             def _handle_vault_beneficiaries(self) -> None:
                 """GET /api/vault/beneficiaries - 列出我指定的受益人"""
@@ -2068,6 +2213,53 @@ class WebServer:
                     "disclaimer": self._SUPPORT_DISCLAIMER,
                 })
 
+            def _handle_support_ticket_update_status(self, ticket_id: str) -> None:
+                """PUT /api/support/tickets/<id>/status - 更新工单状态
+
+                body: {status: "open"|"in_progress"|"resolved"|"closed"}
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8")) if raw else {}
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {
+                        "error": f"invalid json: {exc}",
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    })
+                    return
+                new_status = req.get("status", "")
+                valid_statuses = {"open", "in_progress", "resolved", "closed"}
+                if new_status not in valid_statuses:
+                    self._send_json(400, {
+                        "error": f"无效状态 '{new_status}'，允许值: {', '.join(sorted(valid_statuses))}",
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    })
+                    return
+                from deadman.support.store import TicketStore
+                store = TicketStore()
+                ok = store.update_status(
+                    ticket_id=ticket_id,
+                    status=new_status,
+                    user_id=user["user_id"],
+                )
+                if not ok:
+                    self._send_json(404, {
+                        "error": "工单不存在、无权限或状态流转不合法",
+                        "ticket_id": ticket_id,
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    })
+                    return
+                ticket = store.get_ticket(ticket_id, user["user_id"])
+                self._send_json(200, {
+                    "ticket": ticket.to_dict() if ticket else {"id": ticket_id, "status": new_status},
+                    "disclaimer": self._SUPPORT_DISCLAIMER,
+                })
+
             # ---------- Phase 16C: Onboarding ----------
 
             _ONBOARDING_DISCLAIMER = (
@@ -2170,6 +2362,232 @@ class WebServer:
                     "completed": True,
                     "disclaimer": self._ONBOARDING_DISCLAIMER,
                 })
+
+            def _handle_onboarding_delete(self) -> None:
+                """DELETE /api/onboarding - 删除 onboarding 画像（需认证）"""
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                from deadman.onboarding.store import OnboardingStore
+                store = OnboardingStore()
+                ok = store.delete(user["user_id"])
+                if ok:
+                    self._send_json(200, {
+                        "deleted": True,
+                        "disclaimer": self._ONBOARDING_DISCLAIMER,
+                    })
+                else:
+                    self._send_json(404, {
+                        "error": "onboarding 画像不存在",
+                        "disclaimer": self._ONBOARDING_DISCLAIMER,
+                    })
+
+            # ==============================================================
+            # Skill Management Handler 方法（只追加）
+            # ==============================================================
+            def _handle_skills_list(self) -> None:
+                """GET /api/skills - 列出所有技能"""
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    skills = mgr.list_skills()
+                    self._send_json(200, {"skills": skills, "count": len(skills)})
+                except Exception as exc:
+                    logger.exception("skills list failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_get(self, skill_name: str) -> None:
+                """GET /api/skills/<name> - 获取技能详情"""
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    skill = mgr.get_skill(skill_name)
+                    if skill is None:
+                        self._send_json(404, {"error": f"技能 '{skill_name}' 不存在"})
+                        return
+                    self._send_json(200, {"skill": skill})
+                except Exception as exc:
+                    logger.exception("skill get failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_create(self) -> None:
+                """POST /api/skills - 创建新技能
+
+                body: {name, description, content, version?}
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                name = req.get("name")
+                description = req.get("description")
+                content = req.get("content")
+                if not name or not description or not content:
+                    self._send_json(400, {"error": "缺少必填字段: name, description, content"})
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    skill = mgr.create_skill(
+                        name=name,
+                        description=description,
+                        content=content,
+                        version=req.get("version", "1.0"),
+                    )
+                    self._send_json(201, {"ok": True, "skill": skill})
+                except Exception as exc:
+                    logger.exception("skill create failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_import(self) -> None:
+                """POST /api/skills/import - 从 URL 导入技能
+
+                body: {url}
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                url = req.get("url")
+                if not url:
+                    self._send_json(400, {"error": "缺少必填字段: url"})
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    skill = mgr.import_skill_from_url(url)
+                    self._send_json(201, {"ok": True, "skill": skill})
+                except Exception as exc:
+                    logger.exception("skill import failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_generate(self) -> None:
+                """POST /api/skills/generate - AI 生成技能
+
+                body: {prompt, name}
+                使用 LLM 生成 SKILL.md 内容并创建技能
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                prompt_text = req.get("prompt")
+                name = req.get("name")
+                if not prompt_text or not name:
+                    self._send_json(400, {"error": "缺少必填字段: prompt, name"})
+                    return
+                try:
+                    from deadman.llm import llm_client
+                    if not llm_client.api_key:
+                        self._send_json(503, {
+                            "error": "LLM 未配置，无法生成技能。请先设置 LLM API key。",
+                        })
+                        return
+                    # 构造生成提示词
+                    system_prompt = (
+                        "你是一个 SKILL.md 技能文件生成器。"
+                        "根据用户的描述生成一个符合 SKILL.md 格式的 Markdown 内容。"
+                        "SKILL.md 格式要求：包含 YAML frontmatter（name, description, version）"
+                        "和 Markdown body（技能指令和说明）。"
+                        "只输出 SKILL.md 的 body 部分（不包含 frontmatter），"
+                        "frontmatter 会由系统自动添加。"
+                        "输出应该清晰、结构化、可操作。"
+                    )
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt_text},
+                    ]
+                    generated_content = asyncio.run(
+                        llm_client.chat(messages, temperature=0.7)
+                    )
+                    # 创建技能
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    skill = mgr.create_skill(
+                        name=name,
+                        description=f"AI 生成: {prompt_text[:100]}",
+                        content=generated_content,
+                        version="1.0",
+                    )
+                    self._send_json(201, {"ok": True, "skill": skill})
+                except Exception as exc:
+                    logger.exception("skill generate failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_delete(self, skill_name: str) -> None:
+                """DELETE /api/skills/<name> - 删除技能"""
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    mgr.delete_skill(skill_name)
+                    self._send_json(200, {"ok": True})
+                except Exception as exc:
+                    logger.exception("skill delete failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_skill_invoke(self, skill_name: str) -> None:
+                """POST /api/skills/<name>/invoke - 测试/调用技能
+
+                body: {query}
+                返回组装后的 prompt 文本
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                query_text = req.get("query", "")
+                if not query_text:
+                    self._send_json(400, {"error": "缺少必填字段: query"})
+                    return
+                try:
+                    from deadman.marketplace.skill_manager import get_skill_manager
+                    mgr = get_skill_manager()
+                    result = mgr.invoke_skill(skill_name, query_text)
+                    self._send_json(200, {"result": result})
+                except Exception as exc:
+                    logger.exception("skill invoke failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
 
         httpd = ThreadingHTTPServer((host, port), Handler)
         logger.info("AG-UI Web Server listening on http://%s:%d", host, port)
@@ -2764,6 +3182,84 @@ class WebServer:
         from ..auth.jwt import JWTManager
         secret = settings.jwt_secret or None
         return JWTManager(secret=secret, expiry_days=settings.jwt_expiry_days)
+
+    # ==================================================================
+    # Alignment / Governance / Multimodal API handlers
+    # ==================================================================
+
+    def _handle_alignment_status(self) -> None:
+        """GET /api/alignment/status - Alignment 对齐训练状态"""
+        try:
+            from ..alignment import AlignmentDisabledError, get_alignment_manager
+            try:
+                mgr = get_alignment_manager()
+            except AlignmentDisabledError:
+                self._send_json(200, {
+                    "enabled": False,
+                    "message": "Alignment 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)",
+                })
+                return
+            stats = mgr.stats()
+            self._send_json(200, {
+                "enabled": True,
+                "stats": stats,
+            })
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
+
+    def _handle_governance_status(self) -> None:
+        """GET /api/governance/status - Governance 治理框架状态"""
+        try:
+            from ..governance import GovernanceDisabledError, get_governance_manager
+            try:
+                gm = get_governance_manager()
+            except GovernanceDisabledError:
+                self._send_json(200, {
+                    "enabled": False,
+                    "message": "Governance 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)",
+                    "redline_enforced": True,
+                })
+                return
+            self._send_json(200, {
+                "enabled": True,
+                "decision_count": gm._decision_count,
+                "ai_decision_count": gm._ai_decision_count,
+                "human_review_count": gm._human_review_count,
+                "bias_incidents": gm._bias_incidents,
+                "model_usage": gm._model_usage,
+                "user_feedback": gm._user_feedback,
+            })
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
+
+    def _handle_multimodal_status(self) -> None:
+        """GET /api/multimodal/status - Multimodal 多模态管道状态"""
+        try:
+            from ..multimodal import MultimodalDisabledError, get_multimodal_pipeline
+            try:
+                pipe = get_multimodal_pipeline()
+            except MultimodalDisabledError:
+                self._send_json(200, {
+                    "enabled": False,
+                    "message": "Multimodal 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)",
+                })
+                return
+            caps = pipe.list_capabilities()
+            cfg = pipe.config
+            audit = pipe.get_audit_log(limit=10)
+            self._send_json(200, {
+                "enabled": pipe.is_enabled(),
+                "capabilities": caps,
+                "config": {
+                    "default_provider": cfg.default_provider,
+                    "budget_token_per_session": cfg.budget_token_per_session,
+                    "audit_log_enabled": cfg.audit_log_enabled,
+                    "pii_redact_ocr": cfg.pii_redact_ocr,
+                },
+                "recent_audit": [e for e in audit],
+            })
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
 
     def _require_auth(self, headers: dict) -> dict | None:
         """从 Authorization: Bearer <token> 解析用户

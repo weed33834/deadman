@@ -25,7 +25,6 @@ import json
 import logging
 import math
 import os
-import re
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -34,6 +33,7 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from ..infrastructure.feature_flags import is_enabled
+from ..utils.text_similarity import tokenize_for_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -57,41 +57,16 @@ except Exception:  # pragma: no cover
 
 
 # =====================================================================
-# 简单分词 + hash embedding(降级后端,与 vector_store.py 对齐)
+# hash embedding(降级后端,使用共享 tokenize_for_embedding)
 # =====================================================================
 
 _HASH_EMBEDDING_DIM: int = 256
-
-_STOPWORDS = {
-    "的", "了", "是", "在", "我", "你", "他", "她", "它", "和", "与", "及",
-    "或", "也", "都", "就", "这", "那", "有", "没", "不", "要", "会", "能",
-    "a", "an", "the", "is", "are", "was", "were", "be", "and", "or", "but",
-    "in", "on", "at", "to", "for", "of", "with", "by", "from",
-}
-
-
-def _tokenize(text: str) -> list[str]:
-    """简单分词:中英文 token + 中文 2 字滑动窗口。"""
-    if not text:
-        return []
-    tokens = re.findall(r"[A-Za-z0-9]+|[\u4e00-\u9fff]+", text.lower())
-    out: list[str] = []
-    for t in tokens:
-        if len(t) < 2 or t in _STOPWORDS:
-            continue
-        out.append(t)
-        if len(t) >= 4 and re.match(r"[\u4e00-\u9fff]+", t):
-            for i in range(len(t) - 1):
-                window = t[i : i + 2]
-                if window not in _STOPWORDS:
-                    out.append(window)
-    return out
 
 
 def _hash_embedding(text: str, dim: int = _HASH_EMBEDDING_DIM) -> list[float]:
     """hash 模拟 embedding:L2 归一化,余弦相似度内积等价。"""
     vec = [0.0] * dim
-    tokens = _tokenize(text)
+    tokens = tokenize_for_embedding(text)
     if not tokens:
         tokens = [text.lower()]
     for tok in tokens:

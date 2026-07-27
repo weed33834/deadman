@@ -28,7 +28,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -36,6 +35,7 @@ from datetime import datetime
 from typing import Any
 
 from ..llm import LLMClient
+from ..utils.text_similarity import tokenize as _tokenize, jaccard_similarity as _jaccard_sim
 
 logger = logging.getLogger(__name__)
 
@@ -66,33 +66,13 @@ COMPLEX_QUERY_MIN_LENGTH: int = int(
 
 
 # =====================================================================
-# 辅助函数 - 复用 react_loop 的 Jaccard 思路（独立复制避免循环导入）
+# 辅助函数 - 使用共享 text_similarity 模块
 # =====================================================================
 
 
-def _tokenize(text: str) -> set[str]:
-    """简单分词：中文按字符，英文按词；小写化。"""
-    text = text.lower()
-    tokens: set[str] = set()
-    for m in re.findall(r"[a-z0-9]+", text):
-        if len(m) >= 2:
-            tokens.add(m)
-    for ch in text:
-        if "\u4e00" <= ch <= "\u9fff":
-            tokens.add(ch)
-    return tokens
-
-
 def _jaccard_similarity(a: str, b: str) -> float:
-    """Jaccard 相似度：|A∩B| / |A∪B|。空集返回 0。"""
-    sa, sb = _tokenize(a), _tokenize(b)
-    if not sa and not sb:
-        return 1.0
-    if not sa or not sb:
-        return 0.0
-    inter = len(sa & sb)
-    union = len(sa | sb)
-    return inter / union if union else 0.0
+    """Jaccard 相似度（代理到共享模块）。"""
+    return _jaccard_sim(_tokenize(a), _tokenize(b))
 
 
 # =====================================================================

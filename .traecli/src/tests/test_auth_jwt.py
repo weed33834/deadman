@@ -1,4 +1,4 @@
-"""测试 deadman.auth.jwt - JWT 会话管理（自实现 HS256）
+"""测试 deadman.auth.jwt - JWT 会话管理（基于 PyJWT）
 
 覆盖点（6 个）：
   - test_issue_and_verify: 签发后验证成功
@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import jwt as pyjwt
 import pytest
 
 from deadman.auth.jwt import JWTManager
@@ -65,7 +66,7 @@ class TestIssueAndVerify:
             "iat": now - 8 * 24 * 3600,
             "exp": now - 1,  # 1 秒前过期
         }
-        token = mgr._encode(expired_payload)
+        token = pyjwt.encode(expired_payload, mgr._secret, algorithm="HS256")
         assert mgr.verify(token) is None
 
     def test_verify_tampered_fails(self):
@@ -123,7 +124,7 @@ class TestRefresh:
             "iat": now - 6 * 24 * 3600,  # 6 天前签发
             "exp": now + 3600,  # 1 小时后过期（剩余 < 1 天）
         }
-        token = mgr._encode(near_expiry_payload)
+        token = pyjwt.encode(near_expiry_payload, mgr._secret, algorithm="HS256")
         new_token = mgr.refresh(token)
         assert new_token is not None
         assert new_token != token
@@ -154,7 +155,7 @@ class TestRefresh:
             "iat": now - 8 * 24 * 3600,
             "exp": now - 1,
         }
-        token = mgr._encode(expired_payload)
+        token = pyjwt.encode(expired_payload, mgr._secret, algorithm="HS256")
         assert mgr.refresh(token) is None
 
     def test_refresh_invalid_token_returns_none(self):

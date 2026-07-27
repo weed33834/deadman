@@ -20,9 +20,10 @@ import hashlib
 import logging
 import math
 import os
-import re
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+
+from ..utils.text_similarity import tokenize_for_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +36,6 @@ VECTOR_STORE_ENABLED: bool = os.environ.get(
 
 # embedding 维度(hash 模拟用)
 _HASH_EMBEDDING_DIM: int = 256
-
-# 简单中英文停用词,与 episodic._extract_keywords 对齐
-_STOPWORDS = {
-    "的", "了", "是", "在", "我", "你", "他", "她", "它", "和", "与", "及",
-    "或", "也", "都", "就", "这", "那", "有", "没", "不", "要", "会", "能",
-    "把", "被", "让", "给", "对", "向", "从", "到", "一个", "什么", "怎么",
-    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-    "i", "you", "he", "she", "it", "we", "they", "and", "or", "but", "in",
-    "on", "at", "to", "for", "of", "with", "by", "from", "as", "that", "this",
-}
 
 # =====================================================================
 # 可选依赖 - chromadb 与 sentence-transformers,缺失时降级
@@ -64,24 +55,6 @@ except Exception:  # pragma: no cover
     _HAS_ST = False
 
 
-def _tokenize(text: str) -> list[str]:
-    """简单分词:中英文 token + 中文 2 字滑动窗口"""
-    if not text:
-        return []
-    tokens = re.findall(r"[A-Za-z0-9]+|[\u4e00-\u9fff]+", text.lower())
-    out: list[str] = []
-    for t in tokens:
-        if len(t) < 2 or t in _STOPWORDS:
-            continue
-        out.append(t)
-        if len(t) >= 4 and re.match(r"[\u4e00-\u9fff]+", t):
-            for i in range(len(t) - 1):
-                window = t[i : i + 2]
-                if window not in _STOPWORDS:
-                    out.append(window)
-    return out
-
-
 def _hash_embedding(text: str, dim: int = _HASH_EMBEDDING_DIM) -> list[float]:
     """hash 模拟 embedding - 用 sha256 分桶 + L2 归一化。
 
@@ -91,7 +64,7 @@ def _hash_embedding(text: str, dim: int = _HASH_EMBEDDING_DIM) -> list[float]:
         - 输出 L2 归一化,余弦相似度内积等价
     """
     vec = [0.0] * dim
-    tokens = _tokenize(text)
+    tokens = tokenize_for_embedding(text)
     if not tokens:
         # 退化:对原文 hash 至少保证非零
         tokens = [text.lower()]

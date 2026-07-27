@@ -45,6 +45,10 @@ dependencies = [
     # 工具
     "httpx>=0.28",
     "tenacity>=9.0",
+    # JWT 会话管理（替代手写 HMAC 实现）
+    "PyJWT>=2.8",
+    # Cron 表达式解析（替代手写 5 字段解析器）
+    "croniter>=2.0",
 ]
 
 [project.optional-dependencies]

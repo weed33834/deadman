@@ -352,28 +352,34 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
                     help="投递触发方式")
     va.add_argument("--delivery-date", help="on_date 触发时的目标时间 ISO 格式")
     va.add_argument("--metadata", help="附加元数据 JSON 字符串")
+    va.set_defaults(func=cmd_vault_add)
     _COMMAND_MAP["vault-add"] = cmd_vault_add
 
     vl = subparsers.add_parser("vault-list", help="列出我的保险库条目")
     vl.add_argument("--user", required=True, help="用户 ID")
+    vl.set_defaults(func=cmd_vault_list)
     _COMMAND_MAP["vault-list"] = cmd_vault_list
 
     vg = subparsers.add_parser("vault-get", help="获取保险库条目详情")
     vg.add_argument("--user", required=True, help="用户 ID")
     vg.add_argument("--item-id", required=True, help="条目 ID")
+    vg.set_defaults(func=cmd_vault_get)
     _COMMAND_MAP["vault-get"] = cmd_vault_get
 
     vd = subparsers.add_parser("vault-delete", help="删除保险库条目")
     vd.add_argument("--user", required=True, help="用户 ID")
     vd.add_argument("--item-id", required=True, help="条目 ID")
+    vd.set_defaults(func=cmd_vault_delete)
     _COMMAND_MAP["vault-delete"] = cmd_vault_delete
 
     vb = subparsers.add_parser("vault-beneficiaries", help="列出我指定的受益人")
     vb.add_argument("--user", required=True, help="用户 ID")
+    vb.set_defaults(func=cmd_vault_beneficiaries)
     _COMMAND_MAP["vault-beneficiaries"] = cmd_vault_beneficiaries
 
     vi = subparsers.add_parser("vault-inherited", help="列出我能继承的条目")
     vi.add_argument("--user", required=True, help="用户 ID")
+    vi.set_defaults(func=cmd_vault_inherited)
     _COMMAND_MAP["vault-inherited"] = cmd_vault_inherited
 
     vt = subparsers.add_parser("vault-trigger", help="触发保险库条目投递")
@@ -384,6 +390,7 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
                     help="触发类型")
     vt.add_argument("--show-content", action="store_true",
                     help="显示解密后的内容（默认隐藏）")
+    vt.set_defaults(func=cmd_vault_trigger)
     _COMMAND_MAP["vault-trigger"] = cmd_vault_trigger
 
     # ---------- Phase 12: Document Extract ----------
@@ -394,20 +401,24 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
                     choices=["will", "trust", "insurance", "property",
                              "bank_statement", "id_card", "other"],
                     help="文档类型提示")
+    de.set_defaults(func=cmd_doc_extract)
     _COMMAND_MAP["doc-extract"] = cmd_doc_extract
 
     dl = subparsers.add_parser("doc-list", help="列出我的文档")
     dl.add_argument("--user", required=True, help="用户 ID")
+    dl.set_defaults(func=cmd_doc_list)
     _COMMAND_MAP["doc-list"] = cmd_doc_list
 
     dg = subparsers.add_parser("doc-get", help="获取文档详情")
     dg.add_argument("--user", required=True, help="用户 ID")
     dg.add_argument("--doc-id", required=True, help="文档 ID")
+    dg.set_defaults(func=cmd_doc_get)
     _COMMAND_MAP["doc-get"] = cmd_doc_get
 
     dd = subparsers.add_parser("doc-delete", help="删除文档")
     dd.add_argument("--user", required=True, help="用户 ID")
     dd.add_argument("--doc-id", required=True, help="文档 ID")
+    dd.set_defaults(func=cmd_doc_delete)
     _COMMAND_MAP["doc-delete"] = cmd_doc_delete
 
     # ---------- Phase 13: Decedent ID ----------
@@ -417,15 +428,18 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     cc.add_argument("--relationship", required=True,
                     choices=["配偶", "子女", "父母", "兄弟姐妹", "祖父母", "孙辈", "其他"],
                     help="与逝者的关系")
+    cc.set_defaults(func=cmd_case_create)
     _COMMAND_MAP["case-create"] = cmd_case_create
 
     cl = subparsers.add_parser("case-list", help="列出我的逝者案例")
     cl.add_argument("--user", required=True, help="用户 ID")
+    cl.set_defaults(func=cmd_case_list)
     _COMMAND_MAP["case-list"] = cmd_case_list
 
     cg = subparsers.add_parser("case-get", help="获取案例详情")
     cg.add_argument("--user", required=True, help="用户 ID")
     cg.add_argument("--case-id", required=True, help="案例 ID")
+    cg.set_defaults(func=cmd_case_get)
     _COMMAND_MAP["case-get"] = cmd_case_get
 
     ce = subparsers.add_parser("case-event-add", help="向案例添加时间线事件")
@@ -434,16 +448,19 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     ce.add_argument("--event", required=True, help="事件描述")
     ce.add_argument("--agent", required=True, help="触发 agent 名称")
     ce.add_argument("--notes", default="", help="备注（可选）")
+    ce.set_defaults(func=cmd_case_event_add)
     _COMMAND_MAP["case-event-add"] = cmd_case_event_add
 
     ca = subparsers.add_parser("case-archive", help="归档案例")
     ca.add_argument("--user", required=True, help="用户 ID")
     ca.add_argument("--case-id", required=True, help="案例 ID")
+    ca.set_defaults(func=cmd_case_archive)
     _COMMAND_MAP["case-archive"] = cmd_case_archive
 
     ct = subparsers.add_parser("case-timeline", help="获取案例时间线")
     ct.add_argument("--user", required=True, help="用户 ID")
     ct.add_argument("--case-id", required=True, help="案例 ID")
+    ct.set_defaults(func=cmd_case_timeline)
     _COMMAND_MAP["case-timeline"] = cmd_case_timeline
 
 

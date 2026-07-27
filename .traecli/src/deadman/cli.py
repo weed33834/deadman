@@ -3642,6 +3642,259 @@ def cmd_notify_consent(args):
     print(f"  文件:    {guard.consent_file}")
 
 
+# ====================================================================
+# alignment-status 子命令 - 显示对齐训练状态
+# ====================================================================
+def cmd_alignment_status(args):
+    """显示 Alignment 模块状态(SFT/DPO/MoE/持续学习统计)
+
+    读取 AlignmentManager.stats() 聚合各子组件统计。
+    Feature flag DEADMAN_ALIGNMENT_ENABLED=0 时提示未启用。
+    """
+    from .alignment import AlignmentDisabledError, get_alignment_manager
+
+    try:
+        mgr = get_alignment_manager()
+    except AlignmentDisabledError:
+        print("[Alignment] 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)")
+        return
+
+    stats = mgr.stats()
+    print("\n=== Alignment 对齐训练状态 ===")
+    print(f"  DPO 偏好样本数:   {stats['dpo']['preferences']}")
+    print(f"  DPO 信任分数:     {stats['dpo']['trust_snapshot']}")
+    print(f"  SFT 数据集统计:   {stats['sft']}")
+    print(f"  MoE 路由统计:     {stats['moe']}")
+    cl = stats["continuous_learning"]
+    print(f"  持续学习事件数:   {cl['events']}")
+    print(f"  Reflexion 集成:   {'是' if cl['has_reflexion'] else '否'}")
+    llm_stats = stats.get("local_llm")
+    if llm_stats:
+        print(f"  本地 LLM:         {llm_stats}")
+    else:
+        print("  本地 LLM:         未挂载")
+
+
+# ====================================================================
+# alignment-train 子命令 - 触发 SFT → DPO 训练流水线
+# ====================================================================
+def cmd_alignment_train(args):
+    """触发 Alignment 训练流水线(SFT → DPO)
+
+    调用 AlignmentManager.run_training_pipeline() 执行 mock 训练。
+    Feature flag DEADMAN_ALIGNMENT_ENABLED=0 时提示未启用。
+    """
+    from .alignment import AlignmentDisabledError, get_alignment_manager
+
+    try:
+        mgr = get_alignment_manager()
+    except AlignmentDisabledError:
+        print("[Alignment] 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)")
+        return
+
+    print("=== Alignment 训练流水线启动 ===")
+    report = mgr.run_training_pipeline()
+    print(f"  SFT 样本数:     {report.sft_samples}")
+    print(f"  DPO 样本数:     {report.dpo_samples}")
+    print(f"  SFT 跳过:       {'是' if report.sft_skipped else '否'}")
+    print(f"  DPO 跳过:       {'是' if report.dpo_skipped else '否'}")
+    print(f"  训练完成:       {'是' if report.completed else '否'}")
+    print(f"  耗时(秒):       {report.duration_seconds:.2f}")
+    if report.error:
+        print(f"  错误:           {report.error}")
+    if report.dpo_report:
+        print(f"  DPO 训练报告:   {report.dpo_report.to_dict()}")
+
+
+# ====================================================================
+# governance-status 子命令 - 显示治理框架状态
+# ====================================================================
+def cmd_governance_status(args):
+    """显示 Governance 治理框架状态(模型卡/数据卡/风险卡/透明度/红线/伦理/保险)
+
+    读取 GovernanceManager 各子模块的注册情况。
+    Feature flag DEADMAN_GOVERNANCE_ENABLED=0 时提示未启用(红线仍 enforce)。
+    """
+    from .governance import GovernanceDisabledError, get_governance_manager
+
+    try:
+        gm = get_governance_manager()
+    except GovernanceDisabledError:
+        print("[Governance] 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)")
+        print("  注意: AI 红线仍 enforce (底线保护)")
+        return
+
+    print("\n=== Governance 治理框架状态 ===")
+    # 模型卡
+    mc = gm.model_cards
+    print(f"  模型卡注册数:   {len(mc.list_all()) if hasattr(mc, 'list_all') else 'N/A'}")
+    # 数据卡
+    dc = gm.data_cards
+    print(f"  数据卡注册数:   {len(dc.list_all()) if hasattr(dc, 'list_all') else 'N/A'}")
+    # 风险卡
+    ra = gm.risk_assessment
+    print(f"  风险卡注册数:   {len(ra.list_all()) if hasattr(ra, 'list_all') else 'N/A'}")
+    # 决策统计
+    print(f"  总决策数:       {gm._decision_count}")
+    print(f"  AI 决策数:      {gm._ai_decision_count}")
+    print(f"  人工审核数:     {gm._human_review_count}")
+    print(f"  偏见事件数:     {gm._bias_incidents}")
+    # 复议
+    appeals = gm.appeals
+    print(f"  复议待处理:     {len(appeals.list_pending()) if hasattr(appeals, 'list_pending') else 'N/A'}")
+    # 伦理委员会
+    ethics = gm.ethics
+    print(f"  伦理案例数:     {len(ethics.list_cases()) if hasattr(ethics, 'list_cases') else 'N/A'}")
+
+
+# ====================================================================
+# governance-check 子命令 - 运行合规检查
+# ====================================================================
+def cmd_governance_check(args):
+    """运行 Governance 合规检查(红线 + 保险覆盖)
+
+    调用 GovernanceManager.before_action() 对指定动作做合规预检。
+    用法:
+        deadman governance-check --action "代签遗嘱"
+        deadman governance-check --action "生成悼文" --incident-type ai_decision
+    """
+    from .governance import get_governance_manager
+
+    gm = get_governance_manager()
+    action = args.action
+    incident_type = getattr(args, "incident_type", None)
+    amount = float(getattr(args, "amount", 0) or 0)
+
+    print(f"=== Governance 合规检查 ===")
+    print(f"  动作:       {action}")
+    print(f"  保险类型:   {incident_type or '(未指定)'}")
+    print(f"  涉及金额:   {amount}")
+
+    decision = gm.before_action(
+        action=action,
+        context={"role": "cli-user"},
+        incident_type=incident_type,
+        amount=amount,
+    )
+
+    print(f"\n  检查结果:")
+    print(f"    允许:       {'是' if decision.allowed else '否'}")
+    print(f"    原因:       {decision.reason}")
+    print(f"    保险覆盖:   {'是' if decision.insurance_covered else '否'}")
+    if decision.redline_result:
+        print(f"    红线允许:   {'是' if decision.redline_result.allowed else '否'}")
+        if decision.redline_result.reason:
+            print(f"    红线原因:   {decision.redline_result.reason}")
+
+
+# ====================================================================
+# multimodal-status 子命令 - 显示多模态管道状态
+# ====================================================================
+def cmd_multimodal_status(args):
+    """显示 Multimodal 多模态管道状态(各能力开关/审计日志/budget)
+
+    读取 MultimodalPipeline 配置和审计日志。
+    Feature flag DEADMAN_MULTIMODAL_ENABLED=0 时提示未启用。
+    """
+    from .multimodal import MultimodalDisabledError, get_multimodal_pipeline
+
+    try:
+        pipe = get_multimodal_pipeline()
+    except MultimodalDisabledError:
+        print("[Multimodal] 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)")
+        return
+
+    enabled = pipe.is_enabled()
+    print("\n=== Multimodal 多模态管道状态 ===")
+    print(f"  总开关:       {'启用' if enabled else '未启用'}")
+
+    # 各能力状态
+    caps = pipe.list_capabilities()
+    all_caps = ["ocr", "asr", "tts", "vision", "image_gen"]
+    print(f"\n  能力列表:")
+    for cap in all_caps:
+        status = "启用" if cap in caps else "禁用"
+        print(f"    {cap:<12} {status}")
+
+    # Pipeline 配置
+    cfg = pipe.config
+    print(f"\n  配置:")
+    print(f"    默认 provider:     {cfg.default_provider or '(自动)'}")
+    print(f"    Budget/会话:       {cfg.budget_token_per_session}")
+    print(f"    Audit 日志:        {'启用' if cfg.audit_log_enabled else '禁用'}")
+    print(f"    OCR PII 脱敏:     {'启用' if cfg.pii_redact_ocr else '禁用'}")
+
+    # 最近审计日志
+    audit = pipe.get_audit_log(limit=5)
+    if audit:
+        print(f"\n  最近审计记录 ({len(audit)} 条):")
+        for entry in audit:
+            print(f"    [{entry.get('capability')}] provider={entry.get('provider')} "
+                  f"success={entry.get('success')} duration={entry.get('duration_ms', 0):.0f}ms")
+    else:
+        print(f"\n  审计记录: (无)")
+
+
+# ====================================================================
+# multimodal-test 子命令 - 测试多模态管道
+# ====================================================================
+def cmd_multimodal_test(args):
+    """测试 Multimodal 多模态管道各能力(TTS 合成 + 能力列表)
+
+    对 TTS 做一次 mock 合成测试,验证管道链路通畅。
+    Feature flag DEADMAN_MULTIMODAL_ENABLED=0 时提示未启用。
+    """
+    from .multimodal import MultimodalDisabledError, get_multimodal_pipeline
+
+    try:
+        pipe = get_multimodal_pipeline()
+    except MultimodalDisabledError:
+        print("[Multimodal] 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)")
+        return
+
+    if not pipe.is_enabled():
+        print("[Multimodal] 管道总开关未启用")
+        return
+
+    results = []
+    print("=== Multimodal 多模态管道测试 ===")
+
+    # 1. 能力列表测试
+    caps = pipe.list_capabilities()
+    results.append({"test": "list_capabilities", "status": "ok", "detail": f"可用能力: {caps}"})
+    print(f"  [能力列表] 可用: {caps}")
+
+    # 2. TTS 合成测试(mock)
+    try:
+        tts_result = pipe.tts_synthesize(
+            text="测试语音合成：愿逝者安息。",
+            user_id="cli-test",
+        )
+        results.append({
+            "test": "tts_synthesize",
+            "status": "ok",
+            "detail": f"provider={tts_result.provider} bytes={len(tts_result.audio_bytes)}",
+        })
+        print(f"  [TTS 合成] OK - provider={tts_result.provider} "
+              f"bytes={len(tts_result.audio_bytes)}")
+    except Exception as e:
+        results.append({"test": "tts_synthesize", "status": "fail", "detail": str(e)})
+        print(f"  [TTS 合成] FAIL - {e}")
+
+    # 3. 审计日志验证
+    audit = pipe.get_audit_log(limit=3)
+    results.append({
+        "test": "audit_log",
+        "status": "ok" if audit else "empty",
+        "detail": f"最近 {len(audit)} 条记录",
+    })
+    print(f"  [审计日志] {len(audit)} 条记录")
+
+    # 汇总
+    ok_count = sum(1 for r in results if r["status"] == "ok")
+    print(f"\n  测试汇总: {ok_count}/{len(results)} 通过")
+
+
 def main():
     """CLI 主入口"""
     parser = argparse.ArgumentParser(
@@ -4030,6 +4283,42 @@ def main():
         "--scope", required=True, help="同意范围（如 reminder:2026-07-22T09:00:00）"
     )
 
+    # ====================================================================
+    # alignment / governance / multimodal 子命令注册
+    # ====================================================================
+    # alignment-status 子命令 - 显示对齐训练状态
+    subparsers.add_parser(
+        "alignment-status", help="显示 Alignment 对齐训练状态(SFT/DPO/MoE/持续学习)"
+    )
+
+    # alignment-train 子命令 - 触发训练流水线
+    subparsers.add_parser(
+        "alignment-train", help="触发 Alignment SFT → DPO 训练流水线(mock)"
+    )
+
+    # governance-status 子命令 - 显示治理框架状态
+    subparsers.add_parser(
+        "governance-status", help="显示 Governance 治理框架状态(模型卡/风险卡/红线/伦理)"
+    )
+
+    # governance-check 子命令 - 运行合规检查
+    gov_check_parser = subparsers.add_parser(
+        "governance-check", help="运行 Governance 合规检查(红线 + 保险覆盖)"
+    )
+    gov_check_parser.add_argument("--action", required=True, help="待检查的动作描述")
+    gov_check_parser.add_argument("--incident-type", default=None, help="保险覆盖类型")
+    gov_check_parser.add_argument("--amount", type=float, default=0, help="涉及金额")
+
+    # multimodal-status 子命令 - 显示多模态管道状态
+    subparsers.add_parser(
+        "multimodal-status", help="显示 Multimodal 多模态管道状态(能力/审计/budget)"
+    )
+
+    # multimodal-test 子命令 - 测试多模态管道
+    subparsers.add_parser(
+        "multimodal-test", help="测试 Multimodal 多模态管道(TTS 合成 + 能力验证)"
+    )
+
     # === Phase 7+ 扩展模块子命令注册（自动加载）===
     # 各 Phase 通过 _cli_extensions/phaseN.py 提供 register_subparsers(subparsers)
     # 用 set_defaults(func=cmd_xxx) 设置分发函数
@@ -4173,6 +4462,18 @@ def main():
         cmd_notify_test(args)
     elif args.command == "notify-consent":
         cmd_notify_consent(args)
+    elif args.command == "alignment-status":
+        cmd_alignment_status(args)
+    elif args.command == "alignment-train":
+        cmd_alignment_train(args)
+    elif args.command == "governance-status":
+        cmd_governance_status(args)
+    elif args.command == "governance-check":
+        cmd_governance_check(args)
+    elif args.command == "multimodal-status":
+        cmd_multimodal_status(args)
+    elif args.command == "multimodal-test":
+        cmd_multimodal_test(args)
     elif hasattr(args, "func") and callable(args.func):
         # Phase 7+ 扩展模块用 set_defaults(func=...) 自动分发
         args.func(args)

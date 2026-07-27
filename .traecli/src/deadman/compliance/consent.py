@@ -394,6 +394,7 @@ class ConsentManager:
                     self.consent_versions[ConsentType(ctype_str)] = version
         except Exception as e:
             logger.warning("Load consents failed: %s", e)
+            return
         self._loaded = True
 
     def _save(self) -> None:

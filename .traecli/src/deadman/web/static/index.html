@@ -732,6 +732,90 @@
   .trace-table { font-size: 12px; }
   .trace-table tbody tr:hover { background: var(--paper-warm); }
   .trace-table td { font-size: 11.5px; padding: 7px 10px; }
+
+  /* ===== 导航分组标签 ===== */
+  .nav-group-label {
+    padding: 16px 24px 4px; font-size: 10px; letter-spacing: 1.5px;
+    color: #5a5a5a; text-transform: uppercase; user-select: none;
+  }
+  /* ===== 通用页面工具栏 ===== */
+  .page-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; gap: 10px; flex-wrap: wrap;
+  }
+  .page-toolbar .btn-primary {
+    padding: 8px 18px; background: var(--accent); color: var(--paper-warm);
+    border: none; border-radius: 3px; font-size: 12px; cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .page-toolbar .btn-primary:hover { background: var(--accent-deep); }
+  .page-toolbar .btn-secondary {
+    padding: 8px 18px; background: var(--paper-warm); color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: 3px; font-size: 12px;
+    cursor: pointer; letter-spacing: 0.5px;
+  }
+  .page-toolbar .btn-secondary:hover { background: var(--line-soft); }
+  .btn-danger-sm {
+    padding: 3px 10px; background: transparent; color: var(--err);
+    border: 1px solid var(--err); border-radius: 2px; font-size: 11px;
+    cursor: pointer; letter-spacing: 0;
+  }
+  .btn-danger-sm:hover { background: var(--err-bg); }
+  .btn-sm {
+    padding: 3px 10px; background: var(--paper-warm); color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: 2px; font-size: 11px;
+    cursor: pointer;
+  }
+  .btn-sm:hover { background: var(--accent); color: var(--paper-warm); border-color: var(--accent); }
+  /* ===== 通用表单 modal（大尺寸） ===== */
+  .modal-lg { width: 560px; }
+  .modal-field textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 3px; background: #fff; font-size: 13px;
+    font-family: inherit; color: var(--ink); outline: none; resize: vertical;
+    min-height: 60px;
+  }
+  .modal-field textarea:focus { border-color: var(--accent-soft); }
+  .modal-field select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 3px; background: #fff; font-size: 13px;
+    font-family: inherit; color: var(--ink); outline: none;
+  }
+  .loading-hint { text-align: center; padding: 30px; color: var(--ink-muted); font-size: 13px; }
+  .error-hint { text-align: center; padding: 20px; color: var(--err); font-size: 13px; }
+  /* ===== 卡片列表（替代表格的展示） ===== */
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+  .card-item {
+    background: #fff; border: 1px solid var(--line-soft); padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; transition: border-color 0.15s;
+  }
+  .card-item:hover { border-color: var(--accent-soft); }
+  .card-item-body { flex: 1; min-width: 0; }
+  .card-item-title {
+    font-family: "Songti SC", "STSong", serif; font-size: 14px;
+    font-weight: 500; color: var(--ink); margin-bottom: 4px;
+  }
+  .card-item-desc { font-size: 12px; color: var(--ink-muted); line-height: 1.5; }
+  .card-item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: flex-start; }
+  /* ===== 状态/标签扩展 ===== */
+  .tag.info { background: #eef0f5; color: #4a5568; }
+  .tag.neutral { background: var(--paper-warm); color: var(--ink-soft); }
+  /* ===== 详情面板 ===== */
+  .detail-panel {
+    background: #fff; border: 1px solid var(--line-soft); padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .detail-row { display: flex; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+  .detail-label { color: var(--ink-muted); min-width: 80px; flex-shrink: 0; }
+  .detail-value { color: var(--ink); word-break: break-word; }
+  /* ===== 评分/进度条 ===== */
+  .score-bar-track {
+    height: 8px; background: var(--line-soft); border-radius: 4px; overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%; border-radius: 4px; transition: width 0.3s ease;
+  }
 </style>
 </head>
 <body>
@@ -743,6 +827,20 @@
   <div class="nav-list">
     <div class="nav-item active" data-page="chat" onclick="switchPage('chat')">对话</div>
     <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">运维看板</div>
+    <div class="nav-group-label">业务功能</div>
+    <div class="nav-item" data-page="ending-note" onclick="switchPage('ending-note')">终活笔记</div>
+    <div class="nav-item" data-page="vault" onclick="switchPage('vault')">保险库</div>
+    <div class="nav-item" data-page="documents" onclick="switchPage('documents')">文档管理</div>
+    <div class="nav-item" data-page="cases" onclick="switchPage('cases')">遗码通</div>
+    <div class="nav-item" data-page="switch" onclick="switchPage('switch')">Dead Man Switch</div>
+    <div class="nav-item" data-page="letters" onclick="switchPage('letters')">通知信函</div>
+    <div class="nav-item" data-page="memorial" onclick="switchPage('memorial')">悼文撰写</div>
+    <div class="nav-item" data-page="plan-score" onclick="switchPage('plan-score')">规划评分</div>
+    <div class="nav-group-label">服务</div>
+    <div class="nav-item" data-page="support" onclick="switchPage('support')">客服工单</div>
+    <div class="nav-item" data-page="hotlines" onclick="switchPage('hotlines')">热线/机构</div>
+    <div class="nav-group-label">运维</div>
+    <div class="nav-item" data-page="skills" onclick="switchPage('skills')">技能管理</div>
     <div class="nav-item" data-page="test" onclick="switchPage('test')">测试中心</div>
     <div class="nav-item" data-page="resources" onclick="switchPage('resources')">资源列表</div>
     <div class="nav-item" onclick="openOnboardingWizard()">重新引导</div>
@@ -881,6 +979,215 @@
       </div>
     </div>
 
+    <!-- 终活笔记 -->
+    <div id="page-ending-note" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">终活笔记</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" onclick="loadEndingNoteGuide()">下一步引导</button>
+            <button class="btn-secondary" onclick="loadEndingNoteShared()">他人分享</button>
+            <button class="btn-primary" onclick="openEndingNoteForm()">新建章节</button>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="section-desc">记录与规划身后事务的笔记系统</div>
+          <div id="endingNoteList" class="card-list"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section" id="endingNoteCompletion" style="display:none">
+          <div class="section-title">完成度</div>
+          <div id="endingNoteCompletionBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保险库 -->
+    <div id="page-vault" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">保险库</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" onclick="loadVaultBeneficiaries()">受益人</button>
+            <button class="btn-secondary" onclick="loadVaultInherited()">已继承</button>
+            <button class="btn-primary" onclick="openVaultForm()">新建条目</button>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="section-desc">安全存储重要资产与保险信息</div>
+          <div id="vaultList" class="card-list"><div class="loading-hint">加载中…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文档管理 -->
+    <div id="page-documents" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">文档管理</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-primary" onclick="openDocumentExtractForm()">提取文档</button>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="section-desc">上传与管理身后事相关文档</div>
+          <div id="documentList" class="card-list"><div class="loading-hint">加载中…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 遗码通 -->
+    <div id="page-cases" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">遗码通</div>
+          <button class="btn-primary" onclick="openCaseForm()">新建案件</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-desc">案件跟踪与事件时间线管理</div>
+          <div id="caseList" class="card-list"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div id="caseDetailPanel" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Dead Man Switch -->
+    <div id="page-switch" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">Dead Man Switch</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" onclick="loadSwitchStatus()">刷新状态</button>
+            <button class="btn-primary" onclick="switchCheckin()">签到</button>
+            <button class="btn-secondary" onclick="openVerifyContactModal()">验证联系人</button>
+            <button class="btn-danger-sm" style="padding:8px 18px;font-size:12px" onclick="switchCancel()">取消 Switch</button>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">状态</div>
+          <div id="switchStatusBody"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">初始化</div>
+          <div class="section-desc">配置 Dead Man Switch 参数</div>
+          <div class="modal-field"><label>联系人邮箱</label><input id="switchContactEmail" type="email" placeholder="heir@example.com"></div>
+          <div class="modal-field"><label>继承人邮箱</label><input id="switchHeirEmail" type="email" placeholder="contact@example.com"></div>
+          <div class="modal-field"><label>超时天数</label><input id="switchTimeoutDays" type="number" value="30" min="1"></div>
+          <button class="btn-primary" onclick="switchInit()">初始化 Switch</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">可执行动作</div>
+          <div id="switchActionsBody"><div class="loading-hint">加载中…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通知信函 -->
+    <div id="page-letters" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">通知信函</div>
+          <button class="btn-primary" onclick="openLetterGenerateForm()">生成信函</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">信函类型</div>
+          <div id="letterTypesBody"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">模板预览</div>
+          <div class="modal-field"><label>选择类型</label><select id="letterTemplateType" onchange="loadLetterTemplate()"><option value="">-- 请选择 --</option></select></div>
+          <div id="letterTemplateBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 悼文撰写 -->
+    <div id="page-memorial" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">悼文撰写</div>
+          <button class="btn-primary" onclick="openMemorialGenerateForm()">生成悼文</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">悼文类型</div>
+          <div id="memorialTypesBody"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section" id="memorialResultPanel" style="display:none">
+          <div class="section-title">生成结果</div>
+          <div id="memorialResultBody" style="white-space:pre-wrap;line-height:1.8;font-size:14px;color:var(--ink)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 规划评分 -->
+    <div id="page-plan-score" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">规划评分</div>
+          <button class="btn-secondary" onclick="loadPlanScore()">刷新</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">总体评分</div>
+          <div id="planScoreSummary"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">详细评分</div>
+          <div id="planScoreDetail"><div class="loading-hint">加载中…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 客服工单 -->
+    <div id="page-support" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">客服工单</div>
+          <button class="btn-primary" onclick="openSupportTicketForm()">新建工单</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-desc">提交与跟踪客服工单</div>
+          <div id="supportTicketList" class="card-list"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div id="supportTicketDetail" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- 热线/机构 -->
+    <div id="page-hotlines" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">热线/机构</div>
+          <button class="btn-secondary" onclick="loadHotlines()">刷新</button>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">热线号码</div>
+          <div id="hotlineList"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">相关机构</div>
+          <div id="institutionList"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div id="institutionDetail" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="page-skills" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <div class="section-title">技能管理</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-primary" onclick="openSkillCreateModal()">新建技能</button>
+            <button class="btn-secondary" onclick="openSkillImportModal()">导入</button>
+            <button class="btn-secondary" onclick="openSkillGenerateModal()">AI 生成</button>
+            <button class="btn-secondary" onclick="loadSkills()">刷新</button>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div id="skillList"><div class="loading-hint">加载中…</div></div>
+        </div>
+        <div id="skillDetail" style="display:none"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -956,14 +1263,33 @@ const TEST_GROUPS = [
 
 function switchPage(page) {
   document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
-  document.getElementById("page-" + page).classList.remove("hidden");
+  const pageEl = document.getElementById("page-" + page);
+  if (pageEl) pageEl.classList.remove("hidden");
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add("active");
-  const titles = { chat: "对话", dashboard: "运维看板", test: "测试中心", resources: "资源列表" };
+  const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (navEl) navEl.classList.add("active");
+  const titles = {
+    chat: "对话", dashboard: "运维看板", test: "测试中心", resources: "资源列表",
+    "ending-note": "终活笔记", vault: "保险库", documents: "文档管理",
+    cases: "遗码通", switch: "Dead Man Switch", letters: "通知信函",
+    memorial: "悼文撰写", "plan-score": "规划评分", support: "客服工单",
+    hotlines: "热线/机构", skills: "技能管理",
+  };
   document.getElementById("pageTitle").textContent = titles[page] || page;
   if (page === "dashboard") loadDashboard();
   if (page === "test") renderTestGrid();
   if (page === "resources") loadResources();
+  if (page === "ending-note") loadEndingNote();
+  if (page === "vault") loadVaultItems();
+  if (page === "documents") loadDocuments();
+  if (page === "cases") loadCases();
+  if (page === "switch") { loadSwitchStatus(); loadSwitchActions(); }
+  if (page === "letters") { loadLetterTypes(); }
+  if (page === "memorial") { loadMemorialTypes(); }
+  if (page === "plan-score") loadPlanScore();
+  if (page === "support") loadSupportTickets();
+  if (page === "hotlines") loadHotlines();
+  if (page === "skills") loadSkills();
 }
 
 const input = document.getElementById("input");
@@ -1050,11 +1376,23 @@ function applyTelLinks(bubble) {
   bubble.innerHTML = renderBotContent(text);
 }
 
-// === 免责声明横幅（可关闭，写入 localStorage）===
+// === 免责声明横幅（可关闭，写入 localStorage；内容从 /api/disclaimer 动态加载）===
 function initDisclaimerBanner() {
+  const banner = document.getElementById("disclaimerBanner");
   if (localStorage.getItem("deadman_disclaimer_dismissed") === "1") {
-    document.getElementById("disclaimerBanner").classList.add("hidden");
+    banner.classList.add("hidden");
+    return;
   }
+  // 动态加载免责声明内容
+  fetch("/api/disclaimer")
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data && data.text) {
+        const textEl = banner.querySelector(".disclaimer-text");
+        if (textEl) textEl.textContent = data.text;
+      }
+    })
+    .catch(() => { /* 网络失败时保留硬编码默认文案 */ });
 }
 function dismissBanner() {
   document.getElementById("disclaimerBanner").classList.add("hidden");
@@ -1525,14 +1863,53 @@ async function loadResources() {
 
 // ===== Phase 8: 用户认证（登录/注册/JWT 会话）=====
 const TOKEN_KEY = "deadman_token";
+const TOKEN_EXPIRY_KEY = "deadman_token_expires_at";
 let currentUser = null;
+let _tokenRefreshTimer = null;
 
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
 function setToken(t) { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
+function getTokenExpiry() { return localStorage.getItem(TOKEN_EXPIRY_KEY) || ""; }
+function setTokenExpiry(exp) { if (exp) localStorage.setItem(TOKEN_EXPIRY_KEY, exp); else localStorage.removeItem(TOKEN_EXPIRY_KEY); }
 
 function authHeaders() {
   const t = getToken();
   return t ? { "Authorization": "Bearer " + t } : {};
+}
+
+// Token 刷新：在过期前 10 分钟自动刷新
+function scheduleTokenRefresh() {
+  if (_tokenRefreshTimer) { clearTimeout(_tokenRefreshTimer); _tokenRefreshTimer = null; }
+  const expStr = getTokenExpiry();
+  if (!expStr || !getToken()) return;
+  const expTime = new Date(expStr).getTime();
+  if (isNaN(expTime)) return;
+  const now = Date.now();
+  const refreshAt = expTime - 10 * 60 * 1000; // 过期前 10 分钟
+  const delay = Math.max(refreshAt - now, 5000); // 至少 5 秒后检查
+  _tokenRefreshTimer = setTimeout(tryRefreshToken, delay);
+}
+
+async function tryRefreshToken() {
+  if (!getToken()) return;
+  try {
+    const r = await fetch("/api/auth/refresh", { headers: authHeaders() });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.token) {
+        setToken(data.token);
+        if (data.expires_at) setTokenExpiry(data.expires_at);
+        scheduleTokenRefresh();
+        return;
+      }
+    }
+  } catch (e) { /* 网络异常，静默忽略 */ }
+  // 刷新失败（401 等）→ 清除 token 并跳转登录
+  setToken(null);
+  setTokenExpiry(null);
+  currentUser = null;
+  renderAuthArea();
+  openAuthModal("login");
 }
 
 function renderAuthArea() {
@@ -1636,7 +2013,9 @@ async function submitAuth(e) {
       return;
     }
     setToken(data.token);
+    if (data.expires_at) setTokenExpiry(data.expires_at);
     await fetchCurrentUser();
+    scheduleTokenRefresh();
     closeAuthModal();
   } catch (err) {
     showAuthError("网络错误：" + err.message);
@@ -1669,17 +2048,36 @@ async function fetchCurrentUser() {
 
 function logout() {
   setToken(null);
+  setTokenExpiry(null);
+  if (_tokenRefreshTimer) { clearTimeout(_tokenRefreshTimer); _tokenRefreshTimer = null; }
   currentUser = null;
   renderAuthArea();
 }
 
-// 401 拦截：发送 chat 时若 401，清 token 并跳回登录
+// 401 拦截：先尝试刷新 token，失败再清 token 并跳回登录
 async function authedFetch(url, options) {
   options = options || {};
   options.headers = { ...(options.headers || {}), ...authHeaders() };
-  const r = await fetch(url, options);
+  let r = await fetch(url, options);
   if (r.status === 401) {
+    // 尝试刷新 token
+    try {
+      const refreshR = await fetch("/api/auth/refresh", { headers: authHeaders() });
+      if (refreshR.ok) {
+        const data = await refreshR.json();
+        if (data.token) {
+          setToken(data.token);
+          if (data.expires_at) setTokenExpiry(data.expires_at);
+          scheduleTokenRefresh();
+          // 用新 token 重试原请求
+          options.headers = { ...(options.headers || {}), ...authHeaders() };
+          r = await fetch(url, options);
+          if (r.status !== 401) return r;
+        }
+      }
+    } catch (e) { /* 刷新失败，继续走下方登出逻辑 */ }
     setToken(null);
+    setTokenExpiry(null);
     currentUser = null;
     renderAuthArea();
     openAuthModal("login");
@@ -1909,8 +2307,1278 @@ async function submitOnboarding() {
   }
 }
 
+// ============================================================
+// 通用 modal 辅助
+// ============================================================
+function openModal(id) { const m = document.getElementById(id); if (m) m.classList.remove("hidden"); }
+function closeModal(id) { const m = document.getElementById(id); if (m) m.classList.add("hidden"); }
+function showGenericModal(title, bodyHTML) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `<div class="modal modal-lg"><div class="modal-title">${escapeHtml(title)}</div>${bodyHTML}</div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+// ============================================================
+// 1. 终活笔记 (ending-note)
+// ============================================================
+async function loadEndingNote() {
+  const container = document.getElementById("endingNoteList");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/ending-note", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const notes = data.notes || data || [];
+    if (!Array.isArray(notes) || notes.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无笔记，点击「新建章节」开始</div>';
+      return;
+    }
+    container.innerHTML = "";
+    notes.forEach(n => {
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <div class="card-item-body">
+          <div class="card-item-title">${escapeHtml(n.title || n.section || '未命名')}</div>
+          <div class="card-item-desc">${escapeHtml((n.content || n.summary || '').substring(0, 120))}</div>
+        </div>
+        <div class="card-item-actions">
+          <button class="btn-sm" onclick='openEndingNoteShare(${JSON.stringify(n.id || n._id)})'>分享</button>
+          <button class="btn-danger-sm" onclick='deleteEndingNote(${JSON.stringify(n.id || n._id)})'>删除</button>
+        </div>`;
+      container.appendChild(card);
+    });
+    // 加载完成度
+    loadEndingNoteCompletion();
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function loadEndingNoteCompletion() {
+  try {
+    const r = await fetch("/api/ending-note/completion", { headers: authHeaders() });
+    if (!r.ok) return;
+    const data = await r.json();
+    const panel = document.getElementById("endingNoteCompletion");
+    const body = document.getElementById("endingNoteCompletionBody");
+    panel.style.display = "block";
+    const pct = data.completion_pct || data.percentage || 0;
+    body.innerHTML = `
+      <div style="margin-bottom:8px;font-size:22px;font-family:'Songti SC',serif;color:var(--accent-deep)">${pct}%</div>
+      <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:var(--accent)"></div></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--ink-muted)">${escapeHtml(data.summary || data.message || '')}</div>`;
+  } catch (e) {}
+}
+
+async function loadEndingNoteGuide() {
+  try {
+    const r = await fetch("/api/ending-note/guide/next", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    showGenericModal("下一步引导", `
+      <div style="padding:12px 0;font-size:14px;line-height:1.8;white-space:pre-wrap">${escapeHtml(data.guide || data.suggestion || JSON.stringify(data))}</div>
+      <button class="modal-submit" onclick="this.closest('.modal-overlay').remove()">关闭</button>`);
+  } catch (e) {
+    showGenericModal("提示", `<div class="error-hint">加载失败：${escapeHtml(e.message)}</div>`);
+  }
+}
+
+async function loadEndingNoteShared() {
+  try {
+    const r = await fetch("/api/ending-note/shared-with-me", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const items = data.notes || data || [];
+    let body = '<div style="padding:12px 0">';
+    if (!Array.isArray(items) || items.length === 0) {
+      body += '<div class="empty-hint">暂无他人分享的笔记</div>';
+    } else {
+      items.forEach(n => {
+        body += `<div class="card-item" style="margin-bottom:8px">
+          <div class="card-item-body">
+            <div class="card-item-title">${escapeHtml(n.title || n.section || '未命名')}</div>
+            <div class="card-item-desc">${escapeHtml((n.content || '').substring(0, 100))}</div>
+          </div></div>`;
+      });
+    }
+    body += '</div><button class="modal-submit" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("他人分享", body);
+  } catch (e) {
+    showGenericModal("提示", `<div class="error-hint">加载失败：${escapeHtml(e.message)}</div>`);
+  }
+}
+
+function openEndingNoteForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">新建笔记章节</div>
+      <form onsubmit="saveEndingNote(event)">
+        <div class="modal-field"><label>标题</label><input id="enTitle" required></div>
+        <div class="modal-field"><label>内容</label><textarea id="enContent" rows="6"></textarea></div>
+        <button type="submit" class="modal-submit">保存</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveEndingNote(e) {
+  e.preventDefault();
+  const title = document.getElementById("enTitle").value.trim();
+  const content = document.getElementById("enContent").value.trim();
+  try {
+    const r = await fetch("/api/ending-note/section", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ title, content })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    document.querySelector(".modal-overlay").remove();
+    loadEndingNote();
+  } catch (e) {
+    alert("保存失败：" + e.message);
+  }
+}
+
+async function deleteEndingNote(id) {
+  if (!confirm("确认删除此笔记？")) return;
+  try {
+    await fetch("/api/ending-note/section", {
+      method: "DELETE", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ section_id: id })
+    });
+    loadEndingNote();
+  } catch (e) { alert("删除失败：" + e.message); }
+}
+
+function openEndingNoteShare(id) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">分享笔记</div>
+      <form onsubmit="saveEndingNoteShare(event, '${id}')">
+        <div class="modal-field"><label>分享对象邮箱</label><input id="enShareEmail" type="email" required></div>
+        <button type="submit" class="modal-submit">分享</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveEndingNoteShare(e, id) {
+  e.preventDefault();
+  const email = document.getElementById("enShareEmail").value.trim();
+  try {
+    await fetch("/api/ending-note/share", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ section_id: id, email })
+    });
+    document.querySelector(".modal-overlay").remove();
+    alert("分享成功");
+  } catch (e) { alert("分享失败：" + e.message); }
+}
+
+// ============================================================
+// 2. 保险库 (vault)
+// ============================================================
+async function loadVaultItems() {
+  const container = document.getElementById("vaultList");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/vault/items", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const items = data.items || data || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无条目，点击「新建条目」开始</div>';
+      return;
+    }
+    container.innerHTML = "";
+    items.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <div class="card-item-body">
+          <div class="card-item-title">${escapeHtml(item.title || item.name || '未命名')}</div>
+          <div class="card-item-desc">${escapeHtml((item.description || item.type || '').substring(0, 120))}</div>
+        </div>
+        <div class="card-item-actions">
+          <button class="btn-sm" onclick='triggerVaultItem(${JSON.stringify(item.id)})'>触发</button>
+          <button class="btn-danger-sm" onclick='deleteVaultItem(${JSON.stringify(item.id)})'>删除</button>
+        </div>`;
+      container.appendChild(card);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openVaultForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">新建保险库条目</div>
+      <form onsubmit="saveVaultItem(event)">
+        <div class="modal-field"><label>标题</label><input id="vaultTitle" required></div>
+        <div class="modal-field"><label>类型</label><select id="vaultType">
+          <option value="asset">资产</option><option value="insurance">保险</option>
+          <option value="document">文档</option><option value="other">其他</option>
+        </select></div>
+        <div class="modal-field"><label>描述</label><textarea id="vaultDesc" rows="4"></textarea></div>
+        <button type="submit" class="modal-submit">保存</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveVaultItem(e) {
+  e.preventDefault();
+  const title = document.getElementById("vaultTitle").value.trim();
+  const type = document.getElementById("vaultType").value;
+  const description = document.getElementById("vaultDesc").value.trim();
+  try {
+    const r = await fetch("/api/vault/items", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ title, type, description })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    document.querySelector(".modal-overlay").remove();
+    loadVaultItems();
+  } catch (e) { alert("保存失败：" + e.message); }
+}
+
+async function deleteVaultItem(id) {
+  if (!confirm("确认删除此条目？")) return;
+  try {
+    await fetch("/api/vault/items/" + id, { method: "DELETE", headers: authHeaders() });
+    loadVaultItems();
+  } catch (e) { alert("删除失败：" + e.message); }
+}
+
+async function triggerVaultItem(id) {
+  try {
+    await fetch("/api/vault/items/" + id + "/trigger", { method: "POST", headers: authHeaders() });
+    alert("已触发");
+  } catch (e) { alert("触发失败：" + e.message); }
+}
+
+async function loadVaultBeneficiaries() {
+  try {
+    const r = await fetch("/api/vault/beneficiaries", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const list = data.beneficiaries || data || [];
+    let body = '<div style="padding:12px 0">';
+    if (!Array.isArray(list) || list.length === 0) body += '<div class="empty-hint">暂无受益人</div>';
+    else list.forEach(b => { body += `<div class="detail-row"><span class="detail-label">${escapeHtml(b.name || b.email || '')}</span><span class="detail-value">${escapeHtml(b.relationship || b.role || '')}</span></div>`; });
+    body += '</div><button class="modal-submit" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("受益人列表", body);
+  } catch (e) { showGenericModal("提示", `<div class="error-hint">加载失败：${escapeHtml(e.message)}</div>`); }
+}
+
+async function loadVaultInherited() {
+  try {
+    const r = await fetch("/api/vault/inherited", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const list = data.items || data || [];
+    let body = '<div style="padding:12px 0">';
+    if (!Array.isArray(list) || list.length === 0) body += '<div class="empty-hint">暂无已继承条目</div>';
+    else list.forEach(item => { body += `<div class="card-item" style="margin-bottom:8px"><div class="card-item-body"><div class="card-item-title">${escapeHtml(item.title || item.name || '')}</div><div class="card-item-desc">${escapeHtml((item.description || '').substring(0, 100))}</div></div></div>`; });
+    body += '</div><button class="modal-submit" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("已继承条目", body);
+  } catch (e) { showGenericModal("提示", `<div class="error-hint">加载失败：${escapeHtml(e.message)}</div>`); }
+}
+
+// ============================================================
+// 3. 文档管理 (documents)
+// ============================================================
+async function loadDocuments() {
+  const container = document.getElementById("documentList");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/documents", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const docs = data.documents || data || [];
+    if (!Array.isArray(docs) || docs.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无文档</div>';
+      return;
+    }
+    container.innerHTML = "";
+    docs.forEach(doc => {
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <div class="card-item-body">
+          <div class="card-item-title">${escapeHtml(doc.title || doc.filename || doc.name || '未命名')}</div>
+          <div class="card-item-desc">${escapeHtml((doc.type || doc.content_type || '') + ' · ' + (doc.created_at || doc.date || ''))}</div>
+        </div>
+        <div class="card-item-actions">
+          <button class="btn-sm" onclick='viewDocument(${JSON.stringify(doc.id)})'>查看</button>
+          <button class="btn-danger-sm" onclick='deleteDocument(${JSON.stringify(doc.id)})'>删除</button>
+        </div>`;
+      container.appendChild(card);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function viewDocument(id) {
+  try {
+    const r = await fetch("/api/documents/" + id, { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    showGenericModal(data.title || data.filename || "文档详情", `
+      <div style="padding:12px 0;white-space:pre-wrap;font-size:13px;line-height:1.7;max-height:400px;overflow-y:auto">${escapeHtml(data.content || data.extracted_text || JSON.stringify(data, null, 2))}</div>
+      <button class="modal-submit" onclick="this.closest('.modal-overlay').remove()">关闭</button>`);
+  } catch (e) { alert("加载失败：" + e.message); }
+}
+
+async function deleteDocument(id) {
+  if (!confirm("确认删除此文档？")) return;
+  try {
+    await fetch("/api/documents/" + id, { method: "DELETE", headers: authHeaders() });
+    loadDocuments();
+  } catch (e) { alert("删除失败：" + e.message); }
+}
+
+function openDocumentExtractForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">提取文档</div>
+      <form onsubmit="saveDocumentExtract(event)">
+        <div class="modal-field"><label>文档 URL 或路径</label><input id="docExtractUrl" required placeholder="/path/to/doc.pdf"></div>
+        <button type="submit" class="modal-submit">提取</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveDocumentExtract(e) {
+  e.preventDefault();
+  const url = document.getElementById("docExtractUrl").value.trim();
+  try {
+    const r = await fetch("/api/documents/extract", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ url })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    document.querySelector(".modal-overlay").remove();
+    loadDocuments();
+  } catch (e) { alert("提取失败：" + e.message); }
+}
+
+// ============================================================
+// 4. 遗码通 (cases)
+// ============================================================
+async function loadCases() {
+  const container = document.getElementById("caseList");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/cases", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const cases = data.cases || data || [];
+    if (!Array.isArray(cases) || cases.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无案件</div>';
+      return;
+    }
+    container.innerHTML = "";
+    cases.forEach(c => {
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <div class="card-item-body">
+          <div class="card-item-title">${escapeHtml(c.title || c.name || '未命名案件')}</div>
+          <div class="card-item-desc">${escapeHtml((c.status || '') + ' · ' + (c.created_at || c.date || ''))}</div>
+        </div>
+        <div class="card-item-actions">
+          <button class="btn-sm" onclick='viewCase(${JSON.stringify(c.id)})'>查看</button>
+          <button class="btn-sm" onclick='archiveCase(${JSON.stringify(c.id)})'>归档</button>
+        </div>`;
+      container.appendChild(card);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openCaseForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">新建案件</div>
+      <form onsubmit="saveCase(event)">
+        <div class="modal-field"><label>标题</label><input id="caseTitle" required></div>
+        <div class="modal-field"><label>描述</label><textarea id="caseDesc" rows="4"></textarea></div>
+        <button type="submit" class="modal-submit">保存</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveCase(e) {
+  e.preventDefault();
+  const title = document.getElementById("caseTitle").value.trim();
+  const description = document.getElementById("caseDesc").value.trim();
+  try {
+    const r = await fetch("/api/cases", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ title, description })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    document.querySelector(".modal-overlay").remove();
+    loadCases();
+  } catch (e) { alert("保存失败：" + e.message); }
+}
+
+async function viewCase(id) {
+  try {
+    const [detailR, timelineR] = await Promise.all([
+      fetch("/api/cases/" + id, { headers: authHeaders() }),
+      fetch("/api/cases/" + id + "/timeline", { headers: authHeaders() }),
+    ]);
+    const detail = await detailR.json();
+    const timeline = await timelineR.json();
+    const events = timeline.events || timeline || [];
+    let html = `<div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">标题</span><span class="detail-value">${escapeHtml(detail.title || '')}</span></div>
+      <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value">${escapeHtml(detail.status || '')}</span></div>
+      <div class="detail-row"><span class="detail-label">描述</span><span class="detail-value">${escapeHtml(detail.description || '')}</span></div>
+    </div>`;
+    html += '<div class="section-title" style="margin-bottom:10px">时间线</div>';
+    if (events.length === 0) html += '<div class="empty-hint">暂无事件</div>';
+    else events.forEach(ev => {
+      html += `<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px">
+        <strong>${escapeHtml(ev.event_type || ev.type || '')}</strong>
+        <span style="color:var(--ink-muted);margin-left:8px;font-size:11px">${escapeHtml(ev.timestamp || ev.date || '')}</span>
+        <div style="color:var(--ink-soft);margin-top:2px">${escapeHtml(ev.description || ev.detail || '')}</div>
+      </div>`;
+    });
+    html += `<div style="margin-top:12px"><button class="btn-sm" onclick='openCaseEventForm(${JSON.stringify(id)})'>添加事件</button></div>`;
+    html += '<button class="modal-submit" style="margin-top:12px" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("案件详情", html);
+  } catch (e) { alert("加载失败：" + e.message); }
+}
+
+async function archiveCase(id) {
+  if (!confirm("确认归档此案件？")) return;
+  try {
+    await fetch("/api/cases/" + id + "/archive", { method: "POST", headers: authHeaders() });
+    loadCases();
+  } catch (e) { alert("归档失败：" + e.message); }
+}
+
+function openCaseEventForm(caseId) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">添加事件</div>
+      <form onsubmit="saveCaseEvent(event, '${caseId}')">
+        <div class="modal-field"><label>事件类型</label><input id="caseEventType" required></div>
+        <div class="modal-field"><label>描述</label><textarea id="caseEventDesc" rows="3"></textarea></div>
+        <button type="submit" class="modal-submit">保存</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveCaseEvent(e, caseId) {
+  e.preventDefault();
+  const event_type = document.getElementById("caseEventType").value.trim();
+  const description = document.getElementById("caseEventDesc").value.trim();
+  try {
+    await fetch("/api/cases/" + caseId + "/events", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ event_type, description })
+    });
+    document.querySelectorAll(".modal-overlay").forEach(m => m.remove());
+    viewCase(caseId);
+  } catch (e) { alert("保存失败：" + e.message); }
+}
+
+// ============================================================
+// 5. Dead Man Switch (switch)
+// ============================================================
+async function loadSwitchStatus() {
+  const container = document.getElementById("switchStatusBody");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/switch/status", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    container.innerHTML = `
+      <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value"><span class="tag ${data.status === 'active' ? 'ok' : data.status === 'triggered' ? 'fail' : 'warn'}">${escapeHtml(data.status || 'unknown')}</span></span></div>
+      <div class="detail-row"><span class="detail-label">上次签到</span><span class="detail-value">${escapeHtml(data.last_checkin || data.last_check || '暂无')}</span></div>
+      <div class="detail-row"><span class="detail-label">超时天数</span><span class="detail-value">${data.timeout_days || data.timeout || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">下次签到截止</span><span class="detail-value">${escapeHtml(data.next_deadline || data.deadline || '-')}</span></div>`;
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function loadSwitchActions() {
+  const container = document.getElementById("switchActionsBody");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/switch/actions", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const actions = data.actions || data || [];
+    if (!Array.isArray(actions) || actions.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无可执行动作</div>';
+      return;
+    }
+    container.innerHTML = "";
+    actions.forEach(a => {
+      const div = document.createElement("div");
+      div.style.cssText = "padding:8px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center";
+      div.innerHTML = `<span style="font-size:13px">${escapeHtml(a.name || a.type || a.action || '')}</span>
+        <button class="btn-sm" onclick='executeSwitchAction(${JSON.stringify(a.id || a.action || a.type)})'>执行</button>`;
+      container.appendChild(div);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function switchInit() {
+  const contact_email = document.getElementById("switchContactEmail").value.trim();
+  const heir_email = document.getElementById("switchHeirEmail").value.trim();
+  const timeout_days = parseInt(document.getElementById("switchTimeoutDays").value) || 30;
+  try {
+    const r = await fetch("/api/switch/init", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ contact_email, heir_email, timeout_days })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    alert("初始化成功");
+    loadSwitchStatus();
+  } catch (e) { alert("初始化失败：" + e.message); }
+}
+
+async function switchCheckin() {
+  try {
+    const r = await fetch("/api/switch/checkin", { method: "POST", headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    alert("签到成功");
+    loadSwitchStatus();
+  } catch (e) { alert("签到失败：" + e.message); }
+}
+
+async function switchTick() {
+  try {
+    await fetch("/api/switch/tick", { method: "POST", headers: authHeaders() });
+    loadSwitchStatus();
+  } catch (e) { alert("Tick 失败：" + e.message); }
+}
+
+async function executeSwitchAction(actionId) {
+  if (!confirm("确认执行此动作？")) return;
+  try {
+    await fetch("/api/switch/execute", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ action: actionId })
+    });
+    alert("已执行");
+    loadSwitchActions();
+  } catch (e) { alert("执行失败：" + e.message); }
+}
+
+function openVerifyContactModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-title">验证联系人</div>
+      <div class="modal-field">
+        <label>联系人 ID</label>
+        <input type="text" id="verifyContactId" placeholder="输入联系人 ID">
+      </div>
+      <div class="modal-field">
+        <label><input type="checkbox" id="verifyContactConfirm"> 确认验证</label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="modal-submit" onclick="submitVerifyContact()">提交验证</button>
+        <button class="modal-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitVerifyContact() {
+  const contactId = document.getElementById("verifyContactId").value.trim();
+  const confirm = document.getElementById("verifyContactConfirm").checked;
+  if (!contactId) { alert("请输入联系人 ID"); return; }
+  try {
+    const r = await fetch("/api/switch/verify-contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ contact_id: contactId, confirm: confirm })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
+    alert(data.message || "验证成功");
+    document.querySelector(".modal-overlay").remove();
+    loadSwitchStatus();
+  } catch (e) { alert("验证失败：" + e.message); }
+}
+
+async function switchCancel() {
+  if (!confirm("确认取消 Dead Man Switch？此操作不可撤销。")) return;
+  const reason = prompt("取消原因（可选）：") || "user_cancelled";
+  try {
+    const r = await fetch("/api/switch/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ reason: reason })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
+    alert("Switch 已取消");
+    loadSwitchStatus();
+  } catch (e) { alert("取消失败：" + e.message); }
+}
+
+// ============================================================
+// 6. 通知信函 (letters)
+// ============================================================
+async function loadLetterTypes() {
+  const container = document.getElementById("letterTypesBody");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/letters/types", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const types = data.types || data || [];
+    if (!Array.isArray(types) || types.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无信函类型</div>';
+      return;
+    }
+    container.innerHTML = "";
+    const sel = document.getElementById("letterTemplateType");
+    sel.innerHTML = '<option value="">-- 请选择 --</option>';
+    types.forEach(t => {
+      const name = typeof t === "string" ? t : (t.name || t.type || t.id || "");
+      const desc = typeof t === "string" ? "" : (t.description || "");
+      const div = document.createElement("div");
+      div.style.cssText = "padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px";
+      div.innerHTML = `<strong>${escapeHtml(name)}</strong>${desc ? ' <span style="color:var(--ink-muted)">— ' + escapeHtml(desc) + '</span>' : ''}`;
+      container.appendChild(div);
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function loadLetterTemplate() {
+  const type = document.getElementById("letterTemplateType").value;
+  const container = document.getElementById("letterTemplateBody");
+  if (!type) { container.innerHTML = ""; return; }
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/letters/template?type=" + encodeURIComponent(type), { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    container.innerHTML = `<div style="white-space:pre-wrap;font-size:13px;line-height:1.7;padding:12px 0">${escapeHtml(data.template || data.content || JSON.stringify(data, null, 2))}</div>`;
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openLetterGenerateForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">生成信函</div>
+      <form onsubmit="saveLetterGenerate(event)">
+        <div class="modal-field"><label>信函类型</label><input id="letterGenType" required placeholder="如：death_notice"></div>
+        <div class="modal-field"><label>收件人姓名</label><input id="letterGenRecipient"></div>
+        <div class="modal-field"><label>附加信息</label><textarea id="letterGenInfo" rows="4" placeholder="逝者姓名、日期等"></textarea></div>
+        <button type="submit" class="modal-submit">生成</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveLetterGenerate(e) {
+  e.preventDefault();
+  const type = document.getElementById("letterGenType").value.trim();
+  const recipient = document.getElementById("letterGenRecipient").value.trim();
+  const info = document.getElementById("letterGenInfo").value.trim();
+  try {
+    const r = await fetch("/api/letters/generate", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ type, recipient, additional_info: info })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    document.querySelector(".modal-overlay").remove();
+    showGenericModal("生成结果", `<div style="white-space:pre-wrap;font-size:13px;line-height:1.8;padding:12px 0;max-height:400px;overflow-y:auto">${escapeHtml(data.letter || data.content || JSON.stringify(data, null, 2))}</div><button class="modal-submit" onclick="this.closest('.modal-overlay').remove()">关闭</button>`);
+  } catch (e) { alert("生成失败：" + e.message); }
+}
+
+// ============================================================
+// 7. 悼文撰写 (memorial)
+// ============================================================
+async function loadMemorialTypes() {
+  const container = document.getElementById("memorialTypesBody");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/memorial/types", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const types = data.types || data || [];
+    if (!Array.isArray(types) || types.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无悼文类型</div>';
+      return;
+    }
+    container.innerHTML = "";
+    types.forEach(t => {
+      const name = typeof t === "string" ? t : (t.name || t.type || t.id || "");
+      const desc = typeof t === "string" ? "" : (t.description || "");
+      const div = document.createElement("div");
+      div.style.cssText = "padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px";
+      div.innerHTML = `<strong>${escapeHtml(name)}</strong>${desc ? ' <span style="color:var(--ink-muted)">— ' + escapeHtml(desc) + '</span>' : ''}`;
+      container.appendChild(div);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openMemorialGenerateForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">生成悼文</div>
+      <form onsubmit="saveMemorialGenerate(event)">
+        <div class="modal-field"><label>悼文类型</label><input id="memorialGenType" required placeholder="如：eulogy, obituary"></div>
+        <div class="modal-field"><label>逝者姓名</label><input id="memorialGenName" required></div>
+        <div class="modal-field"><label>生平信息</label><textarea id="memorialGenBio" rows="5" placeholder="逝者生平、成就、性格特点等"></textarea></div>
+        <button type="submit" class="modal-submit">生成</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveMemorialGenerate(e) {
+  e.preventDefault();
+  const type = document.getElementById("memorialGenType").value.trim();
+  const name = document.getElementById("memorialGenName").value.trim();
+  const bio = document.getElementById("memorialGenBio").value.trim();
+  try {
+    const r = await fetch("/api/memorial/generate", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ type, deceased_name: name, biography: bio })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    document.querySelector(".modal-overlay").remove();
+    const panel = document.getElementById("memorialResultPanel");
+    const body = document.getElementById("memorialResultBody");
+    panel.style.display = "block";
+    body.textContent = data.memorial || data.content || JSON.stringify(data, null, 2);
+  } catch (e) { alert("生成失败：" + e.message); }
+}
+
+// ============================================================
+// 8. 规划评分 (plan-score)
+// ============================================================
+async function loadPlanScore() {
+  const summary = document.getElementById("planScoreSummary");
+  const detail = document.getElementById("planScoreDetail");
+  summary.innerHTML = '<div class="loading-hint">加载中…</div>';
+  detail.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/plan-score", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const totalScore = data.total_score || data.score || 0;
+    const maxScore = data.max_score || 100;
+    const pct = Math.round((totalScore / maxScore) * 100);
+    summary.innerHTML = `
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-family:'Songti SC',serif;font-size:36px;color:var(--accent-deep)">${totalScore}</div>
+        <div style="font-size:12px;color:var(--ink-muted)">/ ${maxScore} 分</div>
+      </div>
+      <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:${pct >= 70 ? 'var(--ok)' : pct >= 40 ? 'var(--warn)' : 'var(--err)'}"></div></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--ink-muted);text-align:center">${escapeHtml(data.summary || data.message || '')}</div>`;
+  } catch (e) {
+    summary.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+    detail.innerHTML = '';
+  }
+  // 详细评分
+  try {
+    const r2 = await fetch("/api/plan-score/detail", { headers: authHeaders() });
+    if (!r2.ok) throw new Error("HTTP " + r2.status);
+    const data2 = await r2.json();
+    const items = data2.details || data2.items || data2.categories || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      detail.innerHTML = '<div class="empty-hint">暂无详细评分</div>';
+      return;
+    }
+    detail.innerHTML = "";
+    items.forEach(item => {
+      const name = item.name || item.category || '';
+      const score = item.score || 0;
+      const max = item.max_score || item.max || 100;
+      const pct = Math.round((score / max) * 100);
+      const div = document.createElement("div");
+      div.style.cssText = "margin-bottom:12px";
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span>${escapeHtml(name)}</span><span style="color:var(--ink-muted)">${score}/${max}</span>
+        </div>
+        <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:${pct >= 70 ? 'var(--ok)' : pct >= 40 ? 'var(--warn)' : 'var(--err)'}"></div></div>
+        ${item.comment ? '<div style="font-size:11px;color:var(--ink-muted);margin-top:2px">' + escapeHtml(item.comment) + '</div>' : ''}`;
+      detail.appendChild(div);
+    });
+  } catch (e) {
+    detail.innerHTML = '<div class="error-hint">加载详细评分失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ============================================================
+// 9. 客服工单 (support)
+// ============================================================
+async function loadSupportTickets() {
+  const container = document.getElementById("supportTicketList");
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/support/tickets", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const tickets = data.tickets || data || [];
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      container.innerHTML = '<div class="empty-hint">暂无工单</div>';
+      return;
+    }
+    container.innerHTML = "";
+    tickets.forEach(t => {
+      const statusClass = t.status === "closed" ? "skip" : t.status === "open" ? "ok" : "warn";
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <div class="card-item-body">
+          <div class="card-item-title">${escapeHtml(t.subject || t.title || '未命名工单')}</div>
+          <div class="card-item-desc">
+            <span class="tag ${statusClass}">${escapeHtml(t.status || 'unknown')}</span>
+            <span style="margin-left:8px">${escapeHtml(t.created_at || t.date || '')}</span>
+          </div>
+        </div>
+        <div class="card-item-actions">
+          <button class="btn-sm" onclick='viewSupportTicket(${JSON.stringify(t.id)})'>查看</button>
+        </div>`;
+      container.appendChild(card);
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function openSupportTicketForm() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-lg">
+      <div class="modal-title">新建工单</div>
+      <form onsubmit="saveSupportTicket(event)">
+        <div class="modal-field"><label>主题</label><input id="ticketSubject" required></div>
+        <div class="modal-field"><label>内容</label><textarea id="ticketBody" rows="5" required></textarea></div>
+        <div class="modal-field"><label>优先级</label><select id="ticketPriority">
+          <option value="low">低</option><option value="medium" selected>中</option><option value="high">高</option>
+        </select></div>
+        <button type="submit" class="modal-submit">提交</button>
+      </form>
+      <button class="btn-sm" style="margin-top:8px;width:100%" onclick="this.closest('.modal-overlay').remove()">取消</button>
+    </div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveSupportTicket(e) {
+  e.preventDefault();
+  const subject = document.getElementById("ticketSubject").value.trim();
+  const body = document.getElementById("ticketBody").value.trim();
+  const priority = document.getElementById("ticketPriority").value;
+  try {
+    const r = await fetch("/api/support/tickets", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ subject, body: body, content: body, priority })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    document.querySelector(".modal-overlay").remove();
+    loadSupportTickets();
+  } catch (e) { alert("提交失败：" + e.message); }
+}
+
+async function viewSupportTicket(id) {
+  try {
+    const r = await fetch("/api/support/tickets/" + id, { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const replies = data.replies || data.messages || [];
+    let html = `<div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">主题</span><span class="detail-value">${escapeHtml(data.subject || data.title || '')}</span></div>
+      <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value">${escapeHtml(data.status || '')}</span></div>
+      <div class="detail-row"><span class="detail-label">内容</span><span class="detail-value">${escapeHtml(data.body || data.content || '')}</span></div>
+    </div>`;
+    if (replies.length > 0) {
+      html += '<div class="section-title" style="margin-bottom:10px">回复</div>';
+      replies.forEach(rp => {
+        html += `<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px">
+          <strong>${escapeHtml(rp.author || rp.from || '')}</strong>
+          <span style="color:var(--ink-muted);margin-left:8px;font-size:11px">${escapeHtml(rp.created_at || rp.date || '')}</span>
+          <div style="margin-top:4px">${escapeHtml(rp.body || rp.content || rp.message || '')}</div>
+        </div>`;
+      });
+    }
+    html += `<div style="margin-top:12px"><div class="modal-field"><label>回复</label><textarea id="ticketReply" rows="3"></textarea></div>
+      <button class="btn-primary" onclick='submitSupportReply(${JSON.stringify(id)})'>发送回复</button></div>`;
+    html += '<button class="modal-submit" style="margin-top:12px" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("工单详情", html);
+  } catch (e) { alert("加载失败：" + e.message); }
+}
+
+async function submitSupportReply(id) {
+  const body = document.getElementById("ticketReply").value.trim();
+  if (!body) return;
+  try {
+    await fetch("/api/support/tickets/" + id + "/replies", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ body, content: body, message: body })
+    });
+    document.querySelectorAll(".modal-overlay").forEach(m => m.remove());
+    viewSupportTicket(id);
+  } catch (e) { alert("回复失败：" + e.message); }
+}
+
+// ============================================================
+// 10. 热线/机构 (hotlines)
+// ============================================================
+async function loadHotlines() {
+  const hotlineContainer = document.getElementById("hotlineList");
+  const instContainer = document.getElementById("institutionList");
+  hotlineContainer.innerHTML = '<div class="loading-hint">加载中…</div>';
+  instContainer.innerHTML = '<div class="loading-hint">加载中…</div>';
+  try {
+    const r = await fetch("/api/hotlines", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const lines = data.hotlines || data || [];
+    if (!Array.isArray(lines) || lines.length === 0) {
+      hotlineContainer.innerHTML = '<div class="empty-hint">暂无热线数据</div>';
+    } else {
+      hotlineContainer.innerHTML = "";
+      lines.forEach(h => {
+        const div = document.createElement("div");
+        div.style.cssText = "padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;display:flex;justify-content:space-between;align-items:center";
+        const number = h.number || h.phone || h.hotline || '';
+        div.innerHTML = `<div><strong>${escapeHtml(h.name || h.title || '')}</strong><div style="font-size:11px;color:var(--ink-muted)">${escapeHtml(h.description || h.desc || '')}</div></div>
+          <a href="tel:${number.replace(/-/g, '')}" style="color:var(--seal);font-weight:500;text-decoration:none;font-size:14px">${escapeHtml(number)}</a>`;
+        hotlineContainer.appendChild(div);
+      });
+    }
+  } catch (e) {
+    hotlineContainer.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+  try {
+    const r = await fetch("/api/institutions", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const insts = data.institutions || data || [];
+    if (!Array.isArray(insts) || insts.length === 0) {
+      instContainer.innerHTML = '<div class="empty-hint">暂无机构数据</div>';
+    } else {
+      instContainer.innerHTML = "";
+      insts.forEach(inst => {
+        const div = document.createElement("div");
+        div.style.cssText = "padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px;display:flex;justify-content:space-between;align-items:center";
+        div.innerHTML = `<div><strong>${escapeHtml(inst.name || inst.title || '')}</strong><div style="font-size:11px;color:var(--ink-muted)">${escapeHtml(inst.type || inst.category || '')} · ${escapeHtml(inst.address || inst.location || '')}</div></div>
+          <button class="btn-sm" onclick='viewInstitution(${JSON.stringify(inst.id)})'>详情</button>`;
+        instContainer.appendChild(div);
+      });
+    }
+  } catch (e) {
+    instContainer.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function viewInstitution(id) {
+  try {
+    const r = await fetch("/api/institutions/" + id, { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    let html = '<div class="detail-panel">';
+    const fields = [
+      ["名称", data.name || data.title || ''],
+      ["类型", data.type || data.category || ''],
+      ["地址", data.address || data.location || ''],
+      ["电话", data.phone || data.tel || ''],
+      ["工作时间", data.hours || data.opening_hours || ''],
+      ["描述", data.description || data.desc || ''],
+    ];
+    fields.forEach(([label, val]) => {
+      if (val) html += `<div class="detail-row"><span class="detail-label">${escapeHtml(label)}</span><span class="detail-value">${escapeHtml(String(val))}</span></div>`;
+    });
+    html += '</div><button class="modal-submit" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>';
+    showGenericModal("机构详情", html);
+  } catch (e) { alert("加载失败：" + e.message); }
+}
+
+// ============================================================
+// 技能管理 (Skills)
+// ============================================================
+async function loadSkills() {
+  const container = document.getElementById("skillList");
+  if (!container) return;
+  container.innerHTML = '<div class="loading-hint">加载中…</div>';
+  document.getElementById("skillDetail").style.display = "none";
+  try {
+    const r = await fetch("/api/skills", { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const skills = data.skills || [];
+    if (!skills.length) {
+      container.innerHTML = '<div class="loading-hint">暂无技能，点击"新建技能"或"AI 生成"开始创建</div>';
+      return;
+    }
+    let html = '<div style="display:grid;gap:10px">';
+    skills.forEach(s => {
+      const name = escapeHtml(s.name || '');
+      const desc = escapeHtml((s.description || '').substring(0, 120));
+      const ver = escapeHtml(s.version || '1.0');
+      const size = s.size_bytes ? (s.size_bytes > 1024 ? (s.size_bytes/1024).toFixed(1)+'KB' : s.size_bytes+'B') : '';
+      html += `<div style="padding:12px 16px;border:1px solid var(--line);border-radius:8px;display:flex;justify-content:space-between;align-items:center;background:var(--paper)">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px">${name} <span style="font-size:11px;color:var(--ink-muted);font-weight:400">v${ver}</span></div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc}</div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${size}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">
+          <button class="btn-sm" onclick="viewSkill('${name}')">查看</button>
+          <button class="btn-sm" onclick="openSkillInvokeModal('${name}')">调用</button>
+          <button class="btn-sm" style="color:var(--err)" onclick="deleteSkill('${name}')">删除</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="error-hint">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function viewSkill(name) {
+  try {
+    const r = await fetch("/api/skills/" + encodeURIComponent(name), { headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const skill = data.skill || data;
+    let html = '<div class="detail-panel">';
+    const fields = [
+      ["名称", skill.name || name],
+      ["版本", skill.version || "1.0"],
+      ["描述", skill.description || ""],
+      ["路径", skill.path || ""],
+    ];
+    fields.forEach(([label, val]) => {
+      if (val) html += `<div class="detail-row"><span class="detail-label">${escapeHtml(label)}</span><span class="detail-value">${escapeHtml(String(val))}</span></div>`;
+    });
+    if (skill.content || skill.body) {
+      html += `<div class="detail-row" style="flex-direction:column"><span class="detail-label">内容</span>
+        <pre style="white-space:pre-wrap;font-size:12px;background:var(--paper-warm);padding:12px;border-radius:6px;max-height:400px;overflow:auto;margin-top:6px">${escapeHtml(skill.content || skill.body || '')}</pre></div>`;
+    }
+    html += '</div><button class="modal-submit" onclick="this.parentElement.remove()">关闭</button>';
+    showGenericModal("技能详情 — " + name, html);
+  } catch (e) { alert("加载失败：" + e.message); }
+}
+
+async function deleteSkill(name) {
+  if (!confirm("确认删除技能「" + name + "」？此操作不可恢复。")) return;
+  try {
+    const r = await fetch("/api/skills/" + encodeURIComponent(name), { method: "DELETE", headers: authHeaders() });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    loadSkills();
+  } catch (e) { alert("删除失败：" + e.message); }
+}
+
+function openSkillCreateModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-title">新建技能</div>
+      <label style="font-size:13px;display:block;margin-bottom:4px">技能名称 (英文/数字/连字符)</label>
+      <input id="skillNewName" class="modal-input" placeholder="my-skill" />
+      <label style="font-size:13px;display:block;margin:8px 0 4px">描述</label>
+      <input id="skillNewDesc" class="modal-input" placeholder="技能用途描述" />
+      <label style="font-size:13px;display:block;margin:8px 0 4px">版本号</label>
+      <input id="skillNewVer" class="modal-input" value="1.0" />
+      <label style="font-size:13px;display:block;margin:8px 0 4px">技能内容 (Markdown)</label>
+      <textarea id="skillNewContent" class="modal-input" rows="10" placeholder="# 技能说明&#10;&#10;## 工作流程&#10;..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="modal-submit" onclick="submitSkillCreate()">创建</button>
+        <button class="modal-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitSkillCreate() {
+  const name = document.getElementById("skillNewName").value.trim();
+  const description = document.getElementById("skillNewDesc").value.trim();
+  const version = document.getElementById("skillNewVer").value.trim() || "1.0";
+  const content = document.getElementById("skillNewContent").value;
+  if (!name || !description || !content) { alert("请填写所有必填字段"); return; }
+  try {
+    const r = await fetch("/api/skills", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, description, content, version })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || "HTTP " + r.status); }
+    document.querySelector(".modal-overlay").remove();
+    loadSkills();
+  } catch (e) { alert("创建失败：" + e.message); }
+}
+
+function openSkillImportModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-title">从 URL 导入技能</div>
+      <label style="font-size:13px;display:block;margin-bottom:4px">SKILL.md 文件 URL</label>
+      <input id="skillImportUrl" class="modal-input" placeholder="https://raw.githubusercontent.com/.../SKILL.md" />
+      <div style="font-size:11px;color:var(--ink-muted);margin-top:6px">支持从 GitHub raw、GitLab raw 或任何可公开访问的 URL 下载 SKILL.md 文件</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="modal-submit" onclick="submitSkillImport()">导入</button>
+        <button class="modal-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitSkillImport() {
+  const url = document.getElementById("skillImportUrl").value.trim();
+  if (!url) { alert("请输入 URL"); return; }
+  try {
+    const r = await fetch("/api/skills/import", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ url })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || "HTTP " + r.status); }
+    document.querySelector(".modal-overlay").remove();
+    loadSkills();
+  } catch (e) { alert("导入失败：" + e.message); }
+}
+
+function openSkillGenerateModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-title">AI 生成技能</div>
+      <label style="font-size:13px;display:block;margin-bottom:4px">技能名称</label>
+      <input id="skillGenName" class="modal-input" placeholder="data-analyst" />
+      <label style="font-size:13px;display:block;margin:8px 0 4px">描述你想要的技能功能</label>
+      <textarea id="skillGenPrompt" class="modal-input" rows="6" placeholder="例如：一个能够分析用户提供的财务报表数据，自动识别异常值并生成可视化报告的技能..."></textarea>
+      <div style="font-size:11px;color:var(--ink-muted);margin-top:6px">AI 将根据你的描述自动生成完整的 SKILL.md 文件</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="modal-submit" onclick="submitSkillGenerate()">生成</button>
+        <button class="modal-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitSkillGenerate() {
+  const name = document.getElementById("skillGenName").value.trim();
+  const prompt = document.getElementById("skillGenPrompt").value.trim();
+  if (!name || !prompt) { alert("请填写技能名称和描述"); return; }
+  try {
+    const r = await fetch("/api/skills/generate", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, prompt })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || "HTTP " + r.status); }
+    document.querySelector(".modal-overlay").remove();
+    loadSkills();
+  } catch (e) { alert("生成失败：" + e.message); }
+}
+
+function openSkillInvokeModal(name) {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-title">调用技能 — ${escapeHtml(name)}</div>
+      <label style="font-size:13px;display:block;margin-bottom:4px">输入查询内容</label>
+      <textarea id="skillInvokeQuery" class="modal-input" rows="4" placeholder="输入要使用该技能处理的内容..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="modal-submit" onclick="submitSkillInvoke('${escapeHtml(name)}')">调用</button>
+        <button class="modal-cancel" onclick="this.closest('.modal-overlay').remove()">取消</button>
+      </div>
+      <div id="skillInvokeResult" style="margin-top:12px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitSkillInvoke(name) {
+  const query = document.getElementById("skillInvokeQuery").value.trim();
+  if (!query) { alert("请输入查询内容"); return; }
+  const resultDiv = document.getElementById("skillInvokeResult");
+  resultDiv.innerHTML = '<div class="loading-hint">调用中…</div>';
+  try {
+    const r = await fetch("/api/skills/" + encodeURIComponent(name) + "/invoke", {
+      method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ query })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || "HTTP " + r.status); }
+    const data = await r.json();
+    resultDiv.innerHTML = `<div style="background:var(--paper-warm);padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap;max-height:300px;overflow:auto">${escapeHtml(data.result || JSON.stringify(data, null, 2))}</div>`;
+  } catch (e) {
+    resultDiv.innerHTML = '<div class="error-hint">调用失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
 // 页面加载时拉取当前用户
 fetchCurrentUser();
+// 如果已有 token，安排自动刷新
+scheduleTokenRefresh();
 // Phase 16C：初始化返回顶部按钮 + 首次进入检查 onboarding
 initBackToTop();
 // 等 fetchCurrentUser 完成后再检查 onboarding（避免未登录用户被弹）
