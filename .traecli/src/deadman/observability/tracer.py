@@ -258,13 +258,13 @@ class Tracer:
                     for k, v in attributes.items():
                         try:
                             otel_span.set_attribute(k, _to_otel_value(v))
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("OTel set_attribute 失败: %s", e)
                 # 标记 span_type 便于后端筛选
                 try:
                     otel_span.set_attribute("span.type", span_type_str)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("OTel set_attribute(span.type) 失败: %s", e)
                 self._otel_spans[span_id] = otel_span
             except Exception:  # pragma: no cover - OTel 内部异常不阻塞业务
                 self._otel_spans.pop(span_id, None)
@@ -311,15 +311,15 @@ class Tracer:
                         }
                         try:
                             otel_span.add_event(ev_name, attributes=ev_attrs)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("OTel add_event 失败: %s", e)
                 # 设置状态
                 otel_status = _status_to_otel(status)
                 if otel_status is not None:
                     otel_span.set_status(otel_status)
                 otel_span.end()
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as e:  # pragma: no cover
+                logger.debug("OTel end_span 失败: %s", e)
 
         # Langfuse 同步（LLM 相关 span 记录为 generation）
         if self._langfuse is not None:
@@ -403,14 +403,14 @@ class Tracer:
                     for k, v in attrs.items():
                         try:
                             otel_span.set_attribute(k, _to_otel_value(v))
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("OTel set_attribute 失败: %s", e)
                     try:
                         otel_span.set_attribute(
                             "span.type", normalized.get("span_type", "tool")
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("OTel set_attribute(span.type) 失败: %s", e)
                     for ev in normalized.get("events", []) or []:
                         ev_name = str(ev.get("name", "event"))
                         ev_attrs = {
@@ -418,13 +418,13 @@ class Tracer:
                         }
                         try:
                             otel_span.add_event(ev_name, attributes=ev_attrs)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("OTel add_event 失败: %s", e)
                     otel_status = _status_to_otel(normalized.get("status", "OK"))
                     if otel_status is not None:
                         otel_span.set_status(otel_status)
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as e:  # pragma: no cover
+                logger.debug("OTel span 同步失败: %s", e)
 
     # === 查询 API ===
 

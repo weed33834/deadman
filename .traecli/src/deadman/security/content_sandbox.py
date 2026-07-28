@@ -32,8 +32,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,6 @@ CONTENT_SANDBOX_ENABLED: bool = os.environ.get(
 
 # 默认最大长度（5000 字符）
 DEFAULT_MAX_LENGTH = 5000
-
-# PII 字段名集合（与 memory.manager.PII_FIELDS 对齐）
-# 用于把外部内容解析为 dict 时识别哪些字段需要脱敏
-_PII_FIELD_NAMES: frozenset[str] = frozenset({
-    "identifier", "name", "phone", "address", "account_number",
-})
 
 
 # =====================================================================
@@ -186,8 +180,6 @@ class ContentSandbox:
         Returns:
             (脱敏后内容, 是否检测到 PII)
         """
-        import re
-
         pii_found = False
         sanitized = content
 

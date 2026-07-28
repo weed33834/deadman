@@ -228,8 +228,8 @@ class LocalSandbox:
                     proc.kill()
                     # 给 0.5 秒让进程退出，回收资源
                     await asyncio.wait_for(proc.wait(), timeout=0.5)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("LocalSandbox 超时后 kill 子进程失败: %s", e)
                 duration_ms = int(time.monotonic() * 1000) - start_ms
                 return SandboxResult(
                     ok=False,
@@ -271,8 +271,8 @@ class LocalSandbox:
             if tmp_path is not None:
                 try:
                     tmp_path.unlink(missing_ok=True)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("LocalSandbox 清理临时文件失败 %s: %s", tmp_path, e)
 
     def _build_wrapper(self, code: str, timeout: int) -> str:
         """构造包装脚本 - 在子进程入口设置资源限制后执行用户代码
@@ -480,8 +480,8 @@ class DockerSandbox:
             try:
                 proc.kill()
                 await asyncio.wait_for(proc.wait(), timeout=0.5)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("DockerSandbox 超时后 kill 容器失败: %s", e)
             duration_ms = int(time.monotonic() * 1000) - start_ms
             return SandboxResult(
                 ok=False,

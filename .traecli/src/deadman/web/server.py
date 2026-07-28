@@ -279,6 +279,21 @@ class WebServer:
                     self._handle_governance_status()
                 elif path == "/api/multimodal/status":
                     self._handle_multimodal_status()
+                # === Billing / Marketplace / Compliance / i18n GET 路由（只追加）===
+                elif path == "/api/billing/status":
+                    self._handle_billing_status()
+                elif path == "/api/billing/usage":
+                    self._handle_billing_usage(query)
+                elif path == "/api/billing/plans":
+                    self._handle_billing_plans()
+                elif path == "/api/marketplace/skills":
+                    self._handle_marketplace_skills(query)
+                elif path == "/api/compliance/status":
+                    self._handle_compliance_status()
+                elif path == "/api/i18n/messages":
+                    self._handle_i18n_messages(query)
+                elif path == "/api/i18n/currency":
+                    self._handle_i18n_currency()
                 else:
                     # 静态文件（CSS/JS）
                     static_file = _STATIC_DIR / path.lstrip("/")
@@ -433,6 +448,9 @@ class WebServer:
                 elif path.startswith("/api/skills/") and path.endswith("/invoke"):
                     skill_name = path[len("/api/skills/"):-len("/invoke")]
                     self._handle_skill_invoke(skill_name)
+                # === Billing POST 路由（只追加）===
+                elif path == "/api/billing/subscribe":
+                    self._handle_billing_subscribe()
                 else:
                     self.send_error(404, "Not Found")
 
@@ -2589,6 +2607,297 @@ class WebServer:
                     self._send_json(200, {"result": result})
                 except Exception as exc:
                     logger.exception("skill invoke failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            # ============================================================
+            # Billing / Marketplace / Compliance / i18n handlers
+            # ============================================================
+
+            def _handle_billing_status(self) -> None:
+                """GET /api/billing/status - 返回计费状态（订阅 + 计量概览）"""
+                try:
+                    from ..billing import get_subscription_manager
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("billing"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                        })
+                        return
+                    sub_mgr = get_subscription_manager()
+                    user = self._phase_auth_user()
+                    user_id = user["user_id"] if user else "anonymous"
+                    sub = sub_mgr.get_current(user_id)
+                    self._send_json(200, {
+                        "enabled": True,
+                        "subscription": sub.to_dict() if sub else None,
+                        "is_active": sub.is_active() if sub else False,
+                        "plan_name": sub.plan_name if sub else "free",
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"billing module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("billing status failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_billing_usage(self, query: dict[str, list[str]]) -> None:
+                """GET /api/billing/usage - 返回使用量（token / 工具 / 存储 / 多模态）"""
+                try:
+                    from ..billing import get_usage_tracker
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("billing"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                        })
+                        return
+                    tracker = get_usage_tracker()
+                    user = self._phase_auth_user()
+                    user_id = (
+                        user["user_id"]
+                        if user
+                        else query.get("user_id", ["anonymous"])[0]
+                    )
+                    period = query.get("period", [None])[0]
+                    report = tracker.get_usage(user_id, period)
+                    self._send_json(200, {
+                        "enabled": True,
+                        "user_id": user_id,
+                        "period": report.period,
+                        "usage": {
+                            "llm_tokens": report.llm_tokens,
+                            "tool_calls": report.tool_calls,
+                            "storage_mb": report.storage_mb,
+                            "multimodal_calls": report.multimodal_calls,
+                            "by_model": report.by_model,
+                            "by_tool": report.by_tool,
+                            "by_multimodal_type": report.by_multimodal_type,
+                        },
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"billing module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("billing usage failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_billing_plans(self) -> None:
+                """GET /api/billing/plans - 返回可用计划列表"""
+                try:
+                    from ..billing.plans import list_plans
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("billing"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                        })
+                        return
+                    plans = list_plans()
+                    self._send_json(200, {
+                        "enabled": True,
+                        "plans": [
+                            {
+                                "name": p.name.value,
+                                "display_name": p.display_name,
+                                "price_monthly": p.price_monthly,
+                                "price_yearly": p.price_yearly,
+                                "sla_level": p.sla_level,
+                                "support_level": p.support_level,
+                                "data_retention_days": p.data_retention_days,
+                                "description": p.description,
+                                "limits": {
+                                    "llm_tokens_daily": p.limits.llm_tokens_daily,
+                                    "llm_tokens_monthly": p.limits.llm_tokens_monthly,
+                                    "tool_calls_daily": p.limits.tool_calls_daily,
+                                    "tool_calls_monthly": p.limits.tool_calls_monthly,
+                                    "storage_mb": p.limits.storage_mb,
+                                    "multimodal_calls_daily": p.limits.multimodal_calls_daily,
+                                    "multimodal_calls_monthly": p.limits.multimodal_calls_monthly,
+                                },
+                                "features": list(p.features),
+                            }
+                            for p in plans
+                        ],
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"billing module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("billing plans failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_marketplace_skills(self, query: dict[str, list[str]]) -> None:
+                """GET /api/marketplace/skills - 返回市场技能列表"""
+                try:
+                    from ..marketplace import get_marketplace_registry, MarketplaceError
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("marketplace"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "marketplace module is disabled (DEADMAN_MARKETPLACE_ENABLED=0)",
+                        })
+                        return
+                    registry = get_marketplace_registry()
+                    q = query.get("q", [None])[0]
+                    category = query.get("category", [None])[0]
+                    sort_by = query.get("sort", ["newest"])[0]
+                    listings = registry.list(query=q, category=category, sort_by=sort_by)
+                    self._send_json(200, {
+                        "enabled": True,
+                        "skills": [l.to_dict() for l in listings],
+                        "count": len(listings),
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"marketplace module unavailable: {exc}"})
+                except Exception as exc:
+                    # MarketplaceError 也继承自 Exception，模块未启用时抛出
+                    if "disabled" in str(exc).lower() or "MarketplaceError" in type(exc).__name__:
+                        self._send_json(503, {"error": str(exc)})
+                    else:
+                        logger.exception("marketplace skills failed")
+                        self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_compliance_status(self) -> None:
+                """GET /api/compliance/status - 返回合规状态（用户同意 + 审计报告）"""
+                try:
+                    from ..compliance import get_consent_manager, get_audit_reporter
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("compliance"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "compliance module is disabled (DEADMAN_COMPLIANCE_ENABLED=0)",
+                        })
+                        return
+                    consent_mgr = get_consent_manager()
+                    audit_reporter = get_audit_reporter()
+                    user = self._phase_auth_user()
+                    user_id = user["user_id"] if user else "anonymous"
+                    consents = consent_mgr.list_user_consents(user_id)
+                    reports = audit_reporter.list_reports(limit=5)
+                    self._send_json(200, {
+                        "enabled": True,
+                        "user_consents": {
+                            k: v.value if hasattr(v, "value") else str(v)
+                            for k, v in consents.items()
+                        },
+                        "recent_reports": [r.to_dict() for r in reports],
+                        "report_count": len(reports),
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"compliance module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("compliance status failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_i18n_messages(self, query: dict[str, list[str]]) -> None:
+                """GET /api/i18n/messages - 返回多语言消息"""
+                try:
+                    from ..i18n import get_message_bundle, Locale
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("i18n"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
+                        })
+                        return
+                    bundle = get_message_bundle()
+                    locale_str = query.get("locale", ["zh-CN"])[0]
+                    locale = Locale.from_string(locale_str)
+                    keys = bundle.list_keys(locale)
+                    messages = {k: bundle.get(k, locale) for k in keys}
+                    self._send_json(200, {
+                        "enabled": True,
+                        "locale": locale.value,
+                        "messages": messages,
+                        "key_count": len(messages),
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"i18n module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("i18n messages failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_i18n_currency(self) -> None:
+                """GET /api/i18n/currency - 返回货币信息与汇率"""
+                try:
+                    from ..i18n import get_currency_converter, Currency
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("i18n"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
+                        })
+                        return
+                    converter = get_currency_converter()
+                    rates = converter.get_all_rates()
+                    currencies = [
+                        {
+                            "code": c.value,
+                            "symbol": c.symbol,
+                            "is_zero_decimal": c.is_zero_decimal,
+                            "default_locale": c.default_locale.value,
+                        }
+                        for c in Currency
+                    ]
+                    self._send_json(200, {
+                        "enabled": True,
+                        "base": "CNY",
+                        "rates": rates,
+                        "currencies": currencies,
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"i18n module unavailable: {exc}"})
+                except Exception as exc:
+                    logger.exception("i18n currency failed")
+                    self._send_json(500, {"error": f"server error: {exc}"})
+
+            def _handle_billing_subscribe(self) -> None:
+                """POST /api/billing/subscribe - 订阅计划
+
+                body: {plan_name, billing_cycle?, with_trial?}
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    req = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError as exc:
+                    self._send_json(400, {"error": f"invalid json: {exc}"})
+                    return
+                plan_name = req.get("plan_name")
+                if not plan_name:
+                    self._send_json(400, {"error": "缺少必填字段: plan_name"})
+                    return
+                try:
+                    from ..billing import get_subscription_manager
+                    from ..infrastructure.feature_flags import is_enabled
+                    if not is_enabled("billing"):
+                        self._send_json(503, {
+                            "enabled": False,
+                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                        })
+                        return
+                    sub_mgr = get_subscription_manager()
+                    billing_cycle = req.get("billing_cycle", "monthly")
+                    with_trial = bool(req.get("with_trial", False))
+                    sub = sub_mgr.subscribe(
+                        user_id=user["user_id"],
+                        plan_name=plan_name,
+                        billing_cycle=billing_cycle,
+                        with_trial=with_trial,
+                    )
+                    self._send_json(201, {
+                        "ok": True,
+                        "subscription": sub.to_dict(),
+                        "is_active": sub.is_active(),
+                    })
+                except ImportError as exc:
+                    self._send_json(503, {"error": f"billing module unavailable: {exc}"})
+                except ValueError as exc:
+                    self._send_json(400, {"error": str(exc)})
+                except Exception as exc:
+                    logger.exception("billing subscribe failed")
                     self._send_json(500, {"error": f"server error: {exc}"})
 
         httpd = ThreadingHTTPServer((host, port), Handler)

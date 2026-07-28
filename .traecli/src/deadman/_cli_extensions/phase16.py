@@ -386,8 +386,8 @@ def cmd_search_baidu(args: argparse.Namespace) -> None:
     _print_search_results("百度", args.query, results)
     try:
         asyncio.run(provider.close())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Baidu provider close 失败: %s", e)
 
 
 def cmd_search_bing_cn(args: argparse.Namespace) -> None:
@@ -404,8 +404,8 @@ def cmd_search_bing_cn(args: argparse.Namespace) -> None:
     _print_search_results("必应中国", args.query, results)
     try:
         asyncio.run(provider.close())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("BingCN provider close 失败: %s", e)
 
 
 def _print_search_results(provider_name: str, query: str, results: list) -> None:

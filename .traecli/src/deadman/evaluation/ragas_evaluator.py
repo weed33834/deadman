@@ -218,8 +218,8 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         if messages:
             try:
                 return "\n".join(m.get("content", "") if isinstance(m, dict) else str(getattr(m, "content", "")) for m in messages)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("提取 prompt messages 失败: %s", e)
         return str(prompt)
 
     def _build_llm_result(self, text: str) -> Any:

@@ -45,6 +45,8 @@ dependencies = [
     # 工具
     "httpx>=0.28",
     "tenacity>=9.0",
+    # HTML 解析（替代 web_search 中手写正则解析）
+    "beautifulsoup4>=4.12",
     # JWT 会话管理（替代手写 HMAC 实现）
     "PyJWT>=2.8",
     # Cron 表达式解析（替代手写 5 字段解析器）

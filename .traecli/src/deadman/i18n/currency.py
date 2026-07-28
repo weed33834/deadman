@@ -309,6 +309,88 @@ class CurrencyConverter:
             return {c.value: r for c, r in self._rates.items()}
 
     # ==================================================================
+    # 实时汇率获取（在线 API）
+    # ==================================================================
+
+    # 免费 API 端点（无需 API key）：
+    # 1. exchangerate.host（ primary）- 返回 { "rates": { "CNY": 7.2, ... } }（基准 USD）
+    # 2. open.er-api.com（fallback） - 返回 { "rates": { "CNY": 7.2, ... } }（基准 USD）
+    _ONLINE_API_URLS: list[str] = [
+        "https://api.exchangerate.host/latest?base=USD",
+        "https://open.er-api.com/v6/latest/USD",
+    ]
+
+    async def fetch_rates_online(self) -> dict[str, float] | None:
+        """从免费在线 API 获取实时汇率（基准 USD → 各货币）。
+
+        尝试多个 API 端点，第一个成功即返回。
+        失败返回 None（不抛异常，调用方回退到内置汇率）。
+
+        Returns:
+            {currency_code: rate_to_cny} 字典；失败返回 None
+        """
+        try:
+            import httpx
+        except ImportError:
+            logger.warning("httpx 未安装，无法获取在线汇率")
+            return None
+
+        for api_url in self._ONLINE_API_URLS:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(api_url)
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                # 两个 API 都返回 { "rates": { "CNY": 7.2, "EUR": 0.93, ... } }
+                # 基准都是 USD，即 1 USD = X target_currency
+                usd_rates = data.get("rates", {})
+                if not usd_rates:
+                    continue
+
+                # 转换为 rate_to_cny 格式（1 unit currency = N CNY）
+                # usd_to_cny = usd_rates["CNY"]
+                # rate_to_cny[currency] = usd_rates[currency]  (if currency == CNY: 1.0)
+                # 但我们的存储格式是 1 unit X = N CNY
+                # 1 USD = usd_to_cny CNY → 1 CNY = 1/usd_to_cny USD
+                # 1 EUR = usd_rates["EUR"] USD → 1 EUR = usd_rates["EUR"] * usd_to_cny CNY
+                usd_to_cny = float(usd_rates.get("CNY", 0))
+                if usd_to_cny <= 0:
+                    continue
+
+                rates_to_cny: dict[str, float] = {"CNY": 1.0}
+                for code, usd_rate in usd_rates.items():
+                    try:
+                        currency = Currency.from_string(str(code))
+                        if currency == Currency.CNY:
+                            continue
+                        # 1 unit currency = usd_rate USD = usd_rate * usd_to_cny CNY
+                        rates_to_cny[currency.value] = float(usd_rate) * usd_to_cny
+                    except (ValueError, TypeError):
+                        continue
+
+                logger.info("在线汇率获取成功（source=%s），共 %d 种货币", api_url, len(rates_to_cny))
+                return rates_to_cny
+
+            except Exception as e:
+                logger.debug("在线汇率 API %s 获取失败: %s", api_url, e)
+                continue
+
+        logger.warning("所有在线汇率 API 均不可用，回退到内置汇率")
+        return None
+
+    async def refresh_rates(self) -> int:
+        """从在线 API 刷新汇率（失败时保留内置汇率）。
+
+        Returns:
+            成功更新的货币数；在线获取失败返回 0
+        """
+        online_rates = await self.fetch_rates_online()
+        if online_rates is None or not online_rates:
+            return 0
+        return self.update_rates(online_rates)
+
+    # ==================================================================
     # 本地化格式化
     # ==================================================================
 

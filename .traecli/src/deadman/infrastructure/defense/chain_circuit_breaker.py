@@ -305,8 +305,8 @@ class ChainCircuitBreaker:
         for cb in self._breakers.values():
             try:
                 cb.reset()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("熔断器 reset 失败: %s", e)
         with self._lock:
             self._stats = {
                 "total_calls": 0,

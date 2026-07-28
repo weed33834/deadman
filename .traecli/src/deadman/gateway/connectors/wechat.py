@@ -189,8 +189,8 @@ class WeChatConnector:
             while not self._queue.empty():
                 self._queue.get_nowait()
                 self._queue.task_done()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("WeChat 连接器停止时清空队列失败: %s", e)
 
     # ==================================================================
     # access_token 获取与缓存

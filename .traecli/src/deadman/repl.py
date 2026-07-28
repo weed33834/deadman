@@ -415,5 +415,5 @@ class ChatREPL:
         try:
             self._stdout.write(text + end)
             self._stdout.flush()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("REPL 输出失败: %s", e)

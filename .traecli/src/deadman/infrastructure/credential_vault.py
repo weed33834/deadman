@@ -119,8 +119,8 @@ def _derive_master_key() -> bytes:
             key = base64.b64decode(env_key)
             if len(key) == 32:
                 return key
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("MASTER_KEY base64 解码失败，改用 sha256 hash: %s", e)
         # 否则 hash 到 32 字节
         return hashlib.sha256(env_key.encode("utf-8")).digest()
 

@@ -22,11 +22,21 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from html import unescape
 from typing import Any, Protocol
 from urllib.parse import parse_qs, unquote, urlparse
 
 logger = logging.getLogger(__name__)
+
+
+def _get_soup(html: str):
+    """延迟导入 BeautifulSoup，返回解析后的 soup 对象。
+
+    BeautifulSoup 是 pyproject.toml 声明的正式依赖，但延迟 import
+    避免在不使用 web_search 的场景下加载。
+    """
+    from bs4 import BeautifulSoup
+
+    return BeautifulSoup(html, "html.parser")
 
 
 # =====================================================================
@@ -240,56 +250,32 @@ class DuckDuckGoSearchProvider:
     def _parse_html(self, html: str, max_results: int) -> list[tuple[str, str, str]]:
         """解析 DuckDuckGo HTML 结果页 - 返回 (title, url, snippet) 列表
 
+        使用 BeautifulSoup 解析（替代手写正则），更稳健地处理 HTML 结构变化。
+
         DuckDuckGo html 端点的结构：
           <a class="result__a" href="//duckduckgo.com/l/?uddg=ENCODED_URL">title</a>
           <a class="result__snippet" href="...">snippet</a>
 
         DuckDuckGo 的链接是跳转链接，真实 URL 在 uddg 参数里。
         """
-        # 单条结果块：从 result__a 开始到下一个 result__a 之间为一条
-        # 用正则提取，不引入 BeautifulSoup（避免新依赖）
         results: list[tuple[str, str, str]] = []
+        soup = _get_soup(html)
 
-        # 匹配 result__a 链接（title + url）
-        # href 可能是 //duckduckgo.com/l/?uddg=... 或直接 URL
-        title_pattern = re.compile(
-            r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
-            re.IGNORECASE | re.DOTALL,
-        )
-        # 匹配 snippet（在 result__a 之后）
-        snippet_pattern = re.compile(
-            r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>',
-            re.IGNORECASE | re.DOTALL,
-        )
+        # 提取所有 result__a 链接（title + url）
+        title_tags = soup.find_all("a", class_="result__a")
+        # 提取所有 snippet
+        snippet_tags = soup.find_all("a", class_="result__snippet")
 
-        # 按 result 块切分（DuckDuckGo 每条结果在一个 class="result " 或类似 div 里）
-        # 简化：先找所有 title 链接位置，再在每个 title 后找最近的 snippet
-        titles: list[tuple[int, str, str]] = []  # (位置, url, title)
-        for m in title_pattern.finditer(html):
-            raw_url = m.group(1)
-            title_html = m.group(2)
-            # 解析 uddg 跳转参数
+        # 将 snippet 按文档顺序记录位置（soup 的 find_all 已按文档顺序返回）
+        snippets_text: list[str] = [s.get_text(strip=True) for s in snippet_tags]
+
+        # 配对：对每个 title，取同序号的 snippet
+        for i, tag in enumerate(title_tags):
+            raw_url = tag.get("href", "")
             real_url = self._extract_real_url(raw_url)
-            title = self._strip_html(title_html)
-            titles.append((m.start(), real_url, title))
-
-        # 找每个 title 之后的第一个 snippet
-        snippets: list[tuple[int, str]] = []
-        for m in snippet_pattern.finditer(html):
-            snippets.append((m.start(), self._strip_html(m.group(1))))
-
-        # 配对：对每个 title，找位置最近的下一个 snippet
-        snippet_idx = 0
-        for title_pos, url, title in titles:
-            snippet_text = ""
-            while snippet_idx < len(snippets):
-                snip_pos, snip_text = snippets[snippet_idx]
-                if snip_pos > title_pos:
-                    snippet_text = snip_text
-                    snippet_idx += 1
-                    break
-                snippet_idx += 1
-            results.append((title, url, snippet_text))
+            title = tag.get_text(strip=True)
+            snippet_text = snippets_text[i] if i < len(snippets_text) else ""
+            results.append((title, real_url, snippet_text))
             if len(results) >= max_results:
                 break
 
@@ -328,14 +314,15 @@ class DuckDuckGoSearchProvider:
             return raw_url
 
     def _strip_html(self, html_text: str) -> str:
-        """剥离 HTML 标签 + 反转义实体"""
+        """剥离 HTML 标签 + 反转义实体（使用 BeautifulSoup）
+
+        保留方法签名以兼容 BaiduSearchProvider / BingCNSearchProvider 的调用。
+        """
         if not html_text:
             return ""
-        # 去 <b> 高亮标签等
-        text = re.sub(r"<[^>]+>", "", html_text)
-        # 反转义 &amp; &#x27; 等
-        text = unescape(text)
-        # 压缩空白
+        soup = _get_soup(html_text)
+        text = soup.get_text(separator=" ", strip=True)
+        # 压缩多余空白
         text = re.sub(r"\s+", " ", text).strip()
         return text
 
@@ -418,8 +405,8 @@ class DuckDuckGoSearchProvider:
         if self._client is not None and self._owns_client:
             try:
                 await self._client.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("DuckDuckGo http_client 关闭失败: %s", e)
             self._client = None
 
 
@@ -693,6 +680,8 @@ class BaiduSearchProvider:
     def _parse_html(self, html: str, max_results: int) -> list[tuple[str, str, str]]:
         """解析百度 HTML 结果页 - 返回 (title, url, snippet) 列表
 
+        使用 BeautifulSoup 解析（替代手写正则），更稳健地处理百度 HTML 结构变化。
+
         百度搜索结果结构：
             <div class="result c-container ...">
               <h3><a href="http://www.baidu.com/link?url=...">title</a></h3>
@@ -705,37 +694,25 @@ class BaiduSearchProvider:
         为简化处理，先保留原链接（调用方如需展开可后续解析 baidu 跳转）。
         """
         results: list[tuple[str, str, str]] = []
+        soup = _get_soup(html)
 
-        # 匹配每个 result c-container 块
-        # [\s\S] 用于跨行匹配（DOTALL 模式）
-        block_pattern = re.compile(
-            r'<div[^>]*class="[^"]*result[^"]*c-container[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*result[^"]*c-container|</div>\s*</div>|$)',
-            re.IGNORECASE,
-        )
-        # 块内 h3 > a 链接
-        title_pattern = re.compile(
-            r'<h3[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
-            re.IGNORECASE | re.DOTALL,
-        )
-        # snippet：百度有多种 snippet class，content-right_8Zs40 是较新版本
-        snippet_pattern = re.compile(
-            r'<span[^>]*class="[^"]*content-right_[^"]*"[^>]*>([\s\S]*?)</span>',
-            re.IGNORECASE,
-        )
-
-        for block_match in block_pattern.finditer(html):
-            block_html = block_match.group(1)
-            title_match = title_pattern.search(block_html)
-            if not title_match:
+        # 百度每条结果在 class 含 "result" 和 "c-container" 的 div 里
+        for block in soup.find_all("div", class_="c-container"):
+            # 块内 h3 > a 链接
+            h3 = block.find("h3")
+            if not h3:
                 continue
-            raw_url = title_match.group(1)
-            title_html = title_match.group(2)
-            title = self._ddg_helper._strip_html(title_html)
+            a_tag = h3.find("a")
+            if not a_tag:
+                continue
+            raw_url = a_tag.get("href", "")
+            title = a_tag.get_text(strip=True)
 
-            snippet_match = snippet_pattern.search(block_html)
+            # snippet：百度有多种 snippet class，content-right_8Zs40 是较新版本
             snippet_text = ""
-            if snippet_match:
-                snippet_text = self._ddg_helper._strip_html(snippet_match.group(1))
+            snippet_tag = block.find(class_=re.compile(r"content-right_"))
+            if snippet_tag:
+                snippet_text = snippet_tag.get_text(strip=True)
 
             results.append((title, raw_url, snippet_text))
             if len(results) >= max_results:
@@ -748,8 +725,8 @@ class BaiduSearchProvider:
         if self._client is not None and self._owns_client:
             try:
                 await self._client.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Baidu http_client 关闭失败: %s", e)
             self._client = None
 
 
@@ -859,6 +836,8 @@ class BingCNSearchProvider:
     def _parse_html(self, html: str, max_results: int) -> list[tuple[str, str, str]]:
         """解析必应中国 HTML 结果页 - 返回 (title, url, snippet) 列表
 
+        使用 BeautifulSoup 解析（替代手写正则），更稳健地处理 Bing HTML 结构变化。
+
         必应中国搜索结果结构：
             <li class="b_algo">
               <h2><a href="https://example.gov.cn/...">title</a></h2>
@@ -867,36 +846,25 @@ class BingCNSearchProvider:
             </li>
         """
         results: list[tuple[str, str, str]] = []
+        soup = _get_soup(html)
 
-        # 匹配每个 b_algo 块
-        block_pattern = re.compile(
-            r'<li[^>]*class="[^"]*b_algo[^"]*"[^>]*>([\s\S]*?)(?=<li[^>]*class="[^"]*b_algo|</li>\s*</ol>|$)',
-            re.IGNORECASE,
-        )
-        title_pattern = re.compile(
-            r'<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
-            re.IGNORECASE | re.DOTALL,
-        )
-        # b_caption 内的 <p>，或 b_algo 内直接 <p>
-        snippet_pattern = re.compile(
-            r'<p[^>]*class="[^"]*"[^>]*>([\s\S]*?)</p>',
-            re.IGNORECASE,
-        )
-
-        for block_match in block_pattern.finditer(html):
-            block_html = block_match.group(1)
-            title_match = title_pattern.search(block_html)
-            if not title_match:
+        # 必应每条结果在 class="b_algo" 的 li 里
+        for block in soup.find_all("li", class_="b_algo"):
+            # 块内 h2 > a 链接
+            h2 = block.find("h2")
+            if not h2:
                 continue
-            raw_url = title_match.group(1)
-            title_html = title_match.group(2)
-            title = self._ddg_helper._strip_html(title_html)
+            a_tag = h2.find("a")
+            if not a_tag:
+                continue
+            raw_url = a_tag.get("href", "")
+            title = a_tag.get_text(strip=True)
 
             # 找块内第一个 <p> 当 snippet
-            snippet_match = snippet_pattern.search(block_html)
             snippet_text = ""
-            if snippet_match:
-                snippet_text = self._ddg_helper._strip_html(snippet_match.group(1))
+            p_tag = block.find("p")
+            if p_tag:
+                snippet_text = p_tag.get_text(strip=True)
 
             results.append((title, raw_url, snippet_text))
             if len(results) >= max_results:
@@ -909,8 +877,8 @@ class BingCNSearchProvider:
         if self._client is not None and self._owns_client:
             try:
                 await self._client.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("BingCN http_client 关闭失败: %s", e)
             self._client = None
 
 

@@ -87,22 +87,34 @@ def _init_file_store() -> Any:
         return None
 
 
-# 需要 PII 脱敏的字段集合
-PII_FIELDS = {"identifier", "name", "phone", "address", "account_number"}
+# 需要 PII 脱敏的字段集合（含中英文别名，与 mcp_server._redact_pii 对齐）
+PII_FIELDS = {
+    "identifier", "name", "phone", "address", "account_number",
+    # 中文别名
+    "姓名", "电话", "手机", "地址", "住址", "身份证", "证件号",
+    "账号", "账户号", "卡号",
+    # 常见英文变体
+    "tel", "mobile", "id_card", "account",
+}
 
 
 def sanitize_before_store(data: dict) -> dict:
     """存储前 PII 脱敏。
 
-    对 identifier/name/phone/address/account_number 字段做掩码处理，
-    嵌套 dict 递归处理。
+    对 identifier/name/phone/address/account_number 字段（含中英文别名）做掩码处理，
+    嵌套 dict 递归处理。字段名匹配大小写不敏感。
     """
     sanitized: dict[str, Any] = {}
     for key, value in data.items():
-        if key in PII_FIELDS:
+        if key.lower() in PII_FIELDS or key in PII_FIELDS:
             sanitized[key] = _mask_pii(value)
         elif isinstance(value, dict):
             sanitized[key] = sanitize_before_store(value)
+        elif isinstance(value, list):
+            sanitized[key] = [
+                sanitize_before_store(item) if isinstance(item, dict) else item
+                for item in value
+            ]
         else:
             sanitized[key] = value
     return sanitized

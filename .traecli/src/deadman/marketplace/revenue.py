@@ -428,8 +428,8 @@ class RevenueShare:
                     aid for aid, l in cache.items()
                     if l.author == author_id
                 ]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("按作者查找列表失败: %s", e)
         return []
 
     @staticmethod

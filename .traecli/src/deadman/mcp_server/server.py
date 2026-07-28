@@ -189,43 +189,12 @@ def _safe_resolve(project_relative: str) -> Path | None:
 def _redact_pii(data: Any) -> Any:
     """对 A2A 出口数据做 PII 脱敏
 
+    复用 memory.manager.sanitize_before_store 统一脱敏逻辑，
     覆盖字段：identifier / name / phone / address / account_number
+    （含中文别名：姓名/电话/手机/地址/住址/身份证/证件号/账号/账户号/卡号）
     """
-    if isinstance(data, dict):
-        redacted: dict[str, Any] = {}
-        for k, v in data.items():
-            key_lower = k.lower()
-            if key_lower in {"name", "姓名"} and isinstance(v, str):
-                redacted[k] = "[NAME]"
-            elif key_lower in {"phone", "tel", "mobile", "电话", "手机"} and isinstance(v, str):
-                redacted[k] = _mask_phone(v)
-            elif key_lower in {"address", "地址", "住址"} and isinstance(v, str):
-                redacted[k] = "[ADDRESS]"
-            elif key_lower in {"identifier", "id_card", "身份证", "证件号"} and isinstance(v, str):
-                redacted[k] = "[ID]"
-            elif key_lower in {"account_number", "account", "账号", "账户号", "卡号"} and isinstance(v, str):
-                redacted[k] = _mask_account(v)
-            else:
-                redacted[k] = _redact_pii(v)
-        return redacted
-    if isinstance(data, list):
-        return [_redact_pii(item) for item in data]
-    return data
-
-
-def _mask_phone(phone: str) -> str:
-    """电话号码脱敏：保留前 3 后 2，中间用 * 替换"""
-    digits = re.sub(r"\D", "", phone)
-    if len(digits) <= 5:
-        return "***"
-    return f"{digits[:3]}***{digits[-2:]}"
-
-
-def _mask_account(account: str) -> str:
-    """账号脱敏：保留后 4 位"""
-    if len(account) <= 4:
-        return "****"
-    return "*" * (len(account) - 4) + account[-4:]
+    from ..memory.manager import sanitize_before_store
+    return sanitize_before_store(data)
 
 
 def _trust_level_from_label(label: str) -> str:
@@ -1906,8 +1875,8 @@ async def check_integrity(
                         freshness_issues.append(
                             f"claim[{idx}] 来源 {source} 已过时（最后更新 {meta['last_updated']}）"
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("知识来源新鲜度校验失败 source=%s: %s", source, e)
 
     # 4. 单源校验 - 关键 claim 应有多源
     critical_types = {"number", "legal_citation", "phone_number"}
