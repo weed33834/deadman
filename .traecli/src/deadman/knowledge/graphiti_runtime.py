@@ -22,7 +22,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -30,7 +29,6 @@ import threading
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -47,14 +45,14 @@ logger = logging.getLogger(__name__)
 try:  # pragma: no cover - 可选依赖
     import networkx  # type: ignore
     _HAS_NETWORKX = True
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     networkx = None  # type: ignore
     _HAS_NETWORKX = False
 
 try:  # pragma: no cover - 可选依赖
     import graphiti  # type: ignore
     _HAS_GRAPHITI = True
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     graphiti = None  # type: ignore
     _HAS_GRAPHITI = False
 

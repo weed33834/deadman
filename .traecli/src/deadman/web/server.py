@@ -650,8 +650,8 @@ class WebServer:
                             compose = yaml.safe_load(f) or {}
                         services = list((compose.get("services") or {}).keys())
                         compose_ok = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("docker-compose.yml 解析失败: %s", exc)
                 self._send_json(200, {
                     "artifacts": results,
                     "compose_valid": compose_ok,
@@ -672,7 +672,8 @@ class WebServer:
                     if hf.exists():
                         try:
                             summary[domain] = json.loads(hf.read_text(encoding="utf-8"))
-                        except Exception:
+                        except (json.JSONDecodeError, OSError) as exc:
+                            logger.debug("健康文件解析失败 domain=%s: %s", domain, exc)
                             summary[domain] = {"status": "parse_error"}
                     else:
                         summary[domain] = {"status": "no_data"}
@@ -1385,7 +1386,8 @@ class WebServer:
                     import base64
                     try:
                         content = base64.b64decode(req.get("content_base64", ""))
-                    except Exception:
+                    except (ValueError, Exception) as exc:
+                        logger.debug("base64 解码失败: %s", exc)
                         content = b""
                     doc_type_hint = req.get("doc_type")
                 if not filename or not content:

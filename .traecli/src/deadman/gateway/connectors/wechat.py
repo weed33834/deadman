@@ -1,4 +1,4 @@
-"""微信公众号连接器 - webhook 模式
+"""微信公众号连接器 - webhook 模式 + AES-CBC 加密
 
 借鉴 `telegram.py` 的设计风格（httpx 直连、配对 token 机制、优雅降级），
 但适配微信公众号的 webhook 模式：
@@ -11,9 +11,10 @@
     - 入站消息是 XML 格式（不是 JSON）
     - 出站消息是 JSON POST 到 /cgi-bin/message/custom/send
     - webhook 签名校验：SHA1(token + timestamp + nonce) 排序后拼接
+    - 支持 AES-CBC 加密消息体模式（encoding_aes_key 配置后自动启用）
 
 约束：
-    - 仅用 httpx（项目已有依赖）+ stdlib（xml.etree, hashlib, asyncio, logging）
+    - 仅用 httpx（项目已有依赖）+ stdlib + cryptography（AES-CBC 加密）
     - 不引入 wechatpy / 其他第三方微信 SDK
     - 接口签名与 TelegramConnector 一致风格（platform_name/start/stop/send/poll）
     - 新增 handle_webhook 接口因为是 webhook 模式必需
@@ -22,19 +23,29 @@
     - 入站消息响应不受 NotificationGuardrail 约束（用户主动询问 = opt-in 当前会话）
     - 但退订命令直接调 guard.record_unsubscribe()
     - query / openid 仅作为 URL params / JSON body，不拼 shell（input-guardrails）
-
-明文模式先行，AES-CBC 加密消息体模式留 TODO（兼容性测试时再实现）。
+    - AES-CBC 加密：使用 cryptography 库，密钥 = base64decode(encoding_aes_key + "=")
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import logging
+import struct
 from typing import Any, AsyncIterator, Optional
 from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
+
+# AES-CBC 加密可选依赖（cryptography 库）
+try:
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import padding as sym_padding
+    _HAS_CRYPTOGRAPHY = True
+except ImportError:
+    _HAS_CRYPTOGRAPHY = False
+    logger.info("cryptography 库不可用，WeChat AES-CBC 加密消息模式将降级为明文")
 
 
 # 微信 access_token 有效期（秒），提前 5 分钟刷新避免边界
@@ -92,6 +103,7 @@ class WeChatConnector:
         pairing_tokens: Optional[dict[str, str]] = None,
         guard: Optional[Any] = None,
         verify_token: str = "",
+        encoding_aes_key: str = "",
     ) -> None:
         """初始化微信公众号连接器。
 
@@ -101,10 +113,13 @@ class WeChatConnector:
             pairing_tokens: 配对 token 表 {token: deadman_user_id}
             guard: NotificationGuardrail 实例（用于退订命令）
             verify_token: 微信公众号后台配置的 Token（用于 webhook 签名校验）
+            encoding_aes_key: 微信公众号后台配置的 EncodingAESKey（43 字符 base64）。
+                配置后自动启用 AES-CBC 加密消息体模式；未配置则走明文模式。
         """
         self.app_id: str = app_id or ""
         self.app_secret: str = app_secret or ""
         self.verify_token: str = verify_token or ""
+        self.encoding_aes_key: str = encoding_aes_key or ""
         self.pairing_tokens: dict[str, str] = pairing_tokens or {}
         self._guard = guard
 
@@ -120,6 +135,22 @@ class WeChatConnector:
         # access_token 缓存
         self._access_token: str = ""
         self._access_token_expires_at: float = 0.0  # monotonic 时间戳
+
+        # AES-CBC 加密密钥（encoding_aes_key 配置后自动派生）
+        self._aes_key: bytes = b""
+        self._iv: bytes = b""
+        if self.encoding_aes_key and _HAS_CRYPTOGRAPHY:
+            try:
+                # 微信规范：AES key = base64decode(encoding_aes_key + "=")
+                # encoding_aes_key 为 43 字符 base64，补 "=" 后恰好 32 字节（AES-256）
+                self._aes_key = base64.b64decode(self.encoding_aes_key + "=")
+                # IV = AES key 前 16 字节
+                self._iv = self._aes_key[:16]
+                logger.info("WeChat AES-CBC 加密模式已启用")
+            except Exception as exc:
+                logger.warning("WeChat encoding_aes_key 解析失败，降级为明文模式: %s", exc)
+                self._aes_key = b""
+                self._iv = b""
 
     # ==================================================================
     # start / stop
@@ -255,6 +286,112 @@ class WeChatConnector:
             return False
 
     # ==================================================================
+    # AES-CBC 加密消息体（微信安全模式）
+    # ==================================================================
+
+    @property
+    def _encryption_enabled(self) -> bool:
+        """是否启用 AES-CBC 加密消息模式"""
+        return bool(self._aes_key and self._iv)
+
+    def _decrypt_message(self, encrypted: str) -> str:
+        """解密微信加密消息体
+
+        微信加密格式：AES-CBC(PKCS#7 pad(16 random bytes + 4-byte msg_len + msg + appid))
+        - AES key = base64decode(encoding_aes_key + "=")，32 字节 AES-256
+        - IV = aes_key[:16]
+        - PKCS#7 block size = 32（微信规范）
+
+        Args:
+            encrypted: Base64 编码的加密消息
+
+        Returns:
+            解密后的 XML 消息明文
+
+        Raises:
+            ValueError: 解密失败（密钥错误/格式错误/appid 不匹配）
+        """
+        if not self._encryption_enabled:
+            raise ValueError("AES-CBC 加密未启用，无法解密")
+
+        cipher_bytes = base64.b64decode(encrypted)
+        cipher = Cipher(algorithms.AES(self._aes_key), modes.CBC(self._iv))
+        decryptor = cipher.decryptor()
+        padded_plain = decryptor.update(cipher_bytes) + decryptor.finalize()
+
+        # PKCS#7 解包（block size = 32，微信规范）
+        pad_len = padded_plain[-1]
+        if pad_len < 1 or pad_len > 32:
+            raise ValueError(f"PKCS#7 填充值异常: {pad_len}")
+        plain = padded_plain[:-pad_len]
+
+        # 微信格式：16 random bytes + 4-byte msg_len (network order) + msg + appid
+        if len(plain) < 20:
+            raise ValueError("解密后数据过短，格式不符")
+        msg_len = struct.unpack("!I", plain[16:20])[0]
+        msg = plain[20 : 20 + msg_len].decode("utf-8")
+        from_appid = plain[20 + msg_len :].decode("utf-8")
+
+        if from_appid != self.app_id:
+            raise ValueError(f"appid 不匹配: 期望 {self.app_id}，实际 {from_appid}")
+
+        return msg
+
+    def _encrypt_message(self, reply_xml: str, nonce: str, timestamp: str) -> str:
+        """加密回复消息并生成签名
+
+        微信安全模式回复格式：
+        <xml>
+            <Encrypt><![CDATA[base64(aes_cbc(random16 + msg_len + msg + appid))]]></Encrypt>
+            <MsgSignature><![CDATA[SHA1(token+timestamp+nonce+encrypt)]]></MsgSignature>
+            <TimeStamp>timestamp</TimeStamp>
+            <Nonce><![CDATA[nonce]]></Nonce>
+        </xml>
+
+        Args:
+            reply_xml: 待回复的 XML 明文
+            nonce: 随机串
+            timestamp: 时间戳字符串
+
+        Returns:
+            加密后的完整 XML 响应字符串
+        """
+        if not self._encryption_enabled:
+            raise ValueError("AES-CBC 加密未启用，无法加密")
+
+        # 构造明文：16 random bytes + 4-byte msg_len + msg + appid
+        import secrets as _secrets
+
+        random_bytes = _secrets.token_bytes(16)
+        msg_bytes = reply_xml.encode("utf-8")
+        appid_bytes = self.app_id.encode("utf-8")
+        msg_len_bytes = struct.pack("!I", len(msg_bytes))
+        plain = random_bytes + msg_len_bytes + msg_bytes + appid_bytes
+
+        # PKCS#7 填充（block size = 32，微信规范）
+        padder = sym_padding.PKCS7(256).padder()
+        padded = padder.update(plain) + padder.finalize()
+
+        # AES-CBC 加密
+        cipher = Cipher(algorithms.AES(self._aes_key), modes.CBC(self._iv))
+        encryptor = cipher.encryptor()
+        encrypted = encryptor.update(padded) + encryptor.finalize()
+        encrypted_b64 = base64.b64encode(encrypted).decode("ascii")
+
+        # 签名：SHA1(sort(token, timestamp, nonce, encrypted))
+        parts = sorted([self.verify_token, timestamp, nonce, encrypted_b64])
+        signature = hashlib.sha1("".join(parts).encode("utf-8")).hexdigest()
+
+        return (
+            "<xml>"
+            f"<Encrypt><![CDATA[{encrypted_b64}]]></Encrypt>"
+            f"<MsgSignature><![CDATA[{signature}]]></MsgSignature>"
+            f"<TimeStamp>{timestamp}</TimeStamp>"
+            f"<Nonce><![CDATA[{nonce}]]></Nonce>"
+            "</xml>"
+        )
+
+    # ==================================================================
     # webhook 入口 - 处理微信回调
     # ==================================================================
 
@@ -298,6 +435,19 @@ class WeChatConnector:
         except (ET.ParseError, UnicodeDecodeError) as exc:
             logger.warning("WeChat webhook XML 解析失败: %s", exc)
             return b"success"
+
+        # AES-CBC 加密消息体：微信安全模式下，实际消息在 <Encrypt> 字段中
+        encrypt_field = (root.findtext("Encrypt") or "").strip()
+        if encrypt_field:
+            if not self._encryption_enabled:
+                logger.warning("收到加密消息但 AES-CBC 未启用，忽略")
+                return b"success"
+            try:
+                decrypted_xml = self._decrypt_message(encrypt_field)
+                root = ET.fromstring(decrypted_xml)
+            except (ValueError, ET.ParseError) as exc:
+                logger.warning("WeChat 消息解密失败: %s", exc)
+                return b"success"
 
         msg_type = (root.findtext("MsgType") or "").strip()
         from_openid = (root.findtext("FromUserName") or "").strip()

@@ -40,12 +40,12 @@ IMPORTANCE_HIGH_THRESHOLD: float = 0.8
 # 未安装时降级为 None，记忆系统在纯内存模式下运行。
 try:  # pragma: no cover - 可选依赖
     from graphiti import Graphiti as _GraphitiClient  # type: ignore
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     _GraphitiClient = None  # type: ignore
 
 try:  # pragma: no cover - 可选依赖
     from lightrag import LightRAG as _LightRAGClient  # type: ignore
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     _LightRAGClient = None  # type: ignore
 
 
@@ -730,7 +730,13 @@ class MemoryManager:
             if self.file_store is not None:
                 self.file_store.append_fact("经验固化", fact)
 
-            # TODO: 若 procedural_memory(Graphiti-backed)可用,同步写入
+            # 同步到 procedural_memory（Graphiti-backed 时自动写入时序知识图谱）
+            self.procedural.store_strategy(
+                agent_name=agent_name,
+                failure_type=failure_type,
+                strategy=strategy,
+                success_rate=success_rate,
+            )
         except Exception as exc:
             logger.warning("固化策略到 procedural memory 失败: %s", exc)
 

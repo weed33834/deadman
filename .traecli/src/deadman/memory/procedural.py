@@ -165,6 +165,47 @@ class ProceduralMemory:
 
         return proc
 
+    def store_strategy(
+        self,
+        agent_name: str,
+        failure_type: str,
+        strategy: str,
+        success_rate: float,
+    ) -> None:
+        """存储调整策略到程序记忆（经验沉淀）。
+
+        当某失败类型的策略历史成功率 >= 0.8 且尝试 >= 5 次时,
+        由 MemoryManager._persist_strategy_to_procedural 调用,
+        将成熟策略固化到程序记忆供未来直接复用。
+
+        Graphiti 可用时同步写入时序知识图谱（跨会话可检索）。
+        """
+        strategy_key = f"{agent_name}:{failure_type}"
+        # 内存存储：追加到 procedures 中以特殊 procedure_id 标识
+        proc_id = f"strategy:{strategy_key}"
+        self.procedures[proc_id] = Procedure(
+            procedure_id=proc_id,
+            procedure_name=f"策略:{strategy_key}",
+            steps=[{"action": strategy, "success_rate": success_rate}],
+            source="reflexion",
+            verified=success_rate >= 0.8,
+            last_updated=datetime.now(timezone.utc),
+        )
+
+        # 同步到 Graphiti（跨会话检索）
+        if self.graphiti is not None:
+            try:
+                self.graphiti.add_event({
+                    "event_type": "ReflexionStrategy",
+                    "agent_name": agent_name,
+                    "failure_type": failure_type,
+                    "strategy": strategy,
+                    "success_rate": success_rate,
+                    "timestamp": datetime.now(timezone.utc),
+                })
+            except Exception as e:
+                logger.warning("Graphiti 策略同步失败（非致命）: %s", e)
+
     @staticmethod
     def _jurisdiction_matches(proc_juris: dict, query_juris: dict) -> bool:
         """地域匹配：query 的每个字段需与 proc 一致（proc 字段为空视为通配）"""

@@ -76,8 +76,8 @@ from typing import Any, Optional
 
 from ...feature_flags import is_enabled
 
-# 复用 D25 的相似度计算
-from .convergence_detector import _jaccard_similarity, _text_similarity, _tokenize
+# 复用共享文本相似度工具
+from ....utils.text_similarity import text_similarity as _text_similarity
 
 logger = logging.getLogger(__name__)
 

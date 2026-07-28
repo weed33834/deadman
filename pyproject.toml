@@ -49,6 +49,8 @@ dependencies = [
     "PyJWT>=2.8",
     # Cron 表达式解析（替代手写 5 字段解析器）
     "croniter>=2.0",
+    # AES-CBC 加密（WeChat 消息加密 / ending_note 生产级加密）
+    "cryptography>=41.0",
 ]
 
 [project.optional-dependencies]

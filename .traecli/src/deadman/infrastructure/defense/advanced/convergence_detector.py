@@ -163,11 +163,6 @@ class ConvergenceAlert:
 # =====================================================================
 
 
-def _text_similarity(text_a: str, text_b: str) -> float:
-    """文本相似度(Jaccard on tokens, 0-1)。"""
-    return jaccard_similarity(tokenize(text_a), tokenize(text_b))
-
-
 # =====================================================================
 # Convergence Detector
 # =====================================================================
@@ -576,7 +571,7 @@ class ConvergenceDetector:
             if output.output_hash in self._token_cache:
                 tokens = self._token_cache[output.output_hash]
             else:
-                tokens = _tokenize(output.output)
+                tokens = tokenize(output.output)
                 with self._lock:
                     self._token_cache[output.output_hash] = tokens
             tokenized.append((output.agent_name, tokens))
@@ -585,7 +580,7 @@ class ConvergenceDetector:
         for i in range(n):
             metrics.pairwise_similarity.setdefault(tokenized[i][0], {})
             for j in range(i + 1, n):
-                sim = _jaccard_similarity(tokenized[i][1], tokenized[j][1])
+                sim = jaccard_similarity(tokenized[i][1], tokenized[j][1])
                 metrics.pairwise_similarity[tokenized[i][0]][tokenized[j][0]] = sim
                 metrics.pairwise_similarity.setdefault(tokenized[j][0], {})[tokenized[i][0]] = sim
                 similarities.append(sim)

@@ -80,7 +80,7 @@ try:
     from . import permissions as _permissions_module
     from . import signing as _signing_module
     _P3_MODULES_AVAILABLE = True
-except Exception as exc:  # pragma: no cover - 降级
+except ImportError as exc:  # pragma: no cover - 降级
     logger.warning("P3 子模块加载失败，相关 feature flag 将降级为关闭: %s", exc)
     _gateway_module = None  # type: ignore[assignment]
     _cache_module = None  # type: ignore[assignment]
@@ -95,7 +95,7 @@ except Exception as exc:  # pragma: no cover - 降级
 # LLM 客户端（依赖 httpx，可能未安装）
 try:
     from ..llm import llm_client  # type: ignore
-except Exception:  # pragma: no cover - 环境降级
+except (ImportError, OSError):  # pragma: no cover - 环境降级
     logger.warning("llm 模块不可用（可能缺少 httpx），LLM 相关工具将降级")
     llm_client = None  # type: ignore
 
@@ -103,7 +103,7 @@ except Exception:  # pragma: no cover - 环境降级
 try:
     from ..selfcheck.checker import SelfCheckChecker  # type: ignore
     _SELFCHECK_AVAILABLE = True
-except Exception:
+except (ImportError, OSError):
     logger.info("selfcheck 模块不可用，check_integrity 将仅做 5 关校验")
     SelfCheckChecker = None  # type: ignore
     _SELFCHECK_AVAILABLE = False
@@ -112,7 +112,7 @@ except Exception:
 # 真实签名：trace_tool_span(tool_name, attributes=None) -> 上下文管理器
 try:
     from ..observability.tracer import trace_tool_span  # type: ignore
-except Exception:
+except (ImportError, OSError):
     logger.info("observability.tracer 不可用，trace span 将被跳过")
 
     @contextmanager  # type: ignore
@@ -124,7 +124,7 @@ except Exception:
 try:
     from ..memory.manager import MemoryManager  # type: ignore
     _MEMORY_AVAILABLE = True
-except Exception:
+except (ImportError, OSError):
     MemoryManager = None  # type: ignore
     _MEMORY_AVAILABLE = False
 
@@ -132,7 +132,7 @@ except Exception:
 try:
     from ..debate.orchestrator import DebateOrchestrator  # type: ignore
     _DEBATE_AVAILABLE = True
-except Exception:
+except (ImportError, OSError):
     DebateOrchestrator = None  # type: ignore
     _DEBATE_AVAILABLE = False
 
@@ -140,7 +140,7 @@ except Exception:
 try:
     from ..reflexion.engine import ReflexionEngine, get_predefined_strategy  # type: ignore
     _REFLEXION_AVAILABLE = True
-except Exception:
+except (ImportError, OSError):
     ReflexionEngine = None  # type: ignore
     get_predefined_strategy = None  # type: ignore
     _REFLEXION_AVAILABLE = False
@@ -150,7 +150,7 @@ try:
     from lightrag import LightRAG, QueryParam  # type: ignore
 
     _LIGHTRAG_AVAILABLE = True
-except Exception:
+except ImportError:
     LightRAG = None  # type: ignore
     QueryParam = None  # type: ignore
     _LIGHTRAG_AVAILABLE = False
@@ -580,7 +580,7 @@ def _build_schema_from_signature(fn: Callable[..., Any]) -> dict[str, Any]:
     # 解析字符串形式的 type hints（PEP 563 / from __future__ import annotations）
     try:
         hints = _typing.get_type_hints(fn)
-    except Exception:
+    except (TypeError, NameError, AttributeError):
         hints = {}
 
     sig = inspect.signature(fn)
@@ -645,7 +645,7 @@ class McpServer:
             from fastmcp import FastMCP  # type: ignore
 
             self._fastmcp: Any = FastMCP(name)
-        except Exception:
+        except ImportError:
             self._fastmcp = None
         # 全局 trace_id（用于本进程内 span 关联）
         self.trace_id: str = str(uuid.uuid4())
@@ -702,14 +702,14 @@ class McpServer:
             try:
                 # FastMCP 的 tool() 装饰器签名差异较大，这里只做尽力注册
                 self._fastmcp.tool(name=name, description=description)(handler)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("FastMCP tool 注册失败 %s: %s", name, exc)
         # P3.1 同步 schema 到网关（若已懒加载）
         if self._gateway is not None:
             try:
                 self._gateway.register_schema(name, input_schema)
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as exc:  # pragma: no cover
+                logger.debug("网关 schema 同步失败 %s: %s", name, exc)
 
     def unregister_tool(self, name: str) -> bool:
         """注销工具，返回是否删除成功（P3.6 配套）"""
@@ -718,8 +718,8 @@ class McpServer:
         if self._cache is not None:
             try:
                 self._cache.invalidate(name)
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as exc:  # pragma: no cover
+                logger.debug("缓存清理失败 %s: %s", name, exc)
         return removed
 
     def register_dynamic_tool(

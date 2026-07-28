@@ -228,9 +228,9 @@ class MultimodalPipeline:
             )
             self._consume_budget(user_id, tokens=100, consumer="multimodal_ocr")
             return result
-        except MultimodalDisabledError:
-            raise
         except Exception as e:
+            if isinstance(e, MultimodalDisabledError):
+                raise
             error_msg = str(e)
             duration_ms = (time.time() - start) * 1000
             self._record_audit(
@@ -276,9 +276,9 @@ class MultimodalPipeline:
             )
             self._consume_budget(user_id, tokens=200, consumer="multimodal_asr")
             return result
-        except MultimodalDisabledError:
-            raise
         except Exception as e:
+            if isinstance(e, MultimodalDisabledError):
+                raise
             error_msg = str(e)
             duration_ms = (time.time() - start) * 1000
             self._record_audit(
@@ -325,9 +325,9 @@ class MultimodalPipeline:
             )
             self._consume_budget(user_id, tokens=150, consumer="multimodal_tts")
             return result
-        except MultimodalDisabledError:
-            raise
         except Exception as e:
+            if isinstance(e, MultimodalDisabledError):
+                raise
             error_msg = str(e)
             duration_ms = (time.time() - start) * 1000
             self._record_audit(
@@ -373,9 +373,9 @@ class MultimodalPipeline:
             )
             self._consume_budget(user_id, tokens=300, consumer="multimodal_vision")
             return text
-        except MultimodalDisabledError:
-            raise
         except Exception as e:
+            if isinstance(e, MultimodalDisabledError):
+                raise
             error_msg = str(e)
             duration_ms = (time.time() - start) * 1000
             self._record_audit(
@@ -422,9 +422,9 @@ class MultimodalPipeline:
             )
             self._consume_budget(user_id, tokens=500, consumer="multimodal_image_gen")
             return img_bytes
-        except MultimodalDisabledError:
-            raise
         except Exception as e:
+            if isinstance(e, MultimodalDisabledError):
+                raise
             error_msg = str(e)
             duration_ms = (time.time() - start) * 1000
             self._record_audit(
