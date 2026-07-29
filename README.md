@@ -28,12 +28,13 @@ deadman 是一个面向「身后事 + 医疗导航」垂直场景的**多智能�
 
 ## 仓库地址
 
-本项目两仓平等维护（均为各自平台的主仓库，非镜像关系），任一仓库均可 clone：
+本项目三端同步维护，GitHub 为主仓库（自动化工作流 / CI / Dependabot 在此生效），其余为国内镜像：
 
-| 平台 | 地址 | 用途 |
+| 平台 | 地址 | 角色 |
 |------|------|------|
-| GitHub | https://github.com/weed33834/deadman | 国际镜像 + CI |
-| GitCode | https://gitcode.com/badhope/deadman | 国内主仓库 |
+| **GitHub** | https://github.com/weed33834/deadman | **主仓库**（CI + 自动化） |
+| GitCode | https://gitcode.com/badhope/deadman | 国内镜像 |
+| Gitee | https://gitee.com/badhope/deadman | 国内镜像 |
 
 ## 核心特性
 
