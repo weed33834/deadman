@@ -12,14 +12,15 @@ from __future__ import annotations
 import logging
 import os
 import re
-import structlog
 import uuid
 from typing import Any
+
+import structlog
 
 from ..config import settings
 from ..llm import get_llm_for_use_case
 from ..rules_loader import rule_checker, rule_loader
-from ..types import RuleCheckResult, RiskTier, TransferSummary
+from ..types import RiskTier, RuleCheckResult, TransferSummary
 from .handoff import HANDOFF_ENABLED, HandoffManager
 from .handoff_audit import HANDOFF_AUDIT_ENABLED, get_handoff_audit_logger
 from .react_loop import REACT_ENABLED
@@ -742,8 +743,8 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     react_used = False
     if REACT_ENABLED and respond_llm and respond_llm.api_key:
         try:
-            from .react_tools import register_default_react_tools
             from .react_loop import run_react_loop
+            from .react_tools import register_default_react_tools
 
             register_default_react_tools()
 

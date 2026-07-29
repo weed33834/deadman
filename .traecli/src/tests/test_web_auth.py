@@ -19,11 +19,9 @@ import asyncio
 from pathlib import Path
 
 import pytest
-
 from deadman.auth.jwt import JWTManager
 from deadman.auth.store import UserStore
 from deadman.web.server import WebServer
-
 
 # =====================================================================
 # 辅助：构造独立 WebServer（auth_data_dir 指向 tmp_path）

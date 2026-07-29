@@ -14,19 +14,17 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 
 import pytest
-
 from deadman.orchestration.state import create_initial_state
 from deadman.orchestration.termination import (
-    TerminationResult,
-    MaxStepsTermination,
-    StuckAgentTermination,
-    TokenUsageTermination,
-    MessageCountTermination,
     ExternalTermination,
+    MaxStepsTermination,
+    MessageCountTermination,
+    StuckAgentTermination,
+    TerminationResult,
     TextMentionTermination,
+    TokenUsageTermination,
     default_termination,
 )
-
 
 # =====================================================================
 # MaxStepsTermination

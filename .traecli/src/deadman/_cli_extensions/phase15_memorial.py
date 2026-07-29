@@ -26,12 +26,11 @@ from typing import Any
 from ..memorial_writer.generator import MemorialGenerator
 from ..memorial_writer.models import (
     DOC_TYPES,
-    MemorialRequest,
     VALID_FAITHS,
     VALID_LANGUAGES,
     VALID_TONES,
+    MemorialRequest,
 )
-
 
 _DISCLAIMER = (
     "【边界告知】AI 生成的悼文仅供参考，建议家属审阅修改后使用。"

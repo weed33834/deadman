@@ -18,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
 # === 默认存储路径 ===
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "institutions"
 

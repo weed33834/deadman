@@ -8,10 +8,7 @@
 
 from __future__ import annotations
 
-
-
 from deadman.mcp_server.server import McpServer, mcp
-
 
 # =====================================================================
 # McpServer - 工具注册

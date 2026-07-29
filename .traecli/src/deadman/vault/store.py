@@ -250,8 +250,8 @@ class VaultStore:
 
     def _decrypt_v1(self, ciphertext: bytes, key: bytes) -> bytes:
         """旧格式兼容解密（HMAC-SHA256 keystream，v5.2 之前的数据迁移用）"""
-        import hmac
         import hashlib as _hl
+        import hmac
 
         if len(ciphertext) < self.PBKDF2_SALT_LEN + 32:
             return b""

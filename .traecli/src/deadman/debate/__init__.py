@@ -26,13 +26,13 @@ from .voting import (
 )
 
 __all__ = [
+    "ConfidenceWeightedVote",
+    "ConsensusVote",
     "Debate",
     "DebateOrchestrator",
     "DebatePosition",
     "DebateState",
-    "VotingStrategy",
     "MajorityVote",
+    "VotingStrategy",
     "WeightedVote",
-    "ConfidenceWeightedVote",
-    "ConsensusVote",
 ]

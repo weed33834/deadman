@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-
-
 # =====================================================================
 # get_llm_for_use_case 工厂函数
 # =====================================================================
@@ -31,8 +29,8 @@ class TestGetLLMForUseCase:
 
     def test_unconfigured_falls_back_to_main_llm(self, monkeypatch):
         """未配置专用模型时，所有 use_case 都回退到主 llm_client"""
-        from deadman.llm import get_llm_for_use_case, llm_client, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case, llm_client
 
         # 确保专用模型配置为空
         monkeypatch.setattr(settings, "llm_model_router", "")
@@ -48,8 +46,8 @@ class TestGetLLMForUseCase:
 
     def test_router_uses_dedicated_model_when_configured(self, monkeypatch):
         """配置 LLM_MODEL_ROUTER 后 router 用例返回专用 client"""
-        from deadman.llm import get_llm_for_use_case, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case
 
         monkeypatch.setattr(settings, "llm_provider", "openai")
         monkeypatch.setattr(settings, "llm_api_key", "sk-main")
@@ -67,8 +65,8 @@ class TestGetLLMForUseCase:
 
     def test_provider_model_format_parsed(self, monkeypatch):
         """provider:model 格式被正确解析，按 provider 取默认 base_url/env_key"""
-        from deadman.llm import get_llm_for_use_case, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case
 
         monkeypatch.setattr(settings, "llm_provider", "openai")
         monkeypatch.setattr(settings, "llm_model_respond", "anthropic:claude-3-5-sonnet")
@@ -86,8 +84,8 @@ class TestGetLLMForUseCase:
 
     def test_model_only_without_provider_uses_main_provider(self, monkeypatch):
         """仅 model 名（无 provider:前缀）时沿用主 provider 配置"""
-        from deadman.llm import get_llm_for_use_case, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case
 
         monkeypatch.setattr(settings, "llm_provider", "openai")
         monkeypatch.setattr(settings, "llm_api_key", "sk-main")
@@ -105,8 +103,8 @@ class TestGetLLMForUseCase:
 
     def test_missing_api_key_falls_back_to_main(self, monkeypatch):
         """配置的 provider 未设置 API key 时回退主 LLM"""
-        from deadman.llm import get_llm_for_use_case, llm_client, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case, llm_client
 
         monkeypatch.setattr(settings, "llm_model_router", "anthropic:claude-haiku-4-5")
         monkeypatch.setattr(settings, "llm_model_summarizer", "")
@@ -121,8 +119,8 @@ class TestGetLLMForUseCase:
 
     def test_cache_reuses_same_client_instance(self, monkeypatch):
         """同一 use_case 多次调用返回同一 client 实例（缓存复用）"""
-        from deadman.llm import get_llm_for_use_case, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case
 
         monkeypatch.setattr(settings, "llm_model_router", "openai:gpt-4o-mini")
         monkeypatch.setattr(settings, "llm_model_summarizer", "")
@@ -138,8 +136,8 @@ class TestGetLLMForUseCase:
 
     def test_different_use_cases_get_different_clients(self, monkeypatch):
         """不同 use_case 配置不同模型时返回不同 client"""
-        from deadman.llm import get_llm_for_use_case, _llm_client_cache
         from deadman.config import settings
+        from deadman.llm import _llm_client_cache, get_llm_for_use_case
 
         monkeypatch.setattr(settings, "llm_model_router", "openai:gpt-4o-mini")
         monkeypatch.setattr(settings, "llm_model_respond", "openai:gpt-4o")
@@ -256,8 +254,8 @@ class TestEpisodicIntegration:
     """P7: 验证 episodic._summarize_turn 调用 get_llm_for_use_case('summarizer')"""
 
     def test_summarize_turn_calls_get_llm_for_use_case_summarizer(self, monkeypatch):
-        from deadman.memory.episodic import EpisodicMemory
         from deadman.llm import _llm_client_cache
+        from deadman.memory.episodic import EpisodicMemory
 
         mock_client = MagicMock()
         mock_client.api_key = "sk-test"

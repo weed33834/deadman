@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from .config import settings
-from .types import RuleCheckResult, RiskTier
+from .types import RiskTier, RuleCheckResult
 
 logger = logging.getLogger(__name__)
 

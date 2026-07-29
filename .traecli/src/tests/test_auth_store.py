@@ -20,9 +20,7 @@ import json
 from pathlib import Path
 
 import pytest
-
 from deadman.auth.store import UserStore
-
 
 # =====================================================================
 # 1-3. 注册路径
@@ -164,7 +162,7 @@ class TestAtomicWrite:
 
         original_write = store_module.Path.write_text
 
-        def failing_write(self_path, *args, **kwargs):  # noqa: ANN001
+        def failing_write(self_path, *args, **kwargs):
             # 只对 .tmp 文件抛异常
             if str(self_path).endswith(".json.tmp"):
                 raise OSError("simulated disk full")

@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-__all__ = ["ChatRequest", "RegisterRequest", "LoginRequest", "validate_body"]
+__all__ = ["ChatRequest", "LoginRequest", "RegisterRequest", "validate_body"]
 
 
 class ChatRequest(BaseModel):
@@ -64,11 +64,11 @@ def validate_body(model_cls: type[BaseModel], data: dict) -> tuple[bool, list]:
     try:
         model_cls(**data)
         return True, []
-    except Exception as exc:  # noqa: BLE001 - 统一捕获 ValidationError
+    except Exception as exc:
         # pydantic v1/v2 均提供 .json()，输出可安全 JSON 序列化的结构
         try:
             errors = exc.errors()
-        except Exception:  # noqa: BLE001
+        except Exception:
             errors = [{"msg": str(exc)}]
         # errors 中可能含不可直接 json 序列化的对象（如 pydantic v2 的 url/input）
         # 经 json 往返确保安全
@@ -76,6 +76,6 @@ def validate_body(model_cls: type[BaseModel], data: dict) -> tuple[bool, list]:
 
         try:
             errors = _json.loads(_json.dumps(errors, ensure_ascii=False, default=str))
-        except Exception:  # noqa: BLE001
+        except Exception:
             errors = [{"msg": str(exc)}]
         return False, errors

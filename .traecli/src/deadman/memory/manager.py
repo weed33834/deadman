@@ -13,10 +13,10 @@ from typing import Any
 
 from ..config import settings
 from ..llm import llm_client
-from .working import WorkingMemory
 from .episodic import EpisodicMemory
-from .semantic import SemanticMemory, UserProfile
 from .procedural import ProceduralMemory
+from .semantic import SemanticMemory, UserProfile
+from .working import WorkingMemory
 
 logger = logging.getLogger(__name__)
 

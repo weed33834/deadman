@@ -89,6 +89,32 @@ deadman = ["web/static/*"]
 line-length = 100
 target-version = "py310"
 
+[tool.ruff.lint]
+# 显式声明启用规则集，避免依赖 ruff 默认配置漂移
+# E  pycodestyle errors / W warnings
+# F  pyflakes (undefined name / unused import / unused var)
+# I  isort (import 顺序)
+# B  bugbear (correctness / 常见 bug 模式)
+# C4 comprehensions (列表/字典/集合推导简化)
+# UP pyupgrade (语法现代化, 跟进 py310+)
+# SIM simplify (代码简化)
+# RUF ruff 专有规则
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RUF"]
+# 中文项目大量使用全角标点（，。：；！？"''）作为注释/字符串中的正常字符，
+# RUF001/002/003 会把每一个全角字符都标为 ambiguous-unicode-character，
+# 产生大量噪声告警（本项目 13000+ 处），无实际收益，整体忽略。
+ignore = [
+    "RUF001",  # ambiguous-unicode-character-string
+    "RUF002",  # ambiguous-unicode-character-docstring
+    "RUF003",  # ambiguous-unicode-character-comment
+    # E501 line-too-long 由 line-length=100 控制，长字符串/URL 单独豁免
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试文件允许宽松一些
+".traecli/src/tests/*" = ["E501"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = [".traecli/src/tests"]

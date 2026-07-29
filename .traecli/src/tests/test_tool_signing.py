@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import pytest
-
 from deadman.mcp_server import signing as signing_module
 from deadman.mcp_server.signing import (
     REGISTERED_MANIFESTS,
@@ -25,7 +24,6 @@ from deadman.mcp_server.signing import (
     verify_tool_integrity,
 )
 
-
 # =====================================================================
 # 辅助：生成测试用 Ed25519 密钥对（若 cryptography 可用）
 # =====================================================================
@@ -35,8 +33,8 @@ def _gen_ed25519_keypair():
     """返回 (private_pem, public_pem)；cryptography 不可用时返回 (None, None)"""
     if not signing_module._CRYPTOGRAPHY_AVAILABLE:
         return None, None
-    from cryptography.hazmat.primitives.asymmetric import ed25519
     from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ed25519
 
     priv = ed25519.Ed25519PrivateKey.generate()
     pub = priv.public_key()

@@ -20,17 +20,17 @@ feature flag:`DEADMAN_COMPLIANCE_ENABLED=0` 默认关闭。
 
 from __future__ import annotations
 
+from .ai_labeling import AILabeling, LabelType, get_ai_labeling
+from .audit_report import AuditReport, AuditReporter, ReportFrequency, get_audit_reporter
+from .consent import ConsentManager, ConsentRecord, ConsentStatus, ConsentType, get_consent_manager
 from .data_residency import DataRegion, DataResidency, ResidencyViolation, get_data_residency
+from .retention import DataCategory, RetentionManager, RetentionPolicy, get_retention_manager
 from .right_to_delete import (
     DeletionRequest,
     DeletionStatus,
     RightToDelete,
     get_right_to_delete,
 )
-from .ai_labeling import AILabeling, LabelType, get_ai_labeling
-from .audit_report import AuditReport, AuditReporter, ReportFrequency, get_audit_reporter
-from .retention import DataCategory, RetentionPolicy, RetentionManager, get_retention_manager
-from .consent import ConsentManager, ConsentRecord, ConsentStatus, ConsentType, get_consent_manager
 
 __all__ = [
     # data_residency

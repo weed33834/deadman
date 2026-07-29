@@ -18,9 +18,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import pytest
-
 import deadman.security.jit as jit_module
+import pytest
 from deadman.security.jit import (
     DEFAULT_TTL_SECONDS,
     JITPermissionManager,
@@ -28,7 +27,6 @@ from deadman.security.jit import (
     get_jit_manager,
     reset_jit_manager,
 )
-
 
 # =====================================================================
 # Fixtures

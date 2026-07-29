@@ -10,10 +10,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from contextlib import ExitStack
 from datetime import datetime
 from typing import Any
-from collections.abc import Awaitable, Callable
 
 from ..config import settings
 from ..llm import llm_client

@@ -27,9 +27,9 @@ import os
 import re
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-from collections.abc import Callable
 
 # =====================================================================
 # 配置（feature flag，默认关闭）
@@ -110,7 +110,7 @@ _INJECTION_PATTERNS: list[re.Pattern[str]] = [
 class _TokenBucket:
     """简单令牌桶：容量 burst，每秒补充 rate/60 个令牌"""
 
-    __slots__ = ("capacity", "rate_per_sec", "tokens", "last_refill", "lock")
+    __slots__ = ("capacity", "last_refill", "lock", "rate_per_sec", "tokens")
 
     def __init__(self, rate_per_minute: int, burst: int) -> None:
         self.capacity = max(1, burst)
@@ -262,7 +262,7 @@ class ToolGateway:
                         0.2,
                     )
             return True, "", 1.0
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # 校验逻辑自身出错：fail-open
             return True, f"schema_validate 内部异常: {exc}", 1.0
 
@@ -329,7 +329,7 @@ class ToolGateway:
                 allowed = bool(result)
                 reason = ""
             return bool(allowed), reason, 0.5 if not allowed else 1.0
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # LLM 调用失败：fail-open
             return True, f"semantic_gate 跳过: {exc}", 1.0
 
@@ -342,7 +342,7 @@ class ToolGateway:
                 allowed, reason = check_fn(tool_name, args)
                 if not allowed:
                     return False, reason or layer_reason, 0.1
-            except Exception:  # noqa: BLE001
+            except Exception:
                 # policy 规则自身出错：fail-open
                 continue
         return True, "", 1.0

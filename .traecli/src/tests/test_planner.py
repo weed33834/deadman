@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from deadman.orchestration.planner import (
     COMPLEX_QUERY_MIN_KEYWORDS,
     COMPLEX_QUERY_MIN_LENGTH,
@@ -26,11 +25,10 @@ from deadman.orchestration.planner import (
     PLAN_EXECUTE_ENABLED,
     Plan,
     PlanCache,
-    PlanStep,
     PlannerAgent,
+    PlanStep,
     is_complex_query,
 )
-
 
 # =====================================================================
 # Mock LLM Client - 模拟 chat_json / chat

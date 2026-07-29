@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-
 import pytest
-
 from deadman.infrastructure.multi_tenant import (
     DEFAULT_TENANT_ID,
     TenantContext,
@@ -25,8 +23,9 @@ def enable_multi_tenant(monkeypatch, tmp_path):
     monkeypatch.setenv("DEADMAN_MULTI_TENANT_ENABLED", "1")
     monkeypatch.setenv("DEADMAN_TENANTS_ROOT", str(tmp_path / "tenants"))
     # 重新 import 让 TENANTS_ROOT 生效
-    import deadman.infrastructure.multi_tenant as mt
     import importlib
+
+    import deadman.infrastructure.multi_tenant as mt
     importlib.reload(mt)
     from deadman.infrastructure.feature_flags import get_flags
     get_flags()._cache.clear()
@@ -56,9 +55,8 @@ class TestTenantContext:
 
     def test_exception_still_restores(self):
         tenant = TenantInfo(tenant_id="t1")
-        with pytest.raises(RuntimeError):
-            with TenantContext(tenant):
-                raise RuntimeError("boom")
+        with pytest.raises(RuntimeError), TenantContext(tenant):
+            raise RuntimeError("boom")
         # 异常后应恢复默认
         assert get_current_tenant_id() == DEFAULT_TENANT_ID
 

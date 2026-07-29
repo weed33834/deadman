@@ -20,7 +20,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # =====================================================================
 # fixtures
 # =====================================================================
@@ -48,7 +47,13 @@ def enable_multimodal(monkeypatch, tmp_path):
 
     # 重置 multimodal 全局单例
     from deadman.multimodal import (
-        ocr, asr, tts, vision, image_gen, storage, pipeline,
+        asr,
+        image_gen,
+        ocr,
+        pipeline,
+        storage,
+        tts,
+        vision,
     )
     ocr._ocr_instance = None
     asr._asr_instance = None
@@ -153,7 +158,10 @@ class TestOCRService:
 
     def test_register_custom_provider(self, sample_image):
         from deadman.multimodal.ocr import (
-            DocType, OCRProvider, OCRResult, OCRService,
+            DocType,
+            OCRProvider,
+            OCRResult,
+            OCRService,
         )
 
         class CustomProvider(OCRProvider):
@@ -175,7 +183,10 @@ class TestOCRService:
     def test_extract_fallback_to_manual(self, sample_image):
         """cloud / tesseract 都不可用时,fallback 到 manual。"""
         from deadman.multimodal.ocr import (
-            DocType, OCRProvider, OCRResult, OCRService,
+            DocType,
+            OCRProvider,
+            OCRResult,
+            OCRService,
         )
 
         class FailingCloud(OCRProvider):
@@ -414,6 +425,7 @@ class TestMultimodalStorage:
 
     def test_content_hash_is_sha256(self, tmp_path):
         import hashlib
+
         from deadman.multimodal.storage import MultimodalStorage
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         data = b"hash-test"
@@ -581,7 +593,9 @@ class TestMultimodalPipeline:
 
     def test_route_capability_disabled_in_config(self, sample_image):
         from deadman.multimodal.pipeline import (
-            MultimodalConfig, MultimodalDisabledError, MultimodalPipeline,
+            MultimodalConfig,
+            MultimodalDisabledError,
+            MultimodalPipeline,
         )
         config = MultimodalConfig(enable_ocr=False)
         pipe = MultimodalPipeline(config=config)
@@ -628,11 +642,13 @@ class TestMultimodalPipeline:
 
     def test_budget_tracking_integration(self, sample_image):
         """验证 pipeline 调用 BudgetCoordinator 扣 budget。"""
+        from deadman.infrastructure.defense.budget_coordinator import (
+            BudgetDimension,
+            BudgetScope,
+            get_budget_coordinator,
+        )
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
-        from deadman.infrastructure.defense.budget_coordinator import (
-            BudgetDimension, BudgetScope, get_budget_coordinator,
-        )
         pipe = MultimodalPipeline()
         pipe.ocr_extract(sample_image, DocType.OTHER, user_id="u_budget")
         bc = get_budget_coordinator()
@@ -718,7 +734,8 @@ class TestModuleExports:
 
     def test_get_multimodal_pipeline_singleton(self):
         from deadman.multimodal.pipeline import (
-            get_multimodal_pipeline, reset_multimodal_pipeline,
+            get_multimodal_pipeline,
+            reset_multimodal_pipeline,
         )
         p1 = get_multimodal_pipeline()
         p2 = get_multimodal_pipeline()

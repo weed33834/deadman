@@ -10,12 +10,12 @@
 
 from __future__ import annotations
 
-from .models import TicketReply, Ticket, TicketStatus
+from .models import Ticket, TicketReply, TicketStatus
 from .store import TicketStore
 
 __all__ = [
-    "TicketReply",
     "Ticket",
+    "TicketReply",
     "TicketStatus",
     "TicketStore",
 ]

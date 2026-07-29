@@ -24,7 +24,6 @@ from typing import Any
 
 from ..plan_score.scorer import PlanScorer
 
-
 _DISCLAIMER = (
     "【边界告知】评分仅反映信息完整度，不代表法律效力；"
     "建议结合律师/公证处专业意见。"

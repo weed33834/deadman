@@ -11,16 +11,14 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-
 from deadman.memory.manager import (
-    MemoryManager,
     PII_FIELDS,
-    sanitize_before_store,
+    MemoryManager,
     _mask_pii,
+    sanitize_before_store,
 )
 from deadman.memory.semantic import SemanticMemory, UserProfile
 from deadman.memory.working import WorkingMemory
-
 
 # =====================================================================
 # WorkingMemory - 溢出归档

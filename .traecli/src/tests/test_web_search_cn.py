@@ -24,16 +24,16 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from deadman.tools.web_search import (
     BaiduSearchProvider,
     BingCNSearchProvider,
     DuckDuckGoSearchProvider,
     SearchResult,
     get_provider,
+)
+from deadman.tools.web_search import (
     search as top_level_search,
 )
-
 
 # =====================================================================
 # 辅助：构造 mock httpx response

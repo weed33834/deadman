@@ -14,9 +14,7 @@
 from __future__ import annotations
 
 import pytest
-
 from deadman.disclaimer.text import DisclaimerBuilder
-
 
 # =====================================================================
 # 1. 完整开场告知含 4 类

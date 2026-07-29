@@ -22,11 +22,11 @@
 
 from __future__ import annotations
 
-from .models import MemorialRequest, MemorialResult
 from .generator import MemorialGenerator
+from .models import MemorialRequest, MemorialResult
 
 __all__ = [
+    "MemorialGenerator",
     "MemorialRequest",
     "MemorialResult",
-    "MemorialGenerator",
 ]

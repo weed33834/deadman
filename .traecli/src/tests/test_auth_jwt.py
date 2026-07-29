@@ -17,9 +17,7 @@ import time
 from pathlib import Path
 
 import jwt as pyjwt
-
 from deadman.auth.jwt import JWTManager
-
 
 # =====================================================================
 # 1-4. 签发与验证
@@ -76,8 +74,8 @@ class TestIssueAndVerify:
         # 篡改 payload 段（中间段）
         parts = token.split(".")
         # 把 payload 替换为另一个 base64url（user_id 改为 hacker）
-        import json
         import base64
+        import json
         tampered_payload = {
             "user_id": "hacker",
             "email": "carol@example.com",

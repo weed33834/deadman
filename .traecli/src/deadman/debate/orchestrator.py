@@ -30,7 +30,8 @@ import logging
 import uuid
 from typing import Any
 
-from ..llm import LLMClient, llm_client as default_llm_client
+from ..llm import LLMClient
+from ..llm import llm_client as default_llm_client
 from ..observability.tracer import SpanType, tracer
 from .models import Debate, DebatePosition, DebateState
 from .voting import VotingStrategy, get_strategy

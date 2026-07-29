@@ -92,7 +92,6 @@ from deadman.knowledge import (
     reset_knowledge_manager,
 )
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -533,7 +532,7 @@ class TestAnonymizer:
         assert "30-39" in str(result.node.properties.get("age", ""))
         # birthdate 应转为 YYYY-MM
         bd = result.node.properties.get("birthdate", "")
-        assert "1989-05" in bd or "1989-05" == bd
+        assert "1989-05" in bd or bd == "1989-05"
 
     def test_l_diversity_check(self, anonymizer):
         """l-多样性:同等价类节点敏感属性应有 >= l 个不同值。"""

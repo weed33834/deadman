@@ -23,13 +23,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from deadman.memorial_writer.generator import MemorialGenerator
 from deadman.memorial_writer.models import (
     MemorialRequest,
     MemorialResult,
 )
-
 
 # =====================================================================
 # 辅助：mock LLM
@@ -582,8 +580,8 @@ class TestCLISmoke:
         self, capsys, monkeypatch
     ):
         """memorial-generate 命令带 mock LLM 可运行"""
-        from deadman._cli_extensions import phase15_memorial
         import deadman.memorial_writer.generator as gen_module
+        from deadman._cli_extensions import phase15_memorial
 
         mock_llm = MagicMock()
         mock_llm.api_key = "test-key"

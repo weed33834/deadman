@@ -340,13 +340,13 @@ def reset_vector_store_singleton() -> None:
 
 
 __all__ = [
-    "VectorStore",
-    "InMemoryVectorStore",
+    "VECTOR_STORE_ENABLED",
     "ChromaVectorStore",
+    "InMemoryVectorStore",
+    "VectorStore",
+    "_EmbeddingFunc",
+    "_cosine_similarity",
+    "_hash_embedding",
     "get_vector_store",
     "reset_vector_store_singleton",
-    "VECTOR_STORE_ENABLED",
-    "_EmbeddingFunc",
-    "_hash_embedding",
-    "_cosine_similarity",
 ]

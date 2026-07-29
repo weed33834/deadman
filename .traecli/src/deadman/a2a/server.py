@@ -25,7 +25,14 @@ import uuid
 from typing import Any
 
 from ..config import settings
-from .models import A2A_V12_ENABLED, A2ATask, AgentCard, AgentCardSkill, PushNotificationConfig, TaskState
+from .models import (
+    A2A_V12_ENABLED,
+    A2ATask,
+    AgentCard,
+    AgentCardSkill,
+    PushNotificationConfig,
+    TaskState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +47,9 @@ except ImportError:
     _HAS_HTTPX = False
 
 try:
+    from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding, rsa
-    from cryptography.exceptions import InvalidSignature
 
     _HAS_CRYPTOGRAPHY = True
 except ImportError:
@@ -619,7 +626,7 @@ def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None =
     server_ref = self
 
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+        def log_message(self, format: str, *args: Any) -> None:
             logger.debug("A2A HTTP %s - %s", self.address_string(), format % args)
 
         def _send_json(self, status: int, payload: Any) -> None:
@@ -641,7 +648,7 @@ def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None =
             self.end_headers()
             self.wfile.write(body)
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             # AgentCard endpoint
             if self.path == "/.well-known/agent.json":
                 self._send_json(200, server_ref.get_card())
@@ -650,7 +657,7 @@ def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None =
             else:
                 self._send_json(404, {"error": "not found"})
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             if self.path != "/a2a":
                 self._send_json(404, {"error": "not found"})
                 return

@@ -31,9 +31,9 @@ from typing import Any
 
 from ..ending_note.store import (
     _atomic_write_json,
-    _read_json,
-    _encrypt,
     _decrypt,
+    _encrypt,
+    _read_json,
 )
 from .models import CheckInLog, SwitchConfig, SwitchRecord, SwitchState
 
@@ -56,8 +56,8 @@ def _get_switch_passphrase(user_id: str) -> bytes:
         "DEADMAN_ENDING_NOTE_PASSPHRASE",
         "deadman-ending-note-dev-passphrase",
     )
-    import hmac
     import hashlib
+    import hmac
 
     return hmac.new(
         global_secret.encode("utf-8"),

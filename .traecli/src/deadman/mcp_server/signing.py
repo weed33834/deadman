@@ -52,13 +52,13 @@ TOOL_SIGNING_PRIVATE_KEY_PEM: str = os.environ.get(
 
 # cryptography 可选依赖
 try:
+    from cryptography.exceptions import InvalidSignature  # type: ignore
     from cryptography.hazmat.primitives import hashes, serialization  # type: ignore
     from cryptography.hazmat.primitives.asymmetric import (
         ed25519,
         padding,
         rsa,
     )
-    from cryptography.exceptions import InvalidSignature  # type: ignore
 
     _CRYPTOGRAPHY_AVAILABLE = True
 except Exception:  # pragma: no cover - 环境降级

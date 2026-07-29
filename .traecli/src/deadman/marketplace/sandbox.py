@@ -32,9 +32,9 @@ import signal
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from typing import Any
-from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 from .registry import MarketplaceError
@@ -441,7 +441,7 @@ class MarketplaceSandbox:
                     pass
 
     @staticmethod
-    def _alarm_handler(signum, frame) -> None:  # noqa: ARG004
+    def _alarm_handler(signum, frame) -> None:
         raise SandboxTimeoutError("CPU time exceeded")
 
     # ==================================================================

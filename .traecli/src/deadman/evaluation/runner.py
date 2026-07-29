@@ -27,9 +27,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable, Coroutine
 
 import yaml
 

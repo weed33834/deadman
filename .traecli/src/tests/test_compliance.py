@@ -51,7 +51,7 @@ def enable_compliance(monkeypatch):
 
 class TestDataResidency:
     def test_set_policy_for_tenant(self, tmp_path):
-        from deadman.compliance.data_residency import DataResidency, DataRegion
+        from deadman.compliance.data_residency import DataRegion, DataResidency
         dr = DataResidency(store_path=tmp_path / "residency.yaml")
         dr.set_policy(
             tenant_id="t1",
@@ -78,9 +78,8 @@ class TestDataResidency:
             cross_border_consent=False,
         )
         tenant = TenantInfo(tenant_id="t1")
-        with TenantContext(tenant):
-            with pytest.raises(ResidencyViolation):
-                dr.ensure_in_region("data", target_region="us", data_kind="user_profile")
+        with TenantContext(tenant), pytest.raises(ResidencyViolation):
+            dr.ensure_in_region("data", target_region="us", data_kind="user_profile")
 
     def test_cross_border_with_consent_allowed(self, tmp_path):
         from deadman.compliance.data_residency import DataResidency
@@ -135,7 +134,7 @@ class TestDataResidency:
 
 class TestRightToDelete:
     def test_request_deletion(self, tmp_path):
-        from deadman.compliance.right_to_delete import RightToDelete, DeletionStatus
+        from deadman.compliance.right_to_delete import DeletionStatus, RightToDelete
         rtd = RightToDelete(store_path=tmp_path / "deletions.json")
         req = rtd.request_deletion("user1", reason="user_left")
         assert req.user_id == "user1"
@@ -144,7 +143,7 @@ class TestRightToDelete:
         assert req.scheduled_at > req.requested_at + 6 * 86400
 
     def test_execute_calls_deletors(self, tmp_path):
-        from deadman.compliance.right_to_delete import RightToDelete, DeletionStatus
+        from deadman.compliance.right_to_delete import DeletionStatus, RightToDelete
         rtd = RightToDelete(store_path=tmp_path / "deletions.json")
         called = []
         rtd.register_deletor("memory", lambda uid: called.append(("memory", uid)) or True)
@@ -157,7 +156,7 @@ class TestRightToDelete:
         assert "audit_log" in result.stores_skipped
 
     def test_partial_failure_marks_failed(self, tmp_path):
-        from deadman.compliance.right_to_delete import RightToDelete, DeletionStatus
+        from deadman.compliance.right_to_delete import DeletionStatus, RightToDelete
         rtd = RightToDelete(store_path=tmp_path / "deletions.json")
         rtd.register_deletor("good", lambda uid: True)
         rtd.register_deletor("bad", lambda uid: (_ for _ in ()).throw(RuntimeError("disk error")))
@@ -172,7 +171,7 @@ class TestRightToDelete:
         from deadman.infrastructure.feature_flags import get_flags
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
-        from deadman.compliance.right_to_delete import RightToDelete, DeletionStatus
+        from deadman.compliance.right_to_delete import DeletionStatus, RightToDelete
         rtd = RightToDelete(store_path=tmp_path / "deletions.json")
         req = rtd.request_deletion("user1")
         assert req.status == DeletionStatus.COMPLETED
@@ -191,7 +190,7 @@ class TestAILabeling:
         assert "AI" in result.labeled_text or "AI 生成" in result.labeled_text
 
     def test_label_adds_metadata(self, tmp_path):
-        from deadman.compliance.ai_labeling import AILabeling, LabelType, METADATA_AI_FLAG
+        from deadman.compliance.ai_labeling import METADATA_AI_FLAG, AILabeling, LabelType
         labeling = AILabeling(store_path=tmp_path / "labels.jsonl")
         result = labeling.label("Hello", user_id="u1", model="gpt-4o")
         assert LabelType.METADATA in result.labels_applied
@@ -230,7 +229,7 @@ class TestAILabeling:
         from deadman.infrastructure.feature_flags import get_flags
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
-        from deadman.compliance.ai_labeling import AILabeling, METADATA_AI_FLAG
+        from deadman.compliance.ai_labeling import METADATA_AI_FLAG, AILabeling
         labeling = AILabeling(store_path=tmp_path / "labels.jsonl")
         result = labeling.label("Hello", user_id="u1")
         assert result.labeled_text == "Hello"  # 不加可见声明
@@ -252,7 +251,7 @@ class TestAILabeling:
 
 class TestAuditReport:
     def test_record_event(self, tmp_path):
-        from deadman.compliance.audit_report import AuditReporter, AuditEvent
+        from deadman.compliance.audit_report import AuditEvent, AuditReporter
         reporter = AuditReporter(store_path=tmp_path / "audit.json")
         reporter.record_event(AuditEvent(
             timestamp=time.time(),
@@ -265,8 +264,8 @@ class TestAuditReport:
 
     def test_generate_report_aggregates_events(self, tmp_path):
         from deadman.compliance.audit_report import (
-            AuditReporter,
             AuditEvent,
+            AuditReporter,
             ReportFrequency,
             ReportStatus,
         )
@@ -360,21 +359,21 @@ class TestAuditReport:
 
 class TestRetention:
     def test_default_policy_audit_log_keep(self):
-        from deadman.compliance.retention import RetentionManager, DataCategory, DisposalAction
+        from deadman.compliance.retention import DataCategory, DisposalAction, RetentionManager
         rm = RetentionManager()
         policy = rm.get_policy(DataCategory.AUDIT_LOG)
         assert policy.disposal_action == DisposalAction.KEEP
         assert policy.retention_days == 365 * 7
 
     def test_default_policy_billing_record_keep(self):
-        from deadman.compliance.retention import RetentionManager, DataCategory, DisposalAction
+        from deadman.compliance.retention import DataCategory, DisposalAction, RetentionManager
         rm = RetentionManager()
         policy = rm.get_policy(DataCategory.BILLING_RECORD)
         assert policy.disposal_action == DisposalAction.KEEP
         assert policy.retention_days == 365 * 10
 
     def test_record_and_check_expiration(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory
+        from deadman.compliance.retention import DataCategory, RetentionManager
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         # 用户信息 7 年保留
         record = rm.record(
@@ -386,7 +385,7 @@ class TestRetention:
         assert record.expires_at > record.created_at + 365 * 6 * 86400
 
     def test_run_sweep_cleans_expired(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory
+        from deadman.compliance.retention import DataCategory, RetentionManager
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         # 注册清理器
         cleaned = []
@@ -396,6 +395,7 @@ class TestRetention:
         )
         # 手动插入已过期记录(7 天保留,8 天前创建)
         import time as _time
+
         from deadman.compliance.retention import RetentionRecord
         now = _time.time()
         record = RetentionRecord(
@@ -415,8 +415,9 @@ class TestRetention:
         assert ("u1", "temp_1") in cleaned
 
     def test_run_sweep_skips_keep_category(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory, RetentionRecord
         import time as _time
+
+        from deadman.compliance.retention import DataCategory, RetentionManager, RetentionRecord
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         now = _time.time()
         # audit_log KEEP,即使过期也不清理
@@ -437,7 +438,7 @@ class TestRetention:
         assert "audit_log" not in stats
 
     def test_tenant_override(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory
+        from deadman.compliance.retention import DataCategory, RetentionManager
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         # 默认 1 年
         default_policy = rm.get_policy(DataCategory.CHAT_HISTORY)
@@ -448,8 +449,9 @@ class TestRetention:
         assert override.retention_days == 30
 
     def test_list_expiring(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory, RetentionRecord
         import time as _time
+
+        from deadman.compliance.retention import DataCategory, RetentionManager, RetentionRecord
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         now = _time.time()
         # 3 天后过期
@@ -474,7 +476,7 @@ class TestRetention:
         from deadman.infrastructure.feature_flags import get_flags
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
-        from deadman.compliance.retention import RetentionManager, DataCategory
+        from deadman.compliance.retention import DataCategory, RetentionManager
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         record = rm.record(DataCategory.CHAT_HISTORY, user_id="u1", data_id="msg_1")
         assert record.user_id == "u1"
@@ -486,7 +488,7 @@ class TestRetention:
 
 class TestConsent:
     def test_grant_and_check(self, tmp_path):
-        from deadman.compliance.consent import ConsentManager, ConsentType, ConsentStatus
+        from deadman.compliance.consent import ConsentManager, ConsentStatus, ConsentType
         cm = ConsentManager(store_path=tmp_path / "consents.json")
         # 初始未同意
         assert not cm.check("u1", ConsentType.TERMS_OF_SERVICE)
@@ -520,7 +522,7 @@ class TestConsent:
         assert not cm.check("u1", ConsentType.PRIVACY_POLICY)
 
     def test_history_preserved(self, tmp_path):
-        from deadman.compliance.consent import ConsentManager, ConsentType, ConsentStatus
+        from deadman.compliance.consent import ConsentManager, ConsentStatus, ConsentType
         cm = ConsentManager(store_path=tmp_path / "consents.json")
         cm.grant("u1", ConsentType.MARKETING, source="web")
         cm.withdraw("u1", ConsentType.MARKETING, reason="done")
@@ -559,8 +561,8 @@ class TestConsent:
     def test_list_user_consents(self, tmp_path):
         from deadman.compliance.consent import (
             ConsentManager,
-            ConsentType,
             ConsentStatus,
+            ConsentType,
         )
         cm = ConsentManager(store_path=tmp_path / "consents.json")
         cm.grant("u1", ConsentType.TERMS_OF_SERVICE)

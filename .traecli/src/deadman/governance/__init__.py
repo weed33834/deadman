@@ -48,8 +48,8 @@ from .appeals import (
     APPEAL_SLA_SECONDS,
     Appeal,
     AppealDecision,
-    AppealStatus,
     AppealsManager,
+    AppealStatus,
     get_appeals_manager,
 )
 from .data_card import (

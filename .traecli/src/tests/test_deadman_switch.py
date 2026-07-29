@@ -32,16 +32,18 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import socket
 import threading
 import time
-import http.client
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
-
+from deadman.deadman_switch.actions import (
+    SwitchActionExecutor,
+)
 from deadman.deadman_switch.models import (
     SwitchConfig,
     SwitchRecord,
@@ -50,9 +52,6 @@ from deadman.deadman_switch.models import (
     mask_phone,
 )
 from deadman.deadman_switch.store import SwitchStore
-from deadman.deadman_switch.actions import (
-    SwitchActionExecutor,
-)
 
 
 # ====================================================================
@@ -477,8 +476,9 @@ class TestEncryption:
 # ====================================================================
 class TestCLICommands:
     def test_cli_switch_init_command(self, tmp_path: Path, capsys):
-        from deadman._cli_extensions import phase15_switch
         from argparse import Namespace
+
+        from deadman._cli_extensions import phase15_switch
         args = Namespace(
             user_id="u-cli-init",
             frequency=14,
@@ -504,14 +504,15 @@ class TestCLICommands:
         assert record.config.check_in_frequency_days == 14
         assert record.config.missed_threshold == 2
         assert "c-1" in record.config.emergency_contacts
-        assert "lawyer-1" == record.config.lawyer_user_id
+        assert record.config.lawyer_user_id == "lawyer-1"
         # PII 已脱敏
         assert record.config.email_masked == "c***@example.com"
         assert record.config.phone_masked == "138****1111"
 
     def test_cli_switch_checkin_command(self, tmp_path: Path, capsys):
-        from deadman._cli_extensions import phase15_switch
         from argparse import Namespace
+
+        from deadman._cli_extensions import phase15_switch
         # 先 init
         init_args = Namespace(
             user_id="u-cli-checkin",
@@ -540,8 +541,9 @@ class TestCLICommands:
         assert "ACTIVE" in out
 
     def test_cli_switch_status_command(self, tmp_path: Path, capsys):
-        from deadman._cli_extensions import phase15_switch
         from argparse import Namespace
+
+        from deadman._cli_extensions import phase15_switch
         # 先 init
         init_args = Namespace(
             user_id="u-cli-status",

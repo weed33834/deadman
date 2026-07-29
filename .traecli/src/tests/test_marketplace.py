@@ -19,9 +19,7 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from deadman.marketplace import MarketplaceError
-
 
 # =====================================================================
 # 公共 fixture
@@ -37,10 +35,18 @@ def _reset_marketplace_singletons() -> None:
     mp._sandbox_instance = None  # type: ignore[attr-defined]
     # 各子模块单例
     from deadman.marketplace import (
-        registry as reg_mod,
-        reviewer as rev_mod,
         rating as rat_mod,
+    )
+    from deadman.marketplace import (
+        registry as reg_mod,
+    )
+    from deadman.marketplace import (
         revenue as ren_mod,
+    )
+    from deadman.marketplace import (
+        reviewer as rev_mod,
+    )
+    from deadman.marketplace import (
         sandbox as sbx_mod,
     )
     reg_mod._registry_instance = None
@@ -784,7 +790,7 @@ class TestDisabledState:
     def test_registry_submit_raises_when_disabled(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
-        from deadman.marketplace.registry import MarketplaceRegistry, MarketplaceError
+        from deadman.marketplace.registry import MarketplaceError, MarketplaceRegistry
         reg = MarketplaceRegistry(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             reg.submit(_make_listing())
@@ -792,7 +798,7 @@ class TestDisabledState:
     def test_registry_list_raises_when_disabled(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
-        from deadman.marketplace.registry import MarketplaceRegistry, MarketplaceError
+        from deadman.marketplace.registry import MarketplaceError, MarketplaceRegistry
         reg = MarketplaceRegistry(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             reg.list()
@@ -808,7 +814,7 @@ class TestDisabledState:
     def test_rating_raises_when_disabled(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
-        from deadman.marketplace.rating import RatingSystem, MarketplaceError
+        from deadman.marketplace.rating import MarketplaceError, RatingSystem
         rs = RatingSystem(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             rs.rate("a1", "u1", 5)
@@ -816,7 +822,7 @@ class TestDisabledState:
     def test_revenue_raises_when_disabled(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
-        from deadman.marketplace.revenue import RevenueShare, MarketplaceError
+        from deadman.marketplace.revenue import MarketplaceError, RevenueShare
         rev = RevenueShare(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             rev.record_usage("a1", "u1", 1, 100)
@@ -824,7 +830,7 @@ class TestDisabledState:
     def test_sandbox_raises_when_disabled(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
-        from deadman.marketplace.sandbox import MarketplaceSandbox, MarketplaceError
+        from deadman.marketplace.sandbox import MarketplaceError, MarketplaceSandbox
         sbx = MarketplaceSandbox()
         with pytest.raises(MarketplaceError):
             sbx.execute("a1", {}, None)
@@ -846,14 +852,13 @@ class TestTenantIsolation:
         _reset_flags_cache()
 
     def test_tenant_isolation_registry(self, enable_multi_tenant, tmp_path):
+        # 把 TENANTS_ROOT 指向 tmp_path 避免污染真实文件系统
+        import deadman.infrastructure.multi_tenant as mt
         from deadman.infrastructure.multi_tenant import (
             TenantContext,
             TenantInfo,
         )
         from deadman.marketplace.registry import MarketplaceRegistry
-
-        # 把 TENANTS_ROOT 指向 tmp_path 避免污染真实文件系统
-        import deadman.infrastructure.multi_tenant as mt
         original_root = mt.TENANTS_ROOT
         mt.TENANTS_ROOT = tmp_path / "tenants"
 
@@ -883,13 +888,12 @@ class TestTenantIsolation:
             mt.TENANTS_ROOT = original_root
 
     def test_tenant_isolation_rating(self, enable_multi_tenant, tmp_path):
+        import deadman.infrastructure.multi_tenant as mt
         from deadman.infrastructure.multi_tenant import (
             TenantContext,
             TenantInfo,
         )
         from deadman.marketplace.rating import RatingSystem
-
-        import deadman.infrastructure.multi_tenant as mt
         original_root = mt.TENANTS_ROOT
         mt.TENANTS_ROOT = tmp_path / "tenants"
 
@@ -924,7 +928,7 @@ class TestTenantIsolation:
 
 class TestSingleton:
     def test_get_marketplace_returns_registry(self):
-        from deadman.marketplace import get_marketplace, MarketplaceRegistry
+        from deadman.marketplace import MarketplaceRegistry, get_marketplace
         mp = get_marketplace()
         assert isinstance(mp, MarketplaceRegistry)
 

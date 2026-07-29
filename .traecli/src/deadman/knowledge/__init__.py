@@ -26,10 +26,10 @@
 from __future__ import annotations
 
 from .anonymizer import (
-    AnonymizationResult,
-    Anonymizer,
     QUASI_IDENTIFIERS,
     SENSITIVE_ATTRIBUTES,
+    AnonymizationResult,
+    Anonymizer,
 )
 from .freshness import (
     CATEGORY_TTL_DAYS,

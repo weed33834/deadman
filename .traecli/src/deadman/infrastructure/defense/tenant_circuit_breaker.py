@@ -25,14 +25,14 @@ from __future__ import annotations
 import logging
 import threading
 
-from ..feature_flags import is_enabled
-from ..multi_tenant import get_current_tenant_id
 from ..circuit_breaker import (
     CircuitBreaker,
     CircuitConfig,
     CircuitState,
     cb_registry,
 )
+from ..feature_flags import is_enabled
+from ..multi_tenant import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 

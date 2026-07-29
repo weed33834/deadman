@@ -23,11 +23,9 @@ import time
 from pathlib import Path
 
 import pytest
-
 from deadman.auth.jwt import JWTManager
 from deadman.auth.store import UserStore
 from deadman.web.server import WebServer
-
 
 # =====================================================================
 # 辅助：启动真实 HTTP server
@@ -75,8 +73,8 @@ def http_server(tmp_path: Path, monkeypatch) -> int:
     monkeypatch.setattr(settings, "password_min_length", 8)
 
     # 重定向 TicketStore / OnboardingStore 默认路径
-    import deadman.support.store as ssm
     import deadman.onboarding.store as obs
+    import deadman.support.store as ssm
     monkeypatch.setattr(ssm, "_DEFAULT_DATA_DIR", tmp_path / "support")
     monkeypatch.setattr(obs, "_DEFAULT_DATA_DIR", tmp_path / "onboarding")
 

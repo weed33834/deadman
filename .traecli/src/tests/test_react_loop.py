@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-
+import deadman.orchestration.react_loop as react_module
 from deadman.orchestration.react_loop import (
     REACT_ENABLED,
     REACT_STUCK_JACCARD_THRESHOLD,
@@ -36,8 +36,6 @@ from deadman.orchestration.react_loop import (
     register_react_tool,
     run_react_loop,
 )
-import deadman.orchestration.react_loop as react_module
-
 
 # =====================================================================
 # Mock LLM Client - 按 prompt 内容返回不同响应

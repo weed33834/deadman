@@ -24,30 +24,11 @@ from .budget_coordinator import (
     BudgetScope,
     get_budget_coordinator,
 )
-from .tenant_circuit_breaker import (
-    TenantCircuitBreaker,
-    TenantCircuitBreakerRegistry,
-    get_tenant_cb,
-)
-from .pii_guard import (
-    PIIMatch,
-    PIIRedactor,
-    PIIResult,
-    PIIType,
-    RedactStrategy,
-    get_pii_redactor,
-)
 from .cache_protection import (
     CacheProtection,
     CacheStats,
     SingleflightResult,
     get_cache_protection,
-)
-from .degradation_guard import (
-    DegradationEvent,
-    DegradationGuard,
-    DegradationLevel,
-    get_degradation_guard,
 )
 from .cascading_guard import (
     CascadingGuard,
@@ -64,14 +45,11 @@ from .chain_circuit_breaker import (
     list_chains,
     reset_all_chains,
 )
-from .trace_anonymizer import (
-    BehaviorAggregator,
-    BehaviorPattern,
-    CrossSessionLinker,
-    LinkConsent,
-    TraceAnonymizer,
-    TraceLinkStrategy,
-    get_trace_anonymizer,
+from .degradation_guard import (
+    DegradationEvent,
+    DegradationGuard,
+    DegradationLevel,
+    get_degradation_guard,
 )
 from .master_key_backup import (
     BackupStatus,
@@ -80,6 +58,28 @@ from .master_key_backup import (
     MasterKeyBackup,
     ShamirSecretSharing,
     get_master_key_backup,
+)
+from .pii_guard import (
+    PIIMatch,
+    PIIRedactor,
+    PIIResult,
+    PIIType,
+    RedactStrategy,
+    get_pii_redactor,
+)
+from .tenant_circuit_breaker import (
+    TenantCircuitBreaker,
+    TenantCircuitBreakerRegistry,
+    get_tenant_cb,
+)
+from .trace_anonymizer import (
+    BehaviorAggregator,
+    BehaviorPattern,
+    CrossSessionLinker,
+    LinkConsent,
+    TraceAnonymizer,
+    TraceLinkStrategy,
+    get_trace_anonymizer,
 )
 
 __all__ = [

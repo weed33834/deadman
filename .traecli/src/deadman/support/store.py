@@ -22,7 +22,6 @@ from typing import Any
 
 from .models import Ticket, TicketReply
 
-
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "support"
 
 

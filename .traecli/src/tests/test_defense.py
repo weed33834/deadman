@@ -206,13 +206,13 @@ class TestBudgetCoordinator:
 class TestTenantCircuitBreaker:
     def test_different_tenants_independent(self, tmp_path):
         """关键:租户 A 熔断不影响租户 B。"""
-        from deadman.infrastructure.defense.tenant_circuit_breaker import (
-            TenantCircuitBreaker,
-        )
         from deadman.infrastructure.circuit_breaker import (
             CircuitBreakerOpenError,
             CircuitConfig,
             CircuitState,
+        )
+        from deadman.infrastructure.defense.tenant_circuit_breaker import (
+            TenantCircuitBreaker,
         )
         # 配置:1 次失败就熔断(便于测试)
         cfg = CircuitConfig(
@@ -236,12 +236,12 @@ class TestTenantCircuitBreaker:
         assert tcb.get_state(tenant_id="tB") == CircuitState.CLOSED
 
     def test_reset_tenant_only(self):
-        from deadman.infrastructure.defense.tenant_circuit_breaker import (
-            TenantCircuitBreaker,
-        )
         from deadman.infrastructure.circuit_breaker import (
             CircuitConfig,
             CircuitState,
+        )
+        from deadman.infrastructure.defense.tenant_circuit_breaker import (
+            TenantCircuitBreaker,
         )
         cfg = CircuitConfig(
             failure_rate_threshold=1.0,
@@ -697,7 +697,8 @@ class TestChainCircuitBreaker:
     def setup_method(self):
         """每个测试前重置 chain registry。"""
         from deadman.infrastructure.defense.chain_circuit_breaker import (
-            _chain_registry, _chain_lock,
+            _chain_lock,
+            _chain_registry,
         )
         with _chain_lock:
             _chain_registry.clear()
@@ -810,11 +811,11 @@ class TestChainCircuitBreaker:
 
     def test_chain_timeout_triggers_fallback(self):
         """单级超时 → fallback。"""
+        import time
+
         from deadman.infrastructure.defense.chain_circuit_breaker import (
             get_or_create_chain,
         )
-
-        import time
 
         def func(level: str) -> str:
             if level == "gpt-4o":
@@ -870,7 +871,9 @@ class TestChainCircuitBreaker:
     def test_reset_all_chains(self):
         """reset_all_chains 重置所有链。"""
         from deadman.infrastructure.defense.chain_circuit_breaker import (
-            get_or_create_chain, reset_all_chains, list_chains,
+            get_or_create_chain,
+            list_chains,
+            reset_all_chains,
         )
 
         chain = get_or_create_chain("test_chain_reset", ["gpt-4o", "rule"])
@@ -897,7 +900,8 @@ class TestTraceAnonymizer:
 
     def test_consent_grant_and_revoke(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import (
-            CrossSessionLinker, TraceLinkStrategy,
+            CrossSessionLinker,
+            TraceLinkStrategy,
         )
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         # 未授予同意 → 不可关联
@@ -912,6 +916,7 @@ class TestTraceAnonymizer:
 
     def test_consent_expires(self, tmp_path):
         import time
+
         from deadman.infrastructure.defense.trace_anonymizer import CrossSessionLinker
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1", expires_in_days=1)
@@ -928,7 +933,8 @@ class TestTraceAnonymizer:
 
     def test_link_id_with_consent(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import (
-            CrossSessionLinker, TraceLinkStrategy,
+            CrossSessionLinker,
+            TraceLinkStrategy,
         )
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1", strategy=TraceLinkStrategy.HASH)
@@ -998,7 +1004,8 @@ class TestTraceAnonymizer:
 
     def test_anonymizer_links_with_consent(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import (
-            TraceAnonymizer, CrossSessionLinker,
+            CrossSessionLinker,
+            TraceAnonymizer,
         )
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("u1")
@@ -1054,6 +1061,7 @@ class TestShamirSecretSharing:
 
     def test_split_and_reconstruct_with_minimum_shares(self):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
         secret = os.urandom(32)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
@@ -1064,6 +1072,7 @@ class TestShamirSecretSharing:
 
     def test_reconstruct_with_different_subset(self):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
         secret = os.urandom(64)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
@@ -1074,6 +1083,7 @@ class TestShamirSecretSharing:
 
     def test_reconstruct_with_more_than_k_shares(self):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
         secret = os.urandom(16)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
@@ -1112,8 +1122,10 @@ class TestMasterKeyBackup:
 
     def test_create_backup(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import (
-            MasterKeyBackup, BackupStatus,
+            BackupStatus,
+            MasterKeyBackup,
         )
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
@@ -1124,6 +1136,7 @@ class TestMasterKeyBackup:
 
     def test_reconstruct_after_backup(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
@@ -1137,6 +1150,7 @@ class TestMasterKeyBackup:
 
     def test_reconstruct_with_wrong_shares_fails_fingerprint(self, tmp_path):
         import os
+
         import pytest
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
@@ -1161,8 +1175,10 @@ class TestMasterKeyBackup:
 
     def test_drill_success(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import (
-            MasterKeyBackup, BackupStatus,
+            BackupStatus,
+            MasterKeyBackup,
         )
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
@@ -1184,6 +1200,7 @@ class TestMasterKeyBackup:
 
     def test_rotate_invalidates_old_shares(self, tmp_path):
         import os
+
         import pytest
         from deadman.infrastructure.defense.master_key_backup import (
             MasterKeyBackup,
@@ -1203,6 +1220,7 @@ class TestMasterKeyBackup:
 
     def test_list_shares_no_value_leak(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
@@ -1216,6 +1234,7 @@ class TestMasterKeyBackup:
 
     def test_drill_records_audit(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
@@ -1229,8 +1248,10 @@ class TestMasterKeyBackup:
 
     def test_persistence_across_instances(self, tmp_path):
         import os
+
         from deadman.infrastructure.defense.master_key_backup import (
-            MasterKeyBackup, BackupStatus,
+            BackupStatus,
+            MasterKeyBackup,
         )
         backup_path = tmp_path / "backup"
         # 第一个实例创建备份
@@ -1251,6 +1272,7 @@ class TestMasterKeyBackup:
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         import os
+
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)

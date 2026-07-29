@@ -168,7 +168,7 @@ class TesseractOCRProvider(OCRProvider):
         if self._available is not None:
             return self._available
         try:
-            import pytesseract  # type: ignore  # noqa: F401
+            import pytesseract  # type: ignore
             from PIL import Image  # type: ignore  # noqa: F401
 
             # 探测 tesseract 二进制

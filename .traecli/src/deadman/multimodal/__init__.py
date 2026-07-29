@@ -28,8 +28,8 @@ feature flag:`DEADMAN_MULTIMODAL_ENABLED=0`(默认 OFF)
 
 from __future__ import annotations
 
-from .asr import ASRResult, ASRService, ASRSegment
-from .image_gen import ImageGenerator, ImageSize, ImageStyle, STYLE_PRESETS
+from .asr import ASRResult, ASRSegment, ASRService
+from .image_gen import STYLE_PRESETS, ImageGenerator, ImageSize, ImageStyle
 from .ocr import DocType, OCRResult, OCRService
 from .pipeline import (
     AuditEntry,

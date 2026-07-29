@@ -34,10 +34,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 from deadman.plan_score.models import Category, PlanScore, SubScore
-from deadman.plan_score.scorer import PlanScorer, WEIGHTS
-
+from deadman.plan_score.scorer import WEIGHTS, PlanScorer
 
 # =====================================================================
 # 辅助：构造独立 PlanScorer（全部 store 指向 tmp_path）
@@ -46,11 +44,11 @@ from deadman.plan_score.scorer import PlanScorer, WEIGHTS
 
 def _make_scorer(tmp_path: Path) -> PlanScorer:
     """构造一个全部 store 都指向 tmp_path 子目录的 PlanScorer"""
+    from deadman.auth.store import UserStore
+    from deadman.deadman_switch.store import SwitchStore
+    from deadman.decedent_id.registry import DecedentRegistry
     from deadman.ending_note.store import EndingNoteStore
     from deadman.vault.store import VaultStore
-    from deadman.decedent_id.registry import DecedentRegistry
-    from deadman.deadman_switch.store import SwitchStore
-    from deadman.auth.store import UserStore
 
     return PlanScorer(
         ending_note_store=EndingNoteStore(data_dir=tmp_path / "ending_notes"),
@@ -496,6 +494,7 @@ def test_web_endpoint_unauthorized_401(tmp_path: Path, monkeypatch):
 def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
     """认证后访问 /api/plan-score 返回 200 + 评分 + disclaimer"""
     import secrets as _secrets
+
     from deadman.config import settings
     unique_dir = tmp_path / f"auth-{_secrets.token_hex(4)}"
     monkeypatch.setattr(settings, "auth_data_dir", unique_dir)

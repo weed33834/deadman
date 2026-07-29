@@ -73,10 +73,9 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
-from ...feature_flags import is_enabled
-
 # 复用共享文本相似度工具
 from ....utils.text_similarity import text_similarity as _text_similarity
+from ...feature_flags import is_enabled
 
 logger = logging.getLogger(__name__)
 

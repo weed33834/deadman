@@ -66,8 +66,8 @@ class TestCapabilityRouter:
     def test_match_returns_model_supporting_required_capability(self):
         """匹配 required_capabilities 时返回支持该能力的模型。"""
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             CapabilityTier,
             ModelCapability,
             ModelProfile,
@@ -99,8 +99,8 @@ class TestCapabilityRouter:
     def test_match_respects_cost_limit(self):
         """max_cost_per_call 限制超出 → 排除。"""
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             CapabilityTier,
             ModelCapability,
             ModelProfile,
@@ -136,8 +136,8 @@ class TestCapabilityRouter:
     def test_match_chain_provides_fallbacks(self):
         """match_chain 返回主选 + 备选。"""
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             CapabilityTier,
             ModelCapability,
             ModelProfile,
@@ -160,14 +160,15 @@ class TestCapabilityRouter:
     def test_match_returns_none_when_no_match(self):
         """无可用模型 → None。"""
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             ModelCapability,
         )
         router = CapabilityRouter()
         # 注册无 vision 的模型,要求 vision
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityTier, ModelProfile,
+            CapabilityTier,
+            ModelProfile,
         )
         router.register(ModelProfile(
             provider="test", model_name="text-only",
@@ -188,8 +189,8 @@ class TestCapabilityRouter:
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             CapabilityTier,
             ModelCapability,
             ModelProfile,
@@ -210,8 +211,8 @@ class TestCapabilityRouter:
     def test_require_local_filters_non_local(self):
         """require_local=True 仅返回本地模型。"""
         from deadman.infrastructure.defense.advanced.llm_capability_tier import (
-            CapabilityRouter,
             CapabilityRequirement,
+            CapabilityRouter,
             CapabilityTier,
             ModelCapability,
             ModelProfile,
@@ -641,10 +642,11 @@ print(result)
         ⚠️ 必须 mock resource.setrlimit，否则 RLIMIT_AS 会限制本进程内存
         导致 MemoryError（测试进程本身已占用 >256MB）。
         """
+        import resource as _resource
+
         from deadman.infrastructure.defense.advanced.marketplace_sandbox_hardener import (
             SandboxHardener,
         )
-        import resource as _resource
 
         # mock setrlimit 避免真正限制本进程资源
         monkeypatch.setattr(_resource, "setrlimit", lambda *args: None)
@@ -804,8 +806,8 @@ class TestStyleNormalizer:
     def test_strip_redundant_opening(self):
         """移除冗余开头。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
         cleaned = adapter._strip_redundant_opening("好的,这是您的答案")
@@ -814,8 +816,8 @@ class TestStyleNormalizer:
     def test_strip_emojis(self):
         """移除 emoji。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
         cleaned = adapter._strip_emojis("Hello 😀 世界 🌍!")
@@ -825,8 +827,8 @@ class TestStyleNormalizer:
     def test_normalize_truncates_long_response(self):
         """长输出截断。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
             StyleProfile,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
@@ -839,8 +841,8 @@ class TestStyleNormalizer:
     def test_normalize_converts_to_list_if_preferred(self):
         """偏好列表 → 转换。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
             StyleProfile,
         )
         adapter = ProviderStyleAdapter(Provider.OLLAMA)
@@ -853,8 +855,8 @@ class TestStyleNormalizer:
     def test_normalize_replaces_english_terms_in_chinese(self):
         """中文偏好下替换英文术语。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
             StyleProfile,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
@@ -895,8 +897,8 @@ class TestStyleNormalizer:
     def test_detect_drift_length_change(self):
         """检测长度漂移。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
         prev = "短答案"
@@ -907,8 +909,8 @@ class TestStyleNormalizer:
     def test_detect_drift_format_change(self):
         """检测格式漂移(段落 ↔ 列表)。"""
         from deadman.infrastructure.defense.advanced.provider_style_normalizer import (
-            ProviderStyleAdapter,
             Provider,
+            ProviderStyleAdapter,
         )
         adapter = ProviderStyleAdapter(Provider.OPENAI)
         prev = "这是一段段落式回复"
@@ -1174,6 +1176,7 @@ class TestModelSignatureVerifier:
     def test_register_and_verify_match(self, tmp_path):
         """注册 + 校验 + 匹配 → VERIFIED。"""
         import hashlib
+
         from deadman.infrastructure.defense.advanced.edge_inference_security import (
             ModelSignatureVerifier,
             VerificationStatus,
@@ -1261,8 +1264,8 @@ class TestInferenceAuditor:
 
     def test_log_inference_and_list(self, tmp_path):
         from deadman.infrastructure.defense.advanced.edge_inference_security import (
-            InferenceAuditRecord,
             InferenceAuditor,
+            InferenceAuditRecord,
         )
         auditor = InferenceAuditor(store_path=str(tmp_path / "audit.jsonl"))
         record = InferenceAuditRecord(
@@ -1291,8 +1294,8 @@ class TestInferenceAuditor:
     def test_detect_anomalies_output_inconsistency(self, tmp_path):
         """同输入不同输出 → 异常。"""
         from deadman.infrastructure.defense.advanced.edge_inference_security import (
-            InferenceAuditRecord,
             InferenceAuditor,
+            InferenceAuditRecord,
         )
         auditor = InferenceAuditor(store_path=None)
         # 同输入,两个不同输出
@@ -1312,8 +1315,8 @@ class TestInferenceAuditor:
     def test_detect_anomalies_large_input(self, tmp_path):
         """大输入 → 异常。"""
         from deadman.infrastructure.defense.advanced.edge_inference_security import (
-            InferenceAuditRecord,
             InferenceAuditor,
+            InferenceAuditRecord,
         )
         auditor = InferenceAuditor(store_path=None)
         auditor.log_inference(InferenceAuditRecord(
@@ -2077,10 +2080,10 @@ class TestConvergenceDetector:
     def test_result_has_issues_property(self):
         """has_issues 属性聚合所有告警。"""
         from deadman.infrastructure.defense.advanced.convergence_detector import (
-            ConvergenceCheckResult,
-            AntiPattern,
             AlertSeverity,
+            AntiPattern,
             ConvergenceAlert,
+            ConvergenceCheckResult,
         )
         result = ConvergenceCheckResult()
         assert result.has_issues is False
@@ -2202,11 +2205,11 @@ class TestMemoryIntegrityVerifier:
     def test_untrusted_source_blocks_poisoning(self):
         """UNTRUSTED 来源 → CRITICAL POISONING 告警。"""
         from deadman.infrastructure.defense.advanced.memory_integrity_verifier import (
+            AlertSeverity,
             MemoryIntegrityVerifier,
             MemorySource,
             TrustLevel,
             ViolationType,
-            AlertSeverity,
         )
         v = MemoryIntegrityVerifier()
         r = v.create_record(
@@ -2241,10 +2244,10 @@ class TestMemoryIntegrityVerifier:
     def test_cross_user_leak_detection(self):
         """跨用户记忆相似度过高 → CROSS_USER_LEAK 告警。"""
         from deadman.infrastructure.defense.advanced.memory_integrity_verifier import (
+            AlertSeverity,
             MemoryIntegrityVerifier,
             MemorySource,
             ViolationType,
-            AlertSeverity,
         )
         v = MemoryIntegrityVerifier()
         # u1 写入长记忆
@@ -2261,10 +2264,10 @@ class TestMemoryIntegrityVerifier:
     def test_revival_detection(self):
         """已删除记忆再次出现 → REVIVAL_DETECTED 告警。"""
         from deadman.infrastructure.defense.advanced.memory_integrity_verifier import (
+            AlertSeverity,
             MemoryIntegrityVerifier,
             MemorySource,
             ViolationType,
-            AlertSeverity,
         )
         v = MemoryIntegrityVerifier()
         r1 = v.create_record(user_id="u1", session_id="s1", content="to be deleted", source=MemorySource.USER)
@@ -2374,8 +2377,8 @@ class TestConstitutionalDriftDetector:
     def test_auto_baseline_on_first_record(self):
         """首次 record_threshold 自动设置基线(若 auto_baseline=True)。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.record_threshold(
@@ -2390,8 +2393,8 @@ class TestConstitutionalDriftDetector:
     def test_no_drift_when_same_value(self):
         """值未变 → 无漂移告警。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2402,9 +2405,9 @@ class TestConstitutionalDriftDetector:
     def test_acceptable_drift(self):
         """漂移 < 10% → ACCEPTABLE。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
+            ChangeReason,
             ConstitutionalDriftDetector,
             DriftSeverity,
-            ChangeReason,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2417,9 +2420,9 @@ class TestConstitutionalDriftDetector:
     def test_concerning_drift(self):
         """漂移 10-30% → CONCERNING。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
+            ChangeReason,
             ConstitutionalDriftDetector,
             DriftSeverity,
-            ChangeReason,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2431,9 +2434,9 @@ class TestConstitutionalDriftDetector:
     def test_critical_drift_relative(self):
         """相对漂移 > 30% → CRITICAL。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
+            ChangeReason,
             ConstitutionalDriftDetector,
             DriftSeverity,
-            ChangeReason,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2446,9 +2449,9 @@ class TestConstitutionalDriftDetector:
     def test_critical_drift_absolute(self):
         """绝对漂移 > 0.5 → CRITICAL。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
+            ChangeReason,
             ConstitutionalDriftDetector,
             DriftSeverity,
-            ChangeReason,
         )
         # 大基线:相对漂移小,但绝对漂移大
         d = ConstitutionalDriftDetector()
@@ -2462,9 +2465,9 @@ class TestConstitutionalDriftDetector:
     def test_monotonic_trend_upgrade(self):
         """连续 N 次同向 → ACCEPTABLE 升级为 CONCERNING。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
+            ChangeReason,
             ConstitutionalDriftDetector,
             DriftSeverity,
-            ChangeReason,
         )
         d = ConstitutionalDriftDetector(config={"monotonic_trend_min_consecutive": 3})
         d.set_baseline("threshold", 0.8)
@@ -2480,8 +2483,8 @@ class TestConstitutionalDriftDetector:
     def test_get_drift_report(self):
         """get_drift_report 汇总所有阈值。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold_a", 0.8)
@@ -2497,8 +2500,8 @@ class TestConstitutionalDriftDetector:
     def test_reset_baseline_rollback(self):
         """reset_baseline 把当前值回滚到基线。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2512,8 +2515,8 @@ class TestConstitutionalDriftDetector:
     def test_list_thresholds_and_history(self):
         """list_thresholds / get_drift_history 接口正确。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2533,8 +2536,8 @@ class TestConstitutionalDriftDetector:
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
-            ConstitutionalDriftDetector,
             ChangeReason,
+            ConstitutionalDriftDetector,
         )
         d = ConstitutionalDriftDetector()
         d.set_baseline("threshold", 0.8)
@@ -2559,10 +2562,10 @@ class TestCrossModelCollusionDetector:
     def test_same_provider_bias_detected(self):
         """超过半数输出同 provider → SAME_PROVIDER_BIAS 告警。"""
         from deadman.infrastructure.defense.advanced.cross_model_collusion_detector import (
+            CollusionPattern,
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
         )
         d = CrossModelCollusionDetector()
         result = d.check_cross_provider(
@@ -2579,10 +2582,10 @@ class TestCrossModelCollusionDetector:
     def test_output_convergence_detected(self):
         """不同 provider 输出高度相似 → OUTPUT_CONVERGENCE 告警。"""
         from deadman.infrastructure.defense.advanced.cross_model_collusion_detector import (
+            CollusionPattern,
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
         )
         d = CrossModelCollusionDetector()
         same = "建议按照民法典继承编处理,首先要确认遗嘱效力,然后办理继承公证"
@@ -2600,10 +2603,10 @@ class TestCrossModelCollusionDetector:
     def test_shared_blindspot_detected(self):
         """多 provider 同时失败 → SHARED_BLINDSPOT 告警。"""
         from deadman.infrastructure.defense.advanced.cross_model_collusion_detector import (
+            CollusionPattern,
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
         )
         d = CrossModelCollusionDetector()
         result = d.check_cross_provider(
@@ -2620,10 +2623,10 @@ class TestCrossModelCollusionDetector:
     def test_cross_endorsement_detected(self):
         """互相认可频率高 → CROSS_ENDORSEMENT 告警。"""
         from deadman.infrastructure.defense.advanced.cross_model_collusion_detector import (
+            CollusionPattern,
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
         )
         d = CrossModelCollusionDetector()
         result = d.check_cross_provider(
@@ -2640,11 +2643,11 @@ class TestCrossModelCollusionDetector:
     def test_jailbreak_diffusion_detected(self):
         """相同 hash 跨 provider → CROSS_PROVIDER_JAILBREAK 告警。"""
         from deadman.infrastructure.defense.advanced.cross_model_collusion_detector import (
+            AlertSeverity,
+            CollusionPattern,
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
-            AlertSeverity,
         )
         d = CrossModelCollusionDetector()
         # 用相同内容(同 hash)跨 provider

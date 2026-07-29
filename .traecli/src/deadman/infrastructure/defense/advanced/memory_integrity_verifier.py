@@ -79,8 +79,8 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
+from ....utils.text_similarity import jaccard_similarity, tokenize
 from ...feature_flags import is_enabled
-from ....utils.text_similarity import tokenize, jaccard_similarity
 
 logger = logging.getLogger(__name__)
 

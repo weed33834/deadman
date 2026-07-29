@@ -54,7 +54,7 @@ TOOL_CACHE_DEFAULT_TTL: int = int(
 class _CacheEntry:
     """单个缓存条目"""
 
-    __slots__ = ("result", "expires_at", "inserted_at")
+    __slots__ = ("expires_at", "inserted_at", "result")
 
     def __init__(self, result: Any, ttl_seconds: int) -> None:
         self.result = result

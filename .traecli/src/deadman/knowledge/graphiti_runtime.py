@@ -560,8 +560,8 @@ class GraphitiRuntime:
 __all__ = [
     "Episode",
     "EpisodeType",
-    "KGNode",
-    "KGEdge",
     "GraphitiRuntime",
+    "KGEdge",
+    "KGNode",
     "_InMemoryGraph",
 ]

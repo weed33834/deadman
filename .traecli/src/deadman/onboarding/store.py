@@ -13,7 +13,6 @@ from pathlib import Path
 
 from .models import OnboardingProfile
 
-
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "onboarding"
 
 

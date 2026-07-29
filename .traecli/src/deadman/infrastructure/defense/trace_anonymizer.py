@@ -292,8 +292,8 @@ class BehaviorAggregator:
         Returns:
             加噪后的观察 count
         """
-        import random
         import math
+        import random
 
         now = now or time.time()
         with self._lock:

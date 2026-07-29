@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from deadman.infrastructure.durable_execution import (
     DurableExecutionManager,
     ExecutionStatus,

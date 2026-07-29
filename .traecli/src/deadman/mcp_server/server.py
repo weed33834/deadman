@@ -32,19 +32,19 @@ import os
 import re
 import sys
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
-from collections.abc import Awaitable, Callable
 
 from ..config import settings
+from ..rules_loader import rule_checker
 from ..types import (
     ConfidenceLabel,
     ExecutionMode,
 )
-from ..rules_loader import rule_checker
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +77,8 @@ ADMIN_TOKEN: str = os.environ.get("DEADMAN_ADMIN_TOKEN", "")
 
 # 延迟 import 子模块，避免循环依赖
 try:
-    from . import gateway as _gateway_module
     from . import cache as _cache_module
+    from . import gateway as _gateway_module
     from . import permissions as _permissions_module
     from . import signing as _signing_module
     _P3_MODULES_AVAILABLE = True
@@ -118,7 +118,7 @@ except (ImportError, OSError):
     logger.info("observability.tracer 不可用，trace span 将被跳过")
 
     @contextmanager  # type: ignore
-    def trace_tool_span(tool_name: str, attributes: dict[str, Any] | None = None):  # noqa: D401
+    def trace_tool_span(tool_name: str, attributes: dict[str, Any] | None = None):
         """降级版 trace_tool_span - no-op 上下文管理器，签名对齐全局实现"""
         yield None
 
@@ -413,7 +413,7 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
         # Python 3.9- Optional[T]：get_origin 返回 typing.Union
         union_types = None
         try:
-            import types  # noqa: F401
+            import types
 
             if hasattr(types, "UnionType") and isinstance(annotation, types.UnionType):
                 union_types = get_args(annotation)
@@ -421,7 +421,7 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
             pass
         if union_types is None:
             try:
-                from typing import Union  # noqa: F401
+                from typing import Union
 
                 if origin is Union:
                     union_types = get_args(annotation)
@@ -714,7 +714,7 @@ class McpServer:
         # 注册工具
         try:
             self.register_tool(name, description, input_schema, handler, output_schema)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"ok": False, "error": f"register failed: {exc}"}
         # 可选 manifest 注册（P3.5）
         if manifest and _P3_MODULES_AVAILABLE:
@@ -848,7 +848,7 @@ class McpServer:
                             "layer": decision.layer,
                             "score": decision.score,
                         }
-                except Exception as exc:  # noqa: BLE001 - 网关异常 fail-open
+                except Exception as exc:
                     logger.warning("网关评估异常，fail-open 放行: %s", exc)
 
         # ---------- P3.4 缓存查（仅 READ_ONLY 工具 + 非 dry_run）----------
@@ -874,7 +874,7 @@ class McpServer:
                             result.setdefault("cache_hit", True)
                             return result
                         return {"ok": True, "tool": name, "result": cached, "cache_hit": True}
-            except Exception as exc:  # noqa: BLE001 - 缓存异常 fail-open
+            except Exception as exc:
                 logger.warning("缓存查询异常，fail-open 继续调用工具: %s", exc)
                 cache_lookup_key = None
                 cache = None
@@ -904,10 +904,10 @@ class McpServer:
             ):
                 try:
                     cache.put(name, cache_lookup_key, final_result)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.debug("缓存写入失败（不影响调用）: %s", exc)
             return final_result
-        except Exception as exc:  # noqa: BLE001 - 工具层必须吞掉所有异常
+        except Exception as exc:
             logger.exception("工具 %s 执行失败", name)
             return _error_response(name, exc)
 
@@ -1011,7 +1011,7 @@ class McpServer:
                 "id": req_id,
                 "error": {"code": -32601, "message": f"Method not found: {method}"},
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -1101,7 +1101,7 @@ class McpServer:
                     obj = getattr(obj, part)
                 if callable(obj):
                     return obj  # type: ignore[return-value]
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("callable_ref 解析失败: %s", exc)
                 return None
 
@@ -1111,7 +1111,7 @@ class McpServer:
             try:
                 local_ns: dict[str, Any] = {}
                 # 限制 exec 的内建（最小化供应链风险）
-                exec(  # noqa: S102 - 动态注册需 admin token，已做权限校验
+                exec(
                     handler_code,
                     {"__builtins__": __builtins__},
                     local_ns,
@@ -1119,7 +1119,7 @@ class McpServer:
                 handler = local_ns.get("handler")
                 if callable(handler):
                     return handler  # type: ignore[return-value]
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("handler_code 解析失败: %s", exc)
                 return None
         return None
@@ -1137,7 +1137,7 @@ class McpServer:
         server_ref = self
 
         class Handler(BaseHTTPRequestHandler):
-            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+            def log_message(self, format: str, *args: Any) -> None:
                 logger.debug("HTTP %s - %s", self.address_string(), format % args)
 
             def _send_json(self, status: int, payload: Any) -> None:
@@ -1148,7 +1148,7 @@ class McpServer:
                 self.end_headers()
                 self.wfile.write(body)
 
-            def do_GET(self) -> None:  # noqa: N802
+            def do_GET(self) -> None:
                 if self.path == "/tools":
                     self._send_json(200, {"tools": server_ref.list_tools()})
                 elif self.path == "/health":
@@ -1156,7 +1156,7 @@ class McpServer:
                 else:
                     self._send_json(404, {"error": "not found"})
 
-            def do_POST(self) -> None:  # noqa: N802
+            def do_POST(self) -> None:
                 if self.path != "/mcp":
                     self._send_json(404, {"error": "not found"})
                     return
@@ -1623,7 +1623,7 @@ async def write_file(
     if DRY_RUN_ENABLED and dry_run:
         try:
             data_preview = content.encode(encoding)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"ok": False, "path": path, "error": f"编码错误: {exc}", "dry_run": True}
         return {
             "ok": True,

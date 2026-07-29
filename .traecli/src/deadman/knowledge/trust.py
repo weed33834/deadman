@@ -353,9 +353,9 @@ class TrustScorer:
 
 
 __all__ = [
+    "_DEFAULT_TRUST_SCORES",
     "TrustLevel",
     "TrustRecord",
     "TrustScorer",
-    "_DEFAULT_TRUST_SCORES",
     "_classify_source",
 ]

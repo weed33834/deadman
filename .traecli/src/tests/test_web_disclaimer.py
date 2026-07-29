@@ -17,10 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 from deadman.institutions.store import InstitutionStore, make_institution
 from deadman.web.server import WebServer
-
 
 # =====================================================================
 # 测试辅助：构造一个绑定了 server_ref 的 Handler 子类实例

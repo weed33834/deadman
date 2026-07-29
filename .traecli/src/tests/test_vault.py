@@ -20,12 +20,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 from deadman.vault.store import (
+    ON_DEATH_WAIT_DAYS,
     TRIGGER_MANUAL,
     TRIGGER_ON_DATE,
     TRIGGER_ON_DEATH,
-    ON_DEATH_WAIT_DAYS,
     VaultItem,
     VaultStore,
 )

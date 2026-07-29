@@ -19,4 +19,4 @@ deadman 差异化：
 from .models import Category, PlanScore, SubScore
 from .scorer import PlanScorer
 
-__all__ = ["Category", "PlanScore", "SubScore", "PlanScorer"]
+__all__ = ["Category", "PlanScore", "PlanScorer", "SubScore"]

@@ -11,9 +11,7 @@
 
 from __future__ import annotations
 
-
 import pytest
-
 from deadman.memory.vector_store import (
     ChromaVectorStore,
     InMemoryVectorStore,
@@ -22,7 +20,6 @@ from deadman.memory.vector_store import (
     get_vector_store,
     reset_vector_store_singleton,
 )
-
 
 # =====================================================================
 # 1. InMemoryVectorStore add + query

@@ -21,7 +21,6 @@ from deadman.memory.file_store import (
 )
 from deadman.memory.semantic import UserProfile
 
-
 # =====================================================================
 # 1. save_profile + load_profile 往返一致性
 # =====================================================================

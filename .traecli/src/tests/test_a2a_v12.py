@@ -11,21 +11,19 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 import deadman.a2a.models as a2a_models
 import deadman.a2a.server as a2a_server_module
+import pytest
 from deadman.a2a.models import (
     AgentCard,
     AgentCardSkill,
     PushNotificationConfig,
 )
 from deadman.a2a.server import (
-    A2AServer,
     _HAS_CRYPTOGRAPHY,
+    A2AServer,
     format_sse_events,
 )
-
 
 # =====================================================================
 # Fixtures
@@ -390,8 +388,8 @@ class TestAgentCardSignature:
             pytest.skip("cryptography 不可用，跳过签名测试")
         server = v12_server
         # 用自动生成的临时密钥对签名
-        from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
 
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         private_pem = private_key.private_bytes(

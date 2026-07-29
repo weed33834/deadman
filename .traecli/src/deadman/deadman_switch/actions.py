@@ -255,7 +255,7 @@ class SwitchActionExecutor:
         此处仅触发，不直接投递。
         """
         try:
-            from ..vault.store import VaultStore, TRIGGER_ON_DEATH
+            from ..vault.store import TRIGGER_ON_DEATH, VaultStore
 
             vault_store = VaultStore()
             # 列出 owner 所有条目，对每个 on_death 触发的条目调 trigger_delivery

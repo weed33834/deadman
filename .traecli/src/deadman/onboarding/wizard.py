@@ -20,7 +20,6 @@ from typing import Any
 from .models import OnboardingProfile
 from .store import OnboardingStore
 
-
 # 省份列表（用于 location 下拉）
 _PROVINCES = [
     "北京", "天津", "河北", "山西", "内蒙古",

@@ -33,16 +33,16 @@ import base64
 import hashlib
 import logging
 import struct
-from typing import Any
 from collections.abc import AsyncIterator
+from typing import Any
 from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
 # AES-CBC 加密可选依赖（cryptography 库）
 try:
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     from cryptography.hazmat.primitives import padding as sym_padding
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     _HAS_CRYPTOGRAPHY = True
 except ImportError:
     _HAS_CRYPTOGRAPHY = False

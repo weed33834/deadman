@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-
-
 from deadman.infrastructure.feature_flags import (
     FeatureFlagManager,
 )

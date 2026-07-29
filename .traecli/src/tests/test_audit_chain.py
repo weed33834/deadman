@@ -21,9 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import deadman.security.audit as audit_module
+import pytest
 from deadman.security.audit import (
     GENESIS_HASH,
     AuditChain,
@@ -32,7 +31,6 @@ from deadman.security.audit import (
     get_audit_chain,
     reset_audit_chain,
 )
-
 
 # =====================================================================
 # Fixtures

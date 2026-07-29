@@ -125,7 +125,7 @@ except Exception:  # pragma: no cover
 
 # langchain_core PromptValue 用于 LLM 适配器
 try:  # pragma: no cover
-    from langchain_core.outputs import LLMResult, Generation  # type: ignore
+    from langchain_core.outputs import Generation, LLMResult  # type: ignore
     from langchain_core.prompt_values import StringPromptValue  # type: ignore
     _HAS_LANGCHAIN_CORE = True
 except Exception:  # pragma: no cover

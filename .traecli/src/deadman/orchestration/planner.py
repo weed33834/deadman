@@ -35,7 +35,8 @@ from datetime import datetime
 from typing import Any
 
 from ..llm import LLMClient
-from ..utils.text_similarity import tokenize as _tokenize, jaccard_similarity as _jaccard_sim
+from ..utils.text_similarity import jaccard_similarity as _jaccard_sim
+from ..utils.text_similarity import tokenize as _tokenize
 
 logger = logging.getLogger(__name__)
 

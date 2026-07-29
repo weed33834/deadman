@@ -26,9 +26,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from deadman.cron.scheduler import CronJob, CronScheduler
-
 
 # =====================================================================
 # 辅助：构造 mock guard / scheduler

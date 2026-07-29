@@ -19,16 +19,14 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-
-from deadman.memory.file_store import FileMemoryStore
 import deadman.memory.manager as mm_module
+from deadman.memory.file_store import FileMemoryStore
 from deadman.memory.manager import (
     IMPORTANCE_HIGH_THRESHOLD,
     IMPORTANCE_LOW_THRESHOLD,
     MEMORY_COMPRESS_ENABLED,
     MemoryManager,
 )
-
 
 # =====================================================================
 # Mock LLM - 模拟 chat / chat_json

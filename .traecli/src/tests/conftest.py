@@ -72,8 +72,8 @@ def _reset_global_singletons():
     """
     # 测试前清理
     try:
-        from deadman.observability.tracer import tracer
         from deadman.observability.metrics import metrics_collector
+        from deadman.observability.tracer import tracer
 
         tracer.clear()
         metrics_collector.clear()
@@ -82,8 +82,8 @@ def _reset_global_singletons():
     yield
     # 测试后清理
     try:
-        from deadman.observability.tracer import tracer
         from deadman.observability.metrics import metrics_collector
+        from deadman.observability.tracer import tracer
 
         tracer.clear()
         metrics_collector.clear()

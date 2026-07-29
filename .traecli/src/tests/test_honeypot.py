@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 import deadman.security.honeypot as honeypot_module
+import pytest
 from deadman.security.honeypot import (
     HONEYPOT_TOOL_DEFINITIONS,
     HONEYPOT_TOOLS,
@@ -25,7 +24,6 @@ from deadman.security.honeypot import (
     get_honeypot_manager,
     reset_honeypot_manager,
 )
-
 
 # =====================================================================
 # Fixtures

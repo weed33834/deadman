@@ -242,9 +242,7 @@ class SharedKnowledgeStore:
         topic_lower = topic.lower()
         matched: list[SharedKnowledgeEntry] = []
         for entry in self._cache.values():
-            if entry.topic.lower() == topic_lower:
-                matched.append(entry)
-            elif topic_lower in entry.topic.lower() or entry.topic.lower() in topic_lower:
+            if entry.topic.lower() == topic_lower or topic_lower in entry.topic.lower() or entry.topic.lower() in topic_lower:
                 matched.append(entry)
         # 优先精确匹配,其次按 source_user_count 降序
         matched.sort(
@@ -321,8 +319,8 @@ class SharedKnowledgeStore:
 
 
 __all__ = [
+    "DEFAULT_SHARED_KNOWLEDGE_FILE",
+    "SHARED_KNOWLEDGE_ENABLED",
     "SharedKnowledgeEntry",
     "SharedKnowledgeStore",
-    "SHARED_KNOWLEDGE_ENABLED",
-    "DEFAULT_SHARED_KNOWLEDGE_FILE",
 ]

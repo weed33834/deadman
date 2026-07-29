@@ -9,8 +9,6 @@
 
 from __future__ import annotations
 
-
-
 from deadman.evaluation.three_layer import (
     KeywordChecker,
     RegexChecker,
@@ -22,7 +20,6 @@ from deadman.evaluation.tool_calls import (
     _match_result,
     validate_tool_calls,
 )
-
 
 # =====================================================================
 # RegexChecker - 正则黑名单

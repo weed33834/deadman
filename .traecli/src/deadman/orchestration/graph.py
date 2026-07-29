@@ -20,16 +20,14 @@ LangGraph 是可选依赖：
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
-from collections.abc import Callable, Awaitable
 
-from .state import ConversationState
-from .termination import TerminationCondition, default_termination
 from .nodes import (
     AGENT_NAMES,
-    agent_node,
     after_rule_check,
     after_user_confirm,
+    agent_node,
     input_guard_node,
     integrity_check_node,
     output_guard_node,
@@ -39,6 +37,8 @@ from .nodes import (
     rule_check_node,
     user_confirm_node,
 )
+from .state import ConversationState
+from .termination import TerminationCondition, default_termination
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,9 @@ SqliteSaver = None  # type: ignore
 AsyncSqliteSaver = None  # type: ignore
 
 try:
-    from langgraph.graph import StateGraph as _StateGraph, END as _END  # type: ignore
     from langgraph.checkpoint.memory import MemorySaver as _MemorySaver  # type: ignore
+    from langgraph.graph import END as _END
+    from langgraph.graph import StateGraph as _StateGraph  # type: ignore
 
     StateGraph = _StateGraph
     END = _END
@@ -65,7 +66,9 @@ try:
     # 优先使用 AsyncSqliteSaver：web/api_chat 走 await graph.ainvoke() 异步路径，
     # 同步 SqliteSaver 不支持 async 方法（NotImplementedError）。
     try:
-        from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver as _AsyncSqliteSaver  # type: ignore
+        from langgraph.checkpoint.sqlite.aio import (
+            AsyncSqliteSaver as _AsyncSqliteSaver,  # type: ignore
+        )
 
         AsyncSqliteSaver = _AsyncSqliteSaver
     except ImportError:

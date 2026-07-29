@@ -22,14 +22,14 @@ import functools
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any
-from collections.abc import Callable
 from urllib.parse import urlparse
 
 from .feature_flags import is_enabled
-from .rate_limiter import RateLimiter, RateLimitConfig
+from .rate_limiter import RateLimitConfig, RateLimiter
 
 logger = logging.getLogger(__name__)
 

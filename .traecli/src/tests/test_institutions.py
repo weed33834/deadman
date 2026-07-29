@@ -21,13 +21,11 @@ import json
 from pathlib import Path
 
 import pytest
-
 from deadman.institutions.store import (
     Institution,
     InstitutionStore,
     make_institution,
 )
-
 
 # =====================================================================
 # 1. add + search 基本流程

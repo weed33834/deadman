@@ -2,4 +2,4 @@
 
 from .checker import NUMBER_PATTERNS, SelfCheckChecker
 
-__all__ = ["SelfCheckChecker", "NUMBER_PATTERNS"]
+__all__ = ["NUMBER_PATTERNS", "SelfCheckChecker"]

@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-
-
 # =====================================================================
 # _python_type_to_json_schema
 # =====================================================================
@@ -419,9 +417,9 @@ class TestReportIncidentAutoSchema:
 
     def test_report_incident_call_still_works(self):
         """report_incident 调用应正常返回"""
-        from deadman.mcp_server.server import mcp
-
         import asyncio
+
+        from deadman.mcp_server.server import mcp
         result = asyncio.run(mcp.call_tool("report_incident", {
             "incident_type": "injection_attempt",
             "description": "测试注入",

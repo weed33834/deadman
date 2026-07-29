@@ -13,8 +13,6 @@
 
 from __future__ import annotations
 
-
-
 from deadman.orchestration.self_consistency import (
     SELF_CONSISTENCY_DEFAULT_N,
     SELF_CONSISTENCY_DEFAULT_TEMP,
@@ -22,7 +20,6 @@ from deadman.orchestration.self_consistency import (
     ConsistencyResult,
     SelfConsistency,
 )
-
 
 # =====================================================================
 # Mock LLM Client

@@ -8,17 +8,15 @@
 
 from __future__ import annotations
 
-
+from deadman.a2a.models import TaskState
 from deadman.types import (
     ConfidenceLabel,
     ExecutionMode,
-    RuleCheckResult,
     RiskTier,
+    RuleCheckResult,
     SubagentResult,
     TransferSummary,
 )
-from deadman.a2a.models import TaskState
-
 
 # =====================================================================
 # RiskTier 枚举

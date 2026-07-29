@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from .core import Gateway
 from .connectors.base import PlatformConnector
+from .core import Gateway
 
 __all__ = ["Gateway", "PlatformConnector"]

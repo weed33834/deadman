@@ -59,8 +59,9 @@ DEFAULT_ROTATION_DAYS = 90
 
 # 可选 AES-256-GCM 依赖
 try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore
     import secrets
+
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False

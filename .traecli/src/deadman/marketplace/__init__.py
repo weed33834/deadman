@@ -26,6 +26,12 @@ feature flag:`DEADMAN_MARKETPLACE_ENABLED=0`(默认关闭,关闭时所有 API �
 
 from __future__ import annotations
 
+from .rating import (
+    Rating,
+    RatingFlag,
+    RatingSystem,
+    get_rating_system,
+)
 from .registry import (
     AgentListing,
     ListingCategory,
@@ -35,18 +41,6 @@ from .registry import (
     MarketplaceRegistry,
     get_marketplace_registry,
 )
-from .reviewer import (
-    AgentReviewer,
-    ReviewIssue,
-    ReviewResult,
-    get_agent_reviewer,
-)
-from .rating import (
-    Rating,
-    RatingFlag,
-    RatingSystem,
-    get_rating_system,
-)
 from .revenue import (
     PayoutRecord,
     RevenueShare,
@@ -54,10 +48,16 @@ from .revenue import (
     UsageRecord,
     get_revenue_share,
 )
+from .reviewer import (
+    AgentReviewer,
+    ReviewIssue,
+    ReviewResult,
+    get_agent_reviewer,
+)
 from .sandbox import (
+    MarketplaceSandbox,
     SandboxConfig,
     SandboxResult,
-    MarketplaceSandbox,
     get_marketplace_sandbox,
 )
 from .skill_manager import (

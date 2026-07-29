@@ -20,8 +20,7 @@ import builtins
 import io
 from unittest.mock import AsyncMock, MagicMock
 
-from deadman.repl import ChatREPL, _SLASH_COMMANDS
-
+from deadman.repl import _SLASH_COMMANDS, ChatREPL
 
 # =====================================================================
 # 辅助：构造带 mock 依赖的 ChatREPL

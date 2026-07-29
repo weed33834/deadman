@@ -13,7 +13,7 @@ Phase 8：实现注册/登录/JWT 会话，纯文件存储无数据库依赖。
   - input-guardrails：密码不入对话历史
 """
 
-from .store import UserStore
 from .jwt import JWTManager
+from .store import UserStore
 
-__all__ = ["UserStore", "JWTManager"]
+__all__ = ["JWTManager", "UserStore"]

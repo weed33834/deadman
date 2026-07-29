@@ -26,11 +26,11 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
 from ..infrastructure.multi_tenant import resolve_data_path

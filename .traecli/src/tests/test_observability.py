@@ -10,14 +10,12 @@
 from __future__ import annotations
 
 import pytest
-
 from deadman.observability.metrics import (
     METRIC_CATEGORIES,
     MetricsCollector,
     metrics_collector,
 )
 from deadman.observability.tracer import SpanType, Tracer, tracer
-
 
 # =====================================================================
 # SpanType - 11 种 span 类型
@@ -212,9 +210,8 @@ class TestTraceContextManagers:
         # with 块内抛异常 → status=ERROR
         from deadman.observability.tracer import trace_tool_span
 
-        with pytest.raises(ValueError):
-            with trace_tool_span("bad_tool") as span_id:
-                raise ValueError("boom")
+        with pytest.raises(ValueError), trace_tool_span("bad_tool") as span_id:
+            raise ValueError("boom")
         span = tracer.get_span(span_id)
         assert span["status"] == "ERROR"
         assert len(span["events"]) >= 1

@@ -32,12 +32,13 @@ import json
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
-from collections.abc import Awaitable, Callable
 
 from ..llm import LLMClient, get_llm_for_use_case
-from ..utils.text_similarity import tokenize as _tokenize, jaccard_similarity as _jaccard_sim
+from ..utils.text_similarity import jaccard_similarity as _jaccard_sim
+from ..utils.text_similarity import tokenize as _tokenize
 
 logger = logging.getLogger(__name__)
 

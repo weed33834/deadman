@@ -50,7 +50,7 @@ def main() -> int:
         # 连接失败（服务未启动 / 端口未监听）
         print(f"健康检查失败：无法连接 {url} - {exc.reason}", file=sys.stderr)
         return 1
-    except Exception as exc:  # noqa: BLE001 - 健康检查必须吞掉所有异常
+    except Exception as exc:
         print(f"健康检查异常：{type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
@@ -61,7 +61,7 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     /health 端点应直接返回 200，若发生重定向视为异常。
     """
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
 

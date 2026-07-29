@@ -193,11 +193,7 @@ class PrivateGraph:
                     continue
                 if node.properties.get("_user_id") != self.user_id:
                     continue
-                if not q_lower:
-                    out.append(node)
-                elif q_lower in (node.content or "").lower():
-                    out.append(node)
-                elif q_lower in str(node.properties.get("source", "")).lower():
+                if not q_lower or q_lower in (node.content or "").lower() or q_lower in str(node.properties.get("source", "")).lower():
                     out.append(node)
                 if len(out) >= top_k:
                     break

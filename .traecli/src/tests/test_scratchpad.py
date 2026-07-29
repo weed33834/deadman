@@ -10,13 +10,10 @@
 
 from __future__ import annotations
 
-
-import pytest
-
 import deadman.orchestration.scratchpad as scratchpad_module
+import pytest
 from deadman.orchestration.scratchpad import ScratchpadManager
 from deadman.orchestration.state import create_initial_state
-
 
 # =====================================================================
 # Fixtures

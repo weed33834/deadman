@@ -30,11 +30,11 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id

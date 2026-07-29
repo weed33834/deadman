@@ -10,9 +10,7 @@
 
 from __future__ import annotations
 
-
 import pytest
-
 from deadman.observability.metrics import (
     SLO_DASHBOARD_ENABLED,
     SLO_TARGETS,

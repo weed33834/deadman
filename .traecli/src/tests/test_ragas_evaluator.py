@@ -25,7 +25,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from deadman.evaluation.ragas_evaluator import (
     ALL_METRIC_NAMES,
     DEFAULT_QUALITY_GATE_THRESHOLD,
@@ -37,7 +36,6 @@ from deadman.evaluation.ragas_evaluator import (
     _load_case_for_ragas,
     run_ragas_batch,
 )
-
 
 # =====================================================================
 # 降级检测 - RAGAS 不可用 / LLM 不可用

@@ -30,7 +30,7 @@ import threading
 from datetime import datetime
 
 from ..infrastructure.feature_flags import is_enabled
-from .currency import Currency, CurrencyConverter, ConvertedAmount, get_currency_converter
+from .currency import ConvertedAmount, Currency, CurrencyConverter, get_currency_converter
 from .law_adapter import (
     Jurisdiction,
     LawAdapter,

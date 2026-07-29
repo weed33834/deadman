@@ -23,9 +23,8 @@ import json
 from typing import Any
 
 from ..ending_note.guide import EndingNoteGuide
-from ..ending_note.models import EndingNote, SECTION_KEYS
+from ..ending_note.models import SECTION_KEYS, EndingNote
 from ..ending_note.store import EndingNoteStore
-
 
 _DISCLAIMER = (
     "【边界告知】终活笔记不是法律文件，不替代遗嘱/信托/医疗预嘱；"

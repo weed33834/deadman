@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 from deadman.decedent_id.registry import (
     STATUS_ACTIVE,
     STATUS_ARCHIVED,

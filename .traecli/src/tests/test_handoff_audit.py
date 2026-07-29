@@ -18,9 +18,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import deadman.orchestration.handoff_audit as audit_module
+import pytest
 from deadman.orchestration.handoff_audit import (
     HandoffAuditEntry,
     HandoffAuditLogger,
@@ -29,7 +28,6 @@ from deadman.orchestration.handoff_audit import (
     get_handoff_audit_logger,
     reset_handoff_audit_logger,
 )
-
 
 # =====================================================================
 # Fixtures

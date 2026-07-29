@@ -21,7 +21,6 @@ import time
 
 import pytest
 
-
 # =====================================================================
 # 全局 fixture - 启用 governance + 重置所有单例
 # =====================================================================
@@ -42,15 +41,15 @@ def enable_governance(monkeypatch, tmp_path):
     get_flags()._cache_loaded_at = 0.0
 
     # 重置所有 governance 子模块的全局单例
-    import deadman.governance.model_card as mc_mod
-    import deadman.governance.data_card as dc_mod
-    import deadman.governance.risk_card as rc_mod
-    import deadman.governance.transparency as tr_mod
     import deadman.governance.ai_redlines as arl_mod
     import deadman.governance.appeals as ap_mod
+    import deadman.governance.data_card as dc_mod
     import deadman.governance.ethics_committee as ec_mod
     import deadman.governance.liability_insurance as li_mod
     import deadman.governance.manager as gm_mod
+    import deadman.governance.model_card as mc_mod
+    import deadman.governance.risk_card as rc_mod
+    import deadman.governance.transparency as tr_mod
     mc_mod._mcr_instance = None
     dc_mod._dcr_instance = None
     rc_mod._ra_instance = None
@@ -872,8 +871,8 @@ class TestEthicsCommittee:
 
     def test_digital_twin_case_full_flow(self, tmp_path):
         from deadman.governance.ethics_committee import (
-            CaseDecision,
             DIGITAL_TWIN_DECEASED_CATEGORY,
+            CaseDecision,
             EthicsCommittee,
         )
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")

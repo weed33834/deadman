@@ -19,13 +19,11 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-
 from deadman.tools.web_search import (
     DuckDuckGoSearchProvider,
     SearchResult,
     WebSearchTool,
 )
-
 
 # =====================================================================
 # 1-5. _classify 单元测试（retrieval-guardrails 信任等级）

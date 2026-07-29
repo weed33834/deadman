@@ -381,7 +381,7 @@ class MasterKeyBackup:
             self._drills.append(drill)
             self._save()
             # 注意:演练后立即销毁内存中的 master_key(不再使用)
-            del master_key  # noqa: F821
+            del master_key
             return drill
 
     # ==================================================================

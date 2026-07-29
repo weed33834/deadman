@@ -16,10 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from deadman.support.models import Ticket, TicketReply, TicketStatus
 from deadman.support.store import TicketStore
-
 
 # =====================================================================
 # 辅助

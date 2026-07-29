@@ -11,14 +11,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-
 from deadman.orchestration.graph import (
     LANGGRAPH_AVAILABLE,
     SequentialExecutor,
     build_main_graph,
 )
 from deadman.orchestration.state import ConversationState, create_initial_state
-
 
 # =====================================================================
 # create_initial_state
@@ -392,7 +390,7 @@ class TestStuckDetection:
 
     def test_is_stuck_step_count_exceeded(self):
         """step_count 超过 MAX_STEPS=25 时判定为卡死"""
-        from deadman.orchestration.graph import _is_stuck, MAX_STEPS
+        from deadman.orchestration.graph import MAX_STEPS, _is_stuck
         assert MAX_STEPS == 25
         state = create_initial_state("x")
         state["step_count"] = 26
@@ -404,7 +402,7 @@ class TestStuckDetection:
 
     def test_is_stuck_agent_repeat_exceeded(self):
         """stuck_count >= STUCK_AGENT_REPEAT_LIMIT=3 时判定为卡死"""
-        from deadman.orchestration.graph import _is_stuck, STUCK_AGENT_REPEAT_LIMIT
+        from deadman.orchestration.graph import STUCK_AGENT_REPEAT_LIMIT, _is_stuck
         assert STUCK_AGENT_REPEAT_LIMIT == 3
         state = create_initial_state("x")
         state["stuck_count"] = 3

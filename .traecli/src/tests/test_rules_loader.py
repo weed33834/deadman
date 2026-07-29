@@ -10,11 +10,8 @@
 
 from __future__ import annotations
 
-
-
 from deadman.rules_loader import RuleChecker, RuleLoader, rule_checker
 from deadman.types import RiskTier
-
 
 # =====================================================================
 # RuleLoader - 规则文件加载

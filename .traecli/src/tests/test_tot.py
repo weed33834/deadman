@@ -15,15 +15,13 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from deadman.orchestration.tot import (
     TOT_DEFAULT_PATHS,
     TOT_ENABLED,
     ThoughtNode,
-    TreeOfThought,
     ToTResult,
+    TreeOfThought,
 )
-
 
 # =====================================================================
 # Mock LLM Client

@@ -10,13 +10,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-
 from deadman.selfcheck.checker import (
+    _HIGH_THRESHOLD,
     NUMBER_PATTERNS,
     SelfCheckChecker,
-    _HIGH_THRESHOLD,
 )
-
 
 # =====================================================================
 # extract_numeric_claims - 6 种正则模式

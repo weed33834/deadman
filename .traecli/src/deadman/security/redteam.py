@@ -37,8 +37,8 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from dataclasses import dataclass, field
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 

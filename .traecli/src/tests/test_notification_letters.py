@@ -24,7 +24,6 @@ import io
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from deadman.notification_letters import (
     LETTER_TEMPLATES,
     LETTER_TYPES,
@@ -33,7 +32,6 @@ from deadman.notification_letters import (
     LetterResult,
 )
 from deadman.notification_letters.generator import LetterGenerator as Gen
-
 
 # ====================================================================
 # 辅助：构造通用 LetterRequest（每个类型特定字段可覆盖）
@@ -484,8 +482,8 @@ class _CapturedHandler:
 
     # 从 web/server.py 中复制的 _handle_letters_* 方法签名
     def _handle_letters_types(self) -> None:
-        from deadman.notification_letters.templates import LETTER_TYPES
         from deadman.notification_letters.models import DEFAULT_DISCLAIMER
+        from deadman.notification_letters.templates import LETTER_TYPES
         user = self._phase_auth_user()
         if user is None:
             self._phase_unauthorized()
@@ -497,12 +495,12 @@ class _CapturedHandler:
         })
 
     def _handle_letters_template(self, query: dict) -> None:
+        from deadman.notification_letters.models import DEFAULT_DISCLAIMER
         from deadman.notification_letters.templates import (
             LETTER_TEMPLATES,
             LETTER_TYPES,
             get_letter_type_meta,
         )
-        from deadman.notification_letters.models import DEFAULT_DISCLAIMER
         user = self._phase_auth_user()
         if user is None:
             self._phase_unauthorized()

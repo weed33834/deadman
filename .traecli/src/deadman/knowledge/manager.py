@@ -365,8 +365,8 @@ def reset_knowledge_manager() -> None:
 
 
 __all__ = [
-    "KnowledgeManager",
     "KnowledgeDisabledError",
+    "KnowledgeManager",
     "get_knowledge_manager",
     "reset_knowledge_manager",
 ]

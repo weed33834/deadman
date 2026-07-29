@@ -19,7 +19,6 @@ import secrets
 
 import pytest
 from cryptography.exceptions import InvalidTag
-
 from deadman.utils.crypto import (
     _decrypt_v1,
     _v2_derive_subkey,
@@ -30,7 +29,6 @@ from deadman.utils.crypto import (
     encrypt_bytes,
     encrypt_envelope,
 )
-
 
 # =====================================================================
 # 1. derive_key 测试

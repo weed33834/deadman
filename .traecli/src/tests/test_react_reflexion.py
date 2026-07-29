@@ -22,11 +22,9 @@ import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
-from deadman.orchestration.react_loop import ReActLoop, ReActResult
 import deadman.orchestration.react_loop as react_module
-
+import pytest
+from deadman.orchestration.react_loop import ReActLoop, ReActResult
 
 # =====================================================================
 # Mock LLM Client - 按 responses 队列依次返回,捕获所有 messages

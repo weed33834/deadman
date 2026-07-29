@@ -15,9 +15,7 @@
 
 from __future__ import annotations
 
-
 from deadman.prompts import COT_TEMPLATES, get_cot_template
-
 
 # =====================================================================
 # 4 类模板渲染测试

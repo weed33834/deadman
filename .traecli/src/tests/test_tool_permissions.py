@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import pytest
-
 from deadman.mcp_server import permissions as perm_module
 from deadman.mcp_server.permissions import (
     PERMISSION_REGISTRY,
@@ -22,7 +21,6 @@ from deadman.mcp_server.permissions import (
     is_read_only,
     requires_confirmation,
 )
-
 
 # =====================================================================
 # fixture

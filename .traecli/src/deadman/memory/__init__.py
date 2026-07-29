@@ -16,22 +16,22 @@ P2 增强层(feature flag 默认关闭):
 
 from __future__ import annotations
 
-from .working import WorkingMemory
-from .episodic import EpisodicMemory, Episode
-from .semantic import SemanticMemory, UserProfile, Fact
-from .procedural import ProceduralMemory, Procedure, UserProgress
+from .episodic import Episode, EpisodicMemory
 from .manager import MemoryManager, sanitize_before_store
+from .procedural import ProceduralMemory, Procedure, UserProgress
+from .semantic import Fact, SemanticMemory, UserProfile
+from .working import WorkingMemory
 
 __all__ = [
-    "WorkingMemory",
-    "EpisodicMemory",
     "Episode",
-    "SemanticMemory",
-    "UserProfile",
+    "EpisodicMemory",
     "Fact",
+    "MemoryManager",
     "ProceduralMemory",
     "Procedure",
+    "SemanticMemory",
+    "UserProfile",
     "UserProgress",
-    "MemoryManager",
+    "WorkingMemory",
     "sanitize_before_store",
 ]

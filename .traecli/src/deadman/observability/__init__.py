@@ -47,11 +47,11 @@ from .tracer import (
     OTEL_AVAILABLE,
     SpanType,
     Tracer,
-    tracer,
     trace_agent_span,
     trace_reflexion_span,
     trace_root_span,
     trace_tool_span,
+    tracer,
 )
 
 __all__ = [

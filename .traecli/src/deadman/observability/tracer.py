@@ -14,11 +14,11 @@ from __future__ import annotations
 import functools
 import logging
 import uuid
+from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from collections.abc import Callable
 
 from ..config import settings
 
@@ -34,9 +34,8 @@ otel_span_kind_module = None
 otel_otlp_module = None
 otel_sdk_module = None
 
-try:  # noqa: SIM105
+try:
     from opentelemetry import trace as _otel_trace  # type: ignore
-
     from opentelemetry.sdk.trace import TracerProvider  # type: ignore
     from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
     from opentelemetry.trace import SpanKind, Status, StatusCode  # type: ignore

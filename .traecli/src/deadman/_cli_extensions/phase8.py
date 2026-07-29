@@ -28,7 +28,6 @@ import json
 import sys
 from typing import Any
 
-
 # === 子命令处理函数 ===
 
 
@@ -38,8 +37,8 @@ def cmd_auth_register(args) -> None:
     --email / --password / --display-name
     输出：user_id + token
     """
-    from deadman.auth.store import UserStore
     from deadman.auth.jwt import JWTManager
+    from deadman.auth.store import UserStore
     from deadman.config import settings
 
     store = UserStore(data_dir=settings.auth_data_dir)
@@ -65,8 +64,8 @@ def cmd_auth_login(args) -> None:
     输出：token + display_name
     失败：exit 1（防枚举：不区分"邮箱不存在" vs "密码错"）
     """
-    from deadman.auth.store import UserStore
     from deadman.auth.jwt import JWTManager
+    from deadman.auth.store import UserStore
     from deadman.config import settings
 
     store = UserStore(data_dir=settings.auth_data_dir)

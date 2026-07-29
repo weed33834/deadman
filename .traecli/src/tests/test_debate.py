@@ -16,8 +16,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from deadman.debate import (
+    ConfidenceWeightedVote,
     ConsensusVote,
     Debate,
     DebateOrchestrator,
@@ -25,10 +25,8 @@ from deadman.debate import (
     DebateState,
     MajorityVote,
     WeightedVote,
-    ConfidenceWeightedVote,
 )
 from deadman.debate.voting import get_strategy
-
 
 # =================================================================
 # Mock LLM Client - 模拟 chat / chat_json / last_usage

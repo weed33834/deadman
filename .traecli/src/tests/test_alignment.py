@@ -87,7 +87,9 @@ class TestDPOTrainer:
 
     def test_train_mock_metrics(self):
         from deadman.alignment.dpo_trainer import (
-            DPOConfig, DPOTrainer, PreferenceExample,
+            DPOConfig,
+            DPOTrainer,
+            PreferenceExample,
         )
         trainer = DPOTrainer()
         for i in range(5):
@@ -117,7 +119,9 @@ class TestDPOTrainer:
 
     def test_save_and_load_checkpoint(self, tmp_path):
         from deadman.alignment.dpo_trainer import (
-            DPOConfig, DPOTrainer, PreferenceExample,
+            DPOConfig,
+            DPOTrainer,
+            PreferenceExample,
         )
         trainer = DPOTrainer()
         for i in range(3):
@@ -271,7 +275,7 @@ class TestSFTDataset:
         assert task_counts.get(TaskType.MEDICAL, 0) == 1
 
     def test_export_jsonl(self):
-        from deadman.alignment.sft_dataset import SFTDataset, SFTExample, ExportFormat
+        from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1"))
         ds.add(SFTExample(prompt="q2", completion="c2"))
@@ -284,7 +288,7 @@ class TestSFTDataset:
         assert "completion" in parsed
 
     def test_export_csv(self):
-        from deadman.alignment.sft_dataset import SFTDataset, SFTExample, ExportFormat
+        from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1"))
         data = ds.export(ExportFormat.CSV)
@@ -296,7 +300,7 @@ class TestSFTDataset:
         assert len(text.strip().split("\n")) >= 2
 
     def test_export_alpaca_format(self):
-        from deadman.alignment.sft_dataset import SFTDataset, SFTExample, ExportFormat
+        from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
         ds = SFTDataset()
         ds.add(SFTExample(prompt="instruction\ntext", completion="output"))
         data = ds.export(ExportFormat.ALPACA)
@@ -307,7 +311,7 @@ class TestSFTDataset:
         assert "output" in items[0]
 
     def test_export_sharegpt_format(self):
-        from deadman.alignment.sft_dataset import SFTDataset, SFTExample, ExportFormat
+        from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
         ds = SFTDataset()
         ds.add(SFTExample(prompt="hi", completion="hello"))
         data = ds.export(ExportFormat.SHAREGPT)
@@ -378,7 +382,9 @@ class TestLocalLLMClient:
     def test_chat_mock_mode(self):
         """mock_mode=True → chat 返回 mock 响应。"""
         from deadman.alignment.local_llm import (
-            LocalLLMClient, LocalLLMConfig, LocalLLMProvider,
+            LocalLLMClient,
+            LocalLLMConfig,
+            LocalLLMProvider,
         )
         config = LocalLLMConfig(
             provider=LocalLLMProvider.OLLAMA,
@@ -394,7 +400,9 @@ class TestLocalLLMClient:
 
     def test_health_check_returns_false_in_mock(self):
         from deadman.alignment.local_llm import (
-            LocalLLMClient, LocalLLMConfig, LocalLLMProvider,
+            LocalLLMClient,
+            LocalLLMConfig,
+            LocalLLMProvider,
         )
         config = LocalLLMConfig(
             provider=LocalLLMProvider.VLLM,
@@ -406,7 +414,9 @@ class TestLocalLLMClient:
     def test_health_check_false_activates_mock(self):
         """health_check 失败 → mock_active = True,后续 chat 走 mock。"""
         from deadman.alignment.local_llm import (
-            LocalLLMClient, LocalLLMConfig, LocalLLMProvider,
+            LocalLLMClient,
+            LocalLLMConfig,
+            LocalLLMProvider,
         )
         # 用一个不存在的端口,确保 health_check 失败
         config = LocalLLMConfig(
@@ -424,7 +434,9 @@ class TestLocalLLMClient:
 
     def test_load_and_unload_model(self):
         from deadman.alignment.local_llm import (
-            LocalLLMClient, LocalLLMConfig, LocalLLMProvider,
+            LocalLLMClient,
+            LocalLLMConfig,
+            LocalLLMProvider,
         )
         config = LocalLLMConfig(
             provider=LocalLLMProvider.VLLM,
@@ -445,7 +457,9 @@ class TestLocalLLMClient:
 
     def test_get_stats_tracking(self):
         from deadman.alignment.local_llm import (
-            LocalLLMClient, LocalLLMConfig, LocalLLMProvider,
+            LocalLLMClient,
+            LocalLLMConfig,
+            LocalLLMProvider,
         )
         config = LocalLLMConfig(
             provider=LocalLLMProvider.OLLAMA,
@@ -475,7 +489,9 @@ class TestLocalLLMClient:
 class TestMoERouter:
     def test_register_and_list(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         assert router.register_expert(Expert(
@@ -485,7 +501,9 @@ class TestMoERouter:
 
     def test_route_selects_matching_specialization(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(
@@ -499,7 +517,9 @@ class TestMoERouter:
 
     def test_route_uses_context_task_type(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(
@@ -514,7 +534,9 @@ class TestMoERouter:
 
     def test_update_load(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(
@@ -529,7 +551,9 @@ class TestMoERouter:
 
     def test_record_result_updates_success_rate(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(
@@ -547,7 +571,9 @@ class TestMoERouter:
     def test_capacity_protection(self):
         """已达 capacity 的专家被跳过。"""
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(
@@ -566,7 +592,9 @@ class TestMoERouter:
 
     def test_get_stats(self):
         from deadman.alignment.moe_router import (
-            Expert, ExpertSpecialization, MoERouter,
+            Expert,
+            ExpertSpecialization,
+            MoERouter,
         )
         router = MoERouter()
         router.register_expert(Expert(name="e1", specialization=ExpertSpecialization.LEGAL))

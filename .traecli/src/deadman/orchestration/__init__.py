@@ -30,9 +30,9 @@ from .graph import (
 )
 from .nodes import (
     AGENT_NAMES,
-    agent_node,
     after_rule_check,
     after_user_confirm,
+    agent_node,
     input_guard_node,
     integrity_check_node,
     output_guard_node,

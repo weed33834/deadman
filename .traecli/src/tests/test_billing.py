@@ -151,8 +151,7 @@ class TestSubscription:
         assert sub.status == SubscriptionStatus.ACTIVE
 
     def test_subscribe_with_trial(self, tmp_path):
-        from deadman.billing.subscription import SubscriptionStatus
-        from deadman.billing.subscription import SubscriptionManager
+        from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sub = sm.subscribe("user1", "pro", with_trial=True)
         assert sub.status == SubscriptionStatus.TRIALING
@@ -454,9 +453,9 @@ class TestMetering:
 class TestUsageTracker:
     def test_record_token(self, tmp_path):
         from deadman.billing.metering import MeteringService
+        from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
-        from deadman.billing.subscription import SubscriptionManager
 
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
@@ -469,9 +468,9 @@ class TestUsageTracker:
 
     def test_check_quota(self, tmp_path):
         from deadman.billing.metering import MeteringService
+        from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
-        from deadman.billing.subscription import SubscriptionManager
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -482,9 +481,9 @@ class TestUsageTracker:
 
     def test_get_usage_default_today(self, tmp_path):
         from deadman.billing.metering import MeteringService
+        from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
-        from deadman.billing.subscription import SubscriptionManager
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -495,9 +494,9 @@ class TestUsageTracker:
 
     def test_predict_overflow_returns_none_when_under_limit(self, tmp_path):
         from deadman.billing.metering import MeteringService
+        from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
-        from deadman.billing.subscription import SubscriptionManager
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -508,9 +507,9 @@ class TestUsageTracker:
     def test_quota_rejection_handled(self, tmp_path):
         """配额拒绝:不抛异常,返回 will_exceed=True。"""
         from deadman.billing.metering import MeteringService
+        from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
-        from deadman.billing.subscription import SubscriptionManager
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")

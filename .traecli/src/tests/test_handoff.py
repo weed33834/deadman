@@ -14,15 +14,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 import deadman.orchestration.handoff as handoff_module
+import pytest
 from deadman.orchestration.handoff import (
     HANDOFF_FALLBACK_TRUNCATE,
     HandoffContext,
     HandoffManager,
 )
-
 
 # =====================================================================
 # Mock LLM Client

@@ -19,7 +19,6 @@ from pathlib import Path
 
 from deadman.notification.guardrail import NotificationGuardrail
 
-
 # =====================================================================
 # 辅助：构造带 opt-in 的护栏
 # =====================================================================

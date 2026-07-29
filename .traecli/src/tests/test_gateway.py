@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock
 from deadman.gateway.core import Gateway
 from deadman.notification.guardrail import NotificationGuardrail
 
-
 # =====================================================================
 # 辅助：构造带 mock graph + mock connector 的 Gateway
 # =====================================================================

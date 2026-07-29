@@ -41,8 +41,8 @@ def cmd_eval(args):
     """运行评估 - 跑 golden cases + 三层判定 + 反馈闭环"""
     import json
 
-    from .evaluation.runner import run_all_cases
     from .config import settings
+    from .evaluation.runner import run_all_cases
     from .observability import metrics_collector
 
     cases_dir = args.cases_dir or str(settings.tests_dir / "automated" / "cases")
@@ -143,7 +143,7 @@ def cmd_eval_list(args):
         priority = case.get("priority", "-")
         has_judge = "是" if case.get("evaluation", {}).get("llm_judge") else "否"
         name = (case.get("name", "") or "")[:30]
-        print(f"{str(case_id):<10} {category:<14} {priority:<8} {has_judge:<10} {name}")
+        print(f"{case_id!s:<10} {category:<14} {priority:<8} {has_judge:<10} {name}")
     print(f"\nCase 总数: {len(cases)}")
 
 
@@ -317,7 +317,7 @@ def cmd_llm_test(args):
     from datetime import datetime
 
     from .config import settings
-    from .llm import PROVIDER_MODELS, _PROVIDER_DEFAULTS, LLMClient
+    from .llm import _PROVIDER_DEFAULTS, PROVIDER_MODELS, LLMClient
     from .observability import metrics_collector
 
     timeout = args.timeout if args.timeout is not None else settings.llm_timeout
@@ -695,9 +695,8 @@ def cmd_prompt_sync(args):
     import json
     from datetime import datetime
 
-    from .prompts import fetch_deepset_prompts, fetch_langsmith_prompts, local_prompt_store
-
     from .config import settings
+    from .prompts import fetch_deepset_prompts, fetch_langsmith_prompts, local_prompt_store
 
     async def _fetch_all() -> dict:
         langsmith = await fetch_langsmith_prompts(query=args.query or "")
@@ -3273,8 +3272,8 @@ def cmd_gateway_start(args):
     import signal
 
     from .config import settings
-    from .gateway.core import Gateway
     from .gateway.connectors.telegram import TelegramConnector
+    from .gateway.core import Gateway
     from .notification.guardrail import NotificationGuardrail
 
     bot_token = settings.telegram_bot_token
@@ -3412,12 +3411,11 @@ def cmd_notify_test(args):
       - 退订立即生效
       - 脆弱期静默（72h / R3-14d / 高情绪-7d）
     """
+    # 用临时数据目录，避免污染真实数据
+    import tempfile
     from datetime import datetime, timedelta
 
     from .notification.guardrail import NotificationGuardrail
-
-    # 用临时数据目录，避免污染真实数据
-    import tempfile
     tmp_dir = Path(tempfile.mkdtemp(prefix="deadman-notify-test-"))
     guard = NotificationGuardrail(data_dir=tmp_dir)
 
@@ -4333,11 +4331,16 @@ def main():
     # 各 Phase 通过 _cli_extensions/phaseN.py 提供 register_subparsers(subparsers)
     # 用 set_defaults(func=cmd_xxx) 设置分发函数
     try:
-        from ._cli_extensions import phase8, phase9, phase10, phase11_12_13
-        from ._cli_extensions import phase15_switch
-        from ._cli_extensions import phase15_letters
-        from ._cli_extensions import phase15_score
-        from ._cli_extensions import phase16
+        from ._cli_extensions import (
+            phase8,
+            phase9,
+            phase10,
+            phase11_12_13,
+            phase15_letters,
+            phase15_score,
+            phase15_switch,
+            phase16,
+        )
         phase8.register_subparsers(subparsers)
         phase9.register_subparsers(subparsers)
         phase10.register_subparsers(subparsers)

@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from deadman.evaluation.runner import CaseRunner
 from deadman.observability.trace_to_eval import (
     EvalToRedteamConverter,

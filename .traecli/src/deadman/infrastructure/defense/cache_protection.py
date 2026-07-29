@@ -30,9 +30,9 @@ import logging
 import random
 import threading
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
-from collections.abc import Awaitable, Callable
 
 from ..feature_flags import is_enabled
 

@@ -125,7 +125,7 @@ class WebServer:
         server_ref = self
 
         class Handler(BaseHTTPRequestHandler):
-            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+            def log_message(self, format: str, *args: Any) -> None:
                 logger.debug("Web %s - %s", self.address_string(), format % args)
 
             def _send_json(self, status: int, payload: Any) -> None:
@@ -169,7 +169,7 @@ class WebServer:
                     import ssl
                     if isinstance(self.request, ssl.SSLSocket):
                         return True
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
                 return False
 
@@ -218,7 +218,7 @@ class WebServer:
                         "Strict-Transport-Security", "max-age=31536000"
                     )
 
-            def end_headers(self) -> None:  # noqa: D401, N802
+            def end_headers(self) -> None:
                 """覆写 end_headers：统一为所有响应注入 CORS + 安全头。"""
                 self._set_cors_headers()
                 self._set_security_headers()
@@ -251,13 +251,13 @@ class WebServer:
                     return False
                 return True
 
-            def do_OPTIONS(self) -> None:  # noqa: N802
+            def do_OPTIONS(self) -> None:
                 """处理 CORS 预检请求：直接返回 204 No Content。"""
                 self.send_response(204)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
 
-            def do_GET(self) -> None:  # noqa: N802
+            def do_GET(self) -> None:
                 parsed = urlparse(self.path)
                 path = parsed.path
                 query = parse_qs(parsed.query)
@@ -421,7 +421,7 @@ class WebServer:
                     else:
                         self.send_error(404, "Not Found")
 
-            def do_POST(self) -> None:  # noqa: N802
+            def do_POST(self) -> None:
                 parsed = urlparse(self.path)
                 path = parsed.path
                 # 速率限制（POST 入口）
@@ -586,7 +586,7 @@ class WebServer:
                 else:
                     self.send_error(404, "Not Found")
 
-            def do_PUT(self) -> None:  # noqa: N802
+            def do_PUT(self) -> None:
                 """PUT 路由：vault item 更新 / support ticket 状态更新"""
                 parsed = urlparse(self.path)
                 path = parsed.path
@@ -599,7 +599,7 @@ class WebServer:
                 else:
                     self.send_error(404, "Not Found")
 
-            def do_DELETE(self) -> None:  # noqa: N802
+            def do_DELETE(self) -> None:
                 """Phase 10/11/12 新增：DELETE 路由"""
                 parsed = urlparse(self.path)
                 path = parsed.path
@@ -981,9 +981,9 @@ class WebServer:
                 user_id 从 Authorization 头解析（Phase 14 P0-gap-2 修复：
                 原 body.user_id 字段已废弃，请求体里的 user_id 会被忽略）
                 """
-                from deadman.ending_note.store import EndingNoteStore
                 from deadman.ending_note.guide import EndingNoteGuide
                 from deadman.ending_note.models import EndingNote as EN
+                from deadman.ending_note.store import EndingNoteStore
 
                 # 强制走 auth
                 user = self._phase_auth_user()
@@ -1050,9 +1050,9 @@ class WebServer:
 
             def _handle_ending_note_guide_next(self, query: dict[str, list[str]]) -> None:
                 """GET /api/ending-note/guide/next?user_id=xxx - 获取下一章引导问题"""
-                from deadman.ending_note.store import EndingNoteStore
                 from deadman.ending_note.guide import EndingNoteGuide
                 from deadman.ending_note.models import EndingNote as EN
+                from deadman.ending_note.store import EndingNoteStore
 
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
@@ -1261,9 +1261,9 @@ class WebServer:
 
             def _handle_ending_note_completion(self, query: dict[str, list[str]]) -> None:
                 """GET /api/ending-note/completion?user_id=xxx - 填写完整度"""
-                from deadman.ending_note.store import EndingNoteStore
                 from deadman.ending_note.guide import EndingNoteGuide
                 from deadman.ending_note.models import EndingNote as EN
+                from deadman.ending_note.store import EndingNoteStore
 
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
@@ -1412,7 +1412,7 @@ class WebServer:
                         if field in req:
                             updates[field] = req[field]
                     # delivery_date 字符串转 datetime
-                    if "delivery_date" in updates and updates["delivery_date"]:
+                    if updates.get("delivery_date"):
                         try:
                             from datetime import datetime as _dt
                             updates["delivery_date"] = _dt.fromisoformat(
@@ -1909,8 +1909,8 @@ class WebServer:
                 if user is None:
                     self._phase_unauthorized()
                     return
-                from deadman.notification_letters.templates import LETTER_TYPES
                 from deadman.notification_letters.models import DEFAULT_DISCLAIMER
+                from deadman.notification_letters.templates import LETTER_TYPES
                 self._send_json(200, {
                     "types": [dict(t) for t in LETTER_TYPES],
                     "count": len(LETTER_TYPES),
@@ -1926,12 +1926,12 @@ class WebServer:
                 if user is None:
                     self._phase_unauthorized()
                     return
+                from deadman.notification_letters.models import DEFAULT_DISCLAIMER
                 from deadman.notification_letters.templates import (
                     LETTER_TEMPLATES,
                     LETTER_TYPES,
                     get_letter_type_meta,
                 )
-                from deadman.notification_letters.models import DEFAULT_DISCLAIMER
                 letter_type = (query.get("type", [""])[0] or "").strip()
                 if not letter_type:
                     self._send_json(400, {
@@ -2127,8 +2127,8 @@ class WebServer:
                         "disclaimer": self._MEMORIAL_DISCLAIMER,
                     })
                     return
-                from deadman.memorial_writer.models import MemorialRequest
                 from deadman.memorial_writer.generator import MemorialGenerator
+                from deadman.memorial_writer.models import MemorialRequest
                 try:
                     request = MemorialRequest.from_dict(req)
                 except (TypeError, ValueError) as exc:
@@ -2859,8 +2859,8 @@ class WebServer:
             def _handle_marketplace_skills(self, query: dict[str, list[str]]) -> None:
                 """GET /api/marketplace/skills - 返回市场技能列表"""
                 try:
-                    from ..marketplace import get_marketplace_registry
                     from ..infrastructure.feature_flags import is_enabled
+                    from ..marketplace import get_marketplace_registry
                     if not is_enabled("marketplace"):
                         self._send_json(503, {
                             "enabled": False,
@@ -2890,7 +2890,7 @@ class WebServer:
             def _handle_compliance_status(self) -> None:
                 """GET /api/compliance/status - 返回合规状态（用户同意 + 审计报告）"""
                 try:
-                    from ..compliance import get_consent_manager, get_audit_reporter
+                    from ..compliance import get_audit_reporter, get_consent_manager
                     from ..infrastructure.feature_flags import is_enabled
                     if not is_enabled("compliance"):
                         self._send_json(503, {
@@ -2922,7 +2922,7 @@ class WebServer:
             def _handle_i18n_messages(self, query: dict[str, list[str]]) -> None:
                 """GET /api/i18n/messages - 返回多语言消息"""
                 try:
-                    from ..i18n import get_message_bundle, Locale
+                    from ..i18n import Locale, get_message_bundle
                     from ..infrastructure.feature_flags import is_enabled
                     if not is_enabled("i18n"):
                         self._send_json(503, {
@@ -2950,7 +2950,7 @@ class WebServer:
             def _handle_i18n_currency(self) -> None:
                 """GET /api/i18n/currency - 返回货币信息与汇率"""
                 try:
-                    from ..i18n import get_currency_converter, Currency
+                    from ..i18n import Currency, get_currency_converter
                     from ..infrastructure.feature_flags import is_enabled
                     if not is_enabled("i18n"):
                         self._send_json(503, {
@@ -3061,9 +3061,9 @@ class WebServer:
         if not query:
             return {"error": "query 不能为空"}
 
+        from ..memory.manager import MemoryManager
         from ..orchestration.graph import build_main_graph
         from ..orchestration.state import ConversationState
-        from ..memory.manager import MemoryManager
 
         # 构造 state
         session_id = f"web-{user_id or 'anon'}-{int(time.time())}"
@@ -3155,8 +3155,8 @@ class WebServer:
             logger.exception("graph 调用失败")
             # 降级：仍调 llm_client 但明确标记 degraded，不再用硬编码 system prompt
             # 而是用 SoulLoader.default_soul() 作为最低身份约束
-            from ..soul_loader import SoulLoader
             from ..llm import llm_client
+            from ..soul_loader import SoulLoader
 
             if not llm_client.api_key:
                 return {
@@ -3315,11 +3315,11 @@ class WebServer:
             wfile.flush()
             return
 
+        from ..llm import llm_client
+        from ..memory.manager import MemoryManager
         from ..orchestration.graph import build_main_graph
         from ..orchestration.state import ConversationState
-        from ..memory.manager import MemoryManager
         from ..soul_loader import SoulLoader
-        from ..llm import llm_client
 
         # 智能体名归一化
         agent_normalized = (agent or "death-aftercare").replace("-", "_")

@@ -22,7 +22,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from .models import EndingNote, SECTION_KEYS
+from .models import SECTION_KEYS, EndingNote
 from .store import EndingNoteStore
 
 logger = logging.getLogger(__name__)

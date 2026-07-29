@@ -375,8 +375,8 @@ class Anonymizer:
 
 
 __all__ = [
-    "Anonymizer",
-    "AnonymizationResult",
     "QUASI_IDENTIFIERS",
     "SENSITIVE_ATTRIBUTES",
+    "AnonymizationResult",
+    "Anonymizer",
 ]

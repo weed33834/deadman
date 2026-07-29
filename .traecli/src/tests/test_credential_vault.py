@@ -6,14 +6,13 @@ import os
 import time
 
 import pytest
-
 from deadman.infrastructure.credential_vault import (
+    _HAS_CRYPTO,
     CredentialNotFoundError,
     CredentialVault,
     _decrypt,
     _derive_master_key,
     _encrypt,
-    _HAS_CRYPTO,
 )
 
 
@@ -63,8 +62,9 @@ class TestEncryptDecrypt:
     def test_wrong_master_key_fails_decryption(self, fresh_master_key):
         if not _HAS_CRYPTO:
             pytest.skip("cryptography not installed")
-        from cryptography.exceptions import InvalidTag
         import secrets
+
+        from cryptography.exceptions import InvalidTag
         key1 = _derive_master_key()
         key2 = secrets.token_bytes(32)
         encrypted = _encrypt("secret", key1)

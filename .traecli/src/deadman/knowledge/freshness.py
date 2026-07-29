@@ -24,11 +24,11 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -445,10 +445,10 @@ class KnowledgeFreshness:
 
 
 __all__ = [
-    "KnowledgeCategory",
     "CATEGORY_TTL_DAYS",
-    "FreshnessReport",
     "ExternalSource",
+    "FreshnessReport",
+    "KnowledgeCategory",
     "KnowledgeFreshness",
     "_classify_by_source",
 ]

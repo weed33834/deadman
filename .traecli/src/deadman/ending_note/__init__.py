@@ -25,8 +25,8 @@
 
 from __future__ import annotations
 
+from .guide import EndingNoteGuide
 from .models import EndingNote
 from .store import EndingNoteStore
-from .guide import EndingNoteGuide
 
-__all__ = ["EndingNote", "EndingNoteStore", "EndingNoteGuide"]
+__all__ = ["EndingNote", "EndingNoteGuide", "EndingNoteStore"]

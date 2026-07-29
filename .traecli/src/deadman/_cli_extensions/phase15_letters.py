@@ -24,7 +24,6 @@ import argparse
 import sys
 from typing import Any
 
-
 _DISCLAIMER = (
     "【边界告知】信函仅为草稿，具体格式请以办理机构要求为准；"
     "占位符 [xxx] 需手动填写。"

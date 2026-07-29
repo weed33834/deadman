@@ -16,9 +16,8 @@ from __future__ import annotations
 import asyncio
 import re
 
-import pytest
-
 import deadman.orchestration.nodes as nodes_module
+import pytest
 from deadman.orchestration.nodes import (
     _build_guid_sandbox_preamble,
     _detect_external_content,
@@ -26,7 +25,6 @@ from deadman.orchestration.nodes import (
     input_guard_node,
 )
 from deadman.orchestration.state import create_initial_state
-
 
 # =====================================================================
 # Fixtures

@@ -28,11 +28,11 @@ import logging
 import os
 import tempfile
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from collections.abc import Awaitable, Callable
 
 from .expr import CronExpr
 

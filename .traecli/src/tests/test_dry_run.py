@@ -11,12 +11,9 @@
 
 from __future__ import annotations
 
-
 import pytest
-
 from deadman.mcp_server import server as srv
 from deadman.mcp_server.server import mcp
-
 
 # =====================================================================
 # 辅助 fixture

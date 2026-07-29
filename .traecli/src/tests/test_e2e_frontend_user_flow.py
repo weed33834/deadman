@@ -27,9 +27,7 @@ import time
 
 import httpx
 import pytest
-
 from deadman.web.server import WebServer
-
 
 # =====================================================================
 # 辅助函数 + 模块级 server fixture

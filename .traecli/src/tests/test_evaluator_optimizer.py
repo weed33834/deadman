@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from deadman.orchestration.evaluator_optimizer import (
     EVAL_OPTIMIZER_ENABLED,
     EVAL_OPTIMIZER_MAX_ROUNDS,
@@ -24,7 +23,6 @@ from deadman.orchestration.evaluator_optimizer import (
     OptimizationRound,
     OptimizeResult,
 )
-
 
 # =====================================================================
 # Mock LLM Client

@@ -26,9 +26,7 @@ import hashlib
 from typing import Any
 from unittest.mock import MagicMock
 
-
 from deadman.gateway.connectors.wechat import WeChatConnector
-
 
 # =====================================================================
 # 辅助：构造 mock httpx 模块，捕获 AsyncClient 调用
@@ -85,7 +83,7 @@ def _patch_httpx(monkeypatch, client: _MockAsyncClient):
     import types
 
     fake_module = types.ModuleType("httpx")
-    fake_module.AsyncClient = lambda **kwargs: client  # noqa: E731
+    fake_module.AsyncClient = lambda **kwargs: client
     # httpx 已被导入到 wechat 模块内（在函数内部 import）
     # 直接 monkeypatch sys.modules['httpx']，函数内部 import 时会拿到 fake
     monkeypatch.setitem(sys.modules, "httpx", fake_module)
