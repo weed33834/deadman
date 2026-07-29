@@ -1457,10 +1457,17 @@ async def case_archive(case_id: str, user: dict = Depends(get_current_user)):
 
 @app.get("/api/cases/{case_id}/timeline", tags=["cases"])
 async def case_timeline(case_id: str, user: dict = Depends(get_current_user)):
-    """GET /api/cases/<id>/timeline - 时间线"""
+    """GET /api/cases/<id>/timeline - 时间线
+
+    先校验案例归属（与兄弟端点 ``case_get`` 一致），不存在或越权时返回 404，
+    避免泄露"端点可达"信号（IDOR 修复）。
+    """
     from ..decedent_id.registry import DecedentRegistry
 
     reg = DecedentRegistry()
+    case = reg.get_case(case_id, user["user_id"])
+    if case is None:
+        raise HTTPException(status_code=404, detail="案例不存在或无权限")
     timeline = reg.get_timeline(case_id, user["user_id"])
     return {"timeline": timeline}
 
@@ -1503,10 +1510,10 @@ async def switch_actions(user: dict = Depends(get_current_user)):
 
 
 class SwitchInitRequest(BaseModel):
-    frequency: int = 30
-    missed: int = 3
-    window: int = 7
-    cooldown: int = 7
+    frequency: int = Field(default=30, ge=1, le=365, description="check-in 频率（天，1-365）")
+    missed: int = Field(default=3, ge=1, le=30, description="失联阈值（次，1-30）")
+    window: int = Field(default=7, ge=1, le=90, description="验证窗口（天，1-90）")
+    cooldown: int = Field(default=7, ge=1, le=90, description="冷静期（天，1-90）")
     emergency_contacts: list[str] | None = None
     lawyer_id: str | None = None
     heir_ids: list[str] | None = None
@@ -2193,13 +2200,22 @@ class SkillImportRequest(BaseModel):
 
 @app.post("/api/skills/import", tags=["skills"], status_code=201)
 async def skill_import(req: SkillImportRequest, user: dict = Depends(get_current_user)):
-    """POST /api/skills/import - 从 URL 导入技能"""
+    """POST /api/skills/import - 从 URL 导入技能
+
+    SSRF 防护由 ``skill_manager._assert_safe_url`` 拦截保留段地址；
+    业务级错误（下载失败/格式非法/SSRF）返回 400，仅兜底异常返回 500。
+    """
     try:
-        from ..marketplace.skill_manager import get_skill_manager
+        from ..marketplace.skill_manager import SkillError, get_skill_manager
 
         mgr = get_skill_manager()
         skill = mgr.import_skill_from_url(req.url)
         return {"ok": True, "skill": skill}
+    except SkillError as exc:
+        # 业务级错误（含 SSRF 拦截、下载失败、格式非法）→ 400
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("skill import failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc

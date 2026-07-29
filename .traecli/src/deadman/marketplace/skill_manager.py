@@ -17,13 +17,16 @@ feature flag: 无 (技能管理始终可用,不受 marketplace feature flag 控�
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 import logging
 import os
 import re
 import shutil
+import socket
 import tempfile
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -43,7 +46,67 @@ class SkillError(Exception):
         - frontmatter 缺失必填字段
         - 文件 IO 错误
         - URL 下载失败
+        - SSRF 拦截
     """
+
+
+# =====================================================================
+# SSRF 防护
+# =====================================================================
+def _assert_safe_url(url: str) -> None:
+    """校验 URL 安全性，拦截 SSRF 探测内网/云元数据端点。
+
+    拦截规则：
+    * 仅允许 ``http`` / ``https`` scheme
+    * 解析 hostname，DNS 解析后逐 IP 校验是否落在保留段
+    * 拒绝：回环(127/8, ::1) / 链路本地(169.254/16, fe80::/10) /
+      私网(10/8, 172.16/12, 192.168/16, fc00::/7) / 广播(0/8) /
+      未分配(240/4) / 文档(192.0.2/24)
+
+    Raises:
+        SkillError: URL 不安全时
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise SkillError(f"不允许的 URL scheme: {parsed.scheme!r}（仅 http/https）")
+    hostname = parsed.hostname
+    if not hostname:
+        raise SkillError(f"URL 缺少 hostname: {url}")
+
+    # 直接写 IP 的情况（如 http://169.254.169.254/）
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if _is_unsafe_ip(ip):
+            raise SkillError(f"不允许的目标地址（保留段）: {hostname}")
+        return
+    except ValueError:
+        pass  # 是域名，继续 DNS 解析
+
+    # DNS 解析所有 A/AAAA 记录，任一落在保留段即拒绝（防 DNS rebinding）
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as exc:
+        raise SkillError(f"域名解析失败: {hostname} - {exc}") from exc
+    for family, _stype, _proto, _canon, sockaddr in infos:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if _is_unsafe_ip(ip):
+            raise SkillError(f"域名 {hostname} 解析到保留地址 {ip_str}，已拦截")
+
+
+def _is_unsafe_ip(ip: ipaddress._BaseAddress) -> bool:
+    """判断 IP 是否落在不应被 SSRF 访问的保留段。"""
+    return (
+        ip.is_loopback
+        or ip.is_link_local
+        or ip.is_private
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
 
 
 # =====================================================================
@@ -464,6 +527,8 @@ class SkillManager:
         下载的文件必须符合 SKILL.md frontmatter 格式, 且 frontmatter 中
         必须包含 ``name`` 字段 (用于确定安装目录名)。
 
+        SSRF 防护：拒绝回环 / 链路本地 / 私网 / 广播地址，仅允许 http/https。
+
         Args:
             url: SKILL.md 的 HTTP/HTTPS URL
 
@@ -471,9 +536,12 @@ class SkillManager:
             安装成功的技能摘要 dict
 
         Raises:
-            SkillError: 下载失败 / 格式非法 / name 缺失
+            SkillError: 下载失败 / 格式非法 / name 缺失 / SSRF 拦截
         """
         logger.info("从 URL 导入技能: %s", url)
+
+        # --- SSRF 防护：校验 scheme + 解析后的 IP 不在内网/保留段 ---
+        _assert_safe_url(url)
 
         # --- 下载 ---
         try:

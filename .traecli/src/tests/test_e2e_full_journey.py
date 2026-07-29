@@ -1119,10 +1119,9 @@ class TestCrossUserIsolation:
         )
         assert r.status_code == 404
 
-        # Bob 试 timeline → 应返回空列表（get_case 返回 None → 返回 []）
+        # Bob 试 timeline → 应 404（与 case_get/events/archive 一致，不泄露端点可达性）
         r = client.get(f"/api/cases/{case_id}/timeline", headers=hb)
-        assert r.status_code == 200
-        assert r.json()["timeline"] == []
+        assert r.status_code == 404
 
         # Bob 试 archive → 应 404
         r = client.post(f"/api/cases/{case_id}/archive", headers=hb)
