@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -30,10 +31,8 @@ class OnboardingStore:
     def __init__(self, data_dir: Path | None = None) -> None:
         self.data_dir: Path = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        try:
+        with contextlib.suppress(OSError):
             os.chmod(self.data_dir, 0o700)
-        except OSError:
-            pass
 
     # ============================================================
     # 公开 API
@@ -49,10 +48,8 @@ class OnboardingStore:
                 encoding="utf-8",
             )
             os.replace(tmp_path, path)
-            try:
+            with contextlib.suppress(OSError):
                 os.chmod(path, 0o600)
-            except OSError:
-                pass
         except Exception:
             try:
                 if tmp_path.exists():

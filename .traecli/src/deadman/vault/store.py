@@ -294,10 +294,7 @@ class VaultStore:
         if delivery_trigger == TRIGGER_ON_DATE and delivery_date is None:
             raise ValueError("on_date 触发必须提供 delivery_date")
 
-        if isinstance(content, str):
-            content_bytes = content.encode("utf-8")
-        else:
-            content_bytes = bytes(content)
+        content_bytes = content.encode("utf-8") if isinstance(content, str) else bytes(content)
 
         item_id = f"item-{uuid.uuid4().hex[:12]}"
         now = datetime.utcnow()
@@ -435,10 +432,7 @@ class VaultStore:
             item.delivery_date = updates["delivery_date"]
         if "content" in updates:
             content = updates["content"]
-            if isinstance(content, str):
-                content_bytes = content.encode("utf-8")
-            else:
-                content_bytes = bytes(content)
+            content_bytes = content.encode("utf-8") if isinstance(content, str) else bytes(content)
             key = self._derive_key(owner_user_id, self._get_master_password())
             item.content_encrypted = self._encrypt(content_bytes, key)
             self._write_item_file(owner_user_id, item_id, item.content_encrypted)

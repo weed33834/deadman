@@ -15,6 +15,7 @@ CRUD：
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -172,10 +173,8 @@ class TicketStore:
             )
             os.replace(tmp_path, path)
             # 设置文件权限 0o600
-            try:
+            with contextlib.suppress(OSError):
                 os.chmod(path, 0o600)
-            except OSError:
-                pass
         except Exception:
             try:
                 if tmp_path.exists():
@@ -230,10 +229,8 @@ class TicketStore:
                 encoding="utf-8",
             )
             os.replace(tmp_path, self.index_file)
-            try:
+            with contextlib.suppress(OSError):
                 os.chmod(self.index_file, 0o600)
-            except OSError:
-                pass
         except Exception:
             try:
                 if tmp_path.exists():

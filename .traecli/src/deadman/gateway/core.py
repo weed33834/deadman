@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -118,10 +119,8 @@ class Gateway:
         for task in self._tasks:
             task.cancel()
         for task in self._tasks:
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
-            except (asyncio.CancelledError, Exception):
-                pass
         self._tasks.clear()
         for connector in self.connectors.values():
             try:

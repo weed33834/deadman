@@ -88,10 +88,7 @@ class WorkingMemory:
         """生成给 LLM 的上下文窗口文本"""
         lines: list[str] = []
         for turn in self.recent_turns:
-            if turn["role"] == "user":
-                prefix = "用户"
-            else:
-                prefix = f"[{turn.get('agent', 'assistant')}]"
+            prefix = "用户" if turn["role"] == "user" else f"[{turn.get('agent', 'assistant')}]"
             lines.append(f"{prefix}: {turn['content']}")
         return "\n".join(lines)
 

@@ -16,6 +16,7 @@ feature flag: 无 (技能管理始终可用,不受 marketplace feature flag 控�
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
@@ -158,17 +159,13 @@ def _atomic_write(path: Path, content: str) -> None:
         logger.error("原子写入失败 (%s): %s", path, exc)
         # 清理残留 tmp
         if tmp_path and tmp_path.exists():
-            try:
+            with contextlib.suppress(OSError):
                 tmp_path.unlink()
-            except OSError:
-                pass
         raise SkillError(f"文件写入失败: {path} - {exc}") from exc
     finally:
         if fd is not None:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
 
 
 # =====================================================================

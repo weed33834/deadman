@@ -22,6 +22,7 @@ P2.5 Memory Snapshot:
 
 from __future__ import annotations
 
+import contextlib
 import gzip
 import json
 import logging
@@ -327,10 +328,7 @@ class FileMemoryStore:
                 results.append(parsed)
 
         # 取最近 limit 条（倒序后取前 limit，再反转回正序）
-        if limit > 0:
-            recent = results[-limit:]
-        else:
-            recent = list(results)
+        recent = results[-limit:] if limit > 0 else list(results)
         return recent
 
     @staticmethod
@@ -370,10 +368,8 @@ class FileMemoryStore:
                     session = tokens[0]
                 for token in tokens[1:]:
                     if token.startswith("importance="):
-                        try:
+                        with contextlib.suppress(ValueError, IndexError):
                             importance = float(token.split("=", 1)[1])
-                        except (ValueError, IndexError):
-                            pass
                     elif token.startswith("pinned="):
                         pinned = token.split("=", 1)[1].strip().lower() in (
                             "true", "1", "yes",

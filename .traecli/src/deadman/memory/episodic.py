@@ -13,6 +13,7 @@ P2 增强:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import math
 import os
@@ -559,10 +560,8 @@ class EpisodicMemory:
         # 从会话索引移除
         sess = ep.session_id
         if sess in self._by_session:
-            try:
+            with contextlib.suppress(ValueError):
                 self._by_session[sess].remove(episode_id)
-            except ValueError:
-                pass
             if not self._by_session[sess]:
                 del self._by_session[sess]
         # 从向量库移除

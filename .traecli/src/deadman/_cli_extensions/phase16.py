@@ -412,10 +412,7 @@ def _print_search_results(provider_name: str, query: str, results: list) -> None
     print()
     for i, r in enumerate(results, 1):
         # SearchResult 实例或 dict 都支持
-        if hasattr(r, "to_dict"):
-            d = r.to_dict()
-        else:
-            d = r
+        d = r.to_dict() if hasattr(r, "to_dict") else r
         print(f"{i}. [{d.get('source_type', 'unknown')}] "
               f"confidence={d.get('confidence', 0):.2f}")
         print(f"   title:   {d.get('title', '')}")

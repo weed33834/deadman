@@ -410,10 +410,7 @@ class MarketplaceRegistry:
                 # 兼容旧格式: 顶层直接是 listings 列表 / dict
                 listings_data = data.get("listings", {}) if isinstance(data, dict) else {}
                 # listings_data 可能是 dict{agent_id: {...}} 或 list[{...}]
-                if isinstance(listings_data, dict):
-                    items = listings_data.values()
-                else:
-                    items = listings_data
+                items = listings_data.values() if isinstance(listings_data, dict) else listings_data
                 new_cache = {
                     l_data["agent_id"]: AgentListing.from_dict(l_data)
                     for l_data in items

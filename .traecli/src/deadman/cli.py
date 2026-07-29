@@ -3248,9 +3248,8 @@ def cmd_sandbox_test(args):
         f"（{'使用 Docker' if manager.active_backend == 'docker' else '降级到 LocalSandbox'}）"
     )
 
-    if not (basic_ok and timeout_ok):
-        if getattr(args, "fail_fast", False):
-            raise SystemExit(1)
+    if not (basic_ok and timeout_ok) and getattr(args, "fail_fast", False):
+        raise SystemExit(1)
 
 
 # ====================================================================

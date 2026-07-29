@@ -162,7 +162,7 @@ class TestExecutionScope:
     def test_scope_records_failure(self, tmp_path):
         dm = DurableExecutionManager(log_path=tmp_path / "log.jsonl")
         key = "key1"
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError):  # noqa: SIM117  pytest.raises 需独立 with 捕获内层 with 抛出的异常
             with dm.execution_scope(key, "trace1", "write_file", {"path": "/a"}):
                 raise RuntimeError("disk full")
         record = dm.lookup(key)

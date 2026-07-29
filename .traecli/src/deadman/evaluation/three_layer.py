@@ -245,10 +245,7 @@ class LLMJudge:
         fail_count = sum(1 for j in judgments if j.get("verdict") == "失败")
         total = len(judgments)
 
-        if total == 0:
-            agreement_rate = 0.0
-        else:
-            agreement_rate = max(pass_count, fail_count) / total
+        agreement_rate = 0.0 if total == 0 else max(pass_count, fail_count) / total
 
         # 共识规则（参考 LLM-as-Judge.md）：
         #   - 通过比例 >= 阈值（默认 67%） → 通过

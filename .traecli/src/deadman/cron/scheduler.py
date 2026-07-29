@@ -23,6 +23,7 @@ record_send。Phase 3 同步实现，本模块按"已存在"导入；若运行�
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -607,16 +608,12 @@ class CronScheduler:
                 os.fsync(f.fileno())
             os.replace(tmp_path, self.jobs_file)
             # 仅 owner 可读写（敏感：含 user_id / 提醒内容）
-            try:
+            with contextlib.suppress(OSError):
                 os.chmod(self.jobs_file, 0o600)
-            except OSError:
-                pass
         except BaseException:
             # 写入失败时清理临时文件
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
             raise
 
 

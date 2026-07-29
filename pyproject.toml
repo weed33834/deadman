@@ -115,6 +115,9 @@ ignore = [
     # 命名约定表达"只读常量"意图，运行时不修改；统一改 ClassVar 需 16+ 处改动
     # 且引入额外 import，收益微小，整体忽略。
     "RUF012",
+    # SIM102 collapsible-if：剩余 17 处均为 if 块内含多行 body 或注释的有意嵌套
+    # （ruff 自动 fix 因副作用风险不覆盖），强行合并降低可读性，整体忽略。
+    "SIM102",
     # E501 line-too-long 由 line-length=100 控制，长字符串/URL 单独豁免
     "E501",
 ]

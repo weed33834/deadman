@@ -7,6 +7,7 @@ Payload: {user_id, email, role, family_id, iat, exp}
 
 from __future__ import annotations
 
+import contextlib
 import os
 import secrets
 import time
@@ -72,10 +73,8 @@ class JWTManager:
     def _load_or_create_secret() -> str:
         """加载或生成 JWT secret（存在 ~/.deadman/auth/jwt_secret）。"""
         secret_file = _DEFAULT_SECRET_FILE
-        try:
+        with contextlib.suppress(OSError):
             secret_file.parent.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            pass
         if secret_file.exists():
             try:
                 content = secret_file.read_text(encoding="utf-8").strip()

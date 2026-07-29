@@ -167,10 +167,7 @@ class SubscriptionManager:
                 )
 
             now = time.time()
-            if cycle == BillingCycle.MONTHLY:
-                period_end = now + 30 * 86400
-            else:
-                period_end = now + 365 * 86400
+            period_end = now + 30 * 86400 if cycle == BillingCycle.MONTHLY else now + 365 * 86400
 
             trial_end = (now + TRIAL_DAYS * 86400) if with_trial else None
             status = SubscriptionStatus.TRIALING if with_trial else SubscriptionStatus.ACTIVE

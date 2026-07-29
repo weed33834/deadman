@@ -28,6 +28,7 @@ Feature flag:DEADMAN_REACT_ENABLED=1 启用;默认 0 保留旧行为(单次 LLM 
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -405,10 +406,8 @@ class ReActLoop:
 
     def _emit_trace(self, name: str, attrs: dict[str, Any]) -> None:
         if self.trace_callback is not None:
-            try:
+            with contextlib.suppress(Exception):  # pragma: no cover - trace 失败不影响业务
                 self.trace_callback(name, attrs)
-            except Exception:  # pragma: no cover - trace 失败不影响业务
-                pass
 
     def _build_history(self) -> str:
         """把已执行的 steps 渲染成 LLM 可读的历史"""

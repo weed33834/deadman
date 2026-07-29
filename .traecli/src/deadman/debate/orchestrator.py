@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import uuid
@@ -287,10 +288,8 @@ class DebateOrchestrator:
                 if "final_position" in result:
                     pos.position = result["final_position"]
                 if "confidence" in result:
-                    try:
+                    with contextlib.suppress(TypeError, ValueError):
                         pos.confidence = float(result["confidence"])
-                    except (TypeError, ValueError):
-                        pass
 
     async def _agent_closing(self, debate: Debate, position: DebatePosition) -> dict[str, Any]:
         """单个 agent 的 closing - 输出 JSON {final_position, confidence, concessions_made, key_evidence}"""
@@ -607,10 +606,8 @@ class DebateOrchestrator:
         total = usage.get("total_tokens") or (
             usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
         )
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             self._current_debate_token += int(total)
-        except (TypeError, ValueError):
-            pass
 
     # =================================================================
     # 收敛检测 + 结果格式化
