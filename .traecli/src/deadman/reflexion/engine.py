@@ -501,7 +501,7 @@ class ReflexionEngine:
             return adjusted
 
         reflection_context = "\n\n## 历史失败与反思（避免重复犯错）\n"
-        for failure, reflection in zip(recent_failures, recent_reflections):
+        for failure, reflection in zip(recent_failures, recent_reflections, strict=False):
             reflection_context += (
                 f"- 第 {failure.get('attempt', '?')} 次失败："
                 f"{failure.get('failure_type', 'unknown')}\n"

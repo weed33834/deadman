@@ -272,7 +272,7 @@ class VaultStore:
             keystream.extend(block)
             counter += 1
         keystream = keystream[: len(body)]
-        return bytes(c ^ k for c, k in zip(body, keystream))
+        return bytes(c ^ k for c, k in zip(body, keystream, strict=True))
 
     # ==================================================================
     # 条目 CRUD

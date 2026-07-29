@@ -179,17 +179,17 @@ class SelfConsistency:
             counter = Counter(normalized)
             best_norm = counter.most_common(1)[0][0]
             # 找原始答案（保持大小写）
-            for orig, norm in zip(answers, normalized):
+            for orig, norm in zip(answers, normalized, strict=True):
                 if norm == best_norm:
                     return orig
             return answers[0]
 
         # 加权投票
         weighted: dict[str, float] = {}
-        for norm, conf in zip(normalized, confidences):
+        for norm, conf in zip(normalized, confidences, strict=True):
             weighted[norm] = weighted.get(norm, 0.0) + float(conf)
         best_norm = max(weighted, key=weighted.get)
-        for orig, norm in zip(answers, normalized):
+        for orig, norm in zip(answers, normalized, strict=True):
             if norm == best_norm:
                 return orig
         return answers[0]

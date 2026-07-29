@@ -2478,7 +2478,7 @@ def _collect_redacted_fields(original: Any, redacted: Any) -> list[str]:
             elif isinstance(v_orig, (dict, list)):
                 fields.extend(_collect_redacted_fields(v_orig, v_red))
     elif isinstance(original, list) and isinstance(redacted, list):
-        for o, r in zip(original, redacted):
+        for o, r in zip(original, redacted, strict=True):
             fields.extend(_collect_redacted_fields(o, r))
     return fields
 

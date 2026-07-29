@@ -141,7 +141,7 @@ def _decrypt_v2(envelope: dict[str, Any], passphrase: bytes) -> bytes:
         raise ValueError("HMAC tag 校验失败：文件已被篡改或密钥不匹配")
 
     keystream = _v2_keystream(enc_key, len(ct), nonce)
-    return bytes(a ^ b for a, b in zip(ct, keystream))
+    return bytes(a ^ b for a, b in zip(ct, keystream, strict=True))
 
 
 def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
@@ -152,7 +152,7 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
 
     enc_key = hashlib.pbkdf2_hmac("sha256", b"enc", salt, 1000, dklen=32)
     keystream = _v2_keystream(enc_key, len(ct), nonce)
-    return bytes(a ^ b for a, b in zip(ct, keystream))
+    return bytes(a ^ b for a, b in zip(ct, keystream, strict=True))
 
 
 # --- v2 兼容内部函数 ---

@@ -204,7 +204,7 @@ class DebateOrchestrator:
         ]
         position_texts = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for r, pos_text in zip(initial_responses, position_texts):
+        for r, pos_text in zip(initial_responses, position_texts, strict=True):
             agent_id = r.get("agent", "")
             position_text = (
                 pos_text if isinstance(pos_text, str) else r.get("response", "")[:100]
@@ -281,7 +281,7 @@ class DebateOrchestrator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 把 closing 中 LLM 输出的 final_position/confidence 更新回 position
-        for pos, result in zip(debate.positions, results):
+        for pos, result in zip(debate.positions, results, strict=True):
             if isinstance(result, dict):
                 if "final_position" in result:
                     pos.position = result["final_position"]
@@ -328,7 +328,7 @@ class DebateOrchestrator:
             {"debate.voters_count": len(voters)},
         )
         try:
-            for voter, result in zip(voters, results):
+            for voter, result in zip(voters, results, strict=True):
                 if isinstance(result, dict) and "vote_for" in result:
                     debate.votes[voter] = result["vote_for"]
         finally:

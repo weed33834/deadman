@@ -165,7 +165,7 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
         out.extend(block)
         counter += 1
     keystream = bytes(out[: len(ct)])
-    return bytes(a ^ b for a, b in zip(ct, keystream))
+    return bytes(a ^ b for a, b in zip(ct, keystream, strict=True))
 
 
 class EndingNoteStore:

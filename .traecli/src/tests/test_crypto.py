@@ -239,7 +239,7 @@ class TestBackwardCompatibility:
         enc_key = _v2_derive_subkey(passphrase, salt, b"enc")
         mac_key = _v2_derive_subkey(passphrase, salt, b"mac")
         keystream = _v2_keystream(enc_key, len(plaintext), nonce)
-        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
         tag = hmac.new(mac_key, ct, hashlib.sha256).digest()
 
         v2_envelope = {
@@ -264,7 +264,7 @@ class TestBackwardCompatibility:
         enc_key = _v2_derive_subkey(passphrase, salt, b"enc")
         mac_key = _v2_derive_subkey(passphrase, salt, b"mac")
         keystream = _v2_keystream(enc_key, len(plaintext), nonce)
-        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
         tag = hmac.new(mac_key, ct, hashlib.sha256).digest()
         # 篡改 tag
         tag = bytes([tag[0] ^ 0xFF]) + tag[1:]
@@ -288,7 +288,7 @@ class TestBackwardCompatibility:
 
         enc_key = hashlib.pbkdf2_hmac("sha256", b"enc", salt, 1000, dklen=32)
         keystream = _v2_keystream(enc_key, len(plaintext), nonce)
-        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
 
         v1_envelope = {
             "nonce": base64.b64encode(nonce).decode("ascii"),
@@ -312,7 +312,7 @@ class TestBackwardCompatibility:
         plaintext = b"v1-data"
         enc_key = hashlib.pbkdf2_hmac("sha256", b"enc", salt, 1000, dklen=32)
         keystream = _v2_keystream(enc_key, len(plaintext), nonce)
-        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
         env_v1 = {
             "nonce": base64.b64encode(nonce).decode("ascii"),
             "salt": base64.b64encode(salt).decode("ascii"),

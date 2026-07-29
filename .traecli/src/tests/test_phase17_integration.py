@@ -351,7 +351,7 @@ def test_phase14_v1_v3_envelope_compatibility(tmp_path: Path):
         out.extend(block)
         counter += 1
     keystream = bytes(out[: len(plaintext)])
-    ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+    ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
     tag = hmac.new(mac_key, ct, hashlib.sha256).digest()
     v1_envelope = {
         "nonce": base64.b64encode(nonce).decode("ascii"),
