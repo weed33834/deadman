@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -377,8 +378,6 @@ def _ingest_knowledge_files() -> None:
 # =====================================================================
 
 # ---------- P6: 自动 schema 生成（借鉴 smolagents @tool 装饰器）----------
-
-import inspect
 
 _PY_TYPE_TO_JSON: dict[type, str] = {
     str: "string",

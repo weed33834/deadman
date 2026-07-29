@@ -48,7 +48,9 @@ try:
     from .vector_store import get_vector_store as _get_vector_store
 except Exception:  # pragma: no cover - 极端情况
     _VS_FLAG = False
-    _get_vector_store = lambda *a, **kw: None  # type: ignore
+
+    def _get_vector_store(*a, **kw):  # type: ignore[no-redef]
+        return None
 
 # =====================================================================
 # P2.2 TTL + LRU 常量

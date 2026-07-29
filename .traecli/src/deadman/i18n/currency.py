@@ -63,7 +63,7 @@ class Currency(str, Enum):
                 "￥": cls.CNY, "¥": cls.CNY, "RMB": cls.CNY,
                 "$": cls.USD, "US$": cls.USD,
                 "€": cls.EUR,
-                "JP¥": cls.JPY, "円": cls.JPY, "￥": cls.CNY,  # 円 日元
+                "JP¥": cls.JPY, "円": cls.JPY,  # 円 日元
                 "₩": cls.KRW, "원": cls.KRW,
                 "£": cls.GBP,
                 "HK$": cls.HKD,
