@@ -210,5 +210,5 @@ print(asyncio.run(c.chat([{'role':'user','content':'hi'}])))
 ### 测试失败
 
 ```bash
-python -m pytest .traecli/src/tests/ -v --tb=long
+pytest -v --tb=long
 ```

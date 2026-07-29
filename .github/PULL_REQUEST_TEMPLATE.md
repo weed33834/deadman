@@ -27,7 +27,7 @@ Closes #
 
 ## 测试
 
-- [ ] 已运行 `cd /workspace/deadman && python -m pytest .traecli/src/tests/ -q`
+- [ ] 已运行 `pytest -q`
 - [ ] 全量回归通过（无新增 fail）
 - [ ] 新增功能附测试用例
 - [ ] 已跑 `tests/golden-cases.md` 20 case（如涉及智能体行为）
