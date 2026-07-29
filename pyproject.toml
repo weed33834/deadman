@@ -65,13 +65,11 @@ dev = [
 lightrag = ["lightrag-hku>=1.0"]
 graphiti = ["graphiti-core>=0.5"]
 langfuse = ["langfuse>=4.0"]
-openai = ["openai>=1.50"]
-anthropic = ["anthropic>=0.50"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
 mcp = ["fastmcp>=3.0", "duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,openai,anthropic,sqlite-checkpoint,mcp,ragas]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas]",
 ]
 
 [project.scripts]
