@@ -133,7 +133,7 @@ class TestDeadmanRagasLLM:
         mock_llm.chat = AsyncMock(return_value="LLM response")
         adapter = DeadmanRagasLLM(mock_llm)
 
-        result = await adapter.agenerate_text("hello")
+        await adapter.agenerate_text("hello")
         # 应调用 chat
         mock_llm.chat.assert_called_once()
         # 返回应是 LLMResult 或 dict(取决于 langchain_core 是否可用)

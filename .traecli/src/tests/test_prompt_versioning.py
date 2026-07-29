@@ -210,7 +210,7 @@ class TestABExperiment:
         pm = PromptVersionManager(repo_root=tmp_path / "prompts")
         pm.publish("death_aftercare", "1.0.0", template="control")
         pm.publish("death_aftercare", "1.1.0", template="variant_a")
-        exp = pm.create_experiment(
+        pm.create_experiment(
             "exp1",
             prompt_name="death_aftercare",
             variants={"control": "1.0.0", "variant_a": "1.1.0"},

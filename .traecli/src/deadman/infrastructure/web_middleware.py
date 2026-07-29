@@ -422,7 +422,6 @@ def with_middleware(chain: MiddlewareChain, security_headers: SecurityHeadersMid
                 body = self.rfile.read(content_length)
 
             # 执行中间件链
-            parsed = urlparse(self.path)
             intercept = chain.run(method, path, headers, body, client_ip)
             if intercept is not None:
                 # 短路返回拦截响应

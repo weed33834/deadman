@@ -32,7 +32,7 @@ def _make_handler(tmp_path: Path) -> tuple[MagicMock, list]:
 
     返回 (handler, calls)，calls 是 _send_json 的 (status, payload) 列表
     """
-    server = WebServer()
+    WebServer()
     calls: list[tuple[int, object]] = []
 
     # 构造一个最小化的 Handler 实例（不通过 run() 启动 server）

@@ -3202,7 +3202,7 @@ def cmd_sandbox_test(args):
     print(f"LocalSandbox.is_available(): {local.is_available()}")
     print(f"DockerSandbox.is_available(): {docker.is_available()}")
     manager = SandboxManager()
-    active = manager.get_active_backend()
+    manager.get_active_backend()
     print(f"SandboxManager 当前后端: {manager.active_backend}")
     print()
 
@@ -3455,7 +3455,7 @@ def cmd_notify_test(args):
     guard.record_consent(user2, "请提醒我", "reminder:test-weekly")
     base = datetime(2026, 7, 21, 10, 0)
     for i in range(7):
-        day = base - timedelta(days=i)
+        base - timedelta(days=i)
         guard.record_send(user2, f"测试 {i}", "telegram")
     allowed_w, reason_w = guard.can_send(user2, base)
     results.append({
@@ -3469,7 +3469,7 @@ def cmd_notify_test(args):
     user3 = "test-monthly-user"
     guard.record_consent(user3, "请提醒我", "reminder:test-monthly")
     for i in range(8):
-        day = base - timedelta(days=i)
+        base - timedelta(days=i)
         guard.record_send(user3, f"测试 {i}", "telegram")
     allowed_m, reason_m = guard.can_send(user3, base)
     results.append({

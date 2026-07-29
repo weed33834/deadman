@@ -166,7 +166,7 @@ class ChainCircuitBreaker:
             # 关闭:直接调顶级
             try:
                 start = time.time()
-                result = func(self.chain.levels[0])
+                func(self.chain.levels[0])
                 return ChainCallResult(
                     success=True,
                     used_level=self.chain.levels[0],
@@ -208,7 +208,7 @@ class ChainCircuitBreaker:
             start = time.time()
             try:
                 # 简单超时(同步);生产可换 asyncio.wait_for
-                result = self._call_with_timeout(func, level, timeout_seconds)
+                self._call_with_timeout(func, level, timeout_seconds)
                 duration = time.time() - start
                 cb.release_success(duration)
                 with self._lock:

@@ -530,7 +530,6 @@ class TestPersistenceFailureDegradation:
         logr = HandoffAuditLogger(persist_path=tmp_path / "nonexistent_subdir" / "audit.jsonl")
 
         # mock mkdir 抛 OSError
-        original_mkdir = Path.mkdir
 
         def _fail_mkdir(self, *args, **kwargs):
             raise OSError("mock: permission denied")

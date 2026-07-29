@@ -528,7 +528,7 @@ class EpisodicMemory:
         if len(self._store) <= EPISODE_MAX_COUNT:
             return 0
         excess = len(self._store) - EPISODE_MAX_COUNT
-        now = datetime.now(timezone.utc)
+        datetime.now(timezone.utc)
 
         def _access_ts(ep: Episode) -> datetime:
             ts = ep.last_accessed_at or ep.timestamp

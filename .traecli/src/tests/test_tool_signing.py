@@ -211,7 +211,7 @@ class TestTamperDetection:
         self, signing_enabled, patched_public_key
     ):
         """公钥已配置但 signature 为空应拒绝"""
-        _, pub_pem = patched_public_key, None
+        _, _pub_pem = patched_public_key, None
         if not signing_module.TOOL_SIGNING_PUBLIC_KEY_PEM:
             pytest.skip("cryptography 不可用")
         manifest = ToolManifest(

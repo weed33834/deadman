@@ -751,7 +751,7 @@ class TestReflexionTriggerTypes:
             max_iterations=5,
             reflexion_engine=engine,
         )
-        result = await loop.run()
+        await loop.run()
 
         # _reflect 被调用
         engine._reflect.assert_called()
@@ -774,7 +774,7 @@ class TestReflexionTriggerTypes:
             max_iterations=3,
             reflexion_engine=engine,
         )
-        result = await loop.run()
+        await loop.run()
 
         # _reflect 被调用
         engine._reflect.assert_called()

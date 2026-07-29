@@ -198,7 +198,7 @@ class AlignmentManager:
 
         try:
             # 1. SFT: 自动晋升高质量反馈
-            promoted = self.continuous_learner.auto_promote_to_sft(
+            self.continuous_learner.auto_promote_to_sft(
                 self.sft_dataset,
                 min_quality_score=0.8,
                 min_rating=4,
@@ -297,7 +297,7 @@ class AlignmentManager:
         removed = self.continuous_learner.forget_user(user_id)
         # DPO 偏好样本按 user_id 过滤
         with self.dpo_trainer._lock:  # 直接访问内部,简化
-            before = len(self.dpo_trainer._preferences)
+            len(self.dpo_trainer._preferences)
             self.dpo_trainer._preferences = [
                 p for p in self.dpo_trainer._preferences if p.user_id != user_id
             ]

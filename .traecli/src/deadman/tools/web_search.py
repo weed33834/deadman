@@ -359,9 +359,9 @@ class DuckDuckGoSearchProvider:
 
         # 去掉前导 www.
         if host.startswith("www."):
-            host_no_www = host[4:]
+            host[4:]
         else:
-            host_no_www = host
+            pass
 
         # 1. 政府域名 → official, 0.9
         #    .gov.cn / .gov / .gov.uk / .gov.au / *.gov

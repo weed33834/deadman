@@ -2052,7 +2052,7 @@ class TestConvergenceDetector:
         )
         detector = ConvergenceDetector(config={"min_unique_ratio": 0.5})
         same = "相同内容"
-        result = detector.check_debate(
+        detector.check_debate(
             agent_outputs=[
                 AgentOutput(agent_name="a1", output=same),
                 AgentOutput(agent_name="a2", output=same),

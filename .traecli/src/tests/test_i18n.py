@@ -728,7 +728,7 @@ class TestTimezoneManager:
         from deadman.i18n import TimezoneManager
         tm = TimezoneManager()
         # 取当前北京时间,若在 0-23 之间,业务时间必包含某个区间
-        now = tm.now_in("Asia/Shanghai")
+        tm.now_in("Asia/Shanghai")
         # 用 0-24 总能命中
         result = tm.business_hours_check("Asia/Shanghai", 0, 24)
         assert result is True

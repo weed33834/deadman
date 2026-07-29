@@ -694,7 +694,7 @@ class TestInvoice:
     def test_list_by_status(self, tmp_path):
         ig, _, _ = self._setup_with_sub(tmp_path)
         now = time.time()
-        invoice = ig.generate("user1", now - 30 * 86400, now)
+        ig.generate("user1", now - 30 * 86400, now)
         from deadman.billing.invoice import InvoiceStatus
         drafts = ig.list_by_status(InvoiceStatus.DRAFT)
         assert len(drafts) == 1

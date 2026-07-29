@@ -688,7 +688,7 @@ class TestAppeals:
         am._save()
         # 重新加载 (走 _check_sla_escalations)
         am2 = AppealsManager(store_path=tmp_path / "ap.json")
-        pending = am2.list_pending()
+        am2.list_pending()
         # 应该已升级,status = ESCALATED
         escalated = [a for a in am2.list_all() if a.escalated]
         assert len(escalated) == 1

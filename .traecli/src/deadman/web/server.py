@@ -2859,7 +2859,7 @@ class WebServer:
             def _handle_marketplace_skills(self, query: dict[str, list[str]]) -> None:
                 """GET /api/marketplace/skills - 返回市场技能列表"""
                 try:
-                    from ..marketplace import get_marketplace_registry, MarketplaceError
+                    from ..marketplace import get_marketplace_registry
                     from ..infrastructure.feature_flags import is_enabled
                     if not is_enabled("marketplace"):
                         self._send_json(503, {

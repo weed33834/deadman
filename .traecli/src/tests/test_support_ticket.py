@@ -277,9 +277,9 @@ class TestListTickets:
 
     def test_list_user_tickets_sorted_desc_by_created(self, store: TicketStore):
         import time
-        t1 = _make_ticket(store, user_id="alice", subject="第一")
+        _make_ticket(store, user_id="alice", subject="第一")
         time.sleep(0.01)
-        t2 = _make_ticket(store, user_id="alice", subject="第二")
+        _make_ticket(store, user_id="alice", subject="第二")
         tickets = store.list_user_tickets("alice")
         # 倒序：第二在前
         assert tickets[0].subject == "第二"
