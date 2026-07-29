@@ -97,7 +97,7 @@ def _fill_vault_full(store, user_id: str) -> None:
         content="will-bytes",
         beneficiary_user_ids=["u-bene-1"],
         delivery_trigger="on_date",
-        delivery_date=datetime.utcnow() + timedelta(days=365),
+        delivery_date=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=365),
     )
 
 
@@ -142,7 +142,7 @@ def _fill_user_full(store, email: str = "alice@example.com") -> str:
         if dt.tzinfo is not None:
             dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     except (TypeError, ValueError):
-        dt = datetime.utcnow()
+        dt = datetime.now(timezone.utc).replace(tzinfo=None)
     new_created = (dt - timedelta(days=8)).isoformat()
     data[user_id]["created_at"] = new_created
     store._atomic_write(data)

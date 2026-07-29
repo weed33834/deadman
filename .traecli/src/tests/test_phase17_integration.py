@@ -48,7 +48,7 @@ import json
 import socket
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -235,7 +235,7 @@ def test_vault_encryption_with_deadman_switch(tmp_path: Path):
     # 4. 失联开关 tick 推进状态机（last_check_in 距今超过阈值）
     # 实现：tick() 内部会自动 ACTIVE → SUSPECTED → VERIFYING 连续推进
     # （SUSPECTED → VERIFYING 不需要外部确认，仅 VERIFYING → CONFIRMED 才需要）
-    record.last_check_in = datetime.utcnow() - timedelta(days=120)
+    record.last_check_in = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=120)
     switch_store.save(record)
     ticked = switch_store.tick("user-cross-1")
     assert ticked is not None

@@ -37,7 +37,7 @@ import json
 import socket
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -369,7 +369,7 @@ class TestCooldownAndExecution:
         monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, user_id: False)
         record = self._advance_to_confirmed(store, "u-cool-pass")
         # 把 confirmed_at 回退到 8 天前（> 7 天冷静期）
-        record.confirmed_at = datetime.utcnow() - timedelta(days=8)
+        record.confirmed_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8)
         store.save(record)
         assert store.is_cooldown_passed(record.user_id)
         # 需要先 record_consent 让 NotificationGuardrail 通过

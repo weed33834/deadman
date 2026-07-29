@@ -28,7 +28,7 @@ import os
 import re
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -171,7 +171,7 @@ class DocumentExtractor:
             filename=filename,
             file_type=file_type,
             file_size=file_size,
-            uploaded_at=datetime.utcnow(),
+            uploaded_at=datetime.now(timezone.utc).replace(tzinfo=None),
             doc_type=doc_type,
             summary=llm_result.get("summary", ""),
             key_fields=llm_result.get("key_fields", {}) or {},
@@ -556,11 +556,11 @@ class DocumentExtractor:
         """索引条目转 ExtractedDocument（无 source_text_masked）"""
         def _parse_dt(v: Any) -> datetime:
             if not v:
-                return datetime.utcnow()
+                return datetime.now(timezone.utc).replace(tzinfo=None)
             try:
                 return datetime.fromisoformat(v)
             except (TypeError, ValueError):
-                return datetime.utcnow()
+                return datetime.now(timezone.utc).replace(tzinfo=None)
 
         return ExtractedDocument(
             doc_id=entry["doc_id"],

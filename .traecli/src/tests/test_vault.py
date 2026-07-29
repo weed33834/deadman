@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from deadman.vault.store import (
@@ -265,7 +265,7 @@ def test_list_inherited(tmp_path: Path):
         content="y",
         beneficiary_user_ids=["u-bene"],
         delivery_trigger=TRIGGER_ON_DATE,
-        delivery_date=datetime.utcnow() + timedelta(days=30),
+        delivery_date=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=30),
     )
     # 另一个 owner 也给 u-bene 指定一条
     store.add_item(

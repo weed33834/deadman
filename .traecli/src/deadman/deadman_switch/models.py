@@ -16,7 +16,7 @@ PIPL 合规（第五章）：
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -216,14 +216,14 @@ class SwitchRecord:
             state_history=list(d.get("state_history", []) or []),
             pending_actions=list(d.get("pending_actions", []) or []),
             executed_actions=list(d.get("executed_actions", []) or []),
-            created_at=_parse_dt(d.get("created_at")) or datetime.utcnow(),
+            created_at=_parse_dt(d.get("created_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
     @classmethod
     def new(cls, user_id: str, config: SwitchConfig | None = None) -> SwitchRecord:
         """创建一条新的 switch 记录，初始状态 ACTIVE"""
         cfg = config or SwitchConfig()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         rec = cls(
             user_id=user_id,
             config=cfg,

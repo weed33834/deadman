@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -185,7 +185,7 @@ class SwitchStore:
         record = self.load(user_id)
         if record is None:
             return None
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         record.last_check_in = now
         record.last_missed = None
         record.missed_count = 0
@@ -250,7 +250,7 @@ class SwitchStore:
         if record.state in (SwitchState.EXECUTED, SwitchState.CANCELLED):
             return record
 
-        now_dt = now or datetime.utcnow()
+        now_dt = now or datetime.now(timezone.utc).replace(tzinfo=None)
         cfg = record.config
         # 阈值时间：连续 missed_threshold 次 check_in_frequency_days 未 check-in
         threshold = timedelta(
@@ -357,7 +357,7 @@ class SwitchStore:
         record = self.load(user_id)
         if record is None:
             return None
-        now_dt = now or datetime.utcnow()
+        now_dt = now or datetime.now(timezone.utc).replace(tzinfo=None)
         old_state = record.state
         record.state = new_state
         # CONFIRMED 状态进入时记录 confirmed_at（冷静期起算）
@@ -399,7 +399,7 @@ class SwitchStore:
             return None, "switch_not_initialized"
         if contact_user_id not in record.config.emergency_contacts:
             return record, "contact_not_in_emergency_list"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         if not confirmed:
             # 联系人表示当事人安好 → 立即重置 ACTIVE
             if record.state != SwitchState.ACTIVE:
@@ -445,7 +445,7 @@ class SwitchStore:
             return None, "switch_not_initialized"
         if heir_user_id not in record.config.heir_user_ids:
             return record, "heir_not_in_heir_list"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         if not confirmed:
             # 继承人表示当事人安好 → 立即重置 ACTIVE
             if record.state != SwitchState.ACTIVE:
@@ -488,7 +488,7 @@ class SwitchStore:
         if not record.config.lawyer_user_id:
             return record, "no_lawyer_configured"
         record.lawyer_engaged = True
-        record.lawyer_engaged_at = datetime.utcnow().isoformat()
+        record.lawyer_engaged_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         self.save(record)
         return record, "lawyer_engaged"
 
@@ -500,7 +500,7 @@ class SwitchStore:
         record = self.load(user_id)
         if record is None:
             return None
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         old_state = record.state
         record.state = SwitchState.CANCELLED
         record.state_history.append(
@@ -526,7 +526,7 @@ class SwitchStore:
             return False
         if record.confirmed_at is None:
             return False
-        now_dt = now or datetime.utcnow()
+        now_dt = now or datetime.now(timezone.utc).replace(tzinfo=None)
         return (now_dt - record.confirmed_at) >= timedelta(days=record.config.cooldown_days)
 
     def cooldown_remaining_days(self, user_id: str, now: datetime | None = None) -> int:
@@ -536,7 +536,7 @@ class SwitchStore:
             return 0
         if record.state != SwitchState.CONFIRMED or record.confirmed_at is None:
             return 0
-        now_dt = now or datetime.utcnow()
+        now_dt = now or datetime.now(timezone.utc).replace(tzinfo=None)
         elapsed = now_dt - record.confirmed_at
         total = timedelta(days=record.config.cooldown_days)
         remaining = total - elapsed
@@ -571,7 +571,7 @@ class SwitchStore:
         record.executed_actions.append(
             {
                 "action": action,
-                "executed_at": datetime.utcnow().isoformat(),
+                "executed_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "result": result,
             }
         )
@@ -582,7 +582,7 @@ class SwitchStore:
             record.state_history.append(
                 {
                     "state": SwitchState.EXECUTED.value,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                     "reason": "all_actions_executed",
                     "from": old.value,
                 }

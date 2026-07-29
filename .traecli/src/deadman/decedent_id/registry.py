@@ -29,7 +29,7 @@ import os
 import re
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -192,7 +192,7 @@ class DecedentRegistry:
         decedent_alias = self._sanitize_pii(decedent_alias)[:100]
 
         case_id = f"case-{uuid.uuid4().hex[:12]}"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         record = DecedentRecord(
             case_id=case_id,
             owner_user_id=owner_user_id,
@@ -252,12 +252,12 @@ class DecedentRegistry:
 
         event_obj = {
             "event": safe_event,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "agent": safe_agent,
             "notes": safe_notes,
         }
         entry.setdefault("events", []).append(event_obj)
-        entry["updated_at"] = datetime.utcnow().isoformat()
+        entry["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         cases[case_id] = entry
         self._write_cases(owner_user_id, cases)
         return self._entry_to_record(entry)
@@ -273,7 +273,7 @@ class DecedentRegistry:
         if not entry:
             return None
         entry["status"] = status
-        entry["updated_at"] = datetime.utcnow().isoformat()
+        entry["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         cases[case_id] = entry
         self._write_cases(owner_user_id, cases)
         return self._entry_to_record(entry)
@@ -306,11 +306,11 @@ class DecedentRegistry:
     def _entry_to_record(entry: dict[str, Any]) -> DecedentRecord:
         def _parse_dt(v: Any) -> datetime:
             if not v:
-                return datetime.utcnow()
+                return datetime.now(timezone.utc).replace(tzinfo=None)
             try:
                 return datetime.fromisoformat(v)
             except (TypeError, ValueError):
-                return datetime.utcnow()
+                return datetime.now(timezone.utc).replace(tzinfo=None)
 
         return DecedentRecord(
             case_id=entry["case_id"],

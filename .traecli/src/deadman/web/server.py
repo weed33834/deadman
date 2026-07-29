@@ -700,12 +700,14 @@ class WebServer:
                 feature flag DEADMAN_SLO_DASHBOARD_ENABLED=0 时返回空 payload（不报错）。
                 """
                 try:
+                    from ..observability import metrics as m_module
                     from ..observability.metrics import (
-                        SLO_DASHBOARD_ENABLED,
                         SLO_TARGETS,
                         metrics_collector,
                     )
-                    if not SLO_DASHBOARD_ENABLED:
+                    # 通过模块属性访问 SLO_DASHBOARD_ENABLED，
+                    # 确保运行时对该属性的修改（如测试 monkeypatch）能被正确读取
+                    if not m_module.SLO_DASHBOARD_ENABLED:
                         self._send_json(
                             200,
                             {

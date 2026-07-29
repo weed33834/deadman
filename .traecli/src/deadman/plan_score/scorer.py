@@ -127,7 +127,7 @@ class PlanScorer:
             total_score=total,
             category_scores=category_scores,
             overall_suggestions=overall,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
     # ==================================================================
@@ -533,7 +533,7 @@ class PlanScorer:
                 # ISO 8601 时间戳解析
                 created_dt = _parse_iso(created_at)
                 if created_dt is not None:
-                    now = datetime.utcnow()
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
                     if now - created_dt >= timedelta(days=7):
                         score += 30
                         completed.append("注册已超过 7 天")
@@ -641,7 +641,7 @@ def _parse_iso(ts: str) -> datetime | None:
         dt = datetime.fromisoformat(ts)
     except (TypeError, ValueError):
         return None
-    # 若带时区，转 UTC 后去掉 tzinfo，与 datetime.utcnow() 对齐
+    # 若带时区，转 UTC 后去掉 tzinfo，与 datetime.now(timezone.utc).replace(tzinfo=None) 对齐
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt

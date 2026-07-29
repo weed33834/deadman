@@ -32,7 +32,7 @@ import logging
 import os
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -297,7 +297,7 @@ class VaultStore:
         content_bytes = content.encode("utf-8") if isinstance(content, str) else bytes(content)
 
         item_id = f"item-{uuid.uuid4().hex[:12]}"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         key = self._derive_key(owner_user_id, self._get_master_password())
         encrypted = self._encrypt(content_bytes, key)
 
@@ -352,8 +352,8 @@ class VaultStore:
             title=entry["title"],
             content_encrypted=encrypted,
             metadata=entry.get("metadata", {}) or {},
-            created_at=_parse_dt(entry.get("created_at")) or datetime.utcnow(),
-            updated_at=_parse_dt(entry.get("updated_at")) or datetime.utcnow(),
+            created_at=_parse_dt(entry.get("created_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=_parse_dt(entry.get("updated_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
             beneficiary_user_ids=list(entry.get("beneficiary_user_ids", []) or []),
             delivery_trigger=entry.get("delivery_trigger", TRIGGER_MANUAL),
             delivery_date=_parse_dt(entry.get("delivery_date")),
@@ -437,7 +437,7 @@ class VaultStore:
             item.content_encrypted = self._encrypt(content_bytes, key)
             self._write_item_file(owner_user_id, item_id, item.content_encrypted)
 
-        item.updated_at = datetime.utcnow()
+        item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         index = self._read_index(owner_user_id)
         index[item_id] = item.to_index_dict()
         self._write_index(owner_user_id, index)
@@ -521,7 +521,7 @@ class VaultStore:
                 since = datetime.fromisoformat(pending_since)
             except (TypeError, ValueError):
                 return "pending"
-            if datetime.utcnow() - since >= timedelta(days=ON_DEATH_WAIT_DAYS):
+            if datetime.now(timezone.utc).replace(tzinfo=None) - since >= timedelta(days=ON_DEATH_WAIT_DAYS):
                 return "deliverable"
             return "pending"
         if trigger == TRIGGER_ON_DATE:
@@ -532,7 +532,7 @@ class VaultStore:
                 target = datetime.fromisoformat(d)
             except (TypeError, ValueError):
                 return "pending"
-            if datetime.utcnow() >= target:
+            if datetime.now(timezone.utc).replace(tzinfo=None) >= target:
                 return "deliverable"
             return "pending"
         return "pending"
@@ -587,8 +587,8 @@ class VaultStore:
                         "pending_days": 0,
                         "reason": "only_owner_can_start_death_wait",
                     }
-                item.delivery_pending_since = datetime.utcnow()
-                item.updated_at = datetime.utcnow()
+                item.delivery_pending_since = datetime.now(timezone.utc).replace(tzinfo=None)
+                item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 index = self._read_index(item.owner_user_id)
                 index[item_id] = item.to_index_dict()
                 self._write_index(item.owner_user_id, index)
@@ -599,7 +599,7 @@ class VaultStore:
                     "reason": "death_wait_started",
                 }
             # 已有 pending_since，检查是否到 7 天
-            elapsed = datetime.utcnow() - item.delivery_pending_since
+            elapsed = datetime.now(timezone.utc).replace(tzinfo=None) - item.delivery_pending_since
             remaining = timedelta(days=ON_DEATH_WAIT_DAYS) - elapsed
             if remaining > timedelta(0):
                 return {
@@ -626,7 +626,7 @@ class VaultStore:
                     "pending_days": 0,
                     "reason": "no_delivery_date_set",
                 }
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             if now < item.delivery_date:
                 delta = item.delivery_date - now
                 return {
@@ -659,8 +659,8 @@ class VaultStore:
                 "reason": "decrypt_failed",
             }
         # 标记已投递
-        item.delivered_to[beneficiary_id] = datetime.utcnow().isoformat()
-        item.updated_at = datetime.utcnow()
+        item.delivered_to[beneficiary_id] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         index = self._read_index(item.owner_user_id)
         index[item.item_id] = item.to_index_dict()
         self._write_index(item.owner_user_id, index)

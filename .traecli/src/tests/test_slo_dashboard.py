@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import pytest
 from deadman.observability.metrics import (
-    SLO_DASHBOARD_ENABLED,
     SLO_TARGETS,
     MetricsCollector,
 )
@@ -213,12 +212,16 @@ class TestSloEndpoint:
             def _handle_slo_dashboard(self):
                 # 直接复用 server_ref.run 中定义的方法逻辑
                 # 这里通过模拟闭包来调用
+                from deadman.observability import metrics as m_module
                 from deadman.observability.metrics import (
                     SLO_TARGETS,
                     metrics_collector,
                 )
                 try:
-                    if not SLO_DASHBOARD_ENABLED:
+                    # 注意：必须通过模块属性访问 SLO_DASHBOARD_ENABLED，
+                    # 不能用顶部 from import 的常量（那是导入时绑定的快照，
+                    # monkeypatch 修改模块属性对局部绑定无效）
+                    if not m_module.SLO_DASHBOARD_ENABLED:
                         self._send_json(
                             200,
                             {
