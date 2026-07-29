@@ -1116,3 +1116,379 @@ def test_scenario_4_integrity_not_just_comply(patch_llm):
     assert "时间对不上" in draft or "确认" in draft, (
         f"draft_response 应含质疑话术，实际: {draft}"
     )
+
+
+# =====================================================================
+# 2.6 场景 2 & 8 完整测试（复杂资产转介 + 跨团队双向转介）
+# =====================================================================
+
+
+def test_scenario_2_l2_risk_signal_detection():
+    """场景 2（L2 财务风险）：用户输入含跨境+大额资产+多继承人冲突 → R2 风险等级
+
+    输入："我爸在加州去世，留了3套房、公司股权、还有比特币，我哥要争"
+    验证点：rule_checker 检测到 R2 信号（跨境/诉讼）→ risk_tier=R2
+    """
+    from deadman.rules_loader import rule_checker
+    from deadman.types import RiskTier
+
+    user_input = "我爸在加州去世，留了3套房、公司股权、还有比特币，我哥要争"
+    ai_response = "这是一个涉及跨境资产的复杂情况，建议咨询专业律师。"
+
+    result = rule_checker.check(
+        output_text=ai_response,
+        context={"user_input": user_input, "current_agent": "death_aftercare"},
+    )
+    # 用户输入含"跨境"（加州=跨国），应触发 R2 信号
+    assert result.risk_tier == RiskTier.R2, (
+        f"含跨境+诉讼信号应检测为 R2，实际 {result.risk_tier}"
+    )
+    # R2 应有对应的 violation 记录
+    r2_violations = [v for v in result.violations if v.get("rule") == "risk-tier-framework"]
+    assert len(r2_violations) >= 1, f"应记录 R2 风险信号 violation，实际 {result.violations}"
+
+
+def test_scenario_2_transfer_to_financial_analyst():
+    """场景 2（转介 financial_analyst）：_detect_transfer_signals 识别资产/税务/股权信号
+
+    输入：death_aftercare 响应中含"复杂资产""税务""股权"关键词
+    验证点：_detect_transfer_signals 返回 "financial_analyst"
+    """
+    from deadman.orchestration.nodes import _detect_transfer_signals
+
+    test_responses = [
+        "您的情况涉及复杂资产配置，建议咨询财务专家。",
+        "这涉及跨境税务问题，需要专业财务分析。",
+        "公司股权的继承涉及复杂的财务评估。",
+        "大额财产的分配需要专业财务规划。",
+    ]
+    for response in test_responses:
+        target = _detect_transfer_signals(response, "death_aftercare")
+        assert target == "financial_analyst", (
+            f"响应含财务关键词应转介 financial_analyst，"
+            f"实际转介到 {target}（response={response}）"
+        )
+
+
+def test_scenario_2_transfer_to_legal_advisor():
+    """场景 2（转介 legal_advisor）：_detect_transfer_signals 识别法律争议/诉讼/遗产纠纷
+
+    输入：death_aftercare 响应中含"法律争议""诉讼""遗产纠纷"关键词
+    验证点：_detect_transfer_signals 返回 "legal_advisor"
+    """
+    from deadman.orchestration.nodes import _detect_transfer_signals
+
+    test_responses = [
+        "您哥哥要争财产，这涉及法律争议，建议咨询律师。",
+        "这种情况可能需要通过诉讼解决继承权问题。",
+        "多继承人之间的遗产纠纷需要法律途径处理。",
+        "法定继承争议应寻求专业法律意见。",
+    ]
+    for response in test_responses:
+        target = _detect_transfer_signals(response, "death_aftercare")
+        assert target == "legal_advisor", (
+            f"响应含法律关键词应转介 legal_advisor，"
+            f"实际转介到 {target}（response={response}）"
+        )
+
+
+def test_scenario_2_full_transfer_flow(patch_llm):
+    """场景 2 完整流程：death_aftercare 生成含转介信号的响应 → 创建 TransferSummary
+
+    输入："我爸在加州去世，留了3套房、公司股权、还有比特币，我哥要争"
+    验证点：
+    1. input_guard 不触发 safety_override
+    2. agent_node 调用 LLM 生成含"复杂资产"关键词的响应
+    3. _detect_transfer_signals 检测到 financial_analyst 转介信号
+    4. pending_transfer 被创建，TransferSummary 7 字段完整
+    5. route_to_agent 在 transfer_confirmed=None 时返回 "await_transfer_confirm"
+    6. route_to_agent 在 transfer_confirmed=True 时返回目标智能体
+    """
+    from deadman.orchestration.nodes import (
+        agent_node,
+        input_guard_node,
+        route_to_agent,
+    )
+    from deadman.orchestration.state import create_initial_state
+    from deadman.types import TransferSummary
+
+    state = create_initial_state(
+        "我爸在加州去世，留了3套房、公司股权、还有比特币，我哥要争"
+    )
+    state["current_agent"] = "death_aftercare"
+
+    # 1. input_guard 不应触发 safety_override
+    updates = asyncio.run(input_guard_node(state))
+    state.update(updates)
+    assert not state.get("safety_override"), "场景2不应触发 safety_override"
+
+    # 2. agent_node 调用 mock LLM，返回含转介关键词的响应
+    patch_llm.chat = AsyncMock(return_value=(
+        "您的情况涉及复杂资产和跨境税务问题，"
+        "建议咨询专业的财务分析师进行详细规划。"
+    ))
+    updates = asyncio.run(agent_node(state))
+    state.update(updates)
+
+    # 3. draft_response 应包含转介关键词
+    draft = state.get("draft_response", "")
+    assert "复杂资产" in draft or "税务" in draft, (
+        f"draft_response 应含财务转介关键词，实际: {draft}"
+    )
+
+    # 4. pending_transfer 应被创建
+    pending = state.get("pending_transfer")
+    assert pending is not None, "应检测到转介信号并创建 pending_transfer"
+    assert pending.to_agent == "financial_analyst", (
+        f"转介目标应为 financial_analyst，实际 {pending.to_agent}"
+    )
+    assert pending.from_agent == "death_aftercare"
+    assert pending.current_question, "TransferSummary.current_question 不应为空"
+    assert pending.reason, "TransferSummary.reason 不应为空"
+
+    # 5. route_to_agent 在 transfer_confirmed=None 时应返回 "await_transfer_confirm"
+    state["transfer_confirmed"] = None
+    route = route_to_agent(state)
+    assert route == "await_transfer_confirm", (
+        f"未确认转介时应路由到 user_confirm，实际 {route}"
+    )
+
+    # 6. route_to_agent 在 transfer_confirmed=True 时应返回目标智能体
+    state["transfer_confirmed"] = True
+    route = route_to_agent(state)
+    assert route == "financial_analyst", (
+        f"确认转介后应路由到 financial_analyst，实际 {route}"
+    )
+
+
+def test_scenario_8_transfer_death_aftercare_to_medical_guide():
+    """场景 8（跨团队转介 step1）：death_aftercare → medical_guide
+
+    输入："我爸在医院去世，我怀疑是医疗事故"
+    验证点：_detect_transfer_signals 在 death_aftercare 响应含"医疗事故"时返回 "medical_guide"
+    """
+    from deadman.orchestration.nodes import _detect_transfer_signals
+
+    test_responses = [
+        "您提到怀疑医疗事故，这需要专业的医疗指导。",
+        "医院内死亡的情况，建议咨询医保流程。",
+        "临终关怀方面可以为您进一步导航。",
+        "就医流程中的问题需要医疗专家介入。",
+    ]
+    for response in test_responses:
+        target = _detect_transfer_signals(response, "death_aftercare")
+        assert target == "medical_guide", (
+            f"death_aftercare 响应含医疗关键词应转介 medical_guide，"
+            f"实际转介到 {target}（response={response}）"
+        )
+
+
+def test_scenario_8_transfer_medical_guide_to_legal_advisor():
+    """场景 8（跨团队转介 step2）：medical_guide → legal_advisor（双向验证）
+
+    输入：medical_guide 响应中含"法律争议""诉讼"关键词
+    验证点：_detect_transfer_signals 在 medical_guide 响应含法律关键词时返回 "legal_advisor"
+    """
+    from deadman.orchestration.nodes import _detect_transfer_signals
+
+    test_responses = [
+        "您怀疑的医疗事故可能涉及法律争议，建议咨询律师。",
+        "医疗纠纷如果需要诉讼，需要专业法律意见。",
+        "遗产纠纷和医疗事故赔偿可能同时存在。",
+        "法定继承争议方面，建议转介法律顾问。",
+    ]
+    for response in test_responses:
+        target = _detect_transfer_signals(response, "medical_guide")
+        assert target == "legal_advisor", (
+            f"medical_guide 响应含法律关键词应转介 legal_advisor，"
+            f"实际转介到 {target}（response={response}）"
+        )
+
+
+def test_scenario_8_full_bidirectional_transfer_chain(patch_llm):
+    """场景 8 完整双向转介链路：death_aftercare → medical_guide → legal_advisor
+
+    验证点：
+    1. death_aftercare 生成含"医疗事故"的响应 → 创建到 medical_guide 的 pending_transfer
+    2. 模拟用户确认转介 → route_to_agent 返回 medical_guide
+    3. medical_guide 生成含"法律争议"的响应 → 创建到 legal_advisor 的 pending_transfer
+    4. 模拟用户确认转介 → route_to_agent 返回 legal_advisor
+    5. TransferSummary 链路字段正确（from_agent / to_agent）
+    6. transfer_history 累积正确
+    """
+    from deadman.orchestration.nodes import (
+        agent_node,
+        route_to_agent,
+        user_confirm_node,
+    )
+    from deadman.orchestration.state import create_initial_state
+
+    # === Step 1: death_aftercare 处理，检测到医疗事故信号 ===
+    state = create_initial_state(
+        "我爸在医院去世，我怀疑是医疗事故，想同时处理后事和追究医院责任"
+    )
+    state["current_agent"] = "death_aftercare"
+
+    patch_llm.chat = AsyncMock(return_value=(
+        "非常遗憾您父亲离世。关于您怀疑的医疗事故，"
+        "我建议您先保留好相关病历和证据。"
+        "医疗方面的问题，我可以为您转介专业的医疗导航服务。"
+    ))
+    updates = asyncio.run(agent_node(state))
+    state.update(updates)
+
+    pending = state.get("pending_transfer")
+    assert pending is not None, "death_aftercare 应检测到医疗信号并创建转介"
+    assert pending.from_agent == "death_aftercare"
+    assert pending.to_agent == "medical_guide", (
+        f"转介目标应为 medical_guide，实际 {pending.to_agent}"
+    )
+    # TransferSummary 应包含用户问题上下文
+    assert "医疗事故" in pending.current_question, (
+        f"TransferSummary.current_question 应含医疗事故上下文，实际: {pending.current_question}"
+    )
+
+    # === Step 2: 用户确认转介 → route_to_agent 返回 medical_guide ===
+    state["transfer_confirmed"] = None
+    route = route_to_agent(state)
+    assert route == "await_transfer_confirm", (
+        f"未确认时应路由到 user_confirm，实际 {route}"
+    )
+
+    state["transfer_confirmed"] = True
+    route = route_to_agent(state)
+    assert route == "medical_guide", (
+        f"确认转介后应路由到 medical_guide，实际 {route}"
+    )
+
+    # === Step 3: user_confirm_node 处理确认，切换到 medical_guide ===
+    updates = asyncio.run(user_confirm_node(state))
+    state.update(updates)
+    assert state["current_agent"] == "medical_guide"
+    assert state.get("pending_transfer") is None  # 确认后清除
+    transfer_history = state.get("transfer_history", [])
+    assert len(transfer_history) >= 1, "transfer_history 应记录第一次转介"
+    assert transfer_history[0].to_agent == "medical_guide"
+
+    # === Step 4: medical_guide 处理，检测到法律争议信号 ===
+    patch_llm.chat = AsyncMock(return_value=(
+        "关于您父亲的医疗纠纷，建议您保留所有病历原件和沟通记录。"
+        "考虑到这可能涉及法律争议和赔偿诉讼，"
+        "我建议您咨询专业的律师来评估法律风险。"
+    ))
+    updates = asyncio.run(agent_node(state))
+    state.update(updates)
+
+    pending = state.get("pending_transfer")
+    assert pending is not None, "medical_guide 应检测到法律信号并创建转介"
+    assert pending.from_agent == "medical_guide"
+    assert pending.to_agent == "legal_advisor", (
+        f"转介目标应为 legal_advisor，实际 {pending.to_agent}"
+    )
+
+    # === Step 5: 用户确认第二次转介 → route_to_agent 返回 legal_advisor ===
+    state["transfer_confirmed"] = True
+    route = route_to_agent(state)
+    assert route == "legal_advisor", (
+        f"确认转介后应路由到 legal_advisor，实际 {route}"
+    )
+
+    # === Step 6: user_confirm_node 处理第二次确认 ===
+    updates = asyncio.run(user_confirm_node(state))
+    state.update(updates)
+    assert state["current_agent"] == "legal_advisor"
+    transfer_history = state.get("transfer_history", [])
+    assert len(transfer_history) >= 2, "transfer_history 应记录两次转介"
+    assert transfer_history[1].to_agent == "legal_advisor"
+    assert transfer_history[1].from_agent == "medical_guide"
+
+    # 验证转介链路完整性：death_aftercare → medical_guide → legal_advisor
+    chain = [(t.from_agent, t.to_agent) for t in transfer_history]
+    assert ("death_aftercare", "medical_guide") in chain
+    assert ("medical_guide", "legal_advisor") in chain
+
+
+def test_scenario_8_transfer_summary_completeness(patch_llm):
+    """场景 8：TransferSummary 7 字段完整性验证
+
+    验证点：每次转介生成的 TransferSummary 都应包含完整的 7 字段：
+    from_agent, to_agent, reason, user_situation, current_question,
+    completed_items, pending_items
+    """
+    from deadman.orchestration.nodes import agent_node
+    from deadman.orchestration.state import create_initial_state
+
+    state = create_initial_state(
+        "我爸在医院去世，我怀疑是医疗事故"
+    )
+    state["current_agent"] = "death_aftercare"
+    state["user_profile"] = {"situation": "医院内死亡，怀疑医疗事故"}
+
+    patch_llm.chat = AsyncMock(return_value=(
+        "关于您父亲在医院去世并怀疑医疗事故的情况，"
+        "我建议保留病历证据。医疗方面需要专业导航。"
+    ))
+    updates = asyncio.run(agent_node(state))
+    state.update(updates)
+
+    pending = state.get("pending_transfer")
+    assert pending is not None
+    # 验证 7 字段完整性
+    assert pending.from_agent, "from_agent 不应为空"
+    assert pending.to_agent, "to_agent 不应为空"
+    assert pending.reason, "reason 不应为空"
+    assert pending.user_situation is not None, "user_situation 不应为 None"
+    assert pending.current_question, "current_question 不应为空"
+    assert isinstance(pending.completed_items, list), "completed_items 应为 list"
+    assert isinstance(pending.pending_items, list), "pending_items 应为 list"
+    # is_complete() 应返回 True
+    assert pending.is_complete(), (
+        f"TransferSummary 7 字段应完整，实际: "
+        f"from={pending.from_agent}, to={pending.to_agent}, "
+        f"reason={'✓' if pending.reason else '✗'}, "
+        f"situation={'✓' if pending.user_situation else '✗'}, "
+        f"question={'✓' if pending.current_question else '✗'}"
+    )
+
+
+def test_scenario_2_user_reject_transfer(patch_llm):
+    """场景 2（用户拒绝转介）：用户可拒绝转介，智能体在能力范围内继续
+
+    验证点：
+    1. 用户拒绝转介（transfer_confirmed=False）
+    2. route_to_agent 应返回当前智能体（不转介）
+    3. user_confirm_node 应记录拒绝并清除 pending_transfer
+    """
+    from deadman.orchestration.nodes import (
+        agent_node,
+        route_to_agent,
+        user_confirm_node,
+    )
+    from deadman.orchestration.state import create_initial_state
+
+    state = create_initial_state(
+        "我爸在加州去世，留了3套房、公司股权，我哥要争"
+    )
+    state["current_agent"] = "death_aftercare"
+
+    patch_llm.chat = AsyncMock(return_value=(
+        "您的情况涉及复杂资产和跨境税务，建议咨询财务专家。"
+    ))
+    updates = asyncio.run(agent_node(state))
+    state.update(updates)
+    assert state.get("pending_transfer") is not None
+
+    # 用户拒绝转介
+    state["transfer_confirmed"] = False
+    route = route_to_agent(state)
+    # 拒绝转介时，transfer_confirmed=False 不满足 pending+True 条件
+    # 也不满足 pending+None 条件，所以应走正常路由到 current_agent
+    assert route == "death_aftercare", (
+        f"用户拒绝转介后应继续在 death_aftercare，实际 {route}"
+    )
+
+    # user_confirm_node 处理拒绝
+    updates = asyncio.run(user_confirm_node(state))
+    state.update(updates)
+    assert state.get("pending_transfer") is None, "拒绝后应清除 pending_transfer"
+    assert state["current_agent"] == "death_aftercare", "拒绝后应保持原智能体"
