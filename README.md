@@ -83,7 +83,7 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 
 - 用户密码：PBKDF2-HMAC-SHA256（100k 迭代）+ 16 字节随机 salt + 防枚举
 - JWT：自实现 HS256 + `hmac.compare_digest` 防时序攻击（无 pyjwt 依赖）
-- 终活笔记 / 保险库：per-user passphrase 派生（PBKDF2 + HMAC-SHA256 keystream + 完整性 tag）
+- 终活笔记 / 保险库：per-user passphrase 派生（PBKDF2 + AES-256-GCM AEAD 加密 v3，utils/crypto.py 共享模块）
 - PII 脱敏：姓名 / 身份证 / 电话 / 账号 / 地址 / 出生日期 落盘前掩码
 - 文件级原子写入 + fsync + 0o600 权限
 
@@ -135,7 +135,7 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 │  semantic/proc │  │  JP + WebSearch │  │  vault/cases/   │
 │                │  │  + 15 MCP 工具  │  │  switch/tickets │
 └────────────────┘  └─────────────────┘  └─────────────────┘
-       全部加密落盘（per-user passphrase + PBKDF2 + HMAC-SHA256）
+       全部加密落盘（per-user passphrase + PBKDF2 + AES-256-GCM v3）
 ```
 
 ## 智能体详解
@@ -203,9 +203,9 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
                                                          ↓
                                             per-user passphrase（HMAC-SHA256(global, user_id)）
                                                          ↓
-                                            PBKDF2-HMAC-SHA256（100k 迭代）派生 enc_key/mac_key
+                                            PBKDF2-HMAC-SHA256（100k 迭代）派生 enc_key
                                                          ↓
-                                            HMAC-SHA256 keystream 流密码加密 + HMAC tag 完整性
+                                            AES-256-GCM（AEAD）加密 + 认证 tag 完整性 v3
                                                          ↓
                                             原子写入 ~/.deadman/（0o600 权限）
 ```
@@ -215,7 +215,7 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 | 威胁 | 缓解 |
 |------|------|
 | 攻击者获取 `~/.deadman/` 离线数据 | per-user passphrase 派生，无全局密钥可解 |
-| 攻击者篡改 envelope | HMAC-SHA256 tag 验签失败拒绝解密 |
+| 攻击者篡改 envelope | AES-256-GCM AEAD 认证 tag 验签失败拒绝解密 |
 | 用户越权访问他人笔记 | 所有端点走 `_phase_auth_user()` JWT 认证 + ownership 校验 |
 | Prompt Injection 绕过规则链 | L2 input-guardrails + L0 safety 双层防御 |
 | 自杀风险信号触发代办 | L0 即时拦截，输出 12320 / 988 热线，绝不代办 |
@@ -240,7 +240,7 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 ### Q2：数据安全吗？我的隐私怎么保证？
 
 - 用户密码用 PBKDF2-HMAC-SHA256 加盐哈希（100k 迭代）
-- 终活笔记 / 保险库内容用 per-user passphrase 加密落盘
+- 终活笔记 / 保险库内容用 per-user passphrase 派生密钥后 AES-256-GCM 加密落盘（v3）
 - PII 字段（姓名 / 身份证 / 电话 / 账号 / 地址 / 出生日期）落盘前掩码
 - 文件权限 0o600，目录权限 0o700
 - 全程本地部署，数据不出你的机器（自托管模式）
@@ -319,10 +319,17 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 
 ### Q10：项目路线图？
 
-近期（v5.x）：
+近期（v5.x）已完成：
+
+- [x] AES-256-GCM 加密升级（utils/crypto.py 共享模块，替换 HMAC-SHA256 keystream 流密码）
+- [x] L0 安全检查修复（同时检测 user_input 和 output_text）
+- [x] Web API 加固（速率限制 + CORS + Pydantic 校验 + 安全头）
+- [x] 结构化日志升级（structlog 集成）
+- [x] 场景 2 & 8 完整测试覆盖
+
+近期（v5.x）进行中：
 
 - [ ] 补齐剩余 29 省级行政区知识库
-- [ ] AES-256-GCM 替换 HMAC-SHA256 keystream 流密码
 - [ ] 国产 LLM 默认接入（智谱 / 通义千问 / 文心一言）
 - [ ] 移动端 App（React Native）
 
@@ -465,7 +472,7 @@ deadman/
         │   ├── notification/                #   主动通知护栏
         │   ├── observability/               #   OTel + Langfuse
         │   └── ...                          #   其余模块
-        └── tests/                           #   pytest 测试（900+）
+        └── tests/                           #   pytest 测试（2586+）
 ```
 
 ## CLI 子命令总览
@@ -521,7 +528,7 @@ deadman --help
 ## 测试
 
 ```bash
-# 全量回归（900+ 测试）
+# 全量回归（2586+ 测试）
 cd deadman
 python -m pytest .traecli/src/tests/ -q
 
@@ -529,7 +536,7 @@ python -m pytest .traecli/src/tests/ -q
 # 见 .traecli/tests/scenarios.md
 ```
 
-当前测试规模：**918 passed + 1 skipped + 0 failed**。
+当前测试规模：**2586 passed + 1 skipped + 0 failed**。
 
 ## 贡献
 
