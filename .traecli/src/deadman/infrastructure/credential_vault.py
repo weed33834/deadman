@@ -107,8 +107,12 @@ def _derive_master_key() -> bytes:
     生产部署应通过 env DEADMAN_VAULT_MASTER_KEY 注入。
     """
     if not _HAS_CRYPTO:
-        # 降级:返回固定 32 字节占位(仅用于 feature flag 关闭时)
-        return b"deadman-default-key-32bytes!!"
+        # cryptography 未安装时硬性阻断：不再返回固定弱密钥（历史安全风险）。
+        # 调用方（CredentialVault）应在 _HAS_CRYPTO=False 时禁用 vault 功能。
+        raise CredentialVaultError(
+            "cryptography 未安装，凭证保险柜不可用。"
+            "请 `pip install cryptography` 或设置 DEADMAN_CREDENTIAL_VAULT_ENABLED=0 降级到 env 读取。"
+        )
 
     # 1. 优先从 env 读取
     env_key = os.environ.get(MASTER_KEY_ENV, "")
@@ -151,9 +155,11 @@ def _derive_master_key() -> bytes:
 def _encrypt(plaintext: str, master_key: bytes) -> str:
     """AES-256-GCM 加密(返回 base64 编码的 nonce + ciphertext + tag)。"""
     if not _HAS_CRYPTO:
-        # 降级:base64 编码(仅开发,生产应安装 cryptography)
-        logger.warning("cryptography not installed, using base64 (NOT SECURE FOR PRODUCTION)")
-        return base64.b64encode(plaintext.encode("utf-8")).decode("ascii")
+        # 不再降级为 base64：明文落盘是安全风险，直接拒绝。
+        raise CredentialVaultError(
+            "cryptography 未安装，拒绝加密（明文落盘为安全风险）。"
+            "请 `pip install cryptography`。"
+        )
 
     aesgcm = AESGCM(master_key)
     nonce = secrets.token_bytes(12)  # 96-bit nonce
@@ -164,8 +170,10 @@ def _encrypt(plaintext: str, master_key: bytes) -> str:
 def _decrypt(encrypted: str, master_key: bytes) -> str:
     """AES-256-GCM 解密。"""
     if not _HAS_CRYPTO:
-        # 降级:base64 解码
-        return base64.b64decode(encrypted.encode("ascii")).decode("utf-8")
+        # 不再降级为 base64 解码：避免把弱密文当合法凭证读取。
+        raise CredentialVaultError(
+            "cryptography 未安装，拒绝解密。请 `pip install cryptography`。"
+        )
 
     raw = base64.b64decode(encrypted.encode("ascii"))
     nonce = raw[:12]
@@ -422,5 +430,11 @@ def get_credential_vault() -> CredentialVault:
     if _vault_instance is None:
         with _vault_lock:
             if _vault_instance is None:
+                if not _HAS_CRYPTO:
+                    raise CredentialVaultError(
+                        "cryptography 未安装，凭证保险柜不可用。"
+                        "请 `pip install cryptography`，或设置 DEADMAN_CREDENTIAL_VAULT_ENABLED=0 "
+                        "降级到 env 读取模式。"
+                    )
                 _vault_instance = CredentialVault()
     return _vault_instance

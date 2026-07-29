@@ -15,6 +15,11 @@ from deadman.infrastructure.credential_vault import (
     _encrypt,
 )
 
+# cryptography 未安装时 vault 硬性阻断，整个模块 skip
+pytestmark = pytest.mark.skipif(
+    not _HAS_CRYPTO, reason="cryptography 未安装，凭证保险柜不可用"
+)
+
 
 @pytest.fixture(autouse=True)
 def enable_credential_vault(monkeypatch):

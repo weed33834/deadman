@@ -45,38 +45,74 @@ deadman/
 ├── llm.py                 # LLM 客户端（多厂商）
 ├── rules_loader.py        # 规则加载器 + 规则校验器
 ├── cli.py                 # CLI 入口
-├── mcp_server/            # MCP Server（15 工具，12 个用 tool_auto 自动 schema）
-│   ├── __init__.py
-│   └── server.py
-├── orchestration/         # LangGraph 编排
-│   ├── __init__.py
-│   ├── state.py           # ConversationState
-│   ├── graph.py           # 主 Graph + SequentialExecutor 降级
-│   ├── nodes.py           # 8 个节点 + 3 个路由
-│   └── termination.py     # 可组合终止条件（v5.1，借鉴 AutoGen TerminationCondition）
-├── memory/                # 分层记忆
-│   ├── __init__.py
-│   ├── working.py         # 工作记忆
-│   ├── episodic.py        # 情景记忆
-│   ├── semantic.py        # 语义记忆（含矛盾检测）
-│   ├── procedural.py      # 程序记忆
-│   └── manager.py         # MemoryManager
+├── agents_store.py        # 智能体定义加载（agents/*.md）
+├── cost.py                # 成本核算
+├── knowledge_store.py     # 知识库存储
+├── logging_config.py      # structlog 配置
+├── prompts.py             # Prompt 模板（Jinja2 降级）
+├── repl.py                # 交互式 REPL
+├── soul_loader.py         # 灵魂加载器
+├── _cli_extensions/       # CLI 子命令扩展（phase7-16）
+│
+├── mcp_server/            # MCP Server（15 工具，13 个用 tool_auto 自动 schema）
+│   ├── server.py          # 主服务 + 15 个工具
+│   ├── cache.py           # 工具结果缓存
+│   ├── gateway.py         # 6 层网关
+│   ├── permissions.py     # 工具权限
+│   └── signing.py         # 工具签名
+│
+├── a2a/                   # A2A v1.0/v1.2 协议（AgentCard + tasks/send）
+├── alignment/             # 对齐训练（DPO / SFT / MoE 路由）
+├── auth/                  # JWT 会话 + 用户存储
+├── billing/               # 计费（计量 / 发票 / 订阅 / 配额路由）
+├── compliance/            # 合规（AI 标注 / 审计 / 同意 / 数据驻留 / 留存 / 删除权）
+├── cron/                  # 定时任务（croniter 表达式 + 调度器）
+├── deadman_switch/        # 死亡开关（触发条件 + 动作）
+├── debate/                # 辩论编排（多智能体投票）
+├── decedent_id/           # 逝者身份登记
+├── disclaimer/            # 免责声明
+├── doc_extract/           # 文档抽取
+├── ending_note/           # 结语（guide / store）
+├── evaluation/            # 评估框架（三层判定 / 工具调用 / RAGAS / runner）
+├── gateway/               # 多渠道网关（Telegram / WeChat）
+├── governance/            # 治理（AI 红线 / 伦理委员会 / 模型卡 / 透明度）
+├── hotlines/              # 热线查询
+├── i18n/                  # 国际化（货币 / 法律适配 / 时区 / 翻译）
+├── infrastructure/        # 基础设施
+│   ├── circuit_breaker.py # 断路器
+│   ├── credential_vault.py # 凭证保险柜（AES-256-GCM）
+│   ├── durable_execution.py # 持久化执行
+│   ├── feature_flags.py   # 特性开关
+│   ├── multi_tenant.py    # 多租户
+│   ├── prompt_versioning.py # Prompt 版本管理
+│   ├── quota.py           # 配额
+│   ├── rate_limiter.py    # 限流
+│   ├── web_middleware.py  # Web 中间件
+│   └── defense/           # 防御层（链路断路器 / PII / 缓存保护 / 高级检测）
+├── institutions/          # 机构查询
+├── knowledge/             # 知识图谱（LightRAG / Graphiti / 融合 / 信任 / 新鲜度）
+├── marketplace/           # 技能市场（注册 / 评分 / 审核 / 沙箱）
+├── memorial_writer/       # 悼词生成
+├── memory/                # 分层记忆（working / episodic / semantic / procedural / vector）
+├── multimodal/            # 多模态（OCR / Vision / ASR / TTS / ImageGen）
+├── notification/          # 通知护栏
+├── notification_letters/  # 通知信生成
+├── observability/         # 可观测性（Tracer / Metrics / Drift / Replay / RootCause）
+├── onboarding/            # 引导向导
+├── orchestration/         # LangGraph 编排（graph / nodes / handoff / scratchpad / tot / react）
+├── plan_score/            # 方案评分
 ├── reflexion/             # 反思重试
-│   ├── __init__.py
-│   └── engine.py          # ReflexionEngine
+├── sandbox/               # 代码沙箱
+├── security/              # 安全（审计 / 蜜罐 / JIT / 红队 / 内容沙箱）
 ├── selfcheck/             # SelfCheckGPT 数字类幻觉检测
-│   ├── __init__.py
-│   └── checker.py
-├── evaluation/            # 评估框架
-│   ├── __init__.py
-│   ├── three_layer.py     # 三层判定（正则→关键词→LLM）
-│   ├── tool_calls.py      # 工具调用序列校验
-│   └── runner.py          # 评估运行器
-└── observability/         # 可观测性
-    ├── __init__.py
-    ├── tracer.py          # Tracer（11 类 span，OTel 降级）
-    └── metrics.py         # MetricsCollector（11 大类指标）
+├── support/               # 工单
+├── tools/                 # 通用工具（web_search）
+├── utils/                 # 工具函数（crypto / text_similarity）
+├── vault/                 # Vault 存储
+└── web/                   # Web 服务（server / schemas / rate_limiter / static）
 ```
+
+各模块详细文档见 `docs/` 与各子包内的 `README.md`。
 
 ## 可选依赖
 
