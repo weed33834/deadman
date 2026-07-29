@@ -210,7 +210,8 @@ class WebServer:
             def _set_security_headers(self) -> None:
                 """添加常用安全响应头（在 end_headers 前调用）。"""
                 self.send_header("X-Content-Type-Options", "nosniff")
-                self.send_header("X-Frame-Options", "DENY")
+                # SAMEORIGIN 允许同源 iframe 预览（移动端 /m），仍防跨站 clickjacking
+                self.send_header("X-Frame-Options", "SAMEORIGIN")
                 self.send_header("X-XSS-Protection", "1; mode=block")
                 # HSTS 仅在 HTTPS 下下发（HTTP 下设置会被浏览器忽略且可能带来风险）
                 if self._is_https():
@@ -285,6 +286,8 @@ class WebServer:
                     self._send_file(_STATIC_DIR / "manifest.json", "application/manifest+json; charset=utf-8")
                 elif path == "/sw.js":
                     self._send_file(_STATIC_DIR / "sw.js", "application/javascript; charset=utf-8")
+                elif path == "/mobile.js":
+                    self._send_file(_STATIC_DIR / "mobile.js", "application/javascript; charset=utf-8")
                 elif path == "/api/health":
                     self._send_json(200, {"status": "ok", "service": "ag-ui"})
                 elif path == "/api/whoami":
