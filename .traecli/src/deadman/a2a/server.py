@@ -695,7 +695,12 @@ a2a_server = A2AServer()
 def main() -> None:
     """命令行入口：启动 A2A Server"""
     import argparse
-    import sys
+
+    # 结构化日志早期初始化（读取 DEADMAN_LOG_LEVEL/DEADMAN_LOG_FORMAT 环境变量）。
+    # --log-level 解析后会再次覆盖级别。
+    from ..logging_config import setup_logging as _setup_structlog_logging
+
+    _setup_structlog_logging()
 
     parser = argparse.ArgumentParser(prog="deadman-a2a-server", description="A2A v1.0 Server")
     parser.add_argument("--host", default=None)
@@ -703,11 +708,7 @@ def main() -> None:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        stream=sys.stderr,
-    )
+    _setup_structlog_logging(level=args.log_level)
     a2a_server.run(host=args.host, port=args.port)
 
 

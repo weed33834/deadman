@@ -14,12 +14,16 @@ from . import __version__
 
 
 def setup_logging(level: str = "INFO"):
-    """配置日志"""
-    logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    """配置日志（委托给 structlog 集成的 logging_config.setup_logging）
+
+    现有调用点 ``setup_logging(args.log_level)`` 无需修改即可获得：
+    - structlog 与 stdlib logging 的统一渲染
+    - ``DEADMAN_LOG_FORMAT`` / ``DEADMAN_LOG_LEVEL`` 环境变量支持
+    - 向后兼容现有 ``logging.getLogger(__name__)`` 调用
+    """
+    from .logging_config import setup_logging as _setup_structlog_logging
+
+    _setup_structlog_logging(level=level)
 
 
 def cmd_version(args):
@@ -3899,6 +3903,13 @@ def cmd_multimodal_test(args):
 
 def main():
     """CLI 主入口"""
+    # 结构化日志早期初始化（读取 DEADMAN_LOG_LEVEL/DEADMAN_LOG_FORMAT 环境变量）。
+    # 在 parse_args 之前调用，确保后续 CLI 扩展加载（含 try/except 警告）也走 structlog。
+    # --log-level 在解析后会通过下方 setup_logging(args.log_level) 再次覆盖。
+    from .logging_config import setup_logging as _setup_structlog_logging
+
+    _setup_structlog_logging()
+
     parser = argparse.ArgumentParser(
         prog="deadman",
         description="deadman - 身后事多智能体引导平台 CLI",

@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import structlog
 import uuid
 from typing import Any
 
@@ -26,6 +27,12 @@ from .scratchpad import SCRATCHPAD_ENABLED, ScratchpadManager
 from .state import ConversationState
 
 logger = logging.getLogger(__name__)
+
+# 结构化日志：用于在关键路径绑定 agent_name / session_id 等上下文。
+# 现有 stdlib ``logger`` 调用保持不变；新代码在关键节点用 ``slog`` 输出结构化日志。
+# 经 logging_config.setup_logging() 配置后，structlog 与 stdlib 日志统一渲染；
+# 未配置时（如单测）structlog 使用内置默认配置，不会崩溃。
+slog = structlog.get_logger(__name__)
 
 # =====================================================================
 # P5.3 GUID 分隔符防御 - feature flag（默认关闭）
@@ -646,9 +653,19 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     user_profile = state.get("user_profile", {})
     turn_count = state.get("turn_count", 0)
 
+    # 结构化日志：绑定 agent_name / session_id / turn_count 上下文，贯穿本节点关键路径。
+    # bind() 让后续所有日志自动携带这些字段，便于在 JSON 输出中按会话/智能体检索。
+    node_log = slog.bind(
+        agent_name=current_agent,
+        session_id=state.get("session_id", ""),
+        turn_count=turn_count,
+    )
+    node_log.info("agent_node.start", user_input_len=len(user_input))
+
     # 若 safety_override 已由前序节点（如 input_guard）触发且已设置 draft_response，
     # 则不覆盖已有响应，直接透传（安全优先，跳过智能体生成）
     if state.get("safety_override") and state.get("draft_response"):
+        node_log.info("agent_node.skipped", reason="safety_override_with_existing_response")
         _append_trace_span(state, "agent", f"node.agent.{current_agent}", {
             "agent": current_agent,
             "skipped": True,
@@ -765,11 +782,18 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_input},
                 ]
+                node_log.debug(
+                    "agent.llm_call",
+                    provider=getattr(respond_llm, "provider", None),
+                    model=getattr(respond_llm, "model", None),
+                    react_used=False,
+                )
                 draft_response = await respond_llm.chat(messages, temperature=0.3)
                 # P10：累加本轮 token usage，供 TokenUsageTermination 评估
                 _accumulate_token_usage(state, respond_llm.last_usage)
             except Exception as e:
                 logger.warning("智能体 LLM 调用失败 [%s]: %s", current_agent, e)
+                node_log.warning("agent.llm_call_failed", error=type(e).__name__)
                 draft_response = (
                     f"抱歉，我在处理您的请求时遇到了技术问题。"
                     f"请稍后重试，或直接联系相关机构获取帮助。\n"
@@ -777,6 +801,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                 )
         else:
             # LLM 不可用时的降级响应
+            node_log.warning("agent.llm_unavailable", reason="missing_api_key")
             draft_response = (
                 "当前 LLM 服务未配置（缺少 LLM_API_KEY），无法生成智能回复。\n"
                 "请配置 LLM_API_KEY 环境变量后重试。\n\n"
@@ -796,6 +821,12 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
 
     transfer_target = _detect_transfer_signals(draft_response, current_agent)
     if transfer_target:
+        # 结构化日志：记录转介决策（含 from/to），便于追踪智能体协作链路
+        node_log.info(
+            "agent.transfer_detected",
+            from_agent=current_agent,
+            to_agent=transfer_target,
+        )
         # 创建转介摘要
         pending_transfer = TransferSummary(
             from_agent=current_agent,
@@ -818,6 +849,13 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
         "response_length": len(draft_response),
         "transfer_detected": transfer_target is not None,
     })
+    # 结构化日志：节点完成摘要（响应长度/是否转介/ReAct 是否启用）
+    node_log.info(
+        "agent_node.complete",
+        response_length=len(draft_response),
+        transfer_detected=transfer_target is not None,
+        react_used=react_used,
+    )
     updates["trace_spans"] = state.get("trace_spans", [])
 
     # === P4.2: 把本轮关键事实写入 scratchpad（feature flag 控制，默认关闭）===
@@ -866,10 +904,18 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
     """
     draft_response = state.get("draft_response", "")
 
+    # 结构化日志：绑定 current_agent / session_id 上下文，贯穿规则校验关键路径。
+    rule_log = slog.bind(
+        agent_name=state.get("current_agent", ""),
+        session_id=state.get("session_id", ""),
+    )
+    rule_log.info("rule_check.start", draft_response_len=len(draft_response))
+
     # 若 safety_override 已由前序节点设置（如 input_guard），直接透传
     if state.get("safety_override"):
         existing_rc = state.get("rule_check")
         if existing_rc and existing_rc.safety_triggered:
+            rule_log.info("rule_check.skipped", reason="safety_override_already_set")
             _append_trace_span(state, "rule", "node.rule_check", {
                 "skipped": True,
                 "reason": "safety_override_already_set",
@@ -887,6 +933,7 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
         )
     except Exception as e:
         logger.warning("规则校验异常: %s", e)
+        rule_log.warning("rule_check.exception", error=type(e).__name__)
         result = RuleCheckResult(
             passed=True,
             violations=[],
@@ -910,6 +957,12 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
 
     # 若 L0 安全触发，追加安全响应
     if result.safety_triggered:
+        # 结构化日志：L0 安全触发是关键事件，单独记录风险等级与违规数
+        rule_log.warning(
+            "rule_check.safety_triggered",
+            risk_tier=result.risk_tier.value,
+            violations_count=len(result.violations),
+        )
         safety_response = (
             "我注意到对话中可能涉及安全问题。您的生命安全是最重要的。\n\n"
             "如果您正在经历心理危机，请立即联系：\n"
@@ -919,6 +972,13 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
             "您不是一个人，请先确保安全，身后事的事务可以稍后再处理。"
         )
         updates["draft_response"] = safety_response
+    else:
+        rule_log.info(
+            "rule_check.complete",
+            passed=result.passed,
+            violations_count=len(result.violations),
+            risk_tier=result.risk_tier.value,
+        )
 
     return updates
 

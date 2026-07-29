@@ -47,6 +47,8 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from ..config import settings
+from .rate_limiter import RateLimiter
+from .schemas import ChatRequest, LoginRequest, RegisterRequest, validate_body
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +116,8 @@ class WebServer:
             "degraded_count": 0,
             "recent_spans": [],
         }
+        # Web API 安全加固：基于 IP 的内存滑动窗口限流器（默认 60 次/分钟）
+        self._rate_limiter = RateLimiter()
 
     def run(self, host: str | None = None, port: int | None = None) -> None:
         host = host or self.host
@@ -147,10 +151,120 @@ class WebServer:
                 """把 BaseHTTPRequestHandler.headers 转为 dict（用于 _require_auth）"""
                 return {k.lower(): v for k, v in self.headers.items()}
 
+            # === Web API 安全加固：CORS / 安全头 / 限流 / OPTIONS 预检 ===
+
+            def _client_ip(self) -> str:
+                """获取客户端 IP（用于限流）。优先取连接对端地址。"""
+                try:
+                    return self.client_address[0]
+                except (IndexError, TypeError):
+                    return "unknown"
+
+            def _is_https(self) -> bool:
+                """判断当前请求是否走 HTTPS（直接 TLS 或反向代理转发）。"""
+                fwd = self.headers.get("X-Forwarded-Proto", "")
+                if fwd.lower() == "https":
+                    return True
+                try:
+                    import ssl
+                    if isinstance(self.request, ssl.SSLSocket):
+                        return True
+                except Exception:  # noqa: BLE001
+                    pass
+                return False
+
+            def _cors_allowed_origin(self) -> str:
+                """根据环境变量 DEADMAN_CORS_ORIGINS 计算允许返回的 Origin。
+
+                * 默认 ``*``：任意源放行。
+                * 配置为逗号分隔列表时：仅当请求 Origin 命中白名单才回显该 Origin，
+                  否则不回显（浏览器同源策略生效）。
+                """
+                raw = os.getenv("DEADMAN_CORS_ORIGINS", "*").strip()
+                if raw == "*" or not raw:
+                    return "*"
+                allowed = [o.strip() for o in raw.split(",") if o.strip()]
+                request_origin = self.headers.get("Origin", "").strip()
+                if request_origin and request_origin in allowed:
+                    return request_origin
+                # 不在白名单：不回显 ACAO（返回空串表示不设置该头）
+                return ""
+
+            def _set_cors_headers(self) -> None:
+                """添加 CORS 响应头（在 end_headers 前调用）。"""
+                origin = self._cors_allowed_origin()
+                if origin:
+                    self.send_header("Access-Control-Allow-Origin", origin)
+                    if origin != "*":
+                        self.send_header("Vary", "Origin")
+                self.send_header(
+                    "Access-Control-Allow-Methods",
+                    "GET, POST, PUT, DELETE, OPTIONS",
+                )
+                self.send_header(
+                    "Access-Control-Allow-Headers",
+                    "Content-Type, Authorization, X-Requested-With",
+                )
+                self.send_header("Access-Control-Max-Age", "86400")
+
+            def _set_security_headers(self) -> None:
+                """添加常用安全响应头（在 end_headers 前调用）。"""
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("X-Frame-Options", "DENY")
+                self.send_header("X-XSS-Protection", "1; mode=block")
+                # HSTS 仅在 HTTPS 下下发（HTTP 下设置会被浏览器忽略且可能带来风险）
+                if self._is_https():
+                    self.send_header(
+                        "Strict-Transport-Security", "max-age=31536000"
+                    )
+
+            def end_headers(self) -> None:  # noqa: D401, N802
+                """覆写 end_headers：统一为所有响应注入 CORS + 安全头。"""
+                self._set_cors_headers()
+                self._set_security_headers()
+                super().end_headers()  # type: ignore[misc]
+
+            def _send_rate_limited(self, retry_after: int) -> None:
+                """返回 429 Too Many Requests + Retry-After。"""
+                body = json.dumps(
+                    {"error": "Too Many Requests", "message": "请求过于频繁，请稍后重试"},
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Retry-After", str(retry_after))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def _check_rate_limit(self, path: str) -> bool:
+                """在 do_GET/do_POST 入口做限流检查。
+
+                ``/api/health`` 健康检查放行（不限流）。返回 True 表示放行，
+                False 表示已被限流（已写出 429 响应，调用方应直接 return）。
+                """
+                if path == "/api/health":
+                    return True
+                allowed, retry_after = server_ref._rate_limiter.check(self._client_ip())
+                if not allowed:
+                    self._send_rate_limited(retry_after)
+                    return False
+                return True
+
+            def do_OPTIONS(self) -> None:  # noqa: N802
+                """处理 CORS 预检请求：直接返回 204 No Content。"""
+                self.send_response(204)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
             def do_GET(self) -> None:  # noqa: N802
                 parsed = urlparse(self.path)
                 path = parsed.path
                 query = parse_qs(parsed.query)
+
+                # 速率限制（/api/health 健康检查放行）
+                if not self._check_rate_limit(path):
+                    return
 
                 if path == "/" or path == "/index.html":
                     self._send_file(_STATIC_DIR / "index.html", "text/html; charset=utf-8")
@@ -310,6 +424,9 @@ class WebServer:
             def do_POST(self) -> None:  # noqa: N802
                 parsed = urlparse(self.path)
                 path = parsed.path
+                # 速率限制（POST 入口）
+                if not self._check_rate_limit(path):
+                    return
                 if path == "/api/auth/register":
                     length = int(self.headers.get("Content-Length", "0"))
                     raw = self.rfile.read(length) if length else b"{}"
@@ -317,6 +434,11 @@ class WebServer:
                         req = json.loads(raw.decode("utf-8"))
                     except json.JSONDecodeError as exc:
                         self._send_json(400, {"error": f"invalid json: {exc}"})
+                        return
+                    # Pydantic 请求体校验
+                    ok, errors = validate_body(RegisterRequest, req)
+                    if not ok:
+                        self._send_json(422, {"error": "validation failed", "details": errors})
                         return
                     try:
                         resp = asyncio.run(server_ref._handle_auth_register(req))
@@ -334,6 +456,11 @@ class WebServer:
                         req = json.loads(raw.decode("utf-8"))
                     except json.JSONDecodeError as exc:
                         self._send_json(400, {"error": f"invalid json: {exc}"})
+                        return
+                    # Pydantic 请求体校验
+                    ok, errors = validate_body(LoginRequest, req)
+                    if not ok:
+                        self._send_json(422, {"error": "validation failed", "details": errors})
                         return
                     try:
                         resp = asyncio.run(server_ref._handle_auth_login(req))
@@ -359,6 +486,11 @@ class WebServer:
                         req = json.loads(raw.decode("utf-8"))
                     except json.JSONDecodeError as exc:
                         self._send_json(400, {"error": f"invalid json: {exc}"})
+                        return
+                    # Pydantic 请求体校验
+                    ok, errors = validate_body(ChatRequest, req)
+                    if not ok:
+                        self._send_json(422, {"error": "validation failed", "details": errors})
                         return
                     query_text = req.get("query", "")
                     agent = req.get("agent", "death-aftercare")
@@ -3759,17 +3891,19 @@ def main() -> None:
     """命令行入口：启动 Web Server"""
     import argparse
 
+    # 结构化日志早期初始化（读取 DEADMAN_LOG_LEVEL/DEADMAN_LOG_FORMAT 环境变量）。
+    # --log-level 解析后会再次覆盖级别。
+    from ..logging_config import setup_logging as _setup_structlog_logging
+
+    _setup_structlog_logging()
+
     parser = argparse.ArgumentParser(prog="deadman-web-server", description="AG-UI Web Server")
     parser.add_argument("--host", default=None)
     parser.add_argument("--port", type=int, default=None)
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        stream=sys.stderr,
-    )
+    _setup_structlog_logging(level=args.log_level)
     web_server.run(host=args.host, port=args.port)
 
 
