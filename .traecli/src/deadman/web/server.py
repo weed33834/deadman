@@ -267,7 +267,24 @@ class WebServer:
                     return
 
                 if path == "/" or path == "/index.html":
+                    # 移动端 UA 自动跳转 /m（不破坏 web 端直接访问）
+                    ua = self.headers.get("User-Agent", "")
+                    _MOBILE_UA = ("android", "iphone", "ipod", "windows phone", "mobile")
+                    if path == "/" and any(k in ua.lower() for k in _MOBILE_UA) and "ipad" not in ua.lower():
+                        self.send_response(302)
+                        self.send_header("Location", "/m")
+                        self.end_headers()
+                        return
                     self._send_file(_STATIC_DIR / "index.html", "text/html; charset=utf-8")
+                # === 移动端入口（独立于 web 端，/m → mobile.html）===
+                elif path == "/m" or path == "/m/":
+                    self._send_file(_STATIC_DIR / "mobile.html", "text/html; charset=utf-8")
+                elif path == "/mobile.html":
+                    self._send_file(_STATIC_DIR / "mobile.html", "text/html; charset=utf-8")
+                elif path == "/manifest.json":
+                    self._send_file(_STATIC_DIR / "manifest.json", "application/manifest+json; charset=utf-8")
+                elif path == "/sw.js":
+                    self._send_file(_STATIC_DIR / "sw.js", "application/javascript; charset=utf-8")
                 elif path == "/api/health":
                     self._send_json(200, {"status": "ok", "service": "ag-ui"})
                 elif path == "/api/whoami":
