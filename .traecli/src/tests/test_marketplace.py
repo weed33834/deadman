@@ -16,12 +16,7 @@ feature flag: DEADMAN_MARKETPLACE_ENABLED=1(测试启用)
 
 from __future__ import annotations
 
-import json
-import os
-import threading
 import time
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -298,7 +293,6 @@ class TestRegistry:
 
 class TestReviewer:
     def test_security_scan_clean_card(self, reviewer):
-        from deadman.marketplace.reviewer import ReviewCheck
         listing = _make_listing()
         issues, score = reviewer.security_scan(listing)
         # 干净的 card 不应有 critical issue
@@ -851,7 +845,6 @@ class TestTenantIsolation:
 
     def test_tenant_isolation_registry(self, enable_multi_tenant, tmp_path):
         from deadman.infrastructure.multi_tenant import (
-            TENANTS_ROOT,
             TenantContext,
             TenantInfo,
         )

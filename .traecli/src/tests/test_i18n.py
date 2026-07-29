@@ -14,10 +14,7 @@
 from __future__ import annotations
 
 import json
-import os
-import time
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -615,7 +612,7 @@ class TestCurrencyConverter:
         assert "100" in formatted
 
     def test_get_all_rates(self, tmp_path):
-        from deadman.i18n import CurrencyConverter, Currency
+        from deadman.i18n import CurrencyConverter
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         all_rates = cc.get_all_rates()
         assert "USD" in all_rates
@@ -796,7 +793,7 @@ class TestTranslator:
 
     def test_translate_default_locale(self, tmp_path):
         from deadman.i18n import (
-            Translator, Locale, LocaleDetector, MessageBundle,
+            Translator, LocaleDetector, MessageBundle,
             CurrencyConverter, TimezoneManager, LawAdapter,
         )
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
@@ -1163,7 +1160,7 @@ class TestLocalePersistence:
         assert not (tmp_path / "prefs.json.tmp").exists()
 
     def test_currency_rates_atomic_write(self, tmp_path):
-        from deadman.i18n import CurrencyConverter, Currency
+        from deadman.i18n import CurrencyConverter
         path = tmp_path / "rates.json"
         cc = CurrencyConverter(store_path=path)
         cc.update_rates({"USD": 7.55})

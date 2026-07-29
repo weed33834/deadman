@@ -178,7 +178,7 @@ class OnboardingWizard:
         if not isinstance(answer, str) or not answer.strip():
             return False, "请选择省份"
         if answer not in _PROVINCES:
-            return False, f"省份不在支持列表内"
+            return False, "省份不在支持列表内"
         return True, ""
 
     def _validate_death_date(self, answer: Any) -> tuple[bool, str]:

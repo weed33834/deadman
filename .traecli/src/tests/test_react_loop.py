@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from deadman.orchestration.react_loop import (
     REACT_ENABLED,

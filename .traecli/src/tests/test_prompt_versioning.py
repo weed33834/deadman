@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 import pytest
-import yaml
 
 from deadman.infrastructure.prompt_versioning import (
-    ABExperiment,
-    PromptResolution,
-    PromptVersion,
     PromptVersionManager,
 )
 

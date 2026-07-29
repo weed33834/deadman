@@ -17,11 +17,10 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .models import Ticket, TicketReply, TicketStatus
+from .models import Ticket, TicketReply
 
 
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "support"

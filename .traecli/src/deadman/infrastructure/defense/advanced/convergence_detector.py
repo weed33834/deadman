@@ -55,7 +55,7 @@ import logging
 import math
 import threading
 import time
-from collections import Counter, defaultdict, deque
+from collections import Counter, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Optional

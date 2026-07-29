@@ -23,7 +23,6 @@ DPO 核心思想:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import math
@@ -36,7 +35,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
-from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
 
 logger = logging.getLogger(__name__)

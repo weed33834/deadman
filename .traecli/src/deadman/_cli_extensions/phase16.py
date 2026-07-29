@@ -39,7 +39,6 @@ import argparse
 import asyncio
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +58,6 @@ _DISCLAIMER = (
 
 def cmd_ticket_create(args: argparse.Namespace) -> None:
     """ticket-create：创建客服工单"""
-    from deadman.support.store import TicketStore
 
     store = _make_ticket_store(args)
     try:
@@ -89,7 +87,6 @@ def cmd_ticket_create(args: argparse.Namespace) -> None:
 
 def cmd_ticket_list(args: argparse.Namespace) -> None:
     """ticket-list：列出当前用户的工单（可按状态过滤）"""
-    from deadman.support.store import TicketStore
 
     store = _make_ticket_store(args)
     tickets = store.list_user_tickets(args.user_id)
@@ -113,7 +110,6 @@ def cmd_ticket_list(args: argparse.Namespace) -> None:
 
 def cmd_ticket_get(args: argparse.Namespace) -> None:
     """ticket-get：查看工单详情（越权返回提示）"""
-    from deadman.support.store import TicketStore
 
     store = _make_ticket_store(args)
     ticket = store.get_ticket(args.ticket_id, user_id=args.user_id)
@@ -132,7 +128,6 @@ def cmd_ticket_get(args: argparse.Namespace) -> None:
 
 def cmd_ticket_reply(args: argparse.Namespace) -> None:
     """ticket-reply：给工单追加一条用户回复"""
-    from deadman.support.store import TicketStore
 
     store = _make_ticket_store(args)
     reply = store.add_reply(
@@ -159,7 +154,6 @@ def cmd_ticket_reply(args: argparse.Namespace) -> None:
 
 def cmd_ticket_close(args: argparse.Namespace) -> None:
     """ticket-close：关闭工单（先校验 ownership）"""
-    from deadman.support.store import TicketStore
 
     store = _make_ticket_store(args)
     # 先校验 ownership（update_status 内部已校验 user_id 越权）
@@ -188,7 +182,6 @@ def cmd_ticket_close(args: argparse.Namespace) -> None:
 
 def cmd_onboarding_show(args: argparse.Namespace) -> None:
     """onboarding-show：查看当前用户的 onboarding profile"""
-    from deadman.onboarding.store import OnboardingStore
 
     store = _make_onboarding_store(args)
     profile = store.load(args.user_id)
@@ -200,7 +193,6 @@ def cmd_onboarding_show(args: argparse.Namespace) -> None:
 
 def cmd_onboarding_save(args: argparse.Namespace) -> None:
     """onboarding-save：一次性保存 onboarding profile"""
-    from deadman.onboarding.store import OnboardingStore
     from deadman.onboarding.wizard import OnboardingWizard
 
     store = _make_onboarding_store(args)
@@ -460,7 +452,7 @@ def cmd_wechat_webhook_test(args: argparse.Namespace) -> None:
         print(f"[错误] 签名校验异常：{type(exc).__name__}: {exc}")
         return
 
-    print(f"=== 微信公众号 Webhook 签名校验 ===")
+    print("=== 微信公众号 Webhook 签名校验 ===")
     print(f"  token:     {args.token}")
     print(f"  timestamp: {args.timestamp}")
     print(f"  nonce:     {args.nonce}")

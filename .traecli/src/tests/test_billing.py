@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -343,7 +341,7 @@ class TestSubscription:
 
 class TestMetering:
     def test_record_event(self, tmp_path):
-        from deadman.billing.metering import MeteringDimension, MeteringService
+        from deadman.billing.metering import MeteringService
         ms = MeteringService(data_dir=tmp_path / "metering")
         event = ms.record_llm_tokens("user1", 1000, model="gpt-4o")
         assert event is not None
@@ -722,7 +720,7 @@ class TestInvoice:
 
 class TestCostRouter:
     def test_route_free_plan_cost_first(self, tmp_path):
-        from deadman.billing.cost_router import CostRouter, RoutingStrategy
+        from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "free")

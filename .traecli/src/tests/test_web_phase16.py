@@ -15,14 +15,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import http.client
 import json
 import socket
 import threading
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 

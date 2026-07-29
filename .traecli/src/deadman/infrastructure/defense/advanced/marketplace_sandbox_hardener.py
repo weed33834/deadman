@@ -39,11 +39,9 @@ import ast
 import logging
 import os
 import resource
-import signal
 import threading
-import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
 
 from ...feature_flags import is_enabled
 

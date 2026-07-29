@@ -18,7 +18,6 @@ import pytest
 
 import deadman.security.content_sandbox as sandbox_module
 from deadman.security.content_sandbox import (
-    CONTENT_SANDBOX_ENABLED,
     DEFAULT_MAX_LENGTH,
     ContentSandbox,
     SandboxResult,

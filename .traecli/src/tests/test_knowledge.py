@@ -65,7 +65,6 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
 
 import pytest
 
@@ -76,7 +75,6 @@ os.environ["DEADMAN_KNOWLEDGE_GRAPH_ENABLED"] = "1"
 from deadman.knowledge import (
     Anonymizer,
     Episode,
-    EpisodeType,
     ExternalSource,
     FusionResult,
     GraphitiRuntime,
@@ -89,12 +87,10 @@ from deadman.knowledge import (
     LightRAGRuntime,
     PrivateGraph,
     TenantIsolationError,
-    TrustLevel,
     TrustScorer,
     get_knowledge_manager,
     reset_knowledge_manager,
 )
-from deadman.knowledge.freshness import KnowledgeCategory
 
 
 # =====================================================================

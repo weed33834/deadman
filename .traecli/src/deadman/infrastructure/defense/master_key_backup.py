@@ -45,13 +45,12 @@ feature flag:`DEADMAN_DEFENSE_ENABLED=1` 默认启用。
 from __future__ import annotations
 
 import hashlib
-import hmac
 import logging
 import os
 import secrets
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional

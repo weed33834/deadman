@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
-from ..infrastructure.multi_tenant import get_current_tenant_id
 from .plans import Plan, PlanName, get_plan
 
 logger = logging.getLogger(__name__)

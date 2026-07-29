@@ -28,7 +28,6 @@ feature flag: `DEADMAN_MARKETPLACE_ENABLED=0`(默认关闭)
 from __future__ import annotations
 
 import logging
-import os
 import signal
 import threading
 import time

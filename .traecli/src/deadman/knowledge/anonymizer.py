@@ -23,7 +23,7 @@ import re
 import threading
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .graphiti_runtime import KGNode

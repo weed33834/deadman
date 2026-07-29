@@ -21,7 +21,6 @@ import logging
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Any, Optional
 
 from ..infrastructure.feature_flags import is_enabled

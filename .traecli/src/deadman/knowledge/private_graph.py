@@ -25,12 +25,10 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
-from uuid import uuid4
+from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import (
-    DEFAULT_TENANT_ID,
     resolve_data_path,
 )
 from .graphiti_runtime import KGEdge, KGNode, _InMemoryGraph

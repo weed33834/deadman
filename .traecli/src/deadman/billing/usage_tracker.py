@@ -29,7 +29,6 @@ from ..infrastructure.quota import (
     QuotaAction,
     QuotaExceededError,
     QuotaManager,
-    QuotaPeriod,
     QuotaUsage,
     get_quota_manager,
 )

@@ -11,13 +11,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
 from deadman.evaluation.runner import CaseRunner
 from deadman.observability.trace_to_eval import (
-    TRACE_TO_EVAL_ENABLED,
     EvalToRedteamConverter,
     TraceToEvalConverter,
 )

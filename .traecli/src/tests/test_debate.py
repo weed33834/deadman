@@ -13,9 +13,7 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -66,7 +64,7 @@ class MockLLMClient:
         # 根据消息内容返回不同模拟陈述
         content = messages[0]["content"] if messages else ""
         if "Opening" in content or "陈述你的立场" in content:
-            return f"基于法规 XXX，我的立场是：适用中国法律。来源：民法典第 1123 条。"
+            return "基于法规 XXX，我的立场是：适用中国法律。来源：民法典第 1123 条。"
         if "反驳其他参与方" in content or "交叉质询" in content:
             return "对方引用法规有误。我承认对方部分论点合理。但结论应坚持中国法。"
         if "总结你的最终立场" in content or "总结陈词" in content:

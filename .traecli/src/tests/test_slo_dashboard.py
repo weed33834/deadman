@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-import json
-from unittest.mock import patch
 
 import pytest
 
@@ -200,7 +198,6 @@ class TestSloEndpoint:
 
     def _make_handler(self, server_ref):
         """构造一个测试用 Handler 实例（无需真正监听端口）"""
-        from deadman.web.server import WebServer
 
         # 通过 ThreadingHTTPServer 创建一个不绑端口的 Handler
         # 直接构造 BaseHTTPRequestHandler 的子类实例需要 socket；
@@ -219,7 +216,6 @@ class TestSloEndpoint:
                 # 直接复用 server_ref.run 中定义的方法逻辑
                 # 这里通过模拟闭包来调用
                 from deadman.observability.metrics import (
-                    SLO_DASHBOARD_ENABLED,
                     SLO_TARGETS,
                     metrics_collector,
                 )

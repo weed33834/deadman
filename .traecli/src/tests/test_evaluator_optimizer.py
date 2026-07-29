@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 
 from deadman.orchestration.evaluator_optimizer import (
     EVAL_OPTIMIZER_ENABLED,

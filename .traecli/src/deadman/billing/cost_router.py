@@ -23,14 +23,12 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
 from ..infrastructure.circuit_breaker import CircuitBreaker, CircuitState, cb_registry
 from ..infrastructure.feature_flags import is_enabled
-from ..infrastructure.multi_tenant import get_current_tenant_id
 from .subscription import SubscriptionManager, get_subscription_manager
 
 logger = logging.getLogger(__name__)

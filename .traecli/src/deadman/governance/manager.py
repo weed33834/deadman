@@ -28,9 +28,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ..infrastructure.feature_flags import is_enabled
-from ..infrastructure.multi_tenant import get_current_tenant_id
-from .ai_redlines import AIRedline, RedlineResult, RedlineViolation, get_ai_redline
-from .appeals import Appeal, AppealsManager, AppealDecision, get_appeals_manager
+from .ai_redlines import AIRedline, RedlineResult, get_ai_redline
+from .appeals import Appeal, AppealsManager, get_appeals_manager
 from .data_card import DataCard, DataCardRegistry, get_data_card_registry
 from .ethics_committee import EthicsCase, EthicsCommittee, get_ethics_committee
 from .liability_insurance import LiabilityInsurance, get_liability_insurance

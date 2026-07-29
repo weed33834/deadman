@@ -12,8 +12,6 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -69,7 +67,6 @@ class TestDataResidency:
     def test_cross_border_violation(self, tmp_path):
         from deadman.compliance.data_residency import (
             DataResidency,
-            DataRegion,
             ResidencyViolation,
         )
         from deadman.infrastructure.multi_tenant import TenantContext, TenantInfo
@@ -126,7 +123,7 @@ class TestDataResidency:
         from deadman.infrastructure.feature_flags import get_flags
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
-        from deadman.compliance.data_residency import DataResidency, DataRegion
+        from deadman.compliance.data_residency import DataResidency
         dr = DataResidency(store_path=tmp_path / "residency.yaml")
         # 关闭后不抛异常
         dr.ensure_in_region("data", target_region="us")
@@ -240,7 +237,7 @@ class TestAILabeling:
         assert result.metadata[METADATA_AI_FLAG] is True
 
     def test_dual_label_requirement_warning(self, tmp_path, caplog):
-        from deadman.compliance.ai_labeling import AILabeling, LabelingConfig, LabelType
+        from deadman.compliance.ai_labeling import AILabeling, LabelingConfig
         # 关闭 metadata 测试警告
         cfg = LabelingConfig(enable_metadata=False, require_dual_label=True)
         labeling = AILabeling(config=cfg, store_path=tmp_path / "labels.jsonl")
@@ -302,7 +299,6 @@ class TestAuditReport:
     def test_submit_via_file_channel(self, tmp_path, monkeypatch):
         from deadman.compliance.audit_report import (
             AuditReporter,
-            ReportFrequency,
             ReportStatus,
         )
         monkeypatch.setenv("DEADMAN_AUDIT_SUBMIT_CHANNEL", "file")
@@ -378,7 +374,7 @@ class TestRetention:
         assert policy.retention_days == 365 * 10
 
     def test_record_and_check_expiration(self, tmp_path):
-        from deadman.compliance.retention import RetentionManager, DataCategory, RetentionRecord
+        from deadman.compliance.retention import RetentionManager, DataCategory
         rm = RetentionManager(store_path=tmp_path / "retention.json")
         # 用户信息 7 年保留
         record = rm.record(
@@ -501,7 +497,7 @@ class TestConsent:
         assert cm.check("u1", ConsentType.TERMS_OF_SERVICE)
 
     def test_withdraw(self, tmp_path):
-        from deadman.compliance.consent import ConsentManager, ConsentType, ConsentStatus
+        from deadman.compliance.consent import ConsentManager, ConsentType
         cm = ConsentManager(store_path=tmp_path / "consents.json")
         cm.grant("u1", ConsentType.MARKETING, source="web")
         assert cm.check("u1", ConsentType.MARKETING)

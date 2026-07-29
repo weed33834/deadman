@@ -14,12 +14,11 @@
 
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 
 from deadman.mcp_server import gateway as gw_module
-from deadman.mcp_server.gateway import GatewayDecision, ToolGateway
+from deadman.mcp_server.gateway import ToolGateway
 
 
 # =====================================================================

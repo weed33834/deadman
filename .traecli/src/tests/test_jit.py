@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 
@@ -24,7 +23,6 @@ import pytest
 import deadman.security.jit as jit_module
 from deadman.security.jit import (
     DEFAULT_TTL_SECONDS,
-    JIT_PERMISSION_ENABLED,
     JITPermissionManager,
     JITToken,
     get_jit_manager,

@@ -30,7 +30,6 @@ from ..feature_flags import is_enabled
 from ..multi_tenant import get_current_tenant_id
 from ..circuit_breaker import (
     CircuitBreaker,
-    CircuitBreakerOpenError,
     CircuitConfig,
     CircuitState,
     cb_registry,

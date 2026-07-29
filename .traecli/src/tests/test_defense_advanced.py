@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-import os
-import threading
 import time
 
 import pytest
@@ -276,7 +274,6 @@ class TestMultimodalGuardrail:
     def test_pre_check_detects_pii_in_text_input(self):
         """文本输入含 PII → REDACT 或 BLOCK。"""
         from deadman.infrastructure.defense.advanced.multimodal_guardrail import (
-            GuardrailAction,
             MultimodalGuardrail,
         )
         guard = MultimodalGuardrail()
@@ -291,7 +288,6 @@ class TestMultimodalGuardrail:
     def test_pre_check_blocks_ocr_with_pii(self):
         """OCR 输入含 PII 不可脱敏 → BLOCK。"""
         from deadman.infrastructure.defense.advanced.multimodal_guardrail import (
-            GuardrailAction,
             MultimodalGuardrail,
         )
         # OCR 接受 bytes 输入(模拟图像)
@@ -1442,7 +1438,6 @@ class TestRegionalComplianceOrchestrator:
     def test_check_cross_border_cn_to_us_allowed_with_consent(self):
         """CN → US 跨境,获用户同意 → ALLOWED。"""
         from deadman.infrastructure.defense.advanced.regional_compliance import (
-            ComplianceLevel,
             RegionalComplianceOrchestrator,
         )
         orch = RegionalComplianceOrchestrator()
@@ -1822,7 +1817,6 @@ class TestComputeGovernor:
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.advanced.inference_compute_governor import (
             ComputeGovernor,
-            DegradeReason,
             ReasoningModelStyle,
         )
         # 极小限额 + 大量使用 → 通常应降级,但关闭后透传
@@ -1984,8 +1978,8 @@ class TestConvergenceDetector:
         for i in range(5):
             detector.check_debate(
                 agent_outputs=[
-                    AgentOutput(agent_name=f"a1", output=f"answer variant {i}"),
-                    AgentOutput(agent_name=f"a2", output=f"different answer {i}"),
+                    AgentOutput(agent_name="a1", output=f"answer variant {i}"),
+                    AgentOutput(agent_name="a2", output=f"different answer {i}"),
                 ],
                 winner="a1",
             )
@@ -2487,7 +2481,6 @@ class TestConstitutionalDriftDetector:
         """get_drift_report 汇总所有阈值。"""
         from deadman.infrastructure.defense.advanced.constitutional_drift_detector import (
             ConstitutionalDriftDetector,
-            DriftSeverity,
             ChangeReason,
         )
         d = ConstitutionalDriftDetector()
@@ -2674,7 +2667,6 @@ class TestCrossModelCollusionDetector:
             CrossModelCollusionDetector,
             ModelProvider,
             ProviderOutput,
-            CollusionPattern,
         )
         d = CrossModelCollusionDetector()
         # 制造 6 次都选 OpenAI(超过窗口 5)

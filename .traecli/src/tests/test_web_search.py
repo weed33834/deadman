@@ -17,15 +17,12 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from deadman.tools.web_search import (
     DuckDuckGoSearchProvider,
     SearchResult,
-    WebSearchProvider,
     WebSearchTool,
 )
 

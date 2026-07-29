@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from deadman.observability.root_cause import (
-    ROOT_CAUSE_ENABLED,
     RootCauseAnalyzer,
     RootCauseReport,
 )

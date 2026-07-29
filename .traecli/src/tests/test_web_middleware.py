@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import time
-from unittest.mock import patch
 
 import pytest
 
@@ -14,10 +11,8 @@ from deadman.infrastructure.rate_limiter import (
     TokenBucket,
 )
 from deadman.infrastructure.web_middleware import (
-    AuditLogMiddleware,
     CORSMiddleware,
     MiddlewareChain,
-    MiddlewareResponse,
     RateLimitMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,

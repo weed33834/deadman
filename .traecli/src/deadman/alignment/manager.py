@@ -26,7 +26,7 @@ from typing import Any, Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from .continuous_learn import ContinuousLearner, FeedbackEvent
-from .dpo_trainer import DPOConfig, DPOTrainer, PreferenceExample, TrainingReport
+from .dpo_trainer import DPOConfig, DPOTrainer, TrainingReport
 from .local_llm import LocalLLMClient, LocalLLMConfig
 from .moe_router import Expert, MoEConfig, MoERouter
 from .sft_dataset import SFTDataset

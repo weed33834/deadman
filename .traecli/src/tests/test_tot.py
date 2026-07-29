@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 
 from deadman.orchestration.tot import (
     TOT_DEFAULT_PATHS,

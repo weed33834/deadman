@@ -32,8 +32,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
-from ..infrastructure.feature_flags import is_enabled
-from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
+from ..infrastructure.multi_tenant import resolve_data_path
 
 logger = logging.getLogger(__name__)
 

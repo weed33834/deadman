@@ -31,13 +31,13 @@ import logging
 import os
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
-from .feature_flags import evaluate, get_variant, is_enabled
+from .feature_flags import is_enabled
 
 logger = logging.getLogger(__name__)
 

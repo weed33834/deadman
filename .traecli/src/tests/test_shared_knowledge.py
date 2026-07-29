@@ -15,9 +15,7 @@ from pathlib import Path
 import pytest
 
 from deadman.memory.shared_knowledge import (
-    SharedKnowledgeEntry,
     SharedKnowledgeStore,
-    SHARED_KNOWLEDGE_ENABLED,
 )
 
 

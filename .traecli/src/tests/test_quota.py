@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import patch
 
 import pytest
 
 from deadman.infrastructure.quota import (
-    PERIOD_SECONDS,
     QuotaAction,
     QuotaExceededError,
     QuotaManager,
-    QuotaPeriod,
     SlidingWindowCounter,
 )
 

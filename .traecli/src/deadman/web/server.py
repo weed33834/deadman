@@ -3393,7 +3393,7 @@ class WebServer:
                 degraded=False,
                 forced_terminate=bool(result_state.get("forced_terminate")),
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("stream graph 调用失败，降级到 SoulLoader")
             degraded = True
             # 降级路径：用 SoulLoader.default_soul() 而非硬编码

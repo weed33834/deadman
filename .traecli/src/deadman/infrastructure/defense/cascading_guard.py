@@ -36,7 +36,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Optional

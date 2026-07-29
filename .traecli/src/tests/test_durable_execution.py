@@ -5,9 +5,7 @@ from __future__ import annotations
 import pytest
 
 from deadman.infrastructure.durable_execution import (
-    DEFAULT_DURABLE_LOG,
     DurableExecutionManager,
-    DurableRecord,
     ExecutionStatus,
 )
 

@@ -4,17 +4,12 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from deadman.infrastructure.credential_vault import (
-    CACHE_TTL_SECONDS,
     CredentialNotFoundError,
     CredentialVault,
-    CredentialVaultError,
-    DEFAULT_ROTATION_DAYS,
     _decrypt,
     _derive_master_key,
     _encrypt,

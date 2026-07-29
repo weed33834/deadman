@@ -32,7 +32,6 @@ from typing import Any
 from ..ending_note.store import (
     _atomic_write_json,
     _read_json,
-    _get_passphrase,
     _encrypt,
     _decrypt,
 )

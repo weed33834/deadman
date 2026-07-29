@@ -24,11 +24,10 @@ import json
 import logging
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Optional
 
-from ..infrastructure.feature_flags import is_enabled
 
 logger = logging.getLogger(__name__)
 

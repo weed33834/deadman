@@ -16,8 +16,7 @@ feature flag:`DEADMAN_MULTIMODAL_ENABLED=1`(测试启用)
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -48,7 +47,6 @@ def enable_multimodal(monkeypatch, tmp_path):
     defense_pkg._pr_instance = None
 
     # 重置 multimodal 全局单例
-    import deadman.multimodal as mm_pkg
     from deadman.multimodal import (
         ocr, asr, tts, vision, image_gen, storage, pipeline,
     )
@@ -495,7 +493,6 @@ class TestMultimodalPipeline:
 
     def test_disabled_raises(self, monkeypatch, sample_image):
         from deadman.multimodal.pipeline import MultimodalDisabledError, MultimodalPipeline
-        from deadman.multimodal.pipeline import reset_multimodal_pipeline
 
         pipe = MultimodalPipeline()
         # 模拟 disabled

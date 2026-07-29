@@ -20,11 +20,9 @@ import pytest
 
 import deadman.security.redteam as redteam_module
 from deadman.security.redteam import (
-    REDTEAM_ENABLED,
     REDTEAM_PAYLOAD_VAULT,
     RedteamPayload,
     RedteamReport,
-    RedteamResult,
     RedteamRunner,
     get_redteam_runner,
     reset_redteam_runner,

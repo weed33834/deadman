@@ -14,13 +14,9 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from deadman.memory.file_store import FileMemoryStore
 from deadman.memory.manager import MemoryManager

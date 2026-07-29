@@ -22,7 +22,7 @@ import os
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 from .feature_flags import is_enabled
 

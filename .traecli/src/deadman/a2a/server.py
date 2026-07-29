@@ -19,11 +19,10 @@ P4.4 v1.2 升级（feature flag DEADMAN_A2A_V12_ENABLED=0 默认关闭）：
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import uuid
-from typing import Any, AsyncIterator
+from typing import Any
 
 from ..config import settings
 from .models import A2A_V12_ENABLED, A2ATask, AgentCard, AgentCardSkill, PushNotificationConfig, TaskState

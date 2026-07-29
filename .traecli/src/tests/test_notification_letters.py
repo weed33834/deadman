@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import io
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -533,7 +532,6 @@ class _CapturedHandler:
 
     def _handle_letters_generate(self, body: dict, use_llm: bool = False) -> None:
         from deadman.notification_letters import (
-            LetterGenerator,
             LetterRequest,
         )
         from deadman.notification_letters.models import DEFAULT_DISCLAIMER

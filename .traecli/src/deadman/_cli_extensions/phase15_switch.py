@@ -36,7 +36,6 @@ from typing import Any
 def cmd_switch_init(args: argparse.Namespace) -> None:
     """switch-init：初始化 dead man switch 配置"""
     from deadman.deadman_switch.models import SwitchConfig
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     config = SwitchConfig(
@@ -73,7 +72,6 @@ def cmd_switch_init(args: argparse.Namespace) -> None:
 
 def cmd_switch_checkin(args: argparse.Namespace) -> None:
     """switch-checkin：用户主动 check-in，状态机立即重置 ACTIVE"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record = store.record_check_in(args.user_id, method=args.method)
@@ -87,7 +85,6 @@ def cmd_switch_checkin(args: argparse.Namespace) -> None:
 
 def cmd_switch_status(args: argparse.Namespace) -> None:
     """switch-status：查看当前状态"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record = store.load(args.user_id)
@@ -103,7 +100,6 @@ def cmd_switch_status(args: argparse.Namespace) -> None:
 
 def cmd_switch_tick(args: argparse.Namespace) -> None:
     """switch-tick：手动触发状态机检查（Cron 调用）"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record = store.tick(args.user_id)
@@ -122,7 +118,6 @@ def cmd_switch_tick(args: argparse.Namespace) -> None:
 
 def cmd_switch_verify_contact(args: argparse.Namespace) -> None:
     """switch-verify-contact：紧急联系人确认 / 否认失联"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record, msg = store.verify_emergency_contact(
@@ -139,7 +134,6 @@ def cmd_switch_verify_contact(args: argparse.Namespace) -> None:
 
 def cmd_switch_verify_heir(args: argparse.Namespace) -> None:
     """switch-verify-heir：继承人确认 / 否认失联"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record, msg = store.verify_heir(
@@ -156,7 +150,6 @@ def cmd_switch_verify_heir(args: argparse.Namespace) -> None:
 
 def cmd_switch_cancel(args: argparse.Namespace) -> None:
     """switch-cancel：用户主动取消"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record = store.cancel(args.user_id, reason=args.reason)
@@ -170,7 +163,6 @@ def cmd_switch_cancel(args: argparse.Namespace) -> None:
 
 def cmd_switch_list_actions(args: argparse.Namespace) -> None:
     """switch-list-actions：列出待执行动作"""
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     record = store.load(args.user_id)
@@ -196,7 +188,6 @@ def cmd_switch_execute(args: argparse.Namespace) -> None:
     safety-protocol.md：必须先过冷静期（cooldown_days）
     """
     from deadman.deadman_switch.actions import SwitchActionExecutor
-    from deadman.deadman_switch.store import SwitchStore
 
     store = _make_store(args)
     executor = SwitchActionExecutor(store=store)

@@ -70,19 +70,19 @@ def cmd_plan_score(args: argparse.Namespace) -> None:
     scorer = PlanScorer()
     result = scorer.score(user_id)
 
-    print(f"=== 身后事规划完整度评分 ===")
+    print("=== 身后事规划完整度评分 ===")
     print(f"user_id:       {result.user_id}")
     print(f"total_score:   {result.total_score}/100")
     print(f"generated_at:  {result.generated_at.isoformat()}")
     print()
-    print(f"--- 各维度分数 ---")
+    print("--- 各维度分数 ---")
     for sub in result.category_scores:
         print(
             f"  {sub.category.value:<18} {sub.score:>3}/100  "
             f"完成 {len(sub.completed_items)} 项 / 缺失 {len(sub.missing_items)} 项"
         )
     print()
-    print(f"--- top 3 优先建议 ---")
+    print("--- top 3 优先建议 ---")
     if result.overall_suggestions:
         for i, s in enumerate(result.overall_suggestions, 1):
             print(f"  {i}. {s}")
@@ -103,7 +103,7 @@ def cmd_plan_score_detail(args: argparse.Namespace) -> None:
     result = scorer.score(user_id)
 
     # 人类可读摘要
-    print(f"=== 身后事规划完整度评分（详细）===")
+    print("=== 身后事规划完整度评分（详细）===")
     print(f"user_id:       {result.user_id}")
     print(f"total_score:   {result.total_score}/100")
     print(f"generated_at:  {result.generated_at.isoformat()}")
@@ -130,7 +130,7 @@ def cmd_plan_score_detail(args: argparse.Namespace) -> None:
         if not sub.suggestions:
             print("  （无）")
         print()
-    print(f"================ 跨维度 top 3 建议 ================")
+    print("================ 跨维度 top 3 建议 ================")
     if result.overall_suggestions:
         for i, s in enumerate(result.overall_suggestions, 1):
             print(f"  {i}. {s}")

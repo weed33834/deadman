@@ -20,7 +20,6 @@ import pytest
 
 import deadman.orchestration.nodes as nodes_module
 from deadman.orchestration.nodes import (
-    GUID_SANDBOX_ENABLED,
     _build_guid_sandbox_preamble,
     _detect_external_content,
     _wrap_untrusted_content,

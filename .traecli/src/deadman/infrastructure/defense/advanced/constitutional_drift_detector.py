@@ -56,7 +56,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import math
 import os
 import threading
 import time
@@ -347,7 +346,7 @@ class ConstitutionalDriftDetector:
                 type=baseline.type,
                 actor="system",
                 reason=ChangeReason.ROLLBACK,
-                reason_text=f"Rollback to baseline (drift too large)",
+                reason_text="Rollback to baseline (drift too large)",
                 tags={"rolled_back_from": str(current.value)},
             )
             self._history[name].append(rollback)

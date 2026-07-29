@@ -66,7 +66,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-import re
 import threading
 import time
 from collections import Counter, defaultdict, deque

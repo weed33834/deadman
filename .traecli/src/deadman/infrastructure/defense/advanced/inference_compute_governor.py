@@ -52,7 +52,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 from ...feature_flags import is_enabled
 

@@ -13,9 +13,7 @@
 
 from __future__ import annotations
 
-from typing import Any
 
-import pytest
 
 from deadman.orchestration.self_consistency import (
     SELF_CONSISTENCY_DEFAULT_N,

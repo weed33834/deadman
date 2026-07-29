@@ -24,7 +24,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -38,8 +37,6 @@ from ..infrastructure.defense.pii_guard import (
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import (
     DEFAULT_TENANT_ID,
-    TenantContext,
-    TenantInfo,
     get_current_tenant_id,
 )
 from .anonymizer import Anonymizer
@@ -49,7 +46,6 @@ from .graphiti_runtime import (
     Episode,
     EpisodeType,
     GraphitiRuntime,
-    KGEdge,
     KGNode,
 )
 from .lightrag_runtime import LightRAGRuntime

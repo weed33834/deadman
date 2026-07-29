@@ -21,7 +21,6 @@ import pytest
 
 from deadman.utils.crypto import (
     _decrypt_v1,
-    _decrypt_v2,
     _v2_derive_subkey,
     _v2_keystream,
     decrypt_bytes,

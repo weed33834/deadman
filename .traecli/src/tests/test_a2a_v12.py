@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,16 +16,13 @@ import pytest
 import deadman.a2a.models as a2a_models
 import deadman.a2a.server as a2a_server_module
 from deadman.a2a.models import (
-    A2A_V12_ENABLED,
     AgentCard,
     AgentCardSkill,
     PushNotificationConfig,
-    TaskState,
 )
 from deadman.a2a.server import (
     A2AServer,
     _HAS_CRYPTOGRAPHY,
-    _HAS_HTTPX,
     format_sse_events,
 )
 

@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -34,7 +33,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from ..infrastructure.feature_flags import is_enabled
-from ..infrastructure.multi_tenant import resolve_data_path
 
 logger = logging.getLogger(__name__)
 

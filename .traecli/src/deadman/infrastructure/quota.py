@@ -27,7 +27,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from .feature_flags import is_enabled
 from .multi_tenant import get_current_tenant_id

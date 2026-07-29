@@ -167,7 +167,6 @@ def cmd_eval_ragas(args):
     from .config import settings
     from .evaluation.ragas_evaluator import (
         DEFAULT_QUALITY_GATE_THRESHOLD,
-        QualityGateError,
         RAGASEvaluator,
         run_ragas_batch,
     )
@@ -188,7 +187,7 @@ def cmd_eval_ragas(args):
         print("       退出码 0(不阻断 CI)")
         return
 
-    print(f"\n=== RAGAS 评估启动 ===")
+    print("\n=== RAGAS 评估启动 ===")
     print(f"cases_dir: {cases_dir}")
     print(f"quick_mode: {quick_mode}")
     print(f"quality_gate_threshold: {threshold}")
@@ -3087,15 +3086,13 @@ def cmd_web_search(args):
     失败返回 ok=False + 引导打官方热线（integrity-framework：不编造）。
     结果同时写入 data/web_search_health.json 供反馈闭环。
     """
-    import json
-    from datetime import datetime
 
     from .tools.web_search import WebSearchTool
 
     query = args.query
     max_results = getattr(args, "max", 5)
 
-    print(f"=== 联网搜索测试 ===")
+    print("=== 联网搜索测试 ===")
     print(f"查询: {query}")
     print(f"最大结果数: {max_results}")
     print()
@@ -3771,7 +3768,7 @@ def cmd_governance_check(args):
     incident_type = getattr(args, "incident_type", None)
     amount = float(getattr(args, "amount", 0) or 0)
 
-    print(f"=== Governance 合规检查 ===")
+    print("=== Governance 合规检查 ===")
     print(f"  动作:       {action}")
     print(f"  保险类型:   {incident_type or '(未指定)'}")
     print(f"  涉及金额:   {amount}")
@@ -3783,7 +3780,7 @@ def cmd_governance_check(args):
         amount=amount,
     )
 
-    print(f"\n  检查结果:")
+    print("\n  检查结果:")
     print(f"    允许:       {'是' if decision.allowed else '否'}")
     print(f"    原因:       {decision.reason}")
     print(f"    保险覆盖:   {'是' if decision.insurance_covered else '否'}")
@@ -3817,14 +3814,14 @@ def cmd_multimodal_status(args):
     # 各能力状态
     caps = pipe.list_capabilities()
     all_caps = ["ocr", "asr", "tts", "vision", "image_gen"]
-    print(f"\n  能力列表:")
+    print("\n  能力列表:")
     for cap in all_caps:
         status = "启用" if cap in caps else "禁用"
         print(f"    {cap:<12} {status}")
 
     # Pipeline 配置
     cfg = pipe.config
-    print(f"\n  配置:")
+    print("\n  配置:")
     print(f"    默认 provider:     {cfg.default_provider or '(自动)'}")
     print(f"    Budget/会话:       {cfg.budget_token_per_session}")
     print(f"    Audit 日志:        {'启用' if cfg.audit_log_enabled else '禁用'}")
@@ -3838,7 +3835,7 @@ def cmd_multimodal_status(args):
             print(f"    [{entry.get('capability')}] provider={entry.get('provider')} "
                   f"success={entry.get('success')} duration={entry.get('duration_ms', 0):.0f}ms")
     else:
-        print(f"\n  审计记录: (无)")
+        print("\n  审计记录: (无)")
 
 
 # ====================================================================

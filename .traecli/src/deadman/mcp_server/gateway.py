@@ -27,7 +27,7 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 # =====================================================================
@@ -341,7 +341,7 @@ class ToolGateway:
                 allowed, reason = check_fn(tool_name, args)
                 if not allowed:
                     return False, reason or layer_reason, 0.1
-            except Exception as exc:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 # policy 规则自身出错：fail-open
                 continue
         return True, "", 1.0

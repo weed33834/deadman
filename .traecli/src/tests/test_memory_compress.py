@@ -17,9 +17,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-import pytest
 
 from deadman.memory.file_store import FileMemoryStore
 import deadman.memory.manager as mm_module

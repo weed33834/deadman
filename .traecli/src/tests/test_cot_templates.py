@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from deadman.prompts import COT_TEMPLATES, get_cot_template
 

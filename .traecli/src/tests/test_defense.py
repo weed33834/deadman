@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from pathlib import Path
 
 import pytest
 
@@ -682,7 +681,6 @@ class TestDegradationGuard:
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.degradation_guard import (
             DegradationGuard,
-            DegradationLevel,
         )
         guard = DegradationGuard(max_hard_per_scope=1)
         # 关闭后即使已满也允许
@@ -737,7 +735,7 @@ class TestChainCircuitBreaker:
     def test_chain_fallback_on_failure(self):
         """顶级失败 → 自动 fallback 到下一级。"""
         from deadman.infrastructure.defense.chain_circuit_breaker import (
-            get_or_create_chain, FallbackReason,
+            get_or_create_chain,
         )
 
         call_count = [0]
@@ -943,7 +941,7 @@ class TestTraceAnonymizer:
 
     def test_link_id_differs_for_different_sessions(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import (
-            CrossSessionLinker, TraceLinkStrategy,
+            CrossSessionLinker,
         )
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1")
@@ -1188,7 +1186,7 @@ class TestMasterKeyBackup:
         import os
         import pytest
         from deadman.infrastructure.defense.master_key_backup import (
-            MasterKeyBackup, BackupStatus,
+            MasterKeyBackup,
         )
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         old_master_key = os.urandom(32)

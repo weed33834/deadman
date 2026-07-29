@@ -271,7 +271,7 @@ class InstitutionStore:
                 if key == "type" and value not in VALID_TYPES:
                     raise ValueError(f"未知机构类型: {value}")
                 if key == "confidence" and not 0.0 <= value <= 1.0:
-                    raise ValueError(f"confidence 必须在 [0.0, 1.0] 区间")
+                    raise ValueError("confidence 必须在 [0.0, 1.0] 区间")
                 setattr(inst, key, value)
         inst.updated_at = datetime.now()
         self._save()

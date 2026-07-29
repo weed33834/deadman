@@ -28,14 +28,12 @@ import argparse
 import http.client
 import json
 import socket
-import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 
 from deadman.plan_score.models import Category, PlanScore, SubScore
 from deadman.plan_score.scorer import PlanScorer, WEIGHTS

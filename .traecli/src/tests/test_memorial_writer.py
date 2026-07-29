@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -27,7 +26,6 @@ import pytest
 
 from deadman.memorial_writer.generator import MemorialGenerator
 from deadman.memorial_writer.models import (
-    DOC_TYPES,
     MemorialRequest,
     MemorialResult,
 )

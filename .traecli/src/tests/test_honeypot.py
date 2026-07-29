@@ -19,7 +19,6 @@ import pytest
 
 import deadman.security.honeypot as honeypot_module
 from deadman.security.honeypot import (
-    HONEYPOT_ENABLED,
     HONEYPOT_TOOL_DEFINITIONS,
     HONEYPOT_TOOLS,
     HoneypotManager,

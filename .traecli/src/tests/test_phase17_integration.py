@@ -48,9 +48,9 @@ import json
 import socket
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -242,7 +242,7 @@ def test_vault_encryption_with_deadman_switch(tmp_path: Path):
     # 状态应从 ACTIVE 推进（具体到 SUSPECTED 还是 VERIFYING 取决于 tick 内部
     # 是否一次走两步；至少不应停留在 ACTIVE）
     assert ticked.state != SwitchState.ACTIVE, (
-        f"超过失联阈值后状态应推进，实际仍为 ACTIVE"
+        "超过失联阈值后状态应推进，实际仍为 ACTIVE"
     )
     assert ticked.state in (SwitchState.SUSPECTED, SwitchState.VERIFYING)
 
@@ -1210,7 +1210,6 @@ def test_scenario_2_full_transfer_flow(patch_llm):
         route_to_agent,
     )
     from deadman.orchestration.state import create_initial_state
-    from deadman.types import TransferSummary
 
     state = create_initial_state(
         "我爸在加州去世，留了3套房、公司股权、还有比特币，我哥要争"

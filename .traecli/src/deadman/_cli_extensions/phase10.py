@@ -50,7 +50,7 @@ def cmd_ending_note_show(args: argparse.Namespace) -> None:
         print(f"[{user_id}] 尚无终活笔记。请用 ending-note-guide 开始填写。")
         print(_DISCLAIMER)
         return
-    print(f"=== 终活笔记 ===")
+    print("=== 终活笔记 ===")
     print(f"user_id:     {note.user_id}")
     print(f"note_id:     {note.note_id}")
     print(f"created_at:  {note.created_at.isoformat()}")
@@ -66,11 +66,11 @@ def cmd_ending_note_show(args: argparse.Namespace) -> None:
             print(json.dumps(value, ensure_ascii=False, indent=2))
         print()
     # 共享与触发
-    print(f"## 共享设置")
+    print("## 共享设置")
     print(f"  shared_with: {note.shared_with or []}")
     print(f"  delivery_triggers: {note.delivery_triggers or []}")
     print()
-    print(f"## 安全标记")
+    print("## 安全标记")
     print(json.dumps(note.safety_flags or {}, ensure_ascii=False, indent=2))
     print()
     # 安全告警
@@ -190,7 +190,7 @@ def cmd_ending_note_completion(args: argparse.Namespace) -> None:
     guide = EndingNoteGuide(store=store)
     rate = guide.completion_rate(note)
 
-    print(f"=== 终活笔记完整度 ===")
+    print("=== 终活笔记完整度 ===")
     print(f"user_id: {user_id}")
     print(f"总完整度: {rate['overall']:.0%}")
     print()

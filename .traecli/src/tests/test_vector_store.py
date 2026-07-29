@@ -11,19 +11,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
 
 import pytest
 
 from deadman.memory.vector_store import (
     ChromaVectorStore,
     InMemoryVectorStore,
-    VectorStore,
     _cosine_similarity,
     _hash_embedding,
     get_vector_store,
     reset_vector_store_singleton,
-    VECTOR_STORE_ENABLED,
 )
 
 

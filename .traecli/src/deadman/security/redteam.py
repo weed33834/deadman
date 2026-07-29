@@ -38,7 +38,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Union
+from typing import Awaitable, Callable, Union
 
 logger = logging.getLogger(__name__)
 

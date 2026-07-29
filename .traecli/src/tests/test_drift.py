@@ -13,9 +13,7 @@ from __future__ import annotations
 import pytest
 
 from deadman.observability.drift import (
-    DRIFT_DETECTION_ENABLED,
     DriftDetector,
-    DriftReport,
 )
 
 

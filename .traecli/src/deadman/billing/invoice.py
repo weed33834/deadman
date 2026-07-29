@@ -27,8 +27,8 @@ from typing import Any, Optional
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
 from .metering import MeteringDimension, MeteringService, get_metering_service
-from .plans import Plan, get_plan
-from .subscription import BillingCycle, SubscriptionManager, SubscriptionStatus, get_subscription_manager
+from .plans import get_plan
+from .subscription import BillingCycle, SubscriptionManager, get_subscription_manager
 
 logger = logging.getLogger(__name__)
 
@@ -315,7 +315,7 @@ class InvoiceGenerator:
                 lines.append(
                     f'"{li.description}",{li.quantity},{li.unit_price},{li.amount},"{li.dimension}",{li.overage}'
                 )
-            lines.append(f"")
+            lines.append("")
             lines.append(f"小计,{invoice.subtotal}")
             lines.append(f"税费,{invoice.tax}")
             lines.append(f"总计,{invoice.total}")

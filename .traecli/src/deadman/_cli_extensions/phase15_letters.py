@@ -106,7 +106,7 @@ def cmd_letter_list_types(args: argparse.Namespace) -> None:
         print(f"   收件机构默认：{item['recipient_default']}")
         print(f"   说明：{item['description']}")
         if item.get("extra_fields_needed"):
-            print(f"   类型特定字段（--extra 传入）：")
+            print("   类型特定字段（--extra 传入）：")
             for f in item["extra_fields_needed"]:
                 print(f"     - {f}")
         print()

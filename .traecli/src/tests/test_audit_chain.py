@@ -25,7 +25,6 @@ import pytest
 
 import deadman.security.audit as audit_module
 from deadman.security.audit import (
-    AUDIT_CHAIN_ENABLED,
     GENESIS_HASH,
     AuditChain,
     AuditEvent,

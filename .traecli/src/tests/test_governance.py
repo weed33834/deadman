@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -329,7 +327,6 @@ class TestRiskCard:
         from deadman.governance.risk_card import (
             RiskAssessment,
             RiskCard,
-            RiskCategory,
             RiskLikelihood,
             RiskSeverity,
         )
@@ -354,7 +351,6 @@ class TestRiskCard:
         from deadman.governance.risk_card import (
             RiskAssessment,
             RiskCard,
-            RiskSeverity,
             RiskStatus,
         )
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
@@ -683,7 +679,6 @@ class TestAppeals:
         am = AppealsManager(store_path=tmp_path / "ap.json")
         appeal = am.file("u1", "d1", "r1")
         # 模拟 SLA 超时 - 手动改 filed_at 到 8 天前
-        import deadman.governance.appeals as ap_mod
         # 通过 list_overdue 触发检查
         # 先直接修改 cache 中的 appeal
         am._cache[appeal.appeal_id].filed_at = time.time() - (APPEAL_SLA_SECONDS + 100)
@@ -783,9 +778,7 @@ class TestEthicsCommittee:
 
     def test_assign_high_severity_quorum_chair_required(self, tmp_path):
         from deadman.governance.ethics_committee import (
-            CommitteeMember,
             EthicsCommittee,
-            MemberRole,
         )
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
@@ -1038,7 +1031,6 @@ class TestLiabilityInsurance:
     def test_check_coverage_exclusion(self, tmp_path):
         from deadman.governance.liability_insurance import (
             LiabilityInsurance,
-            InsurancePolicy,
         )
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         # 加排除:data_leak 被 excluded

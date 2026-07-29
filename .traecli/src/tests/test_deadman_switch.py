@@ -39,7 +39,6 @@ import time
 import http.client
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -53,10 +52,6 @@ from deadman.deadman_switch.models import (
 from deadman.deadman_switch.store import SwitchStore
 from deadman.deadman_switch.actions import (
     SwitchActionExecutor,
-    ACTION_DELIVER_ENDING_NOTE,
-    ACTION_NOTIFY_HEIRS,
-    ACTION_NOTIFY_LAWYER,
-    ACTION_TRIGGER_VAULT_ON_DEATH,
 )
 
 

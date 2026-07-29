@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -15,8 +12,6 @@ from deadman.infrastructure.multi_tenant import (
     TenantRegistry,
     get_current_tenant,
     get_current_tenant_id,
-    get_tenant_registry,
-    is_multi_tenant_enabled,
     resolve_data_path,
     resolve_memory_path,
     resolve_tenant_path,

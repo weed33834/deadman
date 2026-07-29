@@ -19,7 +19,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from deadman.observability.replay import (
-    REPLAY_ENABLED,
     ReplayDebugger,
     ReplayRequest,
     ReplayResult,
