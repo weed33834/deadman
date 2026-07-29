@@ -710,3 +710,264 @@ class TestWebEndpoints:
 
 # 保留对原始 __init__ 的引用，用于 monkeypatch 中恢复
 _orig_init = SwitchStore.__init__
+
+
+# ====================================================================
+# 9. DMS 通知通道接通 EmailSender（P0-3 修复验证）
+#    验证 notify_lawyer / notify_heirs 真正调用 EmailSender.send_sync()
+#    发送邮件，而非仅记录 manual_todo。
+# ====================================================================
+class TestNotifyEmailChannel:
+    """P0-3：DMS 通知通道功能契约修复验证
+
+    覆盖矩阵：
+        notify_lawyer:
+            - SMTP 配置 + 发送成功 → notified_via=email
+            - SMTP 未配置          → 降级 manual_todo（success）
+            - SMTP 配置 + 发送失败 → retryable 失败
+            - 律师标识符为邮箱     → 直接用，不查 UserStore
+            - 律师标识符为 user_id → 通过 UserStore 解析邮箱
+        notify_heirs:
+            - SMTP 配置 + 发送成功 → 真正发送 + guardrail record_send
+            - SMTP 未配置          → 降级待办（仍 success）
+            - 邮箱无法解析         → 降级待办（仍 success）
+            - guardrail 拒绝       → blocked，不发送
+            - 全部发送失败         → retryable 失败
+    """
+
+    @staticmethod
+    def _make_fake_sender(configured: bool = True, send_ok: bool = True):
+        """构造一个可记录调用、可控返回的假 EmailSender"""
+
+        class _FakeSender:
+            def __init__(self):
+                self._configured = configured
+                self._send_ok = send_ok
+                self.calls: list[tuple[str, str, str]] = []
+
+            def is_configured(self) -> bool:
+                return self._configured
+
+            def send_sync(self, to_email, subject, body):
+                self.calls.append((to_email, subject, body))
+                if self._send_ok:
+                    return {"sent": True, "message_id": "fake-msg-id"}
+                return {"sent": False, "error": "fake_smtp_error"}
+
+        return _FakeSender()
+
+    @staticmethod
+    def _make_fake_user_store(email_map: dict[str, str]):
+        """构造一个能按 user_id 返回 email 的假 UserStore"""
+
+        class _FakeUserStore:
+            def __init__(self):
+                self._map = email_map
+
+            def get_user(self, user_id):
+                email = self._map.get(user_id)
+                if email is None:
+                    return None
+                return {"user_id": user_id, "email": email}
+
+        return _FakeUserStore()
+
+    @staticmethod
+    def _advance_to_confirmed_with_email_recipients(
+        store: SwitchStore, user_id: str
+    ) -> SwitchRecord:
+        """推到 CONFIRMED 且配置邮箱形收件人（lawyer/heir 用邮箱地址）"""
+        cfg = SwitchConfig(
+            check_in_frequency_days=30,
+            missed_threshold=3,
+            verification_window_days=7,
+            cooldown_days=7,
+            emergency_contacts=["contact-A"],
+            lawyer_user_id="lawyer@example.com",
+            heir_user_ids=["heir@example.com"],
+        )
+        store.init_switch(user_id, cfg)
+        record = store.load(user_id)
+        assert record is not None
+        future = record.last_check_in + timedelta(days=100)
+        store.tick(user_id, now=future)
+        record = store.load(user_id)
+        assert record is not None
+        assert record.state == SwitchState.VERIFYING
+        # 紧急联系人 + 继承人确认
+        store.verify_emergency_contact(user_id, "contact-A", True)
+        store.verify_heir(user_id, "heir@example.com", True)
+        store.engage_lawyer(user_id)
+        store.tick(user_id, now=future)
+        record = store.load(user_id)
+        assert record is not None
+        assert record.state == SwitchState.CONFIRMED
+        # 回退 confirmed_at 到 8 天前（过冷静期）
+        record.confirmed_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8)
+        store.save(record)
+        return record
+
+    def test_notify_lawyer_sends_email_when_smtp_configured(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
+        """SMTP 配置 + 发送成功 → notify_lawyer 真正调用 send_sync"""
+        from deadman.notification.guardrail import NotificationGuardrail
+
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, u: False)
+        record = self._advance_to_confirmed_with_email_recipients(store, "u-lawyer-send")
+        guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
+        fake_sender = self._make_fake_sender(configured=True, send_ok=True)
+
+        executor = SwitchActionExecutor(
+            store=store, guardrail=guardrail, email_sender=fake_sender
+        )
+        result = executor.execute_confirmed(record.user_id)
+
+        # notify_lawyer 应在 executed 列表中
+        assert "notify_lawyer" in result["executed"]
+        # 验证确实调用了 send_sync（律师邮箱）
+        lawyer_calls = [c for c in fake_sender.calls if c[0] == "lawyer@example.com"]
+        assert len(lawyer_calls) == 1, f"应向律师发送 1 封邮件，实际 {len(lawyer_calls)}"
+        assert "律师介入通知" in lawyer_calls[0][1]
+
+    def test_notify_lawyer_degrades_when_smtp_not_configured(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
+        """SMTP 未配置 → notify_lawyer 降级为 manual_todo，不调用 send_sync"""
+        from deadman.notification.guardrail import NotificationGuardrail
+
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, u: False)
+        record = self._advance_to_confirmed_with_email_recipients(store, "u-lawyer-degrade")
+        guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
+        fake_sender = self._make_fake_sender(configured=False, send_ok=True)
+
+        executor = SwitchActionExecutor(
+            store=store, guardrail=guardrail, email_sender=fake_sender
+        )
+        result = executor.execute_confirmed(record.user_id)
+
+        # 动作仍应成功（降级不阻塞）
+        assert "notify_lawyer" in result["executed"]
+        # 不应调用 send_sync
+        assert len(fake_sender.calls) == 0, "SMTP 未配置时不应调用 send_sync"
+
+    def test_notify_lawyer_retryable_when_send_fails(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
+        """SMTP 配置但发送失败 → notify_lawyer 作为 retryable 失败保留 pending"""
+        from deadman.notification.guardrail import NotificationGuardrail
+
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, u: False)
+        monkeypatch.setattr(NotificationGuardrail, "DAILY_LIMIT", 50)
+        monkeypatch.setattr(NotificationGuardrail, "WEEKLY_LIMIT", 100)
+        monkeypatch.setattr(NotificationGuardrail, "MONTHLY_LIMIT", 200)
+        record = self._advance_to_confirmed_with_email_recipients(store, "u-lawyer-fail")
+        guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
+        # consent 让 heir/律师 过 guardrail
+        for rid in ["heir@example.com", "lawyer@example.com", "contact-A"]:
+            guardrail.record_consent(rid, "同意", "deadman_switch")
+        # sender 永远失败
+        fake_sender = self._make_fake_sender(configured=True, send_ok=False)
+
+        executor = SwitchActionExecutor(
+            store=store, guardrail=guardrail, email_sender=fake_sender
+        )
+        result = executor.execute_confirmed(record.user_id)
+
+        # notify_lawyer 应在 failed 列表（retryable）
+        failed_actions = [f["action"] for f in result["failed"]]
+        assert "notify_lawyer" in failed_actions
+        # notify_heirs 也应失败（heir 邮箱发送失败 → 全失败 → retryable）
+        assert "notify_heirs" in failed_actions
+        # 状态不应转为 EXECUTED（有 retryable 失败）
+        assert result["state"] != "EXECUTED"
+
+    def test_notify_heirs_sends_email_when_smtp_configured(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
+        """SMTP 配置 + 发送成功 → notify_heirs 真正发送邮件给每个继承人"""
+        from deadman.notification.guardrail import NotificationGuardrail
+
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, u: False)
+        monkeypatch.setattr(NotificationGuardrail, "DAILY_LIMIT", 50)
+        monkeypatch.setattr(NotificationGuardrail, "WEEKLY_LIMIT", 100)
+        monkeypatch.setattr(NotificationGuardrail, "MONTHLY_LIMIT", 200)
+        record = self._advance_to_confirmed_with_email_recipients(store, "u-heir-send")
+        guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
+        guardrail.record_consent("heir@example.com", "同意", "deadman_switch")
+        fake_sender = self._make_fake_sender(configured=True, send_ok=True)
+
+        executor = SwitchActionExecutor(
+            store=store, guardrail=guardrail, email_sender=fake_sender
+        )
+        result = executor.execute_confirmed(record.user_id)
+
+        assert "notify_heirs" in result["executed"]
+        heir_calls = [c for c in fake_sender.calls if c[0] == "heir@example.com"]
+        assert len(heir_calls) == 1, f"应向继承人发送 1 封邮件，实际 {len(heir_calls)}"
+        assert "继承人通知" in heir_calls[0][1]
+
+    def test_notify_heirs_resolves_user_id_to_email_via_user_store(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
+        """heir 标识符为 user_id 时，通过注入的 user_store 解析邮箱后发送"""
+        from deadman.notification.guardrail import NotificationGuardrail
+
+        monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
+        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, u: False)
+        monkeypatch.setattr(NotificationGuardrail, "DAILY_LIMIT", 50)
+        monkeypatch.setattr(NotificationGuardrail, "WEEKLY_LIMIT", 100)
+        monkeypatch.setattr(NotificationGuardrail, "MONTHLY_LIMIT", 200)
+        # 配置 heir 为 user_id（非邮箱），需 user_store 解析
+        cfg = SwitchConfig(
+            check_in_frequency_days=30,
+            missed_threshold=3,
+            verification_window_days=7,
+            cooldown_days=7,
+            emergency_contacts=["contact-A"],
+            lawyer_user_id=None,  # 跳过律师通知
+            heir_user_ids=["heir-user-99"],
+        )
+        store.init_switch("u-resolve", cfg)
+        record = store.load("u-resolve")
+        assert record is not None
+        future = record.last_check_in + timedelta(days=100)
+        store.tick("u-resolve", now=future)
+        store.verify_emergency_contact("u-resolve", "contact-A", True)
+        store.verify_heir("u-resolve", "heir-user-99", True)
+        store.engage_lawyer("u-resolve")
+        store.tick("u-resolve", now=future)
+        record = store.load("u-resolve")
+        assert record is not None
+        assert record.state == SwitchState.CONFIRMED
+        record.confirmed_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8)
+        store.save(record)
+
+        guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
+        guardrail.record_consent("heir-user-99", "同意", "deadman_switch")
+        fake_sender = self._make_fake_sender(configured=True, send_ok=True)
+        fake_user_store = self._make_fake_user_store(
+            {"heir-user-99": "resolved-heir@example.com"}
+        )
+
+        executor = SwitchActionExecutor(
+            store=store,
+            guardrail=guardrail,
+            email_sender=fake_sender,
+            user_store=fake_user_store,
+        )
+        result = executor.execute_confirmed("u-resolve")
+
+        assert "notify_heirs" in result["executed"]
+        # 验证发到了解析出的邮箱
+        resolved_calls = [
+            c for c in fake_sender.calls if c[0] == "resolved-heir@example.com"
+        ]
+        assert len(resolved_calls) == 1, (
+            f"应向解析出的 heir 邮箱发送 1 封，实际 {len(resolved_calls)}; "
+            f"all_calls={fake_sender.calls}"
+        )

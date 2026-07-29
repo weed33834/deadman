@@ -54,8 +54,6 @@ class SwitchAutoTicker:
         email_sender: Any = None,
     ) -> None:
         self.store = store
-        # 注入 executor 便于测试隔离（不传则用默认 NotificationGuardrail 数据目录）
-        self.executor = executor or SwitchActionExecutor(store=store)
         # 邮件通知器：注入优先；未注入则懒加载 EmailSender
         # （EmailSender 初始化只读环境变量不报错；aiosmtplib 不可用时在 send() 内部降级）
         self.email_sender = email_sender
@@ -67,6 +65,15 @@ class SwitchAutoTicker:
             except Exception as exc:
                 logger.warning("EmailSender 初始化失败，邮件通知降级: %s", exc)
                 self.email_sender = None
+        # 注入 executor 便于测试隔离（不传则用默认 NotificationGuardrail 数据目录）
+        # 同时把 email_sender 传入 executor，使 EXECUTED 阶段的 notify_lawyer /
+        # notify_heirs 动作能复用同一份 SMTP 配置真正发送邮件（P0-3 修复）
+        if executor is None:
+            self.executor = SwitchActionExecutor(
+                store=store, email_sender=self.email_sender
+            )
+        else:
+            self.executor = executor
         # 主循环控制位（run_forever 内部置 False 后退出）
         self._running = False
 
