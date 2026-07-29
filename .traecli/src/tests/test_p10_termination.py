@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from deadman.orchestration.state import create_initial_state
@@ -355,7 +357,7 @@ class TestTerminationResult:
     def test_frozen_dataclass(self):
         """frozen=True，字段不可修改"""
         r = TerminationResult(True, "reason", "source")
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             r.should_terminate = False  # type: ignore
 
     def test_equality(self):

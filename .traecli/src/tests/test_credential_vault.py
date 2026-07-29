@@ -63,12 +63,13 @@ class TestEncryptDecrypt:
     def test_wrong_master_key_fails_decryption(self, fresh_master_key):
         if not _HAS_CRYPTO:
             pytest.skip("cryptography not installed")
+        from cryptography.exceptions import InvalidTag
         import secrets
         key1 = _derive_master_key()
         key2 = secrets.token_bytes(32)
         encrypted = _encrypt("secret", key1)
         # 用错误 key 解密应抛异常
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTag):
             _decrypt(encrypted, key2)
 
 

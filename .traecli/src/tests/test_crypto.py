@@ -18,6 +18,7 @@ import hmac
 import secrets
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from deadman.utils.crypto import (
     _decrypt_v1,
@@ -197,7 +198,7 @@ class TestBytesEncryption:
         key1 = derive_key(b"pass1", b"salt")
         key2 = derive_key(b"pass2", b"salt")
         ct = encrypt_bytes(plaintext, key1)
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTag):
             decrypt_bytes(ct, key2)
 
     def test_short_ciphertext_raises(self):

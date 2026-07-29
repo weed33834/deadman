@@ -20,6 +20,8 @@ import time
 
 import pytest
 
+from deadman.marketplace import MarketplaceError
+
 
 # =====================================================================
 # 公共 fixture
@@ -174,7 +176,7 @@ class TestRegistry:
 
     def test_submit_duplicate_raises(self, registry):
         registry.submit(_make_listing(agent_id="a1"))
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             registry.submit(_make_listing(agent_id="a1"))
 
     def test_approve_changes_status(self, registry):
@@ -185,7 +187,7 @@ class TestRegistry:
     def test_approve_non_pending_raises(self, registry):
         registry.submit(_make_listing(agent_id="a1"))
         registry.approve("a1")
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             registry.approve("a1")  # 已 approved,不能重复 approve
 
     def test_reject_records_reason(self, registry):
@@ -205,7 +207,7 @@ class TestRegistry:
 
     def test_suspend_non_approved_raises(self, registry):
         registry.submit(_make_listing(agent_id="a1"))
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             registry.suspend("a1")  # pending 状态不能 suspend
 
     def test_list_only_returns_approved(self, registry):
@@ -269,7 +271,7 @@ class TestRegistry:
 
     def test_update_version_non_approved_raises(self, registry):
         registry.submit(_make_listing(agent_id="a1"))
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             registry.update_version("a1", "2.0.0")
 
     def test_persistence_round_trip(self, registry, tmp_path):
@@ -437,9 +439,9 @@ class TestRating:
         assert r.review_text == "great"
 
     def test_rate_invalid_score_raises(self, rating_system):
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             rating_system.rate("a1", "u1", 0)
-        with pytest.raises(Exception):
+        with pytest.raises(MarketplaceError):
             rating_system.rate("a1", "u1", 6)
 
     def test_rate_dedup_overwrites(self, rating_system):
