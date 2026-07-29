@@ -39,7 +39,7 @@ def cmd_disclaimer_show(args) -> None:
             print(DisclaimerBuilder.short_reminder(args.scenario))
         except ValueError as exc:
             print(f"错误: {exc}")
-            raise SystemExit(1)
+            raise SystemExit(1) from None
     else:
         print(DisclaimerBuilder.full_opening())
 
@@ -106,7 +106,7 @@ def cmd_institution_import(args) -> None:
         data = json.loads(file_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         print(f"错误: JSON 解析失败: {exc}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     records = data.get("institutions", []) if isinstance(data, dict) else data
     if not isinstance(records, list):
         print("错误: JSON 格式应为 {institutions: [...]} 或 [...]")

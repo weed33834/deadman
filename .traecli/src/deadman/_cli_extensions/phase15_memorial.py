@@ -92,7 +92,7 @@ def cmd_memorial_generate(args: argparse.Namespace) -> None:
         result = asyncio.run(gen.generate(req))
     except Exception as exc:
         print(f"[错误] 生成失败：{exc}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     doc_meta = DOC_TYPES.get(req.doc_type, {})
     print(f"=== {doc_meta.get('name', req.doc_type)} ===")

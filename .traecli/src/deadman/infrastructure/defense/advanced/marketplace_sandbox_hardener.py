@@ -292,8 +292,6 @@ class SandboxHardener:
 
     def _check_ast_node(self, node: ast.AST, result: StaticCheckResult) -> None:
         """检查 AST 节点。"""
-        type(node).__name__
-
         # 检查 exec / eval 调用
         if isinstance(node, ast.Call):
             func = node.func

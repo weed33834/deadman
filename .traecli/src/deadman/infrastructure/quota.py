@@ -443,8 +443,8 @@ class QuotaManager:
                 },
             }
             # 序列化 Enum 为 value
-            for tid, limits in data["tenant_limits"].items():
-                for qname, limit in limits.items():
+            for _tid, limits in data["tenant_limits"].items():
+                for _qname, limit in limits.items():
                     limit["period"] = limit["period"].value if hasattr(limit["period"], "value") else limit["period"]
                     limit["actions"] = [a.value if hasattr(a, "value") else a for a in limit["actions"]]
             tmp = self.store_path.with_suffix(".tmp")

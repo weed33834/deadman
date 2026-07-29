@@ -684,7 +684,7 @@ def cmd_prompt_test(args):
         latency = (time.perf_counter() - start) * 1000
         print(f"\n[失败] 延迟={latency:.0f}ms  错误: {type(e).__name__}: {e}")
         if args.fail_fast:
-            raise SystemExit(1)
+            raise SystemExit(1) from None
 
 
 def cmd_prompt_sync(args):
@@ -2992,7 +2992,7 @@ def cmd_cron_propose(args):
         )
     except ValueError as e:
         print(f"[错误] 提议失败: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     print(f"\n[已提议] job_id={result['job_id']}")
     print(result["message"])
 
@@ -3008,7 +3008,7 @@ def cmd_cron_confirm(args):
         )
     except ValueError as e:
         print(f"[错误] 确认失败: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     print(f"\n[已激活] job_id={result['job_id']}")
     print(f"调度: {result['schedule']}")
     print(f"过期: {result['expires_at']}")

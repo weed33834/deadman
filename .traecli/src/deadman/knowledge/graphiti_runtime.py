@@ -228,8 +228,8 @@ class _InMemoryGraph:
 
     def all_edges(self) -> list[KGEdge]:
         out: list[KGEdge] = []
-        for from_id, targets in self._adj.items():
-            for to_id, edges in targets.items():
+        for _from_id, targets in self._adj.items():
+            for _to_id, edges in targets.items():
                 out.extend(edges.values())
         return out
 
@@ -237,11 +237,11 @@ class _InMemoryGraph:
         self._nodes.pop(node_id, None)
         self._adj.pop(node_id, None)
         # 清理反向引用
-        for to_id, srcs in list(self._reverse_adj.items()):
+        for _to_id, srcs in list(self._reverse_adj.items()):
             if node_id in srcs:
                 srcs.remove(node_id)
         # 清理正向边中含 node_id 的
-        for from_id, targets in list(self._adj.items()):
+        for _from_id, targets in list(self._adj.items()):
             if node_id in targets:
                 del targets[node_id]
 

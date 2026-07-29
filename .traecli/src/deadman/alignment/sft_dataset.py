@@ -298,7 +298,7 @@ class SFTDataset:
 
             # 各类下采样到 min_count(保留质量分高的)
             balanced: list[SFTExample] = []
-            for task_type, examples in by_type.items():
+            for _task_type, examples in by_type.items():
                 # 按质量分降序排,取前 min_count
                 sorted_ex = sorted(
                     examples, key=lambda e: e.quality_score, reverse=True

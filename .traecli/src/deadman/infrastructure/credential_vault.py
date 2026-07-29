@@ -291,7 +291,7 @@ class CredentialVault:
                 plaintext = _decrypt(record.ciphertext, self._master_key)
             except Exception as e:
                 logger.error("Failed to decrypt credential %s: %s", name, e)
-                raise CredentialVaultError(f"Decryption failed: {e}")
+                raise CredentialVaultError(f"Decryption failed: {e}") from e
 
             # 4. 缓存
             self._cache[cache_key] = (plaintext, time.time())

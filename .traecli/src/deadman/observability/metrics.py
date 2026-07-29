@@ -431,7 +431,7 @@ class MetricsCollector:
                 desc = f"{cat_meta['name_cn']} - {metric_name}"
                 lines.append(f"# HELP {prom_name} {desc}")
                 lines.append(f"# TYPE {prom_name} gauge")
-                for tags_key, records in tag_map.items():
+                for _tags_key, records in tag_map.items():
                     if not records:
                         continue
                     last_value = records[-1]["value"]

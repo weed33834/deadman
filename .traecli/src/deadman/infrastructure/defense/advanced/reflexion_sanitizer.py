@@ -265,7 +265,7 @@ class ReflexionSanitizer:
                 placeholder = self._placeholder("name")
                 # 替换捕获组(保留前缀)
                 redacted = pattern.sub(
-                    lambda m: m.group(0).replace(m.group(1), placeholder),
+                    lambda m, pl=placeholder: m.group(0).replace(m.group(1), pl),
                     redacted,
                 )
         return redacted, count

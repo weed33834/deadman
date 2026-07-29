@@ -48,7 +48,7 @@ def cmd_auth_register(args) -> None:
         user = store.register(args.email, args.password, args.display_name)
     except ValueError as exc:
         print(f"注册失败：{exc}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     token = JWTManager(
         secret=settings.jwt_secret or None,

@@ -849,7 +849,7 @@ class MemoryIntegrityVerifier:
                 for uid, ts_list in data.get("tombstones", {}).items():
                     self._tombstones[uid] = set(ts_list)
                 # 重建 content_index
-                for uid, chain in self._chains.items():
+                for _uid, chain in self._chains.items():
                     for r in chain:
                         self._content_index[r.content_hash].append(
                             (r.user_id, r.session_id, r.timestamp)
