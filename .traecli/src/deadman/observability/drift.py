@@ -358,7 +358,7 @@ class DriftDetector:
                     "current_only_ratio": current_only_ratio,
                     "baseline_vocab_size": len(baseline_vocab),
                     "current_vocab_size": len(current_vocab),
-                    "current_only_words": sorted(list(current_only))[:20],
+                    "current_only_words": sorted(current_only)[:20],
                 },
             )
         except Exception as e:

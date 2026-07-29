@@ -417,7 +417,7 @@ class AuditReporter:
             data = {
                 "events": [asdict(e) for e in self._events],
                 "reports": [
-                    {k: v for k, v in r.to_dict().items()}
+                    dict(r.to_dict().items())
                     for r in self._reports.values()
                 ],
             }

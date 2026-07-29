@@ -3699,7 +3699,7 @@ class WebServer:
                     "audit_log_enabled": cfg.audit_log_enabled,
                     "pii_redact_ocr": cfg.pii_redact_ocr,
                 },
-                "recent_audit": [e for e in audit],
+                "recent_audit": list(audit),
             })
         except Exception as exc:
             self._send_json(500, {"error": str(exc)})

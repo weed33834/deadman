@@ -340,7 +340,7 @@ class PromptVersionManager:
                 description=description,
                 created_by=created_by,
                 status="running",
-                samples={vid: 0 for vid in variants},
+                samples=dict.fromkeys(variants, 0),
             )
             self._experiments[name] = exp
             self._save_experiment(exp)
