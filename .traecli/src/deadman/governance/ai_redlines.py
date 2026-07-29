@@ -27,7 +27,7 @@ import os
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class RedlineViolation(Exception):
         category: RedlineCategory,
         action: str,
         reason: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         self.category = category
         self.action = action
@@ -100,10 +100,10 @@ class RedlineResult:
     """红线检查结果。"""
 
     allowed: bool
-    category: Optional[RedlineCategory]
+    category: RedlineCategory | None
     reason: str
     requires_human: bool = True
-    matched_rule: Optional[RedlineRule] = None
+    matched_rule: RedlineRule | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -207,7 +207,7 @@ class AIRedline:
     def is_allowed(
         self,
         action: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> RedlineResult:
         """检查 action 是否被红线禁止。
 
@@ -287,7 +287,7 @@ class AIRedline:
     def enforce(
         self,
         action: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """强制执行 - 若不允许则抛 RedlineViolation。
 
@@ -312,7 +312,7 @@ class AIRedline:
     # 内部
     # ==================================================================
 
-    def _match_rule(self, action: str) -> Optional[RedlineRule]:
+    def _match_rule(self, action: str) -> RedlineRule | None:
         """匹配 action 到红线规则 (关键词子串匹配)。
 
         匹配优先级:精确匹配 > 子串匹配。
@@ -346,7 +346,7 @@ class AIRedline:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_arl_instance: Optional[AIRedline] = None
+_arl_instance: AIRedline | None = None
 _arl_lock = threading.Lock()
 
 

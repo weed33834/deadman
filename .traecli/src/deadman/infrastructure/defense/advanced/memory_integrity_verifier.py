@@ -77,7 +77,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 from ....utils.text_similarity import tokenize, jaccard_similarity
@@ -308,8 +308,8 @@ class MemoryIntegrityVerifier:
 
     def __init__(
         self,
-        config: Optional[dict] = None,
-        store_path: Optional[str] = None,
+        config: dict | None = None,
+        store_path: str | None = None,
     ) -> None:
         self.config = {**VERIFIER_DEFAULTS, **(config or {})}
         self.store_path = store_path
@@ -340,9 +340,9 @@ class MemoryIntegrityVerifier:
         session_id: str,
         content: str,
         source: MemorySource = MemorySource.USER,
-        trust_level: Optional[TrustLevel] = None,
-        metadata: Optional[dict] = None,
-        record_id: Optional[str] = None,
+        trust_level: TrustLevel | None = None,
+        metadata: dict | None = None,
+        record_id: str | None = None,
     ) -> MemoryRecord:
         """创建一条记忆记录(自动计算 hash + 接到链尾)。
 
@@ -483,7 +483,7 @@ class MemoryIntegrityVerifier:
 
         return violations
 
-    def _check_frequency(self, record: MemoryRecord) -> Optional[IntegrityViolation]:
+    def _check_frequency(self, record: MemoryRecord) -> IntegrityViolation | None:
         """频率异常:短时间写入过多。"""
         window = self.config["frequency_anomaly_window_seconds"]
         threshold = self.config["frequency_anomaly_max_records"]
@@ -511,7 +511,7 @@ class MemoryIntegrityVerifier:
             )
         return None
 
-    def _check_replay(self, record: MemoryRecord) -> Optional[IntegrityViolation]:
+    def _check_replay(self, record: MemoryRecord) -> IntegrityViolation | None:
         """重放检测:相同 content_hash 在不同 session 出现。"""
         window = self.config["replay_window_seconds"]
         min_sessions = self.config["replay_min_different_sessions"]
@@ -544,7 +544,7 @@ class MemoryIntegrityVerifier:
             )
         return None
 
-    def _check_cross_user_leak(self, record: MemoryRecord) -> Optional[IntegrityViolation]:
+    def _check_cross_user_leak(self, record: MemoryRecord) -> IntegrityViolation | None:
         """跨用户泄漏:与最近其他用户记忆相似度过高。"""
         threshold = self.config["cross_user_similarity_threshold"]
         recent_n = self.config["cross_user_compare_recent"]
@@ -589,7 +589,7 @@ class MemoryIntegrityVerifier:
             )
         return None
 
-    def _check_revival(self, record: MemoryRecord) -> Optional[IntegrityViolation]:
+    def _check_revival(self, record: MemoryRecord) -> IntegrityViolation | None:
         """复活检测:已删除的 content_hash 再次出现。"""
         with self._lock:
             tombstones = self._tombstones.get(record.user_id, set())
@@ -609,7 +609,7 @@ class MemoryIntegrityVerifier:
             )
         return None
 
-    def _check_content_conflict(self, record: MemoryRecord) -> Optional[IntegrityViolation]:
+    def _check_content_conflict(self, record: MemoryRecord) -> IntegrityViolation | None:
         """内容冲突:与同用户已有记忆矛盾(简单实现:相同关键词但不同结论)。
 
         启发式:若新记忆包含 "不是" / "取消" / "撤销" / "false" 等否定词,
@@ -742,7 +742,7 @@ class MemoryIntegrityVerifier:
             chain = [r for r in chain if not r.deleted]
         return chain
 
-    def get_record(self, *, record_id: str, user_id: str) -> Optional[MemoryRecord]:
+    def get_record(self, *, record_id: str, user_id: str) -> MemoryRecord | None:
         """按 ID 查找记录。"""
         with self._lock:
             for r in self._chains.get(user_id, []):
@@ -753,8 +753,8 @@ class MemoryIntegrityVerifier:
     def list_violations(
         self,
         *,
-        user_id: Optional[str] = None,
-        severity: Optional[AlertSeverity] = None,
+        user_id: str | None = None,
+        severity: AlertSeverity | None = None,
         limit: int = 100,
     ) -> list[IntegrityViolation]:
         """列出违规记录(可过滤)。"""
@@ -834,7 +834,7 @@ class MemoryIntegrityVerifier:
         if not self.store_path or not os.path.exists(self.store_path):
             return
         try:
-            with open(self.store_path, "r", encoding="utf-8") as f:
+            with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
             with self._lock:
                 for uid, records_data in data.get("chains", {}).items():
@@ -867,7 +867,7 @@ class MemoryIntegrityVerifier:
 # 全局单例
 # =====================================================================
 
-_verifier_instance: Optional[MemoryIntegrityVerifier] = None
+_verifier_instance: MemoryIntegrityVerifier | None = None
 _verifier_lock = threading.RLock()
 
 

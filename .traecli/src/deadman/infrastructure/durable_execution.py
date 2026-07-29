@@ -37,7 +37,8 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from .feature_flags import is_enabled
 
@@ -68,11 +69,11 @@ class DurableRecord:
     status: ExecutionStatus
     args_hash: str  # 参数哈希(检测参数变化)
     result: Any = None  # 执行结果(完成时填充)
-    error: Optional[str] = None  # 失败原因
+    error: str | None = None  # 失败原因
     started_at: float = 0.0
     completed_at: float = 0.0
     duration_ms: float = 0.0
-    saga_compensation: Optional[str] = None  # 补偿动作描述
+    saga_compensation: str | None = None  # 补偿动作描述
 
 
 class DurableExecutionError(Exception):
@@ -97,7 +98,7 @@ class DurableExecutionManager:
             return result
     """
 
-    def __init__(self, log_path: Optional[Path] = None) -> None:
+    def __init__(self, log_path: Path | None = None) -> None:
         self.log_path = log_path or DEFAULT_DURABLE_LOG
         self._lock = threading.RLock()
         # 内存索引:{idempotency_key: DurableRecord} 启动时懒加载
@@ -112,7 +113,7 @@ class DurableExecutionManager:
     def generate_idempotency_key(
         node_name: str,
         args: dict,
-        salt: Optional[str] = None,
+        salt: str | None = None,
     ) -> str:
         """生成幂等键 - 基于 node_name + args 哈希。
 
@@ -134,7 +135,7 @@ class DurableExecutionManager:
     # 查询
     # ==================================================================
 
-    def lookup(self, idempotency_key: str) -> Optional[DurableRecord]:
+    def lookup(self, idempotency_key: str) -> DurableRecord | None:
         """查询幂等键的执行记录。"""
         if not is_enabled("durable_execution"):
             return None
@@ -201,7 +202,7 @@ class DurableExecutionManager:
         self,
         idempotency_key: str,
         result: Any = None,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> DurableRecord:
         """记录副作用完成(成功/失败)。"""
         with self._lock:
@@ -233,7 +234,7 @@ class DurableExecutionManager:
         self,
         idempotency_key: str,
         compensation_action: str,
-    ) -> Optional[DurableRecord]:
+    ) -> DurableRecord | None:
         """记录补偿动作(用于 saga 模式)。"""
         with self._lock:
             self._load()
@@ -254,7 +255,7 @@ class DurableExecutionManager:
 
         def __init__(
             self,
-            manager: "DurableExecutionManager",
+            manager: DurableExecutionManager,
             idempotency_key: str,
             trace_id: str,
             node_name: str,
@@ -265,11 +266,11 @@ class DurableExecutionManager:
             self.trace_id = trace_id
             self.node_name = node_name
             self.args = args
-            self.record: Optional[DurableRecord] = None
+            self.record: DurableRecord | None = None
             self.cached_result: Any = None
             self.is_cached: bool = False
 
-        def __enter__(self) -> "_ExecutionScope":  # noqa: F821 - 嵌套类自引用,from __future__.annotations 下注解不求值
+        def __enter__(self) -> _ExecutionScope:  # noqa: F821 - 嵌套类自引用,from __future__.annotations 下注解不求值
             if not is_enabled("durable_execution"):
                 # feature flag 关闭:不做任何事,直接执行
                 return self
@@ -334,7 +335,7 @@ class DurableExecutionManager:
     def replay(
         self,
         trace_id: str,
-        on_node: Optional[Callable[[DurableRecord], None]] = None,
+        on_node: Callable[[DurableRecord], None] | None = None,
     ) -> list[DurableRecord]:
         """重放某 trace 的所有副作用节点(只读模式)。
 
@@ -363,7 +364,7 @@ class DurableExecutionManager:
             return
         try:
             if self.log_path.exists():
-                with open(self.log_path, "r", encoding="utf-8") as f:
+                with open(self.log_path, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if not line:
@@ -428,7 +429,7 @@ class DurableExecutionManager:
 
 
 # 全局单例
-_dm_instance: Optional[DurableExecutionManager] = None
+_dm_instance: DurableExecutionManager | None = None
 _dm_lock = threading.Lock()
 
 

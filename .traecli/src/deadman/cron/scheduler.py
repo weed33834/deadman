@@ -31,7 +31,8 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from .expr import CronExpr
 
@@ -100,7 +101,7 @@ class CronJob:
     scope: str  # opt-in 范围标识（如 "cron"）
     created_at: datetime
     expires_at: datetime  # 最长 30 天后；过期自动失效
-    last_fired: Optional[datetime] = None
+    last_fired: datetime | None = None
     enabled: bool = True
     pending_confirmation: bool = True  # 创建后需下一轮用户确认
 
@@ -114,9 +115,9 @@ class CronJob:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "CronJob":
+    def from_dict(cls, d: dict[str, Any]) -> CronJob:
         """从 dict 反序列化"""
-        def _parse_dt(v: Any) -> Optional[datetime]:
+        def _parse_dt(v: Any) -> datetime | None:
             if v is None or v == "":
                 return None
             if isinstance(v, datetime):
@@ -168,9 +169,9 @@ class CronScheduler:
 
     def __init__(
         self,
-        data_dir: Optional[Path] = None,
-        guard: Optional[NotificationGuardrail] = None,
-        fire_handler: Optional[FireHandler] = None,
+        data_dir: Path | None = None,
+        guard: NotificationGuardrail | None = None,
+        fire_handler: FireHandler | None = None,
     ):
         """构造调度器
 
@@ -265,7 +266,7 @@ class CronScheduler:
         7. 持久化
         """
         jobs = self._load_jobs()
-        target: Optional[CronJob] = None
+        target: CronJob | None = None
         for j in jobs:
             if j.job_id == job_id and j.user_id == user_id:
                 target = j
@@ -355,7 +356,7 @@ class CronScheduler:
     # 调度核心：tick + run_forever
     # ============================================================
 
-    async def tick(self, now: Optional[datetime] = None) -> list[dict[str, Any]]:
+    async def tick(self, now: datetime | None = None) -> list[dict[str, Any]]:
         """调度器一次 tick - 检查所有到期任务
 
         对每个任务依次检查：
@@ -556,7 +557,7 @@ class CronScheduler:
         if not self.jobs_file.exists():
             return []
         try:
-            with open(self.jobs_file, "r", encoding="utf-8") as f:
+            with open(self.jobs_file, encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             logger.error(

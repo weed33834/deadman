@@ -28,7 +28,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -96,7 +96,7 @@ class InsurancePolicy:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "InsurancePolicy":
+    def from_dict(cls, data: dict[str, Any]) -> InsurancePolicy:
         return cls(
             policy_id=data["policy_id"],
             provider=data.get("provider", ""),
@@ -110,7 +110,7 @@ class InsurancePolicy:
             active=bool(data.get("active", True)),
         )
 
-    def is_valid_at(self, ts: Optional[float] = None) -> bool:
+    def is_valid_at(self, ts: float | None = None) -> bool:
         """保单在 ts 时刻是否有效 (active + 时间范围内)。"""
         if not self.active:
             return False
@@ -148,7 +148,7 @@ class InsuranceClaim:
     amount_claimed: float = 0.0
     status: ClaimStatus = ClaimStatus.FILED
     filed_at: float = field(default_factory=time.time)
-    resolved_at: Optional[float] = None
+    resolved_at: float | None = None
     payout_amount: float = 0.0
     coverage_type: str = ""
     reviewer_id: str = ""
@@ -160,7 +160,7 @@ class InsuranceClaim:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "InsuranceClaim":
+    def from_dict(cls, data: dict[str, Any]) -> InsuranceClaim:
         return cls(
             claim_id=data["claim_id"],
             policy_id=data["policy_id"],
@@ -190,7 +190,7 @@ class LiabilityInsurance:
         li.process_claim(claim.claim_id, ClaimStatus.APPROVED, 80000)
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path(
             "governance/liability_insurance.json"
         )
@@ -219,7 +219,7 @@ class LiabilityInsurance:
             )
             return policy
 
-    def get_policy(self, policy_id: str) -> Optional[InsurancePolicy]:
+    def get_policy(self, policy_id: str) -> InsurancePolicy | None:
         with self._lock:
             self._load()
             return self._policies.get(policy_id)
@@ -379,15 +379,15 @@ class LiabilityInsurance:
             )
             return claim
 
-    def get_claim(self, claim_id: str) -> Optional[InsuranceClaim]:
+    def get_claim(self, claim_id: str) -> InsuranceClaim | None:
         with self._lock:
             self._load()
             return self._claims.get(claim_id)
 
     def list_claims(
         self,
-        status: Optional[ClaimStatus] = None,
-        policy_id: Optional[str] = None,
+        status: ClaimStatus | None = None,
+        policy_id: str | None = None,
     ) -> list[InsuranceClaim]:
         with self._lock:
             self._load()
@@ -447,7 +447,7 @@ class LiabilityInsurance:
 
 
 # 全局单例
-_li_instance: Optional[LiabilityInsurance] = None
+_li_instance: LiabilityInsurance | None = None
 _li_lock = threading.Lock()
 
 

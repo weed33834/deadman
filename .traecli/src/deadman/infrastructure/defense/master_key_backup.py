@@ -53,7 +53,7 @@ import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 
@@ -91,7 +91,7 @@ class KeyShare:
     share_value: str  # 分片值(y 坐标,hex)
     recipient: str = ""  # 保管人标识(邮箱 / 部门)
     distributed_at: float = 0.0  # 分发时间
-    received_back_at: Optional[float] = None  # 回收时间(用于重建)
+    received_back_at: float | None = None  # 回收时间(用于重建)
 
 
 @dataclass
@@ -219,7 +219,7 @@ class ShamirSecretSharing:
 class MasterKeyBackup:
     """主密钥备份管理器(SSS 分片 + 演练)。"""
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or DEFAULT_BACKUP_PATH
         self._lock = threading.RLock()
         # 状态持久化
@@ -239,7 +239,7 @@ class MasterKeyBackup:
         master_key: bytes,
         n: int = DEFAULT_N_SHARES,
         k: int = DEFAULT_K_THRESHOLD,
-        recipients: Optional[list[str]] = None,
+        recipients: list[str] | None = None,
     ) -> list[KeyShare]:
         """为主密钥创建 SSS 备份。
 
@@ -326,7 +326,7 @@ class MasterKeyBackup:
 
     def drill(
         self,
-        shares_to_use: Optional[list[KeyShare]] = None,
+        shares_to_use: list[KeyShare] | None = None,
         notes: str = "",
     ) -> DrillRecord:
         """演练:验证分片可重建主密钥。
@@ -391,7 +391,7 @@ class MasterKeyBackup:
     def rotate(
         self,
         new_master_key: bytes,
-        recipients: Optional[list[str]] = None,
+        recipients: list[str] | None = None,
         n: int = DEFAULT_N_SHARES,
         k: int = DEFAULT_K_THRESHOLD,
     ) -> list[KeyShare]:
@@ -518,7 +518,7 @@ class MasterKeyBackup:
 # 全局单例
 # =====================================================================
 
-_backup_instance: Optional[MasterKeyBackup] = None
+_backup_instance: MasterKeyBackup | None = None
 _backup_lock = threading.Lock()
 
 

@@ -28,7 +28,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -134,7 +134,7 @@ class FileMemoryStore:
     可能竞争（os.replace 仍是原子的，最坏情况是后写覆盖先写）。
     """
 
-    def __init__(self, memory_dir: Optional[Path] = None) -> None:
+    def __init__(self, memory_dir: Path | None = None) -> None:
         """初始化文件记忆存储。
 
         Args:
@@ -192,7 +192,7 @@ class FileMemoryStore:
         except Exception as e:
             logger.warning("FileMemoryStore.save_profile 写入失败: %s", e)
 
-    def load_profile(self, user_id: str) -> Optional[UserProfile]:
+    def load_profile(self, user_id: str) -> UserProfile | None:
         """从 USER.md 反序列化 UserProfile。
 
         文件不存在 / 解析失败 / user_id 不匹配时返回 None，绝不抛异常。
@@ -245,8 +245,8 @@ class FileMemoryStore:
         self,
         episode_id: str,
         summary: str,
-        timestamp: Optional[datetime] = None,
-        importance: Optional[float] = None,
+        timestamp: datetime | None = None,
+        importance: float | None = None,
         pinned: bool = False,
     ) -> None:
         """追加一条情景记忆摘要到 EPISODES.md。
@@ -334,7 +334,7 @@ class FileMemoryStore:
         return recent
 
     @staticmethod
-    def _parse_episode_line(line: str) -> Optional[dict[str, Any]]:
+    def _parse_episode_line(line: str) -> dict[str, Any] | None:
         """解析单行 episode(向后兼容 P0.5 新字段)。
 
         支持格式:
@@ -353,7 +353,7 @@ class FileMemoryStore:
         # 解析 session= 与 summary=(中间可能有 importance=/pinned= 元数据)
         session = ""
         summary = ""
-        importance: Optional[float] = None
+        importance: float | None = None
         pinned = False
 
         # session= 是第一个字段
@@ -382,7 +382,7 @@ class FileMemoryStore:
                 session = rest.strip()
 
         # 时间戳解析（失败保留原字符串）
-        timestamp: Optional[datetime]
+        timestamp: datetime | None
         try:
             timestamp = datetime.strptime(ts_str, "%Y-%m-%d %H:%M")
         except ValueError:
@@ -749,7 +749,7 @@ class FileMemoryStore:
         非列表项的文本（如章节描述）被忽略，只保留 `- ` 开头的事实。
         """
         sections: dict[str, list[str]] = {}
-        current_section: Optional[str] = None
+        current_section: str | None = None
         for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith("## "):
@@ -877,7 +877,7 @@ class FileMemoryStore:
 
     def export_snapshot(
         self,
-        aes_key: Optional[bytes] = None,
+        aes_key: bytes | None = None,
     ) -> bytes:
         """把 USER.md + MEMORY.md + EPISODES.md + REFLEXION.json 打包导出。
 
@@ -951,7 +951,7 @@ class FileMemoryStore:
     def import_snapshot(
         self,
         data: bytes,
-        aes_key: Optional[bytes] = None,
+        aes_key: bytes | None = None,
     ) -> bool:
         """从 snapshot 二进制恢复文件,替换当前 4 个文件。
 

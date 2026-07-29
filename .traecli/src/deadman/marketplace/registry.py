@@ -23,7 +23,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -127,7 +127,7 @@ class AgentListing:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentListing":
+    def from_dict(cls, data: dict[str, Any]) -> AgentListing:
         return cls(
             agent_id=data["agent_id"],
             name=data["name"],
@@ -163,13 +163,13 @@ class MarketplaceRegistry:
 
     DEFAULT_STORE_REL = "marketplace/registry.json"
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         # store_path 显式传入时直接用(便于测试);否则按当前租户动态解析
         self._explicit_store = store_path
         self._lock = threading.RLock()
         self._cache: dict[str, AgentListing] = {}  # agent_id → listing
         # 当前 cache 对应的 store path(用于检测 tenant 切换,触发重新 load)
-        self._loaded_path: Optional[str] = None
+        self._loaded_path: str | None = None
 
     # ==================================================================
     # 路径解析
@@ -288,8 +288,8 @@ class MarketplaceRegistry:
     # ==================================================================
     def list(
         self,
-        query: Optional[str] = None,
-        category: Optional[str] = None,
+        query: str | None = None,
+        category: str | None = None,
         sort_by: str = ListingSort.NEWEST.value,
     ) -> list[AgentListing]:
         """浏览已 approved 的 listing。
@@ -329,14 +329,14 @@ class MarketplaceRegistry:
                 results.sort(key=lambda item: item.price_per_call, reverse=True)
             return results
 
-    def get(self, agent_id: str) -> Optional[AgentListing]:
+    def get(self, agent_id: str) -> AgentListing | None:
         """按 agent_id 查询(任意状态)。"""
         self._require_enabled()
         with self._lock:
             self._load()
             return self._cache.get(agent_id)
 
-    def get_listing(self, listing_id: str) -> Optional[AgentListing]:
+    def get_listing(self, listing_id: str) -> AgentListing | None:
         """按 listing_id 查询(listing_id == agent_id)。"""
         return self.get(listing_id)
 
@@ -367,7 +367,7 @@ class MarketplaceRegistry:
         self,
         agent_id: str,
         new_version: str,
-        new_card: Optional[dict[str, Any]] = None,
+        new_card: dict[str, Any] | None = None,
     ) -> bool:
         """升级 agent 版本(已 approved 的 listing 才能升级,升级后保持 approved)。
 
@@ -458,7 +458,7 @@ class MarketplaceRegistry:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_registry_instance: Optional[MarketplaceRegistry] = None
+_registry_instance: MarketplaceRegistry | None = None
 _registry_lock = threading.Lock()
 
 

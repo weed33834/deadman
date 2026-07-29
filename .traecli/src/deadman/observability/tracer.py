@@ -17,7 +17,8 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from ..config import settings
 
@@ -81,7 +82,7 @@ class SpanType(str, Enum):
 _SPAN_KIND_MAP: dict[str, Any] = {}
 
 
-def _setup_otel_provider() -> Optional[Any]:
+def _setup_otel_provider() -> Any | None:
     """初始化 OTel TracerProvider 并配置 OTLP exporter。
 
     指向 settings.otel_endpoint。返回 tracer 实例，失败返回 None。
@@ -163,7 +164,7 @@ class Tracer:
 
     def __init__(self) -> None:
         self.otel_available = OTEL_AVAILABLE
-        self._otel_tracer: Optional[Any] = None
+        self._otel_tracer: Any | None = None
         if self.otel_available:
             self._otel_tracer = _setup_otel_provider()
             if self._otel_tracer is None:
@@ -171,7 +172,7 @@ class Tracer:
                 self.otel_available = False
 
         # Langfuse 可选集成
-        self._langfuse: Optional[Any] = None
+        self._langfuse: Any | None = None
         self._init_langfuse()
 
         # 内存 span 存储：span_id -> span_dict
@@ -211,7 +212,7 @@ class Tracer:
         self,
         span_type: SpanType | str,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> str:
         """启动一个 span，返回 span_id。
 
@@ -278,7 +279,7 @@ class Tracer:
         self,
         span_id: str,
         status: str = "OK",
-        events: Optional[list[dict[str, Any]]] = None,
+        events: list[dict[str, Any]] | None = None,
     ) -> None:
         """结束一个 span。
 
@@ -431,7 +432,7 @@ class Tracer:
 
     # === 查询 API ===
 
-    def get_span(self, span_id: str) -> Optional[dict[str, Any]]:
+    def get_span(self, span_id: str) -> dict[str, Any] | None:
         """获取单个 span 字典。"""
         return self._spans.get(span_id)
 
@@ -452,7 +453,7 @@ class Tracer:
         self._trace_index.clear()
 
     @property
-    def current_span_id(self) -> Optional[str]:
+    def current_span_id(self) -> str | None:
         """当前活跃栈顶 span_id。"""
         return self._span_stack[-1] if self._span_stack else None
 
@@ -497,11 +498,11 @@ class _ToolSpanContext:
     def __init__(
         self,
         tool_name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         self.tool_name = tool_name
         self.attributes = dict(attributes) if attributes else {}
-        self.span_id: Optional[str] = None
+        self.span_id: str | None = None
 
     def __enter__(self) -> str:
         attrs = {"tool_name": self.tool_name, **self.attributes}
@@ -542,7 +543,7 @@ class _ToolSpanContext:
 
 def trace_tool_span(
     tool_name: str,
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ) -> _ToolSpanContext:
     """工具调用 span 辅助函数 - 返回可作上下文管理器或装饰器的对象。
 
@@ -560,9 +561,9 @@ class _ReflexionSpanContext:
     strategy_used, graphiti_learned。
     """
 
-    def __init__(self, attributes: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, attributes: dict[str, Any] | None = None) -> None:
         self.attributes = dict(attributes) if attributes else {}
-        self.span_id: Optional[str] = None
+        self.span_id: str | None = None
 
     def __enter__(self) -> str:
         name = self.attributes.get("operation_name", "reflexion.retry")
@@ -603,7 +604,7 @@ class _ReflexionSpanContext:
 
 
 def trace_reflexion_span(
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ) -> _ReflexionSpanContext:
     """反思重试 span 辅助函数 - 返回可作上下文管理器或装饰器的对象。
 
@@ -615,7 +616,7 @@ def trace_reflexion_span(
 @contextmanager
 def trace_root_span(
     name: str = "user_request",
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ):
     """根 span 上下文管理器快捷函数。
 
@@ -643,7 +644,7 @@ def trace_root_span(
 @contextmanager
 def trace_agent_span(
     agent_name: str,
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ):
     """智能体 span 上下文管理器快捷函数。
 

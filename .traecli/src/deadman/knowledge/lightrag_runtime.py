@@ -29,7 +29,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from ..infrastructure.feature_flags import is_enabled
@@ -121,7 +121,7 @@ class LightNode:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "LightNode":
+    def from_dict(cls, data: dict[str, Any]) -> LightNode:
         return cls(
             id=data["id"],
             content=data.get("content", ""),
@@ -165,7 +165,7 @@ class LightRAGRuntime:
 
     def __init__(
         self,
-        persist_path: Optional[Path] = None,
+        persist_path: Path | None = None,
         use_chroma: bool = False,
     ) -> None:
         """构造运行时。
@@ -209,8 +209,8 @@ class LightRAGRuntime:
         self,
         content: str,
         source: str = "",
-        properties: Optional[dict[str, Any]] = None,
-        node_id: Optional[str] = None,
+        properties: dict[str, Any] | None = None,
+        node_id: str | None = None,
     ) -> str:
         """添加一条知识到向量库。
 
@@ -358,7 +358,7 @@ class LightRAGRuntime:
         with self._lock:
             return list(self._nodes.values())
 
-    def get_node(self, node_id: str) -> Optional[LightNode]:
+    def get_node(self, node_id: str) -> LightNode | None:
         with self._lock:
             return self._nodes.get(node_id)
 

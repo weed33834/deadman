@@ -36,7 +36,7 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 
@@ -81,7 +81,7 @@ class DegradationEvent:
     reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     # 自动恢复时间(若超过此时间未恢复,触发警报)
-    expected_recovery_at: Optional[float] = None
+    expected_recovery_at: float | None = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -141,7 +141,7 @@ class DegradationGuard:
         self,
         mechanism: str,
         scope: str,
-        level: Optional[DegradationLevel] = None,
+        level: DegradationLevel | None = None,
     ) -> bool:
         """检查是否可以降级(降级前调用)。"""
         if not is_enabled("defense"):
@@ -228,7 +228,7 @@ class DegradationGuard:
                 del self._active[scope]
             return before > after
 
-    def get_active(self, scope: Optional[str] = None) -> list[DegradationEvent]:
+    def get_active(self, scope: str | None = None) -> list[DegradationEvent]:
         """获取当前活跃降级事件。"""
         with self._lock:
             self._cleanup_expired()
@@ -242,7 +242,7 @@ class DegradationGuard:
     def get_history(
         self,
         limit: int = 100,
-        scope: Optional[str] = None,
+        scope: str | None = None,
     ) -> list[DegradationEvent]:
         """获取历史降级事件(审计用)。"""
         with self._lock:
@@ -301,7 +301,7 @@ class DegradationGuard:
 
 
 # 全局单例
-_dg_instance: Optional[DegradationGuard] = None
+_dg_instance: DegradationGuard | None = None
 _dg_lock = threading.Lock()
 
 

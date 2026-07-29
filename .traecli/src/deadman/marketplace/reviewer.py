@@ -27,7 +27,7 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .registry import AgentListing, MarketplaceError
@@ -622,7 +622,7 @@ class AgentReviewer:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_reviewer_instance: Optional[AgentReviewer] = None
+_reviewer_instance: AgentReviewer | None = None
 _reviewer_lock = threading.Lock()
 
 

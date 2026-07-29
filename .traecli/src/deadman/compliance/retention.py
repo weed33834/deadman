@@ -33,7 +33,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -117,7 +118,7 @@ class RetentionRecord:
     size_bytes: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def is_expired(self, now: Optional[float] = None) -> bool:
+    def is_expired(self, now: float | None = None) -> bool:
         now = now or time.time()
         return now >= self.expires_at
 
@@ -144,7 +145,7 @@ class RetentionManager:
         rm.run_sweep()
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_RETENTION_STORE", "data/compliance/retention.json")
         )
@@ -190,7 +191,7 @@ class RetentionManager:
     def get_policy(
         self,
         category: DataCategory,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> RetentionPolicy:
         """获取策略(优先租户覆盖)。"""
         with self._lock:
@@ -209,8 +210,8 @@ class RetentionManager:
         user_id: str,
         data_id: str,
         size_bytes: int = 0,
-        tenant_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        tenant_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> RetentionRecord:
         """记录一条数据(用于后续过期扫描)。"""
         if not is_enabled("compliance"):
@@ -250,7 +251,7 @@ class RetentionManager:
         with self._lock:
             self._cleaners[category] = cleaner
 
-    def run_sweep(self, now: Optional[float] = None) -> dict[str, int]:
+    def run_sweep(self, now: float | None = None) -> dict[str, int]:
         """扫描并清理过期数据(由 cron 每日触发)。
 
         Returns:
@@ -306,7 +307,7 @@ class RetentionManager:
     def list_expiring(
         self,
         within_days: int = 7,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> list[RetentionRecord]:
         """列出即将过期的数据(预警)。"""
         now = time.time()
@@ -507,7 +508,7 @@ class RetentionManager:
 
 
 # 全局单例
-_rm_instance: Optional[RetentionManager] = None
+_rm_instance: RetentionManager | None = None
 _rm_lock = threading.Lock()
 
 

@@ -28,7 +28,6 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import datetime
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from .currency import Currency, CurrencyConverter, ConvertedAmount, get_currency_converter
@@ -60,11 +59,11 @@ class Translator:
 
     def __init__(
         self,
-        locale_detector: Optional[LocaleDetector] = None,
-        message_bundle: Optional[MessageBundle] = None,
-        currency_converter: Optional[CurrencyConverter] = None,
-        timezone_manager: Optional[TimezoneManager] = None,
-        law_adapter: Optional[LawAdapter] = None,
+        locale_detector: LocaleDetector | None = None,
+        message_bundle: MessageBundle | None = None,
+        currency_converter: CurrencyConverter | None = None,
+        timezone_manager: TimezoneManager | None = None,
+        law_adapter: LawAdapter | None = None,
     ) -> None:
         self._detector = locale_detector or get_locale_detector()
         self._messages = message_bundle or get_message_bundle()
@@ -106,10 +105,10 @@ class Translator:
 
     def detect_locale(
         self,
-        user_id: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        accept_language: Optional[str] = None,
-        ip: Optional[str] = None,
+        user_id: str | None = None,
+        headers: dict[str, str] | None = None,
+        accept_language: str | None = None,
+        ip: str | None = None,
         persist: bool = False,
     ) -> Locale:
         """综合检测用户 locale。
@@ -133,7 +132,7 @@ class Translator:
     # 翻译
     # ==================================================================
 
-    def t(self, key: str, user_id: Optional[str] = None, **vars) -> str:
+    def t(self, key: str, user_id: str | None = None, **vars) -> str:
         """翻译消息。
 
         Args:
@@ -157,8 +156,8 @@ class Translator:
         self,
         amount: float,
         currency: Currency | str,
-        user_id: Optional[str] = None,
-        convert_from: Optional[Currency | str] = None,
+        user_id: str | None = None,
+        convert_from: Currency | str | None = None,
     ) -> str:
         """格式化货币(可选先转换)。
 
@@ -199,8 +198,8 @@ class Translator:
     def format_datetime(
         self,
         dt: datetime,
-        user_id: Optional[str] = None,
-        tz: Optional[str] = None,
+        user_id: str | None = None,
+        tz: str | None = None,
     ) -> str:
         """格式化日期时间(按用户 locale / 时区)。
 
@@ -217,7 +216,7 @@ class Translator:
             tz = self._timezone.detect_timezone_from_locale(loc)
         return self._timezone.format(dt, tz, loc)
 
-    def now_for_user(self, user_id: Optional[str] = None, tz: Optional[str] = None) -> datetime:
+    def now_for_user(self, user_id: str | None = None, tz: str | None = None) -> datetime:
         """获取用户视角的当前时间。"""
         if not is_enabled("i18n"):
             return self._timezone.now_in("UTC")
@@ -242,7 +241,7 @@ class Translator:
         action: str,
         user_id: str,
         data_kind: str = "default",
-        target_jurisdiction: Optional[Jurisdiction | str] = None,
+        target_jurisdiction: Jurisdiction | str | None = None,
     ) -> ValidationResult:
         """校验用户动作是否合规。
 
@@ -317,7 +316,7 @@ class Translator:
 
 
 # 全局单例
-_translator_instance: Optional[Translator] = None
+_translator_instance: Translator | None = None
 _translator_lock = threading.Lock()
 
 

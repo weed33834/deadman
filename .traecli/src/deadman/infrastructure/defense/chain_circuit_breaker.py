@@ -33,7 +33,8 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from ..circuit_breaker import (
     CircuitBreaker,
@@ -83,7 +84,7 @@ class DegradationChain:
         name: str,
         levels: list[str],
         rule_level: str = "rule",
-        configs: Optional[dict[str, CircuitConfig]] = None,
+        configs: dict[str, CircuitConfig] | None = None,
     ) -> None:
         if not levels:
             raise ValueError("DegradationChain requires at least one level")
@@ -149,7 +150,7 @@ class ChainCircuitBreaker:
         self,
         func: Callable[[str], Any],
         *,
-        preferred_level: Optional[str] = None,
+        preferred_level: str | None = None,
         timeout_seconds: float = 30.0,
     ) -> ChainCallResult:
         """按降级链调用。
@@ -329,7 +330,7 @@ def get_or_create_chain(
     name: str,
     levels: list[str],
     rule_level: str = "rule",
-    configs: Optional[dict[str, CircuitConfig]] = None,
+    configs: dict[str, CircuitConfig] | None = None,
 ) -> ChainCircuitBreaker:
     """获取或创建降级链。"""
     with _chain_lock:

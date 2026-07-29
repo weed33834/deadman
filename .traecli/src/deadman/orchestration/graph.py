@@ -20,7 +20,8 @@ LangGraph 是可选依赖：
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Awaitable
+from typing import Any
+from collections.abc import Callable, Awaitable
 
 from .state import ConversationState
 from .termination import TerminationCondition, default_termination

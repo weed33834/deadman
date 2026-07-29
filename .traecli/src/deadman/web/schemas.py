@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -26,8 +26,8 @@ class ChatRequest(BaseModel):
     """
 
     query: str = Field(..., description="用户输入文本")
-    agent: Optional[str] = Field(default=None, description="目标智能体 ID")
-    history: Optional[List[Any]] = Field(default=None, description="对话历史")
+    agent: str | None = Field(default=None, description="目标智能体 ID")
+    history: list[Any] | None = Field(default=None, description="对话历史")
 
     model_config = {"extra": "ignore"}
 

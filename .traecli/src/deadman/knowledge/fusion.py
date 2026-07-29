@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .graphiti_runtime import GraphitiRuntime, KGNode
@@ -39,7 +39,7 @@ class ConflictItem:
 
     fact: str
     sources_with_values: dict[str, str] = field(default_factory=dict)
-    resolution: Optional[str] = None
+    resolution: str | None = None
 
 
 @dataclass
@@ -104,9 +104,9 @@ class KnowledgeFusion:
 
     def __init__(
         self,
-        graphiti: Optional[GraphitiRuntime] = None,
-        lightrag: Optional[LightRAGRuntime] = None,
-        trust_scorer: Optional[TrustScorer] = None,
+        graphiti: GraphitiRuntime | None = None,
+        lightrag: LightRAGRuntime | None = None,
+        trust_scorer: TrustScorer | None = None,
     ) -> None:
         self.graphiti = graphiti
         self.lightrag = lightrag

@@ -14,7 +14,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -35,16 +35,16 @@ class UserProfile:
     """用户画像 - 语义记忆的核心"""
 
     user_id: str
-    name: Optional[str] = None
-    relationship_to_deceased: Optional[str] = None  # 子女/配偶/父母/...
-    location: Optional[dict] = None  # {country, region, city}
-    deceased_info: Optional[dict] = None
+    name: str | None = None
+    relationship_to_deceased: str | None = None  # 子女/配偶/父母/...
+    location: dict | None = None  # {country, region, city}
+    deceased_info: dict | None = None
     # {name, death_date, death_location, cause, nationality, domicile}
-    family_structure: Optional[dict] = None
+    family_structure: dict | None = None
     # {spouse:{...}, children:[...], parents:[...]}
-    assets_summary: Optional[dict] = None
+    assets_summary: dict | None = None
     # {real_estate_count, has_bank_accounts, has_will, ...}
-    current_stage: Optional[int] = None  # 9 阶段中的第几阶段
+    current_stage: int | None = None  # 9 阶段中的第几阶段
     completed_stages: list[int] = field(default_factory=list)
     pending_tasks: list[str] = field(default_factory=list)
 
@@ -58,10 +58,10 @@ class Fact:
     content: str
     source: str = "unknown"  # 来源：用户告知 / 知识库检索 / 政策搜索
     confidence: float = 0.5
-    jurisdiction: Optional[dict] = None
-    valid_time: Optional[dict] = None  # 与 Graphiti 集成的时态信息
+    jurisdiction: dict | None = None
+    valid_time: dict | None = None  # 与 Graphiti 集成的时态信息
     verified: bool = False  # 是否经过 integrity check
-    supersedes: Optional[str] = None  # 取代了哪条旧事实
+    supersedes: str | None = None  # 取代了哪条旧事实
 
 
 class SemanticMemory:
@@ -83,13 +83,13 @@ class SemanticMemory:
         self.graphiti = graphiti_client
         self.lightrag = lightrag_client
         # 工作记忆引用，由 MemoryManager 注入；矛盾告警注入到其 temp_vars
-        self._working_memory: Optional[WorkingMemory] = None
+        self._working_memory: WorkingMemory | None = None
 
     def set_working_memory(self, working_memory: WorkingMemory) -> None:
         """注入工作记忆引用，用于矛盾告警注入"""
         self._working_memory = working_memory
 
-    def get_profile(self, user_id: str) -> Optional[UserProfile]:
+    def get_profile(self, user_id: str) -> UserProfile | None:
         """获取用户画像"""
         return self.user_profiles.get(user_id)
 

@@ -78,7 +78,7 @@ class Institution:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Institution":
+    def from_dict(cls, data: dict[str, Any]) -> Institution:
         """从 dict 反序列化（兼容 updated_at 为字符串或 datetime）"""
         data = dict(data)  # 浅拷贝避免修改入参
         ua = data.get("updated_at")

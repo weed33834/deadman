@@ -32,7 +32,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -72,7 +72,7 @@ class FileMetadata:
     source_user: str
     tenant_id: str
     created_at: float = field(default_factory=time.time)
-    expires_at: Optional[float] = None
+    expires_at: float | None = None
     tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -93,7 +93,7 @@ class MultimodalStorage:
             store.cleanup_expired()  # 定期清理过期文件
     """
 
-    def __init__(self, base_dir: Optional[Path] = None) -> None:
+    def __init__(self, base_dir: Path | None = None) -> None:
         self._lock = threading.RLock()
         # base_dir 默认走 multi_tenant.resolve_data_path("multimodal")
         self._base_dir_override = base_dir
@@ -125,8 +125,8 @@ class MultimodalStorage:
         file_type: str,
         source_user: str,
         ext: str = "bin",
-        tags: Optional[list[str]] = None,
-        tenant_id: Optional[str] = None,
+        tags: list[str] | None = None,
+        tenant_id: str | None = None,
     ) -> FileMetadata:
         """持久化多模态文件。
 
@@ -158,7 +158,7 @@ class MultimodalStorage:
         file_id = uuid.uuid4().hex
         content_hash = hashlib.sha256(data).hexdigest()
         created_at = time.time()
-        expires_at: Optional[float] = None
+        expires_at: float | None = None
         if file_type == "temp":
             expires_at = created_at + TEMP_TTL_SECONDS
 
@@ -191,7 +191,7 @@ class MultimodalStorage:
         )
         return meta
 
-    def retrieve(self, file_id: str, source_user: str) -> Optional[bytes]:
+    def retrieve(self, file_id: str, source_user: str) -> bytes | None:
         """读取文件内容(不存在返回 None)。"""
         if not self.is_enabled():
             from .pipeline import MultimodalDisabledError
@@ -209,7 +209,7 @@ class MultimodalStorage:
                 return None
             return file_path.read_bytes()
 
-    def get_metadata(self, file_id: str, source_user: str) -> Optional[FileMetadata]:
+    def get_metadata(self, file_id: str, source_user: str) -> FileMetadata | None:
         """查询文件元数据(不读取内容)。"""
         if not self.is_enabled():
             from .pipeline import MultimodalDisabledError
@@ -246,7 +246,7 @@ class MultimodalStorage:
     def list_files(
         self,
         source_user: str,
-        file_type: Optional[str] = None,
+        file_type: str | None = None,
     ) -> list[FileMetadata]:
         """列出用户的所有文件(可按 file_type 过滤)。"""
         if not self.is_enabled():
@@ -268,7 +268,7 @@ class MultimodalStorage:
     # TTL 清理
     # ==================================================================
 
-    def cleanup_expired(self, source_user: Optional[str] = None) -> int:
+    def cleanup_expired(self, source_user: str | None = None) -> int:
         """清理过期文件(temp 类型超过 TTL)。
 
         Args:
@@ -366,13 +366,13 @@ class MultimodalStorage:
             del index[file_id]
             self._save_index(user_id, index)
 
-    def _lookup(self, user_id: str, file_id: str) -> Optional[FileMetadata]:
+    def _lookup(self, user_id: str, file_id: str) -> FileMetadata | None:
         index = self._load_index(user_id)
         return index.get(file_id)
 
 
 # 全局单例
-_storage_instance: Optional[MultimodalStorage] = None
+_storage_instance: MultimodalStorage | None = None
 _storage_lock = threading.Lock()
 
 

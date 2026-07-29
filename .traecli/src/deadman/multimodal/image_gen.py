@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import threading
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -120,9 +120,9 @@ class DallEProvider(ImageGenProvider):
 
     name = "dall-e"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -161,10 +161,10 @@ class StableDiffusionProvider(ImageGenProvider):
 
     name = "stable-diffusion"
 
-    def __init__(self, model_path: Optional[str] = None, api_key: Optional[str] = None) -> None:
+    def __init__(self, model_path: str | None = None, api_key: str | None = None) -> None:
         self.model_path = model_path
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -203,9 +203,9 @@ class MidjourneyProvider(ImageGenProvider):
 
     name = "midjourney"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -247,7 +247,7 @@ class MockImageGenProvider(ImageGenProvider):
     def generate(self, prompt: str, style: ImageStyle, size: ImageSize) -> bytes:
         preset = STYLE_PRESETS[style]
         # 用 prompt + style 元信息生成一段可识别的占位字节
-        meta = f"MOCK-IMG|style={style.value}|size={size.value}|palette={preset['color_palette']}".encode("utf-8")
+        meta = f"MOCK-IMG|style={style.value}|size={size.value}|palette={preset['color_palette']}".encode()
         return self._PLACEHOLDER_PNG + b"\n--META--\n" + meta
 
 
@@ -269,10 +269,10 @@ class ImageGenerator:
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        sd_model_path: Optional[str] = None,
-        midjourney_api_key: Optional[str] = None,
-        custom_providers: Optional[list[ImageGenProvider]] = None,
+        openai_api_key: str | None = None,
+        sd_model_path: str | None = None,
+        midjourney_api_key: str | None = None,
+        custom_providers: list[ImageGenProvider] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         if custom_providers is not None:
@@ -288,7 +288,7 @@ class ImageGenerator:
     def is_enabled(self) -> bool:
         return is_enabled("multimodal")
 
-    def register_provider(self, provider: ImageGenProvider, position: Optional[int] = None) -> None:
+    def register_provider(self, provider: ImageGenProvider, position: int | None = None) -> None:
         with self._lock:
             if position is None:
                 self._providers.append(provider)
@@ -332,7 +332,7 @@ class ImageGenerator:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -353,7 +353,7 @@ class ImageGenerator:
 
 
 # 全局单例
-_imgen_instance: Optional[ImageGenerator] = None
+_imgen_instance: ImageGenerator | None = None
 _imgen_lock = threading.Lock()
 
 

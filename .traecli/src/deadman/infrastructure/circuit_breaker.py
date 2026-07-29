@@ -32,7 +32,6 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from .feature_flags import is_enabled
 
@@ -103,7 +102,7 @@ class CircuitBreaker:
     def __init__(
         self,
         name: str,
-        config: Optional[CircuitConfig] = None,
+        config: CircuitConfig | None = None,
         feature_flag_name: str = "circuit_breaker",
     ) -> None:
         self.name = name
@@ -190,7 +189,7 @@ class CircuitBreaker:
     def release_failure(
         self,
         duration: float = 0.0,
-        error: Optional[Exception] = None,
+        error: Exception | None = None,
     ) -> None:
         """记录一次失败调用。"""
         if not is_enabled(self.feature_flag_name):
@@ -369,14 +368,14 @@ class CircuitBreakerRegistry:
     def get_or_create(
         self,
         name: str,
-        config: Optional[CircuitConfig] = None,
+        config: CircuitConfig | None = None,
     ) -> CircuitBreaker:
         with self._lock:
             if name not in self._breakers:
                 self._breakers[name] = CircuitBreaker(name=name, config=config)
             return self._breakers[name]
 
-    def get(self, name: str) -> Optional[CircuitBreaker]:
+    def get(self, name: str) -> CircuitBreaker | None:
         with self._lock:
             return self._breakers.get(name)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class RiskTier(str, Enum):
@@ -75,5 +75,5 @@ class ConfidenceLabel:
 
     claim: str
     confidence: str  # 高/中/低/未知
-    source: Optional[str] = None
-    reason: Optional[str] = None
+    source: str | None = None
+    reason: str | None = None

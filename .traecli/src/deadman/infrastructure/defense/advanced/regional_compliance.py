@@ -55,7 +55,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -326,7 +326,7 @@ class RegionalComplianceOrchestrator:
         data_kind: str,
         from_region: str,
         to_region: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         consent_obtained: bool = False,
         purpose: str = "",
     ) -> ComplianceCheckResult:
@@ -481,7 +481,7 @@ class RegionalComplianceOrchestrator:
         tenant_id: str,
         data_kind: str,
         target_region: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> ComplianceCheckResult:
         """存储前合规检查(透明拦截)。"""
         import time as _time
@@ -538,7 +538,7 @@ class RegionalComplianceOrchestrator:
         self,
         result: ComplianceCheckResult,
         tenant_id: str,
-        user_id: Optional[str],
+        user_id: str | None,
         purpose: str,
     ) -> ComplianceCheckResult:
         """记录审计事件并返回结果。"""
@@ -555,7 +555,7 @@ class RegionalComplianceOrchestrator:
 
     def list_audit_events(
         self,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         limit: int = 100,
     ) -> list[dict]:
         with self._lock:
@@ -569,7 +569,7 @@ class RegionalComplianceOrchestrator:
 # 全局单例
 # =====================================================================
 
-_orchestrator: Optional[RegionalComplianceOrchestrator] = None
+_orchestrator: RegionalComplianceOrchestrator | None = None
 _lock = threading.Lock()
 
 

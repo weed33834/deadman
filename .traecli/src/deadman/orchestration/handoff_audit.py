@@ -122,7 +122,7 @@ class HandoffAuditEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "HandoffAuditEntry":
+    def from_dict(cls, data: dict[str, Any]) -> HandoffAuditEntry:
         """从 dict 反序列化（容错：缺失字段填默认）"""
         return cls(
             transfer_id=str(data.get("transfer_id", "")),
@@ -227,7 +227,7 @@ class HandoffAuditLogger:
         try:
             # 逐行读，取最后一条合法 JSON 行的 curr_hash
             last_hash = "0" * 64
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -446,7 +446,7 @@ class HandoffAuditLogger:
             return []
         entries: list[HandoffAuditEntry] = []
         try:
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

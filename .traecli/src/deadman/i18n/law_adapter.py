@@ -30,7 +30,7 @@ import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -50,7 +50,7 @@ class Jurisdiction(str, Enum):
     OTHER = "other"  # 其他 / 未识别
 
     @classmethod
-    def from_locale(cls, locale_str: str) -> "Jurisdiction":
+    def from_locale(cls, locale_str: str) -> Jurisdiction:
         """根据 locale 字符串(zh-CN / en-US / ...)推断管辖区。"""
         norm = locale_str.replace("_", "-").lower()
         if norm.startswith("zh-cn") or norm == "zh":
@@ -564,7 +564,7 @@ class LawAdapter:
         真实跨境法律事务必须咨询持牌律师。
     """
 
-    def __init__(self, config_path: Optional[Path] = None) -> None:
+    def __init__(self, config_path: Path | None = None) -> None:
         if config_path is not None and not isinstance(config_path, Path):
             config_path = Path(config_path)
         self.config_path = config_path
@@ -787,7 +787,7 @@ class LawAdapter:
 
 
 # 全局单例
-_law_adapter_instance: Optional[LawAdapter] = None
+_law_adapter_instance: LawAdapter | None = None
 _law_adapter_lock = threading.Lock()
 
 

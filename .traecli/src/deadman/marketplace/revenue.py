@@ -24,7 +24,7 @@ import os
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -76,7 +76,7 @@ class UsageRecord:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "UsageRecord":
+    def from_dict(cls, data: dict[str, Any]) -> UsageRecord:
         return cls(
             record_id=data["record_id"],
             agent_id=data["agent_id"],
@@ -143,7 +143,7 @@ class PayoutRecord:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PayoutRecord":
+    def from_dict(cls, data: dict[str, Any]) -> PayoutRecord:
         return cls(
             payout_id=data["payout_id"],
             author_id=data["author_id"],
@@ -169,7 +169,7 @@ class RevenueShare:
 
     def __init__(
         self,
-        store_path: Optional[Any] = None,
+        store_path: Any | None = None,
         # 可注入 registry 用于查 price_per_call / author
         registry: Any = None,
     ) -> None:
@@ -179,7 +179,7 @@ class RevenueShare:
         self._usage: list[UsageRecord] = []
         self._payouts: dict[str, PayoutRecord] = {}  # payout_id → record
         # 当前 cache 对应的 store path(检测 tenant 切换)
-        self._loaded_path: Optional[str] = None
+        self._loaded_path: str | None = None
 
     # ==================================================================
     # 路径解析 + 注入
@@ -250,8 +250,8 @@ class RevenueShare:
     def get_usage(
         self,
         agent_id: str,
-        period_start: Optional[float] = None,
-        period_end: Optional[float] = None,
+        period_start: float | None = None,
+        period_end: float | None = None,
     ) -> list[UsageRecord]:
         """查询 agent 的用量(可按时间区间过滤)。"""
         self._require_enabled()
@@ -276,7 +276,7 @@ class RevenueShare:
         agent_id: str,
         period_start: float,
         period_end: float,
-        author_id: Optional[str] = None,
+        author_id: str | None = None,
         plan: str = "free",
     ) -> RevenueSplit:
         """计算单 agent 单周期的分账。
@@ -377,7 +377,7 @@ class RevenueShare:
             )
             return record
 
-    def get_payouts(self, author_id: Optional[str] = None) -> list[PayoutRecord]:
+    def get_payouts(self, author_id: str | None = None) -> list[PayoutRecord]:
         """查询 payout 记录(可按 author 过滤)。"""
         self._require_enabled()
         with self._lock:
@@ -403,7 +403,7 @@ class RevenueShare:
             logger.debug("lookup price failed for %s: %s", agent_id, e)
         return 0.0
 
-    def _lookup_author(self, agent_id: str) -> Optional[str]:
+    def _lookup_author(self, agent_id: str) -> str | None:
         """从 registry 查 agent 的 author。"""
         if self._registry is None:
             return None
@@ -511,7 +511,7 @@ class RevenueShare:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_revenue_instance: Optional[RevenueShare] = None
+_revenue_instance: RevenueShare | None = None
 _revenue_lock = threading.Lock()
 
 

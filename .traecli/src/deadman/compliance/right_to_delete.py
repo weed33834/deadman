@@ -31,7 +31,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -69,7 +69,7 @@ class DeletionRequest:
     status: DeletionStatus = DeletionStatus.REQUESTED
     requested_at: float = field(default_factory=time.time)
     scheduled_at: float = 0.0  # 计划执行时间(requested + grace)
-    executed_at: Optional[float] = None
+    executed_at: float | None = None
     # 删除详情
     stores_processed: list[str] = field(default_factory=list)  # 已处理的存储
     stores_failed: list[str] = field(default_factory=list)  # 删除失败的存储
@@ -83,7 +83,7 @@ class DeletionRequest:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DeletionRequest":
+    def from_dict(cls, data: dict) -> DeletionRequest:
         return cls(
             request_id=data["request_id"],
             user_id=data["user_id"],
@@ -110,7 +110,7 @@ class RightToDelete:
         - 审计日志保留(法规要求),但 anonymized(去掉 user_id)
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_DELETION_STORE", "data/compliance/deletions.json")
         )
@@ -182,7 +182,7 @@ class RightToDelete:
             self._save()
             return True
 
-    def execute(self, request_id: str) -> Optional[DeletionRequest]:
+    def execute(self, request_id: str) -> DeletionRequest | None:
         """执行删除(立即,跳过宽限期)。
 
         用于:用户主动确认 / 管理员强制执行 / 定时任务触发。
@@ -237,7 +237,7 @@ class RightToDelete:
     # 定时任务
     # ==================================================================
 
-    def process_due(self, now: Optional[float] = None) -> int:
+    def process_due(self, now: float | None = None) -> int:
         """处理到期的删除请求(定时任务调用)。
 
         Returns:
@@ -276,7 +276,7 @@ class RightToDelete:
     # 查询
     # ==================================================================
 
-    def get(self, request_id: str) -> Optional[DeletionRequest]:
+    def get(self, request_id: str) -> DeletionRequest | None:
         with self._lock:
             self._load()
             return self._requests.get(request_id)
@@ -344,7 +344,7 @@ class RightToDelete:
 
 
 # 全局单例
-_rtd_instance: Optional[RightToDelete] = None
+_rtd_instance: RightToDelete | None = None
 _rtd_lock = threading.Lock()
 
 

@@ -44,7 +44,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from ...feature_flags import is_enabled
 
@@ -159,8 +159,8 @@ class RegulatoryChangeDetector:
 
     def __init__(
         self,
-        store_path: Optional[str] = None,
-        notifier: Optional[Callable[[RegulatoryChange, list[Subscriber]], None]] = None,
+        store_path: str | None = None,
+        notifier: Callable[[RegulatoryChange, list[Subscriber]], None] | None = None,
     ) -> None:
         self.store_path = store_path
         self._notifier = notifier or _default_notifier
@@ -184,7 +184,7 @@ class RegulatoryChangeDetector:
         self,
         subscriber_id: str,
         domain: str,
-        channels: Optional[list[NotificationChannel]] = None,
+        channels: list[NotificationChannel] | None = None,
         min_severity: ChangeSeverity = ChangeSeverity.MINOR,
         webhook_url: str = "",
     ) -> Subscriber:
@@ -214,7 +214,7 @@ class RegulatoryChangeDetector:
             self._save()
             return True
 
-    def list_subscribers(self, domain: Optional[str] = None) -> list[Subscriber]:
+    def list_subscribers(self, domain: str | None = None) -> list[Subscriber]:
         with self._lock:
             if domain is None:
                 return list(self._subscribers.values())
@@ -241,7 +241,7 @@ class RegulatoryChangeDetector:
         *,
         jurisdiction: str = "CN_MAINLAND",
         source_url: str = "",
-    ) -> Optional[RegulatoryChange]:
+    ) -> RegulatoryChange | None:
         """检测规则变更。
 
         Returns:
@@ -356,8 +356,8 @@ class RegulatoryChangeDetector:
 
     def list_changes(
         self,
-        domain: Optional[str] = None,
-        since: Optional[float] = None,
+        domain: str | None = None,
+        since: float | None = None,
         limit: int = 100,
     ) -> list[RegulatoryChange]:
         with self._lock:
@@ -368,7 +368,7 @@ class RegulatoryChangeDetector:
             results = [c for c in results if c.detected_at >= since]
         return results[-limit:]
 
-    def get_snapshot(self, domain: str) -> Optional[tuple[dict, str]]:
+    def get_snapshot(self, domain: str) -> tuple[dict, str] | None:
         with self._lock:
             return self._snapshots.get(domain)
 
@@ -445,7 +445,7 @@ class RegulatoryChangeDetector:
 
     def _load(self) -> None:
         try:
-            with open(self.store_path, "r", encoding="utf-8") as f:
+            with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
             self._snapshots = {
                 k: (v["rules"], v["hash"])
@@ -493,12 +493,12 @@ def _default_notifier(change: RegulatoryChange, subscribers: list[Subscriber]) -
 # 全局单例
 # =====================================================================
 
-_detector_instance: Optional[RegulatoryChangeDetector] = None
+_detector_instance: RegulatoryChangeDetector | None = None
 _lock = threading.Lock()
 
 
 def get_regulatory_change_detector(
-    store_path: Optional[str] = None,
+    store_path: str | None = None,
 ) -> RegulatoryChangeDetector:
     global _detector_instance
     with _lock:

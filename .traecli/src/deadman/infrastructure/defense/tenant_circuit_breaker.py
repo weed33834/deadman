@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Optional
 
 from ..feature_flags import is_enabled
 from ..multi_tenant import get_current_tenant_id
@@ -57,7 +56,7 @@ class TenantCircuitBreaker:
     def __init__(
         self,
         base_name: str,
-        config: Optional[CircuitConfig] = None,
+        config: CircuitConfig | None = None,
     ) -> None:
         self.base_name = base_name
         self.config = config
@@ -65,7 +64,7 @@ class TenantCircuitBreaker:
         # 缓存 tenant_id → CircuitBreaker
         self._tenant_breakers: dict[str, CircuitBreaker] = {}
 
-    def acquire(self, tenant_id: Optional[str] = None) -> str:
+    def acquire(self, tenant_id: str | None = None) -> str:
         """按当前租户 acquire。"""
         if not is_enabled("defense"):
             # 关闭:直接走原熔断器(全局,向后兼容)
@@ -78,7 +77,7 @@ class TenantCircuitBreaker:
     def release_success(
         self,
         duration: float = 0.0,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> None:
         if not is_enabled("defense"):
             self._get_global_breaker().release_success(duration)
@@ -90,8 +89,8 @@ class TenantCircuitBreaker:
     def release_failure(
         self,
         duration: float = 0.0,
-        error: Optional[Exception] = None,
-        tenant_id: Optional[str] = None,
+        error: Exception | None = None,
+        tenant_id: str | None = None,
     ) -> None:
         if not is_enabled("defense"):
             self._get_global_breaker().release_failure(duration, error)
@@ -100,7 +99,7 @@ class TenantCircuitBreaker:
         cb = self._get_or_create(tid)
         cb.release_failure(duration, error)
 
-    def get_state(self, tenant_id: Optional[str] = None) -> CircuitState:
+    def get_state(self, tenant_id: str | None = None) -> CircuitState:
         """获取指定租户的熔断器状态。"""
         if not is_enabled("defense"):
             return self._get_global_breaker().state
@@ -160,7 +159,7 @@ class TenantCircuitBreakerRegistry:
     def get_or_create(
         self,
         base_name: str,
-        config: Optional[CircuitConfig] = None,
+        config: CircuitConfig | None = None,
     ) -> TenantCircuitBreaker:
         with self._lock:
             if base_name not in self._tenant_cbs:
@@ -178,7 +177,7 @@ _tcb_registry = TenantCircuitBreakerRegistry()
 
 def get_tenant_cb(
     base_name: str,
-    config: Optional[CircuitConfig] = None,
+    config: CircuitConfig | None = None,
 ) -> TenantCircuitBreaker:
     """获取按租户隔离的熔断器(主入口)。"""
     return _tcb_registry.get_or_create(base_name, config)

@@ -40,7 +40,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 
@@ -74,9 +74,9 @@ class LinkConsent:
     strategy: TraceLinkStrategy = TraceLinkStrategy.HASH
     granted_at: float = field(default_factory=time.time)
     expires_at: float = 0.0  # 0 = 永不过期
-    revoked_at: Optional[float] = None  # 撤回时间
+    revoked_at: float | None = None  # 撤回时间
 
-    def is_valid(self, now: Optional[float] = None) -> bool:
+    def is_valid(self, now: float | None = None) -> bool:
         """同意是否有效。"""
         if self.revoked_at is not None:
             return False
@@ -104,7 +104,7 @@ class CrossSessionLinker:
         - 控制 link_id 时间窗(过期自动失效)
     """
 
-    def __init__(self, store_path: Optional[str] = None) -> None:
+    def __init__(self, store_path: str | None = None) -> None:
         self.store_path = store_path or os.environ.get(
             "DEADMAN_TRACE_LINK_STORE", "data/defense/trace_links.json"
         )
@@ -156,12 +156,12 @@ class CrossSessionLinker:
             logger.info("Cross-session link consent revoked for user %s", user_id)
             return True
 
-    def get_consent(self, user_id: str) -> Optional[LinkConsent]:
+    def get_consent(self, user_id: str) -> LinkConsent | None:
         with self._lock:
             self._load()
             return self._consents.get(user_id)
 
-    def can_link(self, user_id: str, now: Optional[float] = None) -> bool:
+    def can_link(self, user_id: str, now: float | None = None) -> bool:
         """检查是否可关联。"""
         if not is_enabled("defense"):
             return False
@@ -180,8 +180,8 @@ class CrossSessionLinker:
         self,
         session_id: str,
         user_id: str,
-        now: Optional[float] = None,
-    ) -> Optional[str]:
+        now: float | None = None,
+    ) -> str | None:
         """生成跨 session link_id。
 
         - 无同意 / 撤回 → 返回 None(不关联)
@@ -283,7 +283,7 @@ class BehaviorAggregator:
         # pattern_hash → 聚合计数
         self._patterns: dict[str, BehaviorPattern] = {}
 
-    def add_pattern(self, pattern_hash: str, now: Optional[float] = None) -> int:
+    def add_pattern(self, pattern_hash: str, now: float | None = None) -> int:
         """添加一次模式观察(LDP 加噪后返回的 count)。
 
         Args:
@@ -355,8 +355,8 @@ class TraceAnonymizer:
 
     def __init__(
         self,
-        linker: Optional[CrossSessionLinker] = None,
-        aggregator: Optional[BehaviorAggregator] = None,
+        linker: CrossSessionLinker | None = None,
+        aggregator: BehaviorAggregator | None = None,
     ) -> None:
         self.linker = linker or CrossSessionLinker()
         self.aggregator = aggregator or BehaviorAggregator()
@@ -430,7 +430,7 @@ class TraceAnonymizer:
 # 全局单例
 # =====================================================================
 
-_anonymizer: Optional[TraceAnonymizer] = None
+_anonymizer: TraceAnonymizer | None = None
 _anonymizer_lock = threading.Lock()
 
 

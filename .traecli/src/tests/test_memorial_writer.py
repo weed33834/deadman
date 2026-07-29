@@ -390,7 +390,7 @@ class TestCLIRegistration:
 # =====================================================================
 
 
-def _make_web_server(tmp_path: Path, monkeypatch) -> "WebServer":  # noqa: F821 - 函数内延迟 import 避免循环依赖,注解不求值
+def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:  # noqa: F821 - 函数内延迟 import 避免循环依赖,注解不求值
     """构造一个用 tmp_path 作为 auth_data_dir 的 WebServer"""
     from deadman.config import settings
     from deadman.web.server import WebServer

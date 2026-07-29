@@ -27,7 +27,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -102,7 +103,7 @@ class FreshnessReport:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FreshnessReport":
+    def from_dict(cls, data: dict[str, Any]) -> FreshnessReport:
         return cls(
             knowledge_id=data["knowledge_id"],
             source=data.get("source", ""),
@@ -138,7 +139,7 @@ class ExternalSource:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ExternalSource":
+    def from_dict(cls, data: dict[str, Any]) -> ExternalSource:
         return cls(
             name=data["name"],
             url=data["url"],
@@ -174,8 +175,8 @@ class KnowledgeFreshness:
 
     def __init__(
         self,
-        persist_path: Optional[Path] = None,
-        reference_time: Optional[float] = None,
+        persist_path: Path | None = None,
+        reference_time: float | None = None,
     ) -> None:
         """构造。
 
@@ -193,7 +194,7 @@ class KnowledgeFreshness:
         # 已 watch 的来源集合
         self._watched_sources: set[str] = set()
         # 归档器回调(knowledge_id -> bool)
-        self._archiver: Optional[Callable[[str], bool]] = None
+        self._archiver: Callable[[str], bool] | None = None
         if persist_path is not None:
             self._load()
 
@@ -205,8 +206,8 @@ class KnowledgeFreshness:
         self,
         knowledge_id: str,
         source: str = "",
-        ts: Optional[float] = None,
-        category: Optional[KnowledgeCategory] = None,
+        ts: float | None = None,
+        category: KnowledgeCategory | None = None,
     ) -> None:
         """记录某知识的更新时间。
 
@@ -395,7 +396,7 @@ class KnowledgeFreshness:
         with self._lock:
             return list(self._watched_sources)
 
-    def mark_source_checked(self, name: str, ts: Optional[float] = None) -> None:
+    def mark_source_checked(self, name: str, ts: float | None = None) -> None:
         """标记外部源已检查(更新 last_checked)。"""
         with self._lock:
             src = self._sources.get(name)

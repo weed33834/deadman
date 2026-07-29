@@ -58,7 +58,7 @@ import time
 from collections import Counter, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 from ....utils.text_similarity import tokenize, jaccard_similarity
@@ -220,7 +220,7 @@ class ConvergenceDetector:
             ...
     """
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: dict | None = None) -> None:
         self.config = {**DETECTOR_DEFAULTS, **(config or {})}
         self._lock = threading.RLock()
         # 辩论历史(用于跨会话趋势分析)
@@ -250,10 +250,10 @@ class ConvergenceDetector:
         self,
         *,
         agent_outputs: list[AgentOutput],
-        votes: Optional[dict[str, int]] = None,
-        winner: Optional[str] = None,
+        votes: dict[str, int] | None = None,
+        winner: str | None = None,
         session_id: str = "",
-    ) -> "ConvergenceCheckResult":
+    ) -> ConvergenceCheckResult:
         """检测单次辩论的收敛情况。
 
         Args:
@@ -407,7 +407,7 @@ class ConvergenceDetector:
 
         return result
 
-    def check_arbiter_bias(self, *, session_id: str = "") -> "ConvergenceCheckResult":
+    def check_arbiter_bias(self, *, session_id: str = "") -> ConvergenceCheckResult:
         """检测仲裁偏好(跨会话)。
 
         通过 winner 分布的熵判断:
@@ -464,7 +464,7 @@ class ConvergenceDetector:
         *,
         failure_types: list[str],
         session_id: str = "",
-    ) -> "ConvergenceCheckResult":
+    ) -> ConvergenceCheckResult:
         """检测 Reflexion 策略污染(集体偏见)。
 
         若多个 agent 共享 Reflexion 策略且 failure_type 高度集中,
@@ -553,8 +553,8 @@ class ConvergenceDetector:
     def _compute_metrics(
         self,
         agent_outputs: list[AgentOutput],
-        votes: Optional[dict[str, int]],
-        winner: Optional[str],
+        votes: dict[str, int] | None,
+        winner: str | None,
     ) -> ConvergenceMetrics:
         """计算收敛指标。"""
         metrics = ConvergenceMetrics()
@@ -751,7 +751,7 @@ class CountermeasureStrategy:
 # 全局单例
 # =====================================================================
 
-_detector_instance: Optional[ConvergenceDetector] = None
+_detector_instance: ConvergenceDetector | None = None
 _detector_lock = threading.RLock()
 
 

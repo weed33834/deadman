@@ -26,7 +26,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +237,7 @@ class RootCauseAnalyzer:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _find_first_error_span(spans: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    def _find_first_error_span(spans: list[dict[str, Any]]) -> dict[str, Any] | None:
         """从 span 列表中找首个 status=ERROR 的 span
 
         按 span 创建顺序遍历（spans 已是创建顺序），返回首个 ERROR span。

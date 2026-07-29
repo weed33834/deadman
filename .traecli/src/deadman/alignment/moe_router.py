@@ -18,7 +18,7 @@ import logging
 import threading
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ class MoERouter:
         router.record_result("legal-1", success=True)
     """
 
-    def __init__(self, config: Optional[MoEConfig] = None) -> None:
+    def __init__(self, config: MoEConfig | None = None) -> None:
         self.config = config or MoEConfig()
         self._lock = threading.RLock()
         self._experts: dict[str, Expert] = {}
@@ -185,7 +185,7 @@ class MoERouter:
                 return True
             return False
 
-    def get_expert(self, name: str) -> Optional[Expert]:
+    def get_expert(self, name: str) -> Expert | None:
         with self._lock:
             return self._experts.get(name)
 
@@ -196,7 +196,7 @@ class MoERouter:
     # ------------------------------------------------------------------
     # 路由
     # ------------------------------------------------------------------
-    def route(self, query: str, context: Optional[dict[str, Any]] = None) -> Expert:
+    def route(self, query: str, context: dict[str, Any] | None = None) -> Expert:
         """选择最佳专家。
 
         策略:

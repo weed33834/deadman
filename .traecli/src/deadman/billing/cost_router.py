@@ -25,7 +25,6 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from ..infrastructure.circuit_breaker import CircuitBreaker, CircuitState, cb_registry
 from ..infrastructure.feature_flags import is_enabled
@@ -82,7 +81,7 @@ class ModelChoice:
 class RoutingResult:
     """路由决策结果。"""
 
-    chosen: Optional[ModelChoice]
+    chosen: ModelChoice | None
     reason: str  # 选择理由(便于审计)
     alternatives: list[ModelChoice] = field(default_factory=list)  # 备选(failover 用)
     estimated_cost: float = 0.0  # 预估成本(CNY)
@@ -130,7 +129,7 @@ class CostRouter:
 
     def __init__(
         self,
-        subscriptions: Optional[SubscriptionManager] = None,
+        subscriptions: SubscriptionManager | None = None,
     ) -> None:
         self.subscriptions = subscriptions or get_subscription_manager()
         self._lock = threading.RLock()
@@ -152,8 +151,8 @@ class CostRouter:
         requires_tools: bool = False,
         requires_vision: bool = False,
         requires_json: bool = False,
-        strategy: Optional[str] = None,
-        tenant_id: Optional[str] = None,
+        strategy: str | None = None,
+        tenant_id: str | None = None,
     ) -> RoutingResult:
         """路由决策。
 
@@ -225,7 +224,7 @@ class CostRouter:
     # 故障转移
     # ==================================================================
 
-    def get_failover(self, original: ModelChoice, tenant_id: Optional[str] = None) -> Optional[ModelChoice]:
+    def get_failover(self, original: ModelChoice, tenant_id: str | None = None) -> ModelChoice | None:
         """获取故障转移候选(主模型熔断时用)。"""
         candidates = self._model_pool.get(original.tier, [])
         for c in candidates:
@@ -248,7 +247,7 @@ class CostRouter:
             existing.append(choice)
             self._model_pool[tier] = existing
 
-    def list_models(self, tier: Optional[ModelTier] = None) -> list[ModelChoice]:
+    def list_models(self, tier: ModelTier | None = None) -> list[ModelChoice]:
         """列出所有模型(看板用)。"""
         if tier is None:
             result = []
@@ -361,7 +360,7 @@ class CostRouter:
 
 
 # 全局单例
-_cr_instance: Optional[CostRouter] = None
+_cr_instance: CostRouter | None = None
 _cr_lock = threading.Lock()
 
 

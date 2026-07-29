@@ -65,11 +65,11 @@ class TerminationCondition(ABC):
     def evaluate(self, state: ConversationState) -> TerminationResult:
         """评估是否应终止。纯函数：相同 state 必须返回相同结果。"""
 
-    def __or__(self, other: "TerminationCondition") -> "TerminationCondition":
+    def __or__(self, other: TerminationCondition) -> TerminationCondition:
         """OR 组合：任一终止即终止（短路：左侧终止时不评估右侧）"""
         return _OrTerminationCondition(self, other)
 
-    def __and__(self, other: "TerminationCondition") -> "TerminationCondition":
+    def __and__(self, other: TerminationCondition) -> TerminationCondition:
         """AND 组合：两者都终止才终止（收集两侧 reason）"""
         return _AndTerminationCondition(self, other)
 

@@ -29,7 +29,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
+from collections.abc import Iterable
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -108,7 +109,7 @@ class SFTExample:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SFTExample":
+    def from_dict(cls, data: dict[str, Any]) -> SFTExample:
         tt = data.get("task_type", TaskType.GENERAL.value)
         if isinstance(tt, str):
             try:
@@ -175,7 +176,7 @@ class SFTDataset:
 
     def __init__(
         self,
-        pii_redactor: Optional[PIIRedactor] = None,
+        pii_redactor: PIIRedactor | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._examples: list[SFTExample] = []
@@ -239,7 +240,7 @@ class SFTDataset:
     # ------------------------------------------------------------------
     # 过滤(返回新 dataset,不改自身)
     # ------------------------------------------------------------------
-    def filter_by_quality(self, min_score: float) -> "SFTDataset":
+    def filter_by_quality(self, min_score: float) -> SFTDataset:
         """按质量分过滤(返回新 dataset,保留 ≥ min_score 的样本)。"""
         new_ds = SFTDataset(pii_redactor=self._pii_redactor)
         with self._lock:
@@ -249,7 +250,7 @@ class SFTDataset:
                     new_ds._examples.append(ex)
         return new_ds
 
-    def filter_by_task_type(self, task_type: TaskType) -> "SFTDataset":
+    def filter_by_task_type(self, task_type: TaskType) -> SFTDataset:
         """按任务类型过滤。"""
         new_ds = SFTDataset(pii_redactor=self._pii_redactor)
         with self._lock:
@@ -445,7 +446,7 @@ class SFTDataset:
         loaded = 0
         with self._lock:
             self._examples.clear()
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

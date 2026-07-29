@@ -21,7 +21,7 @@ import logging
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -122,10 +122,10 @@ class AzureTTSProvider(TTSProvider):
 
     name = "azure"
 
-    def __init__(self, api_key: Optional[str] = None, region: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None, region: str | None = None) -> None:
         self.api_key = api_key
         self.region = region
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -167,9 +167,9 @@ class OpenAITTSProvider(TTSProvider):
 
     name = "openai"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -214,7 +214,7 @@ class EdgeTTSProvider(TTSProvider):
     name = "edge_tts"
 
     def __init__(self) -> None:
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -295,10 +295,10 @@ class TTSService:
 
     def __init__(
         self,
-        azure_api_key: Optional[str] = None,
-        azure_region: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
-        custom_providers: Optional[list[TTSProvider]] = None,
+        azure_api_key: str | None = None,
+        azure_region: str | None = None,
+        openai_api_key: str | None = None,
+        custom_providers: list[TTSProvider] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         if custom_providers is not None:
@@ -314,7 +314,7 @@ class TTSService:
     def is_enabled(self) -> bool:
         return is_enabled("multimodal")
 
-    def register_provider(self, provider: TTSProvider, position: Optional[int] = None) -> None:
+    def register_provider(self, provider: TTSProvider, position: int | None = None) -> None:
         with self._lock:
             if position is None:
                 self._providers.append(provider)
@@ -360,7 +360,7 @@ class TTSService:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -388,7 +388,7 @@ class TTSService:
 
 
 # 全局单例
-_tts_instance: Optional[TTSService] = None
+_tts_instance: TTSService | None = None
 _tts_lock = threading.Lock()
 
 

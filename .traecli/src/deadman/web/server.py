@@ -3416,7 +3416,7 @@ class WebServer:
                     {"error": f"服务暂不可用: {fallback_exc}"},
                     ensure_ascii=False,
                 )
-                wfile.write(f"event: error\ndata: {err}\n\n".encode("utf-8"))
+                wfile.write(f"event: error\ndata: {err}\n\n".encode())
                 wfile.flush()
                 return
             # P9：累加对话级统计 - 降级路径（best-effort）
@@ -3438,7 +3438,7 @@ class WebServer:
                 {"chunk": chunk, "degraded": degraded, "risk_tier": risk_tier},
                 ensure_ascii=False,
             )
-            wfile.write(f"data: {data}\n\n".encode("utf-8"))
+            wfile.write(f"data: {data}\n\n".encode())
             wfile.flush()
 
         # P3：推送 trace 事件 - 把 graph 内部 trace_spans / metrics / subagent_called
@@ -3456,7 +3456,7 @@ class WebServer:
             }
             trace_data = json.dumps(trace_payload, ensure_ascii=False)
             try:
-                wfile.write(f"event: trace\ndata: {trace_data}\n\n".encode("utf-8"))
+                wfile.write(f"event: trace\ndata: {trace_data}\n\n".encode())
                 wfile.flush()
             except Exception as exc:  # pragma: no cover - 客户端断开等
                 logger.debug("trace 推送失败（客户端可能已断开）: %s", exc)
@@ -3472,7 +3472,7 @@ class WebServer:
             },
             ensure_ascii=False,
         )
-        wfile.write(f"event: done\ndata: {done_data}\n\n".encode("utf-8"))
+        wfile.write(f"event: done\ndata: {done_data}\n\n".encode())
         wfile.flush()
 
     @staticmethod

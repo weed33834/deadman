@@ -33,7 +33,8 @@ import threading
 import time
 import traceback
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 
 from ..infrastructure.feature_flags import is_enabled
 from .registry import MarketplaceError
@@ -186,7 +187,7 @@ class MarketplaceSandbox:
         self,
         agent_id: str,
         input_data: Any,
-        config: Optional[SandboxConfig] = None,
+        config: SandboxConfig | None = None,
         user_id: str = "anonymous",
     ) -> SandboxResult:
         """在沙盒内执行 agent handler。
@@ -372,7 +373,7 @@ class MarketplaceSandbox:
         self,
         handler: Callable[[Any, Any], Any],
         input_data: Any,
-        env: "SandboxEnvironment",
+        env: SandboxEnvironment,
         config: SandboxConfig,
         usage: ResourceUsage,
     ) -> tuple[Any, str]:
@@ -524,7 +525,7 @@ class SandboxEnvironment:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_sandbox_instance: Optional[MarketplaceSandbox] = None
+_sandbox_instance: MarketplaceSandbox | None = None
 _sandbox_lock = threading.Lock()
 
 

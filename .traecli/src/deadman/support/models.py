@@ -60,7 +60,7 @@ class TicketReply:
     @classmethod
     def new(
         cls, author: str, content: str, created_at: str | None = None
-    ) -> "TicketReply":
+    ) -> TicketReply:
         """创建一条新回复
 
         author 校验：必须是 TicketReplyAuthor 枚举值之一
@@ -85,7 +85,7 @@ class TicketReply:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TicketReply":
+    def from_dict(cls, data: dict[str, Any]) -> TicketReply:
         return cls(
             reply_id=data["reply_id"],
             author=data["author"],
@@ -119,7 +119,7 @@ class Ticket:
         priority: str,
         subject: str,
         description: str,
-    ) -> "Ticket":
+    ) -> Ticket:
         """创建新工单
 
         校验：
@@ -206,7 +206,7 @@ class Ticket:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Ticket":
+    def from_dict(cls, data: dict[str, Any]) -> Ticket:
         replies = [TicketReply.from_dict(r) for r in data.get("replies", [])]
         return cls(
             ticket_id=data["ticket_id"],

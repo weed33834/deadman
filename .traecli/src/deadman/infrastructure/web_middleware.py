@@ -24,7 +24,8 @@ import logging
 import os
 from dataclasses import dataclass, field
 from http import HTTPStatus
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 from urllib.parse import urlparse
 
 from .feature_flags import is_enabled
@@ -77,7 +78,7 @@ class MiddlewareResponse:
     reason: str = ""  # 拦截原因(审计)
 
 
-def passthrough() -> Optional[MiddlewareResponse]:
+def passthrough() -> MiddlewareResponse | None:
     """表示放行(不拦截)。"""
     return None
 
@@ -85,7 +86,7 @@ def passthrough() -> Optional[MiddlewareResponse]:
 # 中间件签名:(method, path, headers, body, client_ip) -> Optional[MiddlewareResponse]
 MiddlewareFn = Callable[
     [str, str, dict, bytes, str],
-    Optional[MiddlewareResponse],
+    MiddlewareResponse | None,
 ]
 
 
@@ -106,7 +107,7 @@ class MiddlewareChain:
     def __init__(self) -> None:
         self._middlewares: list[MiddlewareFn] = []
 
-    def add(self, mw: MiddlewareFn) -> "MiddlewareChain":
+    def add(self, mw: MiddlewareFn) -> MiddlewareChain:
         self._middlewares.append(mw)
         return self
 
@@ -117,7 +118,7 @@ class MiddlewareChain:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         """执行中间件链。
 
         Returns:
@@ -154,9 +155,9 @@ class RateLimitMiddleware:
 
     def __init__(
         self,
-        config: Optional[RateLimitConfig] = None,
-        key_extractor: Optional[Callable[[str, str, dict], str]] = None,
-        exempt_paths: Optional[set[str]] = None,
+        config: RateLimitConfig | None = None,
+        key_extractor: Callable[[str, str, dict], str] | None = None,
+        exempt_paths: set[str] | None = None,
     ) -> None:
         self.limiter = RateLimiter(config or RateLimitConfig())
         self.key_extractor = key_extractor or self._default_key_extractor
@@ -169,7 +170,7 @@ class RateLimitMiddleware:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         # 健康检查不限流
         if path in self.exempt_paths:
             return None
@@ -208,8 +209,8 @@ class SecurityHeadersMiddleware:
 
     def __init__(
         self,
-        csp: Optional[str] = None,
-        cors_origins: Optional[list[str]] = None,
+        csp: str | None = None,
+        cors_origins: list[str] | None = None,
         hsts_max_age: int = 31536000,
     ) -> None:
         self.csp = csp or _default_csp()
@@ -223,7 +224,7 @@ class SecurityHeadersMiddleware:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         # 安全头中间件不拦截请求,仅注入响应头(由 handler 在 _send_json 时合并)
         # 这里返回 None 表示放行,但把头注入到一个"thread-local"上下文
         # 简化方案:返回放行 + 在 headers 字段提供默认值(由 caller 合并到响应)
@@ -251,9 +252,9 @@ class CORSMiddleware:
 
     def __init__(
         self,
-        allowed_origins: Optional[list[str]] = None,
-        allowed_methods: Optional[list[str]] = None,
-        allowed_headers: Optional[list[str]] = None,
+        allowed_origins: list[str] | None = None,
+        allowed_methods: list[str] | None = None,
+        allowed_headers: list[str] | None = None,
         allow_credentials: bool = True,
         max_age: int = 86400,
     ) -> None:
@@ -277,7 +278,7 @@ class CORSMiddleware:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         origin = headers.get("origin", "")
         # 同源请求(无 Origin)或不在白名单 → 不处理(浏览器同源策略生效)
         if not origin or origin not in self.allowed_origins:
@@ -326,7 +327,7 @@ class RequestSizeLimitMiddleware:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         if not body:
             return None
         if len(body) > self.max_body_bytes:
@@ -346,7 +347,7 @@ class RequestSizeLimitMiddleware:
 class AuditLogMiddleware:
     """访问审计日志中间件 - 记录 method/path/IP/状态码/耗时。"""
 
-    def __init__(self, log_path: Optional[str] = None) -> None:
+    def __init__(self, log_path: str | None = None) -> None:
         self.log_path = log_path  # 不指定则只打 logger
 
     def __call__(
@@ -356,7 +357,7 @@ class AuditLogMiddleware:
         headers: dict,
         body: bytes,
         client_ip: str,
-    ) -> Optional[MiddlewareResponse]:
+    ) -> MiddlewareResponse | None:
         # 仅记录,不拦截;实际响应状态需由 caller 在 finally 中调用 log_response()
         logger.info(
             "audit_request method=%s path=%s ip=%s body_size=%d",
@@ -373,8 +374,8 @@ class AuditLogMiddleware:
 # =====================================================================
 
 def build_default_middleware_chain(
-    rate_limit_config: Optional[RateLimitConfig] = None,
-    cors_origins: Optional[list[str]] = None,
+    rate_limit_config: RateLimitConfig | None = None,
+    cors_origins: list[str] | None = None,
     max_body_bytes: int = 1024 * 1024,
 ) -> tuple[MiddlewareChain, SecurityHeadersMiddleware, CORSMiddleware]:
     """构建默认中间件链 + 安全头/CORS 注入器。

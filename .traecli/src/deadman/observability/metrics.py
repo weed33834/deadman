@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 # =====================================================================
@@ -258,7 +258,7 @@ def _category_of(metric_name: str) -> str:
     return "uncategorized"
 
 
-def _tags_key(tags: Optional[dict[str, Any]]) -> str:
+def _tags_key(tags: dict[str, Any] | None) -> str:
     """将 tags 序列化为稳定字符串键，用于聚合分组。"""
     if not tags:
         return ""
@@ -292,7 +292,7 @@ class MetricsCollector:
         self,
         name: str,
         value: float | int | bool,
-        tags: Optional[dict[str, Any]] = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """记录一个指标值。
 
@@ -326,7 +326,7 @@ class MetricsCollector:
     def get_metric(
         self,
         name: str,
-        tags: Optional[dict[str, Any]] = None,
+        tags: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """查询单个指标的聚合统计。
 
@@ -397,7 +397,7 @@ class MetricsCollector:
             },
         )
 
-    def list_metrics(self, category: Optional[str] = None) -> list[str]:
+    def list_metrics(self, category: str | None = None) -> list[str]:
         """列出已记录的指标名（可选按分类过滤）。"""
         if category:
             cat_bucket = self._records.get(category, {})

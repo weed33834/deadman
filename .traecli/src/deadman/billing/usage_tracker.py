@@ -21,7 +21,6 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -65,7 +64,7 @@ class QuotaResult:
     utilization: float  # 0-1
     triggered_actions: list[str] = field(default_factory=list)
     will_exceed: bool = False  # 是否即将超限(预测)
-    predicted_overflow_at: Optional[float] = None  # epoch(若预测超限)
+    predicted_overflow_at: float | None = None  # epoch(若预测超限)
 
 
 class UsageTracker:
@@ -73,9 +72,9 @@ class UsageTracker:
 
     def __init__(
         self,
-        metering: Optional[MeteringService] = None,
-        quota: Optional[QuotaManager] = None,
-        subscriptions: Optional[SubscriptionManager] = None,
+        metering: MeteringService | None = None,
+        quota: QuotaManager | None = None,
+        subscriptions: SubscriptionManager | None = None,
     ) -> None:
         self.metering = metering or get_metering_service()
         self.quota = quota or get_quota_manager()
@@ -93,7 +92,7 @@ class UsageTracker:
         user_id: str,
         tokens: int,
         model: str = "",
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaResult:
         """记录 LLM token 用量。"""
         # 1. metering 记原始事件
@@ -106,7 +105,7 @@ class UsageTracker:
         self,
         user_id: str,
         tool_name: str = "",
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaResult:
         """记录工具调用。"""
         self.metering.record_tool_call(user_id, tool_name=tool_name, tenant_id=tenant_id)
@@ -116,7 +115,7 @@ class UsageTracker:
         self,
         user_id: str,
         bytes_: int,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaResult:
         """记录存储使用(累计)。"""
         self.metering.record_storage(user_id, bytes_, tenant_id=tenant_id)
@@ -127,7 +126,7 @@ class UsageTracker:
         self,
         user_id: str,
         multimodal_type: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaResult:
         """记录多模态调用。"""
         self.metering.record_multimodal(user_id, multimodal_type, tenant_id=tenant_id)
@@ -137,7 +136,7 @@ class UsageTracker:
     # 查询用量
     # ==================================================================
 
-    def get_usage(self, user_id: str, period: Optional[str] = None) -> UsageReport:
+    def get_usage(self, user_id: str, period: str | None = None) -> UsageReport:
         """获取用量报告。
 
         Args:
@@ -176,7 +175,7 @@ class UsageTracker:
         self,
         user_id: str,
         dimension: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaResult:
         """查配额(不消费,仅查)。"""
         if not is_enabled("billing"):
@@ -209,8 +208,8 @@ class UsageTracker:
         self,
         user_id: str,
         dimension: str,
-        tenant_id: Optional[str] = None,
-    ) -> Optional[float]:
+        tenant_id: str | None = None,
+    ) -> float | None:
         """预测某维度何时超限(基于最近速率)。
 
         Returns:
@@ -228,7 +227,7 @@ class UsageTracker:
         dimension: str,
         amount: int,
         user_id: str,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
     ) -> QuotaResult:
         """消费配额,返回配额检查结果。"""
         if not is_enabled("billing"):
@@ -274,7 +273,7 @@ class UsageTracker:
         dimension: str,
         usage: QuotaUsage,
         tenant_id: str,
-    ) -> tuple[bool, Optional[float]]:
+    ) -> tuple[bool, float | None]:
         """预测是否超限(基于最近 N 分钟速率)。
 
         算法:
@@ -346,7 +345,7 @@ class UsageTracker:
 
 
 # 全局单例
-_ut_instance: Optional[UsageTracker] = None
+_ut_instance: UsageTracker | None = None
 _ut_lock = threading.Lock()
 
 

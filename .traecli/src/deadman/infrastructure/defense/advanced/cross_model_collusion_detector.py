@@ -71,7 +71,7 @@ import time
 from collections import Counter, defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -176,7 +176,7 @@ class CollusionMetrics:
     # provider 分布熵(越低越偏向某 provider)
     provider_entropy: float = 0.0
     # 仲裁偏好(若 winner_provider 占比 > 0.5)
-    arbiter_bias_provider: Optional[str] = None
+    arbiter_bias_provider: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -300,7 +300,7 @@ class CrossModelCollusionDetector:
             ...
     """
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: dict | None = None) -> None:
         self.config = {**DETECTOR_DEFAULTS, **(config or {})}
         self._lock = threading.RLock()
         # 历史:用于 arbiter 偏好 / 越狱扩散
@@ -320,8 +320,8 @@ class CrossModelCollusionDetector:
         self,
         *,
         outputs: list[ProviderOutput],
-        endorsements: Optional[dict[str, str]] = None,
-        winner_provider: Optional[str] = None,
+        endorsements: dict[str, str] | None = None,
+        winner_provider: str | None = None,
         session_id: str = "",
     ) -> CollusionCheckResult:
         """检测跨 provider 共谋。
@@ -468,8 +468,8 @@ class CrossModelCollusionDetector:
     def _compute_metrics(
         self,
         outputs: list[ProviderOutput],
-        endorsements: Optional[dict[str, str]],
-        winner_provider: Optional[str],
+        endorsements: dict[str, str] | None,
+        winner_provider: str | None,
     ) -> CollusionMetrics:
         """计算共谋指标。"""
         metrics = CollusionMetrics()
@@ -565,7 +565,7 @@ class CrossModelCollusionDetector:
         self,
         outputs: list[ProviderOutput],
         session_id: str,
-    ) -> Optional[CollusionAlert]:
+    ) -> CollusionAlert | None:
         """检测越狱扩散:相同 output_hash 跨 provider(跨 session)出现。
 
         若同一 hash 在多个 provider 的输出中出现(可能跨 session),
@@ -629,7 +629,7 @@ class CrossModelCollusionDetector:
 # 全局单例
 # =====================================================================
 
-_detector_instance: Optional[CrossModelCollusionDetector] = None
+_detector_instance: CrossModelCollusionDetector | None = None
 _detector_lock = threading.RLock()
 
 

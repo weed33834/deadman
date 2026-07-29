@@ -610,7 +610,7 @@ def format_sse_events(events: list[dict[str, Any]]) -> str:
 # =====================================================================
 
 
-def _a2a_server_run(self: "A2AServer", host: str | None = None, port: int | None = None) -> None:
+def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None = None) -> None:
     """A2AServer.run 的实际实现（绑定到类作为 run 方法）"""
     host = host or settings.mcp_server_host
     port = port or (settings.mcp_server_port + 1)  # 默认比 MCP 端口 +1

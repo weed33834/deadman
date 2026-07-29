@@ -33,7 +33,8 @@ import base64
 import hashlib
 import logging
 import struct
-from typing import Any, AsyncIterator, Optional
+from typing import Any
+from collections.abc import AsyncIterator
 from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
@@ -100,8 +101,8 @@ class WeChatConnector:
         self,
         app_id: str,
         app_secret: str,
-        pairing_tokens: Optional[dict[str, str]] = None,
-        guard: Optional[Any] = None,
+        pairing_tokens: dict[str, str] | None = None,
+        guard: Any | None = None,
         verify_token: str = "",
         encoding_aes_key: str = "",
     ) -> None:

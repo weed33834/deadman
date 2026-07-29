@@ -39,7 +39,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any, Optional
+from typing import Any
 
 try:
     import structlog
@@ -76,7 +76,7 @@ else:  # pragma: no cover
 # =====================================================================
 # 解析辅助
 # =====================================================================
-def _resolve_level(level: Optional[str]) -> int:
+def _resolve_level(level: str | None) -> int:
     """将字符串日志级别解析为 stdlib logging 的数字级别。
 
     ``level`` 为 ``None`` 时读取 ``DEADMAN_LOG_LEVEL`` 环境变量。
@@ -86,7 +86,7 @@ def _resolve_level(level: Optional[str]) -> int:
     return getattr(logging, str(level).upper(), logging.INFO)
 
 
-def _resolve_renderer(fmt: Optional[str]):
+def _resolve_renderer(fmt: str | None):
     """根据 ``DEADMAN_LOG_FORMAT`` 选择渲染器。
 
     ``json`` -> :class:`structlog.processors.JSONRenderer`（生产，机器可读）
@@ -104,7 +104,7 @@ def _resolve_renderer(fmt: Optional[str]):
 # =====================================================================
 # 公开 API
 # =====================================================================
-def setup_logging(level: Optional[str] = None, fmt: Optional[str] = None) -> None:
+def setup_logging(level: str | None = None, fmt: str | None = None) -> None:
     """配置 structlog 与 stdlib logging 的集成。
 
     参数:
@@ -164,7 +164,7 @@ def setup_logging(level: Optional[str] = None, fmt: Optional[str] = None) -> Non
     root_logger.setLevel(resolved_level)
 
 
-def get_logger(name: Optional[str] = None) -> Any:
+def get_logger(name: str | None = None) -> Any:
     """获取一个结构化 logger。
 
     新代码推荐用 ``structlog.get_logger(__name__)`` 或本函数；

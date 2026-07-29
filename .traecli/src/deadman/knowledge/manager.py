@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from ..infrastructure.defense.pii_guard import (
@@ -80,10 +80,10 @@ class KnowledgeManager:
 
     def __init__(
         self,
-        persist_root: Optional[Path] = None,
-        graphiti: Optional[GraphitiRuntime] = None,
-        lightrag: Optional[LightRAGRuntime] = None,
-        pii_redactor: Optional[PIIRedactor] = None,
+        persist_root: Path | None = None,
+        graphiti: GraphitiRuntime | None = None,
+        lightrag: LightRAGRuntime | None = None,
+        pii_redactor: PIIRedactor | None = None,
     ) -> None:
         """构造。
 
@@ -129,9 +129,9 @@ class KnowledgeManager:
         self,
         content: str,
         source: str = "",
-        tenant_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        tenant_id: str | None = None,
+        user_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """添加一条知识。
 
@@ -222,8 +222,8 @@ class KnowledgeManager:
     def query(
         self,
         question: str,
-        user_id: Optional[str] = None,
-        tenant_id: Optional[str] = None,
+        user_id: str | None = None,
+        tenant_id: str | None = None,
         include_private: bool = True,
         top_k: int = 5,
     ) -> FusionResult:
@@ -344,7 +344,7 @@ class KnowledgeManager:
 # 单例
 # =====================================================================
 
-_km_instance: Optional[KnowledgeManager] = None
+_km_instance: KnowledgeManager | None = None
 _km_lock = threading.Lock()
 
 

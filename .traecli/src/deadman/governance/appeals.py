@@ -27,7 +27,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -86,7 +86,7 @@ class Appeal:
     reason: str = ""
     status: AppealStatus = AppealStatus.FILED
     filed_at: float = field(default_factory=time.time)
-    reviewed_at: Optional[float] = None
+    reviewed_at: float | None = None
     reviewer_id: str = ""
     resolution_text: str = ""
     escalated: bool = False
@@ -96,7 +96,7 @@ class Appeal:
         if self.sla_deadline == 0.0:
             self.sla_deadline = self.filed_at + APPEAL_SLA_SECONDS
 
-    def is_overdue(self, now: Optional[float] = None) -> bool:
+    def is_overdue(self, now: float | None = None) -> bool:
         """是否 SLA 超时 (filed 后 7 天未审完)。"""
         if self.status in (AppealStatus.APPROVED, AppealStatus.REJECTED):
             return False
@@ -109,7 +109,7 @@ class Appeal:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Appeal":
+    def from_dict(cls, data: dict[str, Any]) -> Appeal:
         return cls(
             appeal_id=data["appeal_id"],
             user_id=data["user_id"],
@@ -136,7 +136,7 @@ class AppealsManager:
         pending = am.list_pending()
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path("governance/appeals.json")
         self._lock = threading.RLock()
         self._cache: dict[str, Appeal] = {}
@@ -206,7 +206,7 @@ class AppealsManager:
             )
             return appeal
 
-    def get(self, appeal_id: str) -> Optional[Appeal]:
+    def get(self, appeal_id: str) -> Appeal | None:
         """按 ID 获取复议。"""
         with self._lock:
             self._load()
@@ -235,7 +235,7 @@ class AppealsManager:
             self._load()
             return list(self._cache.values())
 
-    def start_review(self, appeal_id: str, reviewer_id: str) -> Optional[Appeal]:
+    def start_review(self, appeal_id: str, reviewer_id: str) -> Appeal | None:
         """标记开始审核 (状态切到 UNDER_REVIEW)。"""
         with self._lock:
             self._load()
@@ -247,7 +247,7 @@ class AppealsManager:
             self._save()
             return appeal
 
-    def list_overdue(self, now: Optional[float] = None) -> list[Appeal]:
+    def list_overdue(self, now: float | None = None) -> list[Appeal]:
         """列出 SLA 超时的复议。"""
         with self._lock:
             self._load()
@@ -323,7 +323,7 @@ class AppealsManager:
 
 
 # 全局单例
-_am_instance: Optional[AppealsManager] = None
+_am_instance: AppealsManager | None = None
 _am_lock = threading.Lock()
 
 

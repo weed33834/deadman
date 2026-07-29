@@ -23,7 +23,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -156,7 +156,7 @@ class MessageBundle:
         3. ZH_CN 也缺失 → 返回原始 key 字符串
     """
 
-    def __init__(self, defaults: Optional[dict[str, dict[str, str]]] = None) -> None:
+    def __init__(self, defaults: dict[str, dict[str, str]] | None = None) -> None:
         self._lock = threading.RLock()
         # 内部结构: {key: {locale_value: message}}
         self._messages: dict[str, dict[str, str]] = {}
@@ -314,7 +314,7 @@ class MessageBundle:
 
 
 # 全局单例
-_message_bundle_instance: Optional[MessageBundle] = None
+_message_bundle_instance: MessageBundle | None = None
 _message_bundle_lock = threading.Lock()
 
 

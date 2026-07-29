@@ -30,7 +30,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -180,7 +180,7 @@ class RiskCard:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RiskCard":
+    def from_dict(cls, data: dict[str, Any]) -> RiskCard:
         return cls(
             risk_id=data["risk_id"],
             title=data.get("title", ""),
@@ -238,7 +238,7 @@ class RiskAssessment:
             ...
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path("governance/risk_cards.json")
         self._lock = threading.RLock()
         self._cache: dict[str, RiskCard] = {}
@@ -266,7 +266,7 @@ class RiskAssessment:
                 )
             return card
 
-    def get(self, risk_id: str) -> Optional[RiskCard]:
+    def get(self, risk_id: str) -> RiskCard | None:
         """按 ID 获取风险卡。"""
         with self._lock:
             self._load()
@@ -309,7 +309,7 @@ class RiskAssessment:
         """矩阵评估 (不持久化,纯计算)。"""
         return _compute_risk_score(severity, likelihood)
 
-    def mitigate(self, risk_id: str, strategy: str) -> Optional[RiskCard]:
+    def mitigate(self, risk_id: str, strategy: str) -> RiskCard | None:
         """记录缓解策略 + 状态切到 mitigating。"""
         with self._lock:
             self._load()
@@ -323,7 +323,7 @@ class RiskAssessment:
             logger.info("Risk %s mitigating: %s", risk_id, strategy[:80])
             return card
 
-    def accept(self, risk_id: str, reason: str) -> Optional[RiskCard]:
+    def accept(self, risk_id: str, reason: str) -> RiskCard | None:
         """正式接受风险 (签字级别,需 reason)。"""
         if not reason or not reason.strip():
             raise ValueError("accept reason is required (formal acceptance)")
@@ -339,7 +339,7 @@ class RiskAssessment:
             logger.info("Risk %s formally accepted: %s", risk_id, reason[:80])
             return card
 
-    def close(self, risk_id: str) -> Optional[RiskCard]:
+    def close(self, risk_id: str) -> RiskCard | None:
         """关闭风险 (缓解完成)。"""
         with self._lock:
             self._load()
@@ -386,7 +386,7 @@ class RiskAssessment:
 
 
 # 全局单例
-_ra_instance: Optional[RiskAssessment] = None
+_ra_instance: RiskAssessment | None = None
 _ra_lock = threading.Lock()
 
 

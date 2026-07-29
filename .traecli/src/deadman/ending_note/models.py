@@ -92,7 +92,7 @@ class EndingNote:
     safety_flags: dict | None = None
 
     @classmethod
-    def new(cls, user_id: str) -> "EndingNote":
+    def new(cls, user_id: str) -> EndingNote:
         """创建一份空白终活笔记
 
         生成新 note_id + 时间戳，所有章节为 None，safety_flags 初始化为安全默认。
@@ -121,7 +121,7 @@ class EndingNote:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "EndingNote":
+    def from_dict(cls, data: dict[str, Any]) -> EndingNote:
         """从 dict 反序列化（容错：缺失字段走默认；时间戳字符串回 datetime）"""
         created = data.get("created_at")
         updated = data.get("updated_at")

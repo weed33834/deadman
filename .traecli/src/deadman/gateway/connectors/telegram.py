@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Optional
+from typing import Any
+from collections.abc import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,8 @@ class TelegramConnector:
     def __init__(
         self,
         bot_token: str,
-        pairing_tokens: Optional[dict[str, str]] = None,
-        guard: Optional[Any] = None,
+        pairing_tokens: dict[str, str] | None = None,
+        guard: Any | None = None,
     ) -> None:
         """初始化 Telegram 连接器。
 
@@ -158,7 +159,7 @@ class TelegramConnector:
             logger.exception("Telegram send 异常: %s", exc)
             return False
 
-    def _resolve_chat_id(self, chat_id_or_user_id: str) -> Optional[int]:
+    def _resolve_chat_id(self, chat_id_or_user_id: str) -> int | None:
         """解析 chat_id：优先用数字，否则查 _user_to_chat 反查"""
         # 纯数字直接当 chat_id
         try:

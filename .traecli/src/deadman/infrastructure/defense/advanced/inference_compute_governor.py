@@ -52,7 +52,6 @@ import time
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Optional
 
 from ...feature_flags import is_enabled
 
@@ -110,7 +109,7 @@ class InferenceBudgetPlan:
     degrade_to_model: str = ""  # 降级到哪个模型
     # 状态
     started_at: float = field(default_factory=time.time)
-    finished_at: Optional[float] = None
+    finished_at: float | None = None
     timed_out: bool = False
     # 实际使用(post_call 填充)
     actual_input_tokens: int = 0
@@ -186,7 +185,7 @@ class ReasoningAuditor:
         reasoning_content: str,
         *,
         user_id: str = "",
-    ) -> "ReasoningAuditResult":
+    ) -> ReasoningAuditResult:
         """审计思考内容。
 
         Returns:
@@ -298,8 +297,8 @@ class UserComputeStats:
     failed_calls: int = 0
     timeout_calls: int = 0
     # 时间
-    first_call_at: Optional[float] = None
-    last_call_at: Optional[float] = None
+    first_call_at: float | None = None
+    last_call_at: float | None = None
     # PII / 异常
     reasoning_pii_leak_count: int = 0
     reasoning_anomaly_count: int = 0
@@ -409,8 +408,8 @@ class ComputeGovernor:
 
     def __init__(
         self,
-        config: Optional[dict] = None,
-        auditor: Optional[ReasoningAuditor] = None,
+        config: dict | None = None,
+        auditor: ReasoningAuditor | None = None,
     ) -> None:
         self.config = {**DEFAULT_CONFIG, **(config or {})}
         self.auditor = auditor or ReasoningAuditor()
@@ -434,7 +433,7 @@ class ComputeGovernor:
         estimated_input_tokens: int = 1000,
         estimated_output_tokens: int = 500,
         max_reasoning_tokens: int = 0,
-        max_reasoning_seconds: Optional[float] = None,
+        max_reasoning_seconds: float | None = None,
     ) -> InferenceBudgetPlan:
         """调用前规划:预算预扣 + 降级决策。"""
         plan_id = f"plan-{user_id}-{int(time.time() * 1000)}"
@@ -519,7 +518,7 @@ class ComputeGovernor:
         self,
         plan: InferenceBudgetPlan,
         usage: dict,
-        reasoning_content: Optional[str] = None,
+        reasoning_content: str | None = None,
     ) -> None:
         """调用后:记录实际使用 + 审计思考内容。"""
         plan.finished_at = time.time()
@@ -617,7 +616,7 @@ class ComputeGovernor:
             plan.user_id, plan.model, error,
         )
 
-    def get_user_stats(self, user_id: str) -> Optional[dict]:
+    def get_user_stats(self, user_id: str) -> dict | None:
         """获取用户统计(看板用)。"""
         with self._lock:
             stats = self._user_stats.get(user_id)
@@ -734,7 +733,7 @@ class ComputeGovernor:
 # 全局单例
 # =====================================================================
 
-_governor_instance: Optional[ComputeGovernor] = None
+_governor_instance: ComputeGovernor | None = None
 _governor_lock = threading.RLock()
 
 

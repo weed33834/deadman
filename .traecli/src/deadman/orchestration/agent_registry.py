@@ -84,7 +84,7 @@ class AgentRegistryEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentRegistryEntry":
+    def from_dict(cls, data: dict[str, Any]) -> AgentRegistryEntry:
         """从 dict 反序列化（容错：card 字段缺失时构造空 AgentCard）"""
         card_data = data.get("card") or {}
         try:

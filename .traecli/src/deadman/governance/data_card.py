@@ -29,7 +29,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -108,7 +108,7 @@ class DataCard:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DataCard":
+    def from_dict(cls, data: dict[str, Any]) -> DataCard:
         sens = data.get("sensitivity_level", "internal")
         try:
             sens_enum = SensitivityLevel(sens)
@@ -139,7 +139,7 @@ class DataCardRegistry:
     线程安全 + 原子写。
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path("governance/data_cards.json")
         self._lock = threading.RLock()
         self._cache: dict[str, DataCard] = {}
@@ -161,7 +161,7 @@ class DataCardRegistry:
             )
             return card
 
-    def get(self, dataset_id: str) -> Optional[DataCard]:
+    def get(self, dataset_id: str) -> DataCard | None:
         """按 ID 获取数据卡。"""
         with self._lock:
             self._load()
@@ -189,7 +189,7 @@ class DataCardRegistry:
                 if c.sensitivity_level.sensitivity_rank() >= min_rank
             ]
 
-    def update(self, dataset_id: str, **fields: Any) -> Optional[DataCard]:
+    def update(self, dataset_id: str, **fields: Any) -> DataCard | None:
         """更新数据卡字段。"""
         with self._lock:
             self._load()
@@ -208,7 +208,7 @@ class DataCardRegistry:
             self._save()
             return card
 
-    def archive(self, dataset_id: str) -> Optional[DataCard]:
+    def archive(self, dataset_id: str) -> DataCard | None:
         """归档数据集。"""
         with self._lock:
             self._load()
@@ -265,7 +265,7 @@ class DataCardRegistry:
 
 
 # 全局单例
-_dcr_instance: Optional[DataCardRegistry] = None
+_dcr_instance: DataCardRegistry | None = None
 _dcr_lock = threading.Lock()
 
 

@@ -27,7 +27,6 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from .feature_flags import is_enabled
 from .multi_tenant import get_current_tenant_id
@@ -116,7 +115,7 @@ class SlidingWindowCounter:
         self._buckets: dict[int, int] = {}
         self._lock = threading.RLock()
 
-    def add(self, count: int = 1, now: Optional[float] = None) -> int:
+    def add(self, count: int = 1, now: float | None = None) -> int:
         """增加计数,返回当前窗口总数。"""
         now = now or time.time()
         bucket_start = int(now // self.bucket_size) * self.bucket_size
@@ -125,14 +124,14 @@ class SlidingWindowCounter:
             self._buckets[bucket_start] = self._buckets.get(bucket_start, 0) + count
             return self.current(now)
 
-    def current(self, now: Optional[float] = None) -> int:
+    def current(self, now: float | None = None) -> int:
         """查询当前窗口总数。"""
         now = now or time.time()
         with self._lock:
             self._evict_expired(now)
             return sum(self._buckets.values())
 
-    def reset_at(self, now: Optional[float] = None) -> float:
+    def reset_at(self, now: float | None = None) -> float:
         """返回最早 bucket 过期时间(配额重置时间)。"""
         now = now or time.time()
         with self._lock:
@@ -152,7 +151,7 @@ class SlidingWindowCounter:
         return {"window_seconds": self.window_seconds, "buckets": dict(self._buckets)}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SlidingWindowCounter":
+    def from_dict(cls, data: dict) -> SlidingWindowCounter:
         c = cls(window_seconds=data["window_seconds"])
         c._buckets = {int(k): int(v) for k, v in data.get("buckets", {}).items()}
         return c
@@ -173,7 +172,7 @@ PERIOD_SECONDS = {
 class QuotaManager:
     """配额管理器 - 按 tenant_id + quota_name 维度计数。"""
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_QUOTA_STORE", "data/quota.json")
         )
@@ -225,7 +224,7 @@ class QuotaManager:
         self,
         quota_name: str,
         amount: int = 1,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> QuotaUsage:
         """消费配额。
 
@@ -283,7 +282,7 @@ class QuotaManager:
             self._save()
             return usage
 
-    def check(self, quota_name: str, tenant_id: Optional[str] = None) -> QuotaUsage:
+    def check(self, quota_name: str, tenant_id: str | None = None) -> QuotaUsage:
         """查询当前用量(不消费)。"""
         if not is_enabled("quota"):
             return QuotaUsage(
@@ -318,7 +317,7 @@ class QuotaManager:
         tenant_id: str,
         quota_name: str,
         limit: int,
-        period: Optional[QuotaPeriod] = None,
+        period: QuotaPeriod | None = None,
     ) -> None:
         """为指定租户设置自定义配额(覆盖默认)。"""
         with self._lock:
@@ -333,7 +332,7 @@ class QuotaManager:
             )
             self._save()
 
-    def reset(self, tenant_id: Optional[str] = None, quota_name: Optional[str] = None) -> None:
+    def reset(self, tenant_id: str | None = None, quota_name: str | None = None) -> None:
         """重置配额(运维用)。"""
         with self._lock:
             if tenant_id is None:
@@ -344,7 +343,7 @@ class QuotaManager:
                 self._counters.get(tenant_id, {}).pop(quota_name, None)
             self._save()
 
-    def list_usage(self, tenant_id: Optional[str] = None) -> list[QuotaUsage]:
+    def list_usage(self, tenant_id: str | None = None) -> list[QuotaUsage]:
         """列出所有配额用量(看板用)。"""
         tid = tenant_id or get_current_tenant_id()
         result: list[QuotaUsage] = []
@@ -455,7 +454,7 @@ class QuotaManager:
 
 
 # 全局单例
-_qm_instance: Optional[QuotaManager] = None
+_qm_instance: QuotaManager | None = None
 _qm_lock = threading.Lock()
 
 

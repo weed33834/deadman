@@ -74,7 +74,7 @@ class PushNotificationConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PushNotificationConfig":
+    def from_dict(cls, data: dict[str, Any]) -> PushNotificationConfig:
         if not isinstance(data, dict):
             return cls(url="")
         return cls(

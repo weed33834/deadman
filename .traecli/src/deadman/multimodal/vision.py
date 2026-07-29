@@ -25,7 +25,7 @@ import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .ocr import DocType
@@ -38,7 +38,7 @@ class VisionDescription:
     """图片描述结果。"""
 
     text: str
-    doc_type: Optional[DocType] = None  # 自动分类的文档类型
+    doc_type: DocType | None = None  # 自动分类的文档类型
     confidence: float = 0.0
     provider: str = "unknown"
 
@@ -49,7 +49,7 @@ class DetectedObject:
 
     label: str
     confidence: float
-    bbox: Optional[tuple[float, float, float, float]] = None  # (x1, y1, x2, y2) 归一化坐标
+    bbox: tuple[float, float, float, float] | None = None  # (x1, y1, x2, y2) 归一化坐标
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -87,9 +87,9 @@ class GPT4VisionProvider(VisionProvider):
 
     name = "gpt-4o"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -137,9 +137,9 @@ class ClaudeVisionProvider(VisionProvider):
 
     name = "claude-3.5-sonnet"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -189,9 +189,9 @@ class QwenVLProvider(VisionProvider):
 
     name = "qwen-vl"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -279,10 +279,10 @@ class VisionService:
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        anthropic_api_key: Optional[str] = None,
-        dashscope_api_key: Optional[str] = None,
-        custom_providers: Optional[list[VisionProvider]] = None,
+        openai_api_key: str | None = None,
+        anthropic_api_key: str | None = None,
+        dashscope_api_key: str | None = None,
+        custom_providers: list[VisionProvider] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         if custom_providers is not None:
@@ -298,7 +298,7 @@ class VisionService:
     def is_enabled(self) -> bool:
         return is_enabled("multimodal")
 
-    def register_provider(self, provider: VisionProvider, position: Optional[int] = None) -> None:
+    def register_provider(self, provider: VisionProvider, position: int | None = None) -> None:
         with self._lock:
             if position is None:
                 self._providers.append(provider)
@@ -330,7 +330,7 @@ class VisionService:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -369,7 +369,7 @@ class VisionService:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -390,7 +390,7 @@ class VisionService:
 
 
 # 全局单例
-_vision_instance: Optional[VisionService] = None
+_vision_instance: VisionService | None = None
 _vision_lock = threading.Lock()
 
 

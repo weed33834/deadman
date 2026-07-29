@@ -28,7 +28,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -113,7 +113,7 @@ class TrustRecord:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TrustRecord":
+    def from_dict(cls, data: dict[str, Any]) -> TrustRecord:
         return cls(
             source=data["source"],
             level=TrustLevel(data.get("level", "unverified")),
@@ -155,7 +155,7 @@ class TrustScorer:
         - 持久化可选:不传 persist_path 则纯内存
     """
 
-    def __init__(self, persist_path: Optional[Path] = None) -> None:
+    def __init__(self, persist_path: Path | None = None) -> None:
         self.persist_path = persist_path
         self._lock = threading.RLock()
         self._records: dict[str, TrustRecord] = {}
@@ -199,7 +199,7 @@ class TrustScorer:
                 return record.level
             return _classify_source(source)
 
-    def get_record(self, source: str) -> Optional[TrustRecord]:
+    def get_record(self, source: str) -> TrustRecord | None:
         """获取完整信任记录(含 history)。"""
         with self._lock:
             return self._records.get(source)

@@ -33,7 +33,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -88,7 +88,7 @@ class PromptResolution:
     version: str
     template: str
     variant_id: str = "control"  # control / variant_a / variant_b
-    experiment_name: Optional[str] = None
+    experiment_name: str | None = None
     reason: str = "default"  # default / pinned / experiment / rollback
 
 
@@ -104,7 +104,7 @@ class PromptVersionManager:
         rendered = pm.render(result, user_input="我父亲去世了")
     """
 
-    def __init__(self, repo_root: Optional[Path] = None) -> None:
+    def __init__(self, repo_root: Path | None = None) -> None:
         self.repo_root = repo_root or PROMPTS_REPO_ROOT
         self._lock = threading.RLock()
         # 缓存:{prompt_name: {version: PromptVersion}}
@@ -124,7 +124,7 @@ class PromptVersionManager:
         name: str,
         version: str,
         template: str,
-        variables: Optional[list[str]] = None,
+        variables: list[str] | None = None,
         description: str = "",
         created_by: str = "admin",
         set_active: bool = True,
@@ -170,8 +170,8 @@ class PromptVersionManager:
     def resolve(
         self,
         name: str,
-        user_id: Optional[str] = None,
-        version: Optional[str] = None,
+        user_id: str | None = None,
+        version: str | None = None,
     ) -> PromptResolution:
         """解析 prompt(支持 AB 实验分流)。
 
@@ -296,7 +296,7 @@ class PromptVersionManager:
             self._load()
             return list(self._cache.get(name, {}).values())
 
-    def get_active_version(self, name: str) -> Optional[str]:
+    def get_active_version(self, name: str) -> str | None:
         """获取当前生效版本号。"""
         with self._lock:
             self._load()
@@ -369,7 +369,7 @@ class PromptVersionManager:
     # 内部
     # ==================================================================
 
-    def _find_running_experiment(self, prompt_name: str) -> Optional[ABExperiment]:
+    def _find_running_experiment(self, prompt_name: str) -> ABExperiment | None:
         """找当前 prompt 的 running 实验。"""
         for exp in self._experiments.values():
             if exp.prompt_name == prompt_name and exp.status == "running":
@@ -525,7 +525,7 @@ class PromptVersionManager:
 
 
 # 全局单例
-_pm_instance: Optional[PromptVersionManager] = None
+_pm_instance: PromptVersionManager | None = None
 _pm_lock = threading.Lock()
 
 

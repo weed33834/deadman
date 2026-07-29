@@ -23,7 +23,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -82,7 +82,7 @@ class FeedbackEvent:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FeedbackEvent":
+    def from_dict(cls, data: dict[str, Any]) -> FeedbackEvent:
         return cls(
             user_id=data["user_id"],
             query=data["query"],
@@ -145,8 +145,8 @@ class ContinuousLearner:
 
     def __init__(
         self,
-        pii_redactor: Optional[PIIRedactor] = None,
-        reflexion_engine: Optional[Any] = None,
+        pii_redactor: PIIRedactor | None = None,
+        reflexion_engine: Any | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._events: list[FeedbackEvent] = []
@@ -191,7 +191,7 @@ class ContinuousLearner:
     # ------------------------------------------------------------------
     def extract_preference_pair(
         self, event: FeedbackEvent
-    ) -> Optional[PreferenceExample]:
+    ) -> PreferenceExample | None:
         """从反馈事件提取偏好对。
 
         规则:
@@ -467,7 +467,7 @@ class ContinuousLearner:
         loaded = 0
         with self._lock:
             self._events.clear()
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -489,7 +489,7 @@ class ContinuousLearner:
         failed_response: str,
         recovered_response: str,
         user_id: str = "",
-    ) -> Optional[PreferenceExample]:
+    ) -> PreferenceExample | None:
         """注入 Reflexion 反思信号(失败重试 → 偏好对)。
 
         Reflexion 在调用失败后通过「反思-调整-重试」恢复,

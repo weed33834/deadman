@@ -26,7 +26,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class LocalLLMConfig:
 # HTTP 客户端(惰性导入,优先级 requests > httpx > urllib)
 # =====================================================================
 def _post_json(url: str, payload: dict[str, Any], timeout: float,
-               headers: Optional[dict[str, str]] = None) -> tuple[int, dict[str, Any]]:
+               headers: dict[str, str] | None = None) -> tuple[int, dict[str, Any]]:
     """POST JSON,返回 (status_code, response_json)。
 
     优先级:
@@ -169,7 +169,7 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
 
 
 def _get_json(url: str, timeout: float,
-              headers: Optional[dict[str, str]] = None) -> tuple[int, dict[str, Any]]:
+              headers: dict[str, str] | None = None) -> tuple[int, dict[str, Any]]:
     """GET JSON。"""
     hdrs = {"Accept": "application/json"}
     if headers:

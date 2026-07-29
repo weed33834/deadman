@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DebateState(str, Enum):
@@ -49,7 +49,7 @@ class DebatePosition:
     position: str
     supporting_evidence: list[dict[str, Any]] = field(default_factory=list)
     confidence: float = 0.7
-    jurisdiction_basis: Optional[str] = None
+    jurisdiction_basis: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,7 +84,7 @@ class Debate:
     positions: list[DebatePosition]
     rounds: list[dict[str, Any]] = field(default_factory=list)
     votes: dict[str, str] = field(default_factory=dict)
-    final_resolution: Optional[dict[str, Any]] = None
+    final_resolution: dict[str, Any] | None = None
     state: DebateState = DebateState.INITIATED
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -100,7 +100,7 @@ class Debate:
         agent_id: str,
         round_type: str,
         statement: str,
-        extra: Optional[dict[str, Any]] = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """追加一轮辩论记录"""
         entry: dict[str, Any] = {

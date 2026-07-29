@@ -28,7 +28,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from ..llm import LLMClient, llm_client as default_llm_client
 from ..observability.tracer import SpanType, tracer
@@ -76,7 +76,7 @@ class DebateOrchestrator:
 
     def __init__(
         self,
-        llm_client: Optional[LLMClient] = None,
+        llm_client: LLMClient | None = None,
         voting_strategy: str = "weighted",
         max_rounds: int = MAX_ROUNDS,
         max_token_budget: int = MAX_TOKEN_BUDGET,

@@ -23,7 +23,7 @@ import os
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -66,7 +66,7 @@ class Rating:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Rating":
+    def from_dict(cls, data: dict[str, Any]) -> Rating:
         return cls(
             rating_id=data["rating_id"],
             agent_id=data["agent_id"],
@@ -94,7 +94,7 @@ class RatingFlag:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RatingFlag":
+    def from_dict(cls, data: dict[str, Any]) -> RatingFlag:
         return cls(
             flag_id=data["flag_id"],
             agent_id=data["agent_id"],
@@ -116,7 +116,7 @@ class RatingSystem:
 
     DEFAULT_STORE_REL = "marketplace/ratings.json"
 
-    def __init__(self, store_path: Optional[Any] = None) -> None:
+    def __init__(self, store_path: Any | None = None) -> None:
         self._explicit_store = store_path
         self._lock = threading.RLock()
         # ratings: {rating_id: Rating}
@@ -124,7 +124,7 @@ class RatingSystem:
         # flags: {flag_id: RatingFlag}
         self._flags: dict[str, RatingFlag] = {}
         # 当前 cache 对应的 store path(检测 tenant 切换)
-        self._loaded_path: Optional[str] = None
+        self._loaded_path: str | None = None
 
     # ==================================================================
     # 路径解析
@@ -323,7 +323,7 @@ class RatingSystem:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_rating_instance: Optional[RatingSystem] = None
+_rating_instance: RatingSystem | None = None
 _rating_lock = threading.Lock()
 
 

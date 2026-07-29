@@ -133,7 +133,7 @@ class AuditEvent:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditEvent":
+    def from_dict(cls, data: dict[str, Any]) -> AuditEvent:
         """从 dict 反序列化（容错：缺失字段填默认）"""
         metadata = data.get("metadata", {})
         if not isinstance(metadata, dict):
@@ -230,7 +230,7 @@ class AuditChain:
             return
         try:
             last_hash = GENESIS_HASH
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -461,7 +461,7 @@ class AuditChain:
             return []
         events: list[AuditEvent] = []
         try:
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

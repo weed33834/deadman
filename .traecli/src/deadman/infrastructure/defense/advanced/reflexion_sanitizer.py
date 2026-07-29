@@ -44,7 +44,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -108,7 +108,7 @@ class ReflexionSanitizer:
     def sanitize_input(
         self,
         text: str,
-        max_chars: Optional[int] = None,
+        max_chars: int | None = None,
     ) -> SanitizationResult:
         """脱敏用户输入(用于 input_summary)。
 
@@ -285,7 +285,7 @@ class ReflexionSanitizer:
 # 便捷函数(供 reflexion/engine.py 调用)
 # =====================================================================
 
-_sanitizer_instance: Optional[ReflexionSanitizer] = None
+_sanitizer_instance: ReflexionSanitizer | None = None
 
 
 def get_reflexion_sanitizer() -> ReflexionSanitizer:

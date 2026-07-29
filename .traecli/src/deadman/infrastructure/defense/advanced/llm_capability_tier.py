@@ -43,7 +43,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -101,7 +101,7 @@ class ModelProfile:
     # 自定义元数据(版本 / region / ...)
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def supports(self, req: "CapabilityRequirement") -> bool:
+    def supports(self, req: CapabilityRequirement) -> bool:
         """是否满足能力需求。"""
         for cap in req.required_capabilities:
             if cap not in self.capabilities:
@@ -132,14 +132,14 @@ class CapabilityRequirement:
     """任务对 LLM 能力的需求。"""
 
     required_capabilities: set[ModelCapability] = field(default_factory=set)
-    min_context_window: Optional[int] = None
-    max_latency_ms: Optional[int] = None
+    min_context_window: int | None = None
+    max_latency_ms: int | None = None
     require_local: bool = False
-    min_tier: Optional[CapabilityTier] = None
+    min_tier: CapabilityTier | None = None
     # 偏好(软约束,影响排序)
-    preferred_tier: Optional[CapabilityTier] = None
+    preferred_tier: CapabilityTier | None = None
     # budget 上限(美元/调用)
-    max_cost_per_call: Optional[float] = None
+    max_cost_per_call: float | None = None
     # 预估 token(影响成本计算)
     estimated_input_tokens: int = 1000
     estimated_output_tokens: int = 500
@@ -205,8 +205,8 @@ class CapabilityRouter:
         self,
         req: CapabilityRequirement,
         *,
-        exclude: Optional[set[str]] = None,
-    ) -> Optional[ModelProfile]:
+        exclude: set[str] | None = None,
+    ) -> ModelProfile | None:
         """按需求匹配最合适的模型。
 
         选择策略:
@@ -295,7 +295,7 @@ class CapabilityRouter:
                 excluded.add(self._key(m.provider, m.model_name))
         return chain
 
-    def get(self, provider: str, model_name: str) -> Optional[ModelProfile]:
+    def get(self, provider: str, model_name: str) -> ModelProfile | None:
         with self._lock:
             return self._profiles.get(self._key(provider, model_name))
 
@@ -327,7 +327,7 @@ class CapabilityRouter:
 # 全局单例 + 默认 profile 注册
 # =====================================================================
 
-_capability_router: Optional[CapabilityRouter] = None
+_capability_router: CapabilityRouter | None = None
 _router_lock = threading.Lock()
 
 

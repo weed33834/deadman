@@ -28,7 +28,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -89,7 +89,7 @@ class TransparencyReport:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TransparencyReport":
+    def from_dict(cls, data: dict[str, Any]) -> TransparencyReport:
         period_val = data.get("period", "monthly")
         try:
             period = ReportPeriod(period_val)
@@ -124,7 +124,7 @@ class TransparencyReporter:
         md = reporter.export(report.report_id, format="markdown")
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path(
             "governance/transparency_reports.json"
         )
@@ -137,7 +137,7 @@ class TransparencyReporter:
         period_start: float,
         period_end: float,
         period: ReportPeriod = ReportPeriod.MONTHLY,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> TransparencyReport:
         """生成报告 (聚合周期内统计)。"""
         if not is_enabled("governance"):
@@ -180,7 +180,7 @@ class TransparencyReporter:
         logger.info("Transparency report generated: %s", report.report_id)
         return report
 
-    def add_section(self, report_id: str, name: str, content: str) -> Optional[TransparencyReport]:
+    def add_section(self, report_id: str, name: str, content: str) -> TransparencyReport | None:
         """向报告添加附加章节。"""
         with self._lock:
             self._load()
@@ -191,7 +191,7 @@ class TransparencyReporter:
             self._save()
             return report
 
-    def get(self, report_id: str) -> Optional[TransparencyReport]:
+    def get(self, report_id: str) -> TransparencyReport | None:
         """按 ID 获取报告。"""
         with self._lock:
             self._load()
@@ -199,7 +199,7 @@ class TransparencyReporter:
 
     def list_reports(
         self,
-        period: Optional[ReportPeriod] = None,
+        period: ReportPeriod | None = None,
     ) -> list[TransparencyReport]:
         """列出报告 (按生成时间倒序)。"""
         with self._lock:
@@ -389,7 +389,7 @@ class TransparencyReporter:
 
 
 # 全局单例
-_tr_instance: Optional[TransparencyReporter] = None
+_tr_instance: TransparencyReporter | None = None
 _tr_lock = threading.Lock()
 
 

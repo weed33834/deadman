@@ -51,7 +51,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         prompt: Any,
         n: int = 1,
         temperature: float = 0.01,
-        stop: Optional[list[str]] = None,
+        stop: list[str] | None = None,
         callbacks: Any = None,
     ) -> Any:
         """同步生成 - deadman.llm 仅提供 async 接口,这里跑 asyncio.run"""
@@ -254,8 +254,8 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         self,
         prompt: Any,
         n: int = 1,
-        temperature: Optional[float] = 0.01,
-        stop: Optional[list[str]] = None,
+        temperature: float | None = 0.01,
+        stop: list[str] | None = None,
         callbacks: Any = None,
     ) -> Any:
         return await self._agenerate(prompt, n, temperature)
@@ -313,7 +313,7 @@ class RagasResult:
     degraded: bool = True
     metrics: dict[str, float] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
-    quality_gate_passed: Optional[bool] = None
+    quality_gate_passed: bool | None = None
     quality_gate_threshold: float = DEFAULT_QUALITY_GATE_THRESHOLD
     note: str = ""
 
@@ -355,7 +355,7 @@ class RAGASEvaluator:
         self.quality_gate_threshold = quality_gate_threshold
         self.quick_mode = quick_mode
         # 懒加载 LLM 适配器(仅 RAGAS 可用且需要时才初始化)
-        self._ragas_llm: Optional[DeadmanRagasLLM] = None
+        self._ragas_llm: DeadmanRagasLLM | None = None
 
     def _get_ragas_llm(self) -> DeadmanRagasLLM:
         if self._ragas_llm is None:
@@ -373,7 +373,7 @@ class RAGASEvaluator:
         question: str,
         answer: str,
         contexts: list[str],
-        ground_truth: Optional[str] = None,
+        ground_truth: str | None = None,
     ) -> Any:
         """构造 RAGAS 数据集(兼容 0.2 Dataset 与 0.4 EvaluationDataset)"""
         data: dict[str, list[Any]] = {
@@ -407,10 +407,10 @@ class RAGASEvaluator:
         question: str,
         answer: str,
         contexts: list[str],
-        ground_truth: Optional[str] = None,
+        ground_truth: str | None = None,
         # 可选:rule_check_result 与 expected_keywords 用于 completeness/safety 扩展维度
-        rule_check_result: Optional[dict] = None,
-        expected_keywords: Optional[list[str]] = None,
+        rule_check_result: dict | None = None,
+        expected_keywords: list[str] | None = None,
     ) -> dict[str, Any]:
         """执行 RAGAS 评估(异步,推荐)
 
@@ -566,7 +566,7 @@ class RAGASEvaluator:
         return scores
 
     def _compute_completeness(
-        self, answer: str, expected_keywords: Optional[list[str]]
+        self, answer: str, expected_keywords: list[str] | None
     ) -> float:
         """计算完整性:期望关键词命中率(0-1)
 
@@ -578,7 +578,7 @@ class RAGASEvaluator:
         hits = sum(1 for kw in expected_keywords if kw.lower() in answer_lower)
         return hits / len(expected_keywords)
 
-    def _compute_safety(self, rule_check_result: Optional[dict]) -> float:
+    def _compute_safety(self, rule_check_result: dict | None) -> float:
         """计算安全性:基于规则链校验结果
 
         rule_check_result = {"passed": bool, "violations": [...], "violations_count": int}
@@ -601,9 +601,9 @@ class RAGASEvaluator:
         question: str,
         answer: str,
         contexts: list[str],
-        ground_truth: Optional[str] = None,
-        rule_check_result: Optional[dict] = None,
-        expected_keywords: Optional[list[str]] = None,
+        ground_truth: str | None = None,
+        rule_check_result: dict | None = None,
+        expected_keywords: list[str] | None = None,
     ) -> dict[str, Any]:
         """同步版本(内部用 asyncio.run)"""
         try:
@@ -634,7 +634,7 @@ class RAGASEvaluator:
 # =====================================================================
 
 
-def _load_case_for_ragas(case_yaml_path: str | Path) -> Optional[dict[str, Any]]:
+def _load_case_for_ragas(case_yaml_path: str | Path) -> dict[str, Any] | None:
     """从评估 case YAML 加载 RAGAS 评估所需字段
 
     YAML case 结构(简化):
@@ -689,9 +689,9 @@ def _load_case_for_ragas(case_yaml_path: str | Path) -> Optional[dict[str, Any]]
 
 async def run_ragas_batch(
     cases_dir: str,
-    evaluator: Optional[RAGASEvaluator] = None,
-    output_file: Optional[str] = None,
-    mock_answer_provider: Optional[Any] = None,
+    evaluator: RAGASEvaluator | None = None,
+    output_file: str | None = None,
+    mock_answer_provider: Any | None = None,
 ) -> dict[str, Any]:
     """批量跑 RAGAS 评估
 

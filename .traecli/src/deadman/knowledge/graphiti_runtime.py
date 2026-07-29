@@ -31,7 +31,7 @@ from collections import deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from ..infrastructure.feature_flags import is_enabled
@@ -97,7 +97,7 @@ class Episode:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Episode":
+    def from_dict(cls, data: dict[str, Any]) -> Episode:
         return cls(
             content=data["content"],
             source=data["source"],
@@ -133,7 +133,7 @@ class KGNode:
     content: str = ""
     properties: dict[str, Any] = field(default_factory=dict)
     valid_from: float = field(default_factory=time.time)
-    valid_to: Optional[float] = None
+    valid_to: float | None = None
 
     def is_valid_at(self, at_time: float) -> bool:
         """该节点在 at_time 时是否有效。"""
@@ -147,7 +147,7 @@ class KGNode:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "KGNode":
+    def from_dict(cls, data: dict[str, Any]) -> KGNode:
         return cls(
             id=data["id"],
             type=data.get("type", "entity"),
@@ -178,7 +178,7 @@ class KGEdge:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "KGEdge":
+    def from_dict(cls, data: dict[str, Any]) -> KGEdge:
         return cls(
             from_id=data["from_id"],
             to_id=data["to_id"],
@@ -212,7 +212,7 @@ class _InMemoryGraph:
         self._adj.setdefault(node.id, {})
         self._reverse_adj.setdefault(node.id, [])
 
-    def get_node(self, node_id: str) -> Optional[KGNode]:
+    def get_node(self, node_id: str) -> KGNode | None:
         return self._nodes.get(node_id)
 
     def add_edge(self, edge: KGEdge) -> None:
@@ -262,7 +262,7 @@ class _InMemoryGraph:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "_InMemoryGraph":
+    def from_dict(cls, data: dict[str, Any]) -> _InMemoryGraph:
         g = cls()
         for nd in data.get("nodes", []):
             g.add_node(KGNode.from_dict(nd))
@@ -290,7 +290,7 @@ class GraphitiRuntime:
 
     def __init__(
         self,
-        persist_path: Optional[Path] = None,
+        persist_path: Path | None = None,
         use_real_graphiti: bool = False,
     ) -> None:
         """构造运行时。
@@ -373,7 +373,7 @@ class GraphitiRuntime:
             self._graph.add_edge(edge)
             self._persist()
 
-    def get_node(self, node_id: str) -> Optional[KGNode]:
+    def get_node(self, node_id: str) -> KGNode | None:
         """按 ID 取节点。"""
         with self._lock:
             return self._graph.get_node(node_id)
@@ -452,8 +452,8 @@ class GraphitiRuntime:
     def get_temporal(
         self,
         node_id: str,
-        at_time: Optional[float] = None,
-    ) -> Optional[KGNode]:
+        at_time: float | None = None,
+    ) -> KGNode | None:
         """时序穿越查询:返回 node_id 在 at_time 时刻的版本。
 
         时序模型:
@@ -483,7 +483,7 @@ class GraphitiRuntime:
                 return node
             return None
 
-    def invalidate_node(self, node_id: str, at_time: Optional[float] = None) -> bool:
+    def invalidate_node(self, node_id: str, at_time: float | None = None) -> bool:
         """将节点置为失效(valid_to=now),用于法规变更等场景留痕。
 
         Returns:

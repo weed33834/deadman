@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 from uuid import uuid4
 
 from ..config import settings
@@ -42,11 +42,11 @@ class WorkingMemory:
         self.session_id = session_id
         self.recent_turns: list[dict[str, Any]] = []
         self.current_agent = current_agent
-        self.current_task: Optional[dict] = None
-        self.pending_transfer: Optional[dict] = None
+        self.current_task: dict | None = None
+        self.pending_transfer: dict | None = None
         self.temp_vars: dict[str, Any] = {}
         # 情景记忆引用，由 MemoryManager 注入；溢出时调用其 archive_turn
-        self._episodic: Optional[EpisodicMemory] = None
+        self._episodic: EpisodicMemory | None = None
         # 最大保留轮次（默认取配置）
         self.MAX_TURNS = max_turns if max_turns is not None else settings.memory_max_turns
 

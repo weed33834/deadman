@@ -22,7 +22,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -61,7 +61,7 @@ class ResidencyPolicy:
     primary_region: DataRegion  # 主存储区域
     allowed_regions: list[DataRegion] = field(default_factory=list)  # 允许访问的区域
     cross_border_consent: bool = False  # 是否已获跨境同意
-    cross_border_consent_at: Optional[float] = None
+    cross_border_consent_at: float | None = None
     # 数据分类(按敏感度)
     sensitive_data_regions: dict[str, DataRegion] = field(default_factory=dict)
     # key = data_kind(user_profile / chat_history / financial / legal_doc)
@@ -85,7 +85,7 @@ class DataResidency:
     持久化:`data/compliance/residency.yaml`(每个租户一个策略)
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_RESIDENCY_STORE", "data/compliance/residency.yaml")
         )
@@ -101,9 +101,9 @@ class DataResidency:
         self,
         tenant_id: str,
         primary_region: str,
-        allowed_regions: Optional[list[str]] = None,
+        allowed_regions: list[str] | None = None,
         cross_border_consent: bool = False,
-        sensitive_data_regions: Optional[dict[str, str]] = None,
+        sensitive_data_regions: dict[str, str] | None = None,
     ) -> ResidencyPolicy:
         """设置租户的驻留策略。
 
@@ -142,7 +142,7 @@ class DataResidency:
             self._save()
             return policy
 
-    def get_policy(self, tenant_id: Optional[str] = None) -> Optional[ResidencyPolicy]:
+    def get_policy(self, tenant_id: str | None = None) -> ResidencyPolicy | None:
         """获取驻留策略。"""
         if not is_enabled("compliance"):
             return None
@@ -307,7 +307,7 @@ class DataResidency:
 
 
 # 全局单例
-_dr_instance: Optional[DataResidency] = None
+_dr_instance: DataResidency | None = None
 _dr_lock = threading.Lock()
 
 

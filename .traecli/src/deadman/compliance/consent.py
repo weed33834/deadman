@@ -35,7 +35,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -95,9 +95,9 @@ class ConsentRecord:
     consent_type: ConsentType
     status: ConsentStatus
     version: str  # 同意书版本
-    granted_at: Optional[float] = None
-    withdrawn_at: Optional[float] = None
-    expires_at: Optional[float] = None  # 同意有效期(可选)
+    granted_at: float | None = None
+    withdrawn_at: float | None = None
+    expires_at: float | None = None  # 同意有效期(可选)
     # 来源信息(审计)
     source: str = "web"  # web / api / cli / import
     ip_address: str = ""
@@ -106,7 +106,7 @@ class ConsentRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
-    def is_valid(self, now: Optional[float] = None) -> bool:
+    def is_valid(self, now: float | None = None) -> bool:
         """是否有效(已授予 + 未过期 + 未撤回)。"""
         now = now or time.time()
         if self.status != ConsentStatus.GRANTED:
@@ -137,8 +137,8 @@ class ConsentManager:
 
     def __init__(
         self,
-        store_path: Optional[Path] = None,
-        consent_versions: Optional[dict[ConsentType, str]] = None,
+        store_path: Path | None = None,
+        consent_versions: dict[ConsentType, str] | None = None,
     ) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_CONSENT_STORE", "data/compliance/consents.json")
@@ -153,7 +153,7 @@ class ConsentManager:
         self,
         user_id: str,
         consent_type: ConsentType,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         """检查用户是否已同意(且版本一致)。"""
         if not is_enabled("compliance"):
@@ -175,11 +175,11 @@ class ConsentManager:
         user_id: str,
         consent_type: ConsentType,
         source: str = "web",
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         ip_address: str = "",
         user_agent: str = "",
-        expires_in_days: Optional[int] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        expires_in_days: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ConsentRecord:
         """用户授予同意。"""
         if not is_enabled("compliance"):
@@ -216,9 +216,9 @@ class ConsentManager:
         user_id: str,
         consent_type: ConsentType,
         source: str = "web",
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         reason: str = "",
-    ) -> Optional[ConsentRecord]:
+    ) -> ConsentRecord | None:
         """用户撤回同意。"""
         if not is_enabled("compliance"):
             return self._disabled_record(user_id, consent_type, ConsentStatus.WITHDRAWN, tenant_id)
@@ -252,7 +252,7 @@ class ConsentManager:
     def get_history(
         self,
         user_id: str,
-        consent_type: Optional[ConsentType] = None,
+        consent_type: ConsentType | None = None,
     ) -> list[ConsentRecord]:
         """查询同意历史(审计用)。"""
         with self._lock:
@@ -319,8 +319,8 @@ class ConsentManager:
 
     def export_for_audit(
         self,
-        user_id: Optional[str] = None,
-        consent_type: Optional[ConsentType] = None,
+        user_id: str | None = None,
+        consent_type: ConsentType | None = None,
     ) -> list[dict[str, Any]]:
         """导出同意记录(审计 / 监管上报用)。"""
         with self._lock:
@@ -345,7 +345,7 @@ class ConsentManager:
         user_id: str,
         consent_type: ConsentType,
         status: ConsentStatus,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
     ) -> ConsentRecord:
         return ConsentRecord(
             record_id="disabled",
@@ -416,7 +416,7 @@ class ConsentManager:
 
 
 # 全局单例
-_cm_instance: Optional[ConsentManager] = None
+_cm_instance: ConsentManager | None = None
 _cm_lock = threading.Lock()
 
 

@@ -36,7 +36,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Literal, get_args, get_origin
+from typing import Any, Literal, get_args, get_origin
+from collections.abc import Awaitable, Callable
 
 from ..config import settings
 from ..types import (

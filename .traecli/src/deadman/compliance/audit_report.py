@@ -41,7 +41,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -110,8 +110,8 @@ class AuditReport:
     deletion_completed: int = 0
     # 状态
     status: ReportStatus = ReportStatus.DRAFT
-    submitted_at: Optional[float] = None
-    acknowledged_at: Optional[float] = None
+    submitted_at: float | None = None
+    acknowledged_at: float | None = None
     error_message: str = ""
     created_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -140,7 +140,7 @@ class AuditReporter:
         reporter.submit(report)
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_AUDIT_REPORT_STORE", "data/compliance/audit_reports.json")
         )
@@ -163,7 +163,7 @@ class AuditReporter:
         period_start: float,
         period_end: float,
         frequency: ReportFrequency = ReportFrequency.MONTHLY,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> AuditReport:
         """生成上报报告(从事件库聚合)。"""
         if not is_enabled("compliance"):
@@ -255,7 +255,7 @@ class AuditReporter:
 
     def list_reports(
         self,
-        status: Optional[ReportStatus] = None,
+        status: ReportStatus | None = None,
         limit: int = 100,
     ) -> list[AuditReport]:
         with self._lock:
@@ -428,7 +428,7 @@ class AuditReporter:
 
 
 # 全局单例
-_ar_instance: Optional[AuditReporter] = None
+_ar_instance: AuditReporter | None = None
 _ar_lock = threading.Lock()
 
 

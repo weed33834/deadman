@@ -25,7 +25,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .ai_redlines import AIRedline, RedlineResult, get_ai_redline
@@ -71,7 +71,7 @@ class GovernanceDecision:
 
     allowed: bool
     reason: str
-    redline_result: Optional[RedlineResult] = None
+    redline_result: RedlineResult | None = None
     insurance_covered: bool = False
     checked_at: float = field(default_factory=time.time)
     action: str = ""
@@ -162,8 +162,8 @@ class GovernanceManager:
     def before_action(
         self,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        incident_type: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        incident_type: str | None = None,
         amount: float = 0.0,
     ) -> GovernanceDecision:
         """决策前检查 - 红线 enforcement + 保险覆盖预检。
@@ -228,7 +228,7 @@ class GovernanceManager:
         decision_id: str,
         user_id: str,
         decision_content: str,
-        model_id: Optional[str] = None,
+        model_id: str | None = None,
         is_ai: bool = True,
     ) -> None:
         """决策后记录 (用于透明度报告)。"""
@@ -377,7 +377,7 @@ class GovernanceManager:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_gm_instance: Optional[GovernanceManager] = None
+_gm_instance: GovernanceManager | None = None
 _gm_lock = threading.Lock()
 
 

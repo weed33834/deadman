@@ -39,7 +39,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -79,7 +79,7 @@ class MultimodalConfig:
     enable_tts: bool = True
     enable_vision: bool = True
     enable_image_gen: bool = True
-    default_provider: Optional[str] = None
+    default_provider: str | None = None
     budget_token_per_session: int = 50_000
     audit_log_enabled: bool = True
     pii_redact_ocr: bool = True
@@ -123,13 +123,13 @@ class MultimodalPipeline:
 
     def __init__(
         self,
-        config: Optional[MultimodalConfig] = None,
-        ocr_service: Optional[OCRService] = None,
-        asr_service: Optional[ASRService] = None,
-        tts_service: Optional[TTSService] = None,
-        vision_service: Optional[VisionService] = None,
-        image_generator: Optional[ImageGenerator] = None,
-        audit_log_path: Optional[Path] = None,
+        config: MultimodalConfig | None = None,
+        ocr_service: OCRService | None = None,
+        asr_service: ASRService | None = None,
+        tts_service: TTSService | None = None,
+        vision_service: VisionService | None = None,
+        image_generator: ImageGenerator | None = None,
+        audit_log_path: Path | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self.config = config or MultimodalConfig()
@@ -581,7 +581,7 @@ class MultimodalPipeline:
 # 全局单例
 # =====================================================================
 
-_pipeline_instance: Optional[MultimodalPipeline] = None
+_pipeline_instance: MultimodalPipeline | None = None
 _pipeline_lock = threading.Lock()
 
 

@@ -27,7 +27,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +80,8 @@ class FreshnessReport:
 
     file_path: Path
     region: str
-    last_updated: Optional[date] = None
-    days_old: Optional[int] = None
+    last_updated: date | None = None
+    days_old: int | None = None
     status: str = "unknown"
     policy_areas: list[str] = field(default_factory=list)
 
@@ -163,7 +162,7 @@ class KnowledgeFreshnessChecker:
         self,
         stale_days: int = STALE_DAYS,
         warning_days: int = WARNING_DAYS,
-        reference_date: Optional[date] = None,
+        reference_date: date | None = None,
         scheduler=None,
     ):
         """构造巡检器
@@ -263,7 +262,7 @@ class KnowledgeFreshnessChecker:
         )
 
     @staticmethod
-    def _parse_last_updated(text: str) -> Optional[date]:
+    def _parse_last_updated(text: str) -> date | None:
         """从 markdown 元信息中解析"最后更新"日期
 
         支持以下格式：
@@ -392,7 +391,7 @@ class KnowledgeFreshnessChecker:
             # 找该行所属政策领域：
             # 1. 先看本行是否含高频领域关键词
             # 2. 再看当前章节标题是否含高频领域关键词
-            matched_area: Optional[str] = None
+            matched_area: str | None = None
             for area in report.policy_areas:
                 if area in stripped:
                     matched_area = area

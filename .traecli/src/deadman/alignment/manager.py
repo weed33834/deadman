@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from .continuous_learn import ContinuousLearner, FeedbackEvent
@@ -43,7 +43,7 @@ class AlignmentDisabledError(RuntimeError):
     Feature flag:DEADMAN_ALIGNMENT_ENABLED=0(默认关闭)
     """
 
-    def __init__(self, msg: Optional[str] = None) -> None:
+    def __init__(self, msg: str | None = None) -> None:
         super().__init__(
             msg
             or "Alignment module disabled. Set DEADMAN_ALIGNMENT_ENABLED=1 to enable."
@@ -61,7 +61,7 @@ class PipelineReport:
     dpo_samples: int = 0
     sft_skipped: bool = False
     dpo_skipped: bool = False
-    dpo_report: Optional[TrainingReport] = None
+    dpo_report: TrainingReport | None = None
     sft_validation: dict[str, Any] = field(default_factory=dict)
     duration_seconds: float = 0.0
     completed: bool = False
@@ -89,13 +89,13 @@ class AlignmentManager:
 
     def __init__(
         self,
-        dpo_trainer: Optional[DPOTrainer] = None,
-        sft_dataset: Optional[SFTDataset] = None,
-        local_llm: Optional[LocalLLMClient] = None,
-        moe_router: Optional[MoERouter] = None,
-        continuous_learner: Optional[ContinuousLearner] = None,
-        dpo_config: Optional[DPOConfig] = None,
-        moe_config: Optional[MoEConfig] = None,
+        dpo_trainer: DPOTrainer | None = None,
+        sft_dataset: SFTDataset | None = None,
+        local_llm: LocalLLMClient | None = None,
+        moe_router: MoERouter | None = None,
+        continuous_learner: ContinuousLearner | None = None,
+        dpo_config: DPOConfig | None = None,
+        moe_config: MoEConfig | None = None,
     ) -> None:
         # 1. feature flag 检查(默认关闭)
         if not is_enabled("alignment"):
@@ -238,7 +238,7 @@ class AlignmentManager:
     # 查询路由
     # ------------------------------------------------------------------
     def route_query(
-        self, query: str, context: Optional[dict[str, Any]] = None
+        self, query: str, context: dict[str, Any] | None = None
     ) -> tuple[str, Expert]:
         """路由查询到最佳 expert + 对应模型名。
 
@@ -331,7 +331,7 @@ class AlignmentManager:
 # =====================================================================
 # 单例
 # =====================================================================
-_alignment_manager_instance: Optional[AlignmentManager] = None
+_alignment_manager_instance: AlignmentManager | None = None
 _alignment_manager_lock = threading.Lock()
 
 

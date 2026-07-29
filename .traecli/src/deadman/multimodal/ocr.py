@@ -29,7 +29,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -105,7 +105,7 @@ class CloudOCRProvider(OCRProvider):
 
     name = "cloud"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
 
     def is_available(self) -> bool:
@@ -162,7 +162,7 @@ class TesseractOCRProvider(OCRProvider):
     name = "tesseract"
 
     def __init__(self) -> None:
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -231,8 +231,8 @@ class OCRService:
 
     def __init__(
         self,
-        cloud_api_key: Optional[str] = None,
-        custom_providers: Optional[list[OCRProvider]] = None,
+        cloud_api_key: str | None = None,
+        custom_providers: list[OCRProvider] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self.cloud_api_key = cloud_api_key
@@ -250,7 +250,7 @@ class OCRService:
         """feature flag 是否开启。"""
         return is_enabled("multimodal")
 
-    def register_provider(self, provider: OCRProvider, position: Optional[int] = None) -> None:
+    def register_provider(self, provider: OCRProvider, position: int | None = None) -> None:
         """注册 / 插入 provider。"""
         with self._lock:
             if position is None:
@@ -297,7 +297,7 @@ class OCRService:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -326,7 +326,7 @@ class OCRService:
 
 
 # 全局单例
-_ocr_instance: Optional[OCRService] = None
+_ocr_instance: OCRService | None = None
 _ocr_lock = threading.Lock()
 
 

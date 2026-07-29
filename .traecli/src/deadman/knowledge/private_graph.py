@@ -25,7 +25,6 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import (
@@ -79,7 +78,7 @@ class PrivateGraph:
         self,
         tenant_id: str,
         user_id: str,
-        persist_root: Optional[Path] = None,
+        persist_root: Path | None = None,
     ) -> None:
         """构造私有图。
 
@@ -157,7 +156,7 @@ class PrivateGraph:
             self._graph.add_edge(edge)
             self._persist()
 
-    def get_node(self, node_id: str) -> Optional[KGNode]:
+    def get_node(self, node_id: str) -> KGNode | None:
         """按 ID 取节点(仅返回当前用户的)。"""
         with self._lock:
             node = self._graph.get_node(node_id)

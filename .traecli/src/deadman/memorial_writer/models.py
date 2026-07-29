@@ -137,7 +137,7 @@ class MemorialRequest:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "MemorialRequest":
+    def from_dict(cls, d: dict[str, Any]) -> MemorialRequest:
         """从 dict 构造（用于 Web 端点解析 body）"""
         return cls(
             doc_type=d.get("doc_type", ""),

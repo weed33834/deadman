@@ -20,7 +20,6 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Deque, Tuple
 
 __all__ = ["RateLimiter"]
 
@@ -56,10 +55,10 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window = window
         # IP -> 该 IP 在窗口内各次请求的单调时间戳队列
-        self._hits: dict[str, Deque[float]] = defaultdict(deque)
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
 
-    def check(self, ip: str) -> Tuple[bool, int]:
+    def check(self, ip: str) -> tuple[bool, int]:
         """检查 ``ip`` 是否被允许发起本次请求。
 
         线程安全。每次调用都会：清理该 IP 队列中已滑出窗口的旧时间戳，

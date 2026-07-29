@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import datetime, timezone
-from typing import Optional
 
 try:
     from zoneinfo import ZoneInfo
@@ -263,7 +262,7 @@ class TimezoneManager:
 
 
 # 全局单例
-_timezone_manager_instance: Optional[TimezoneManager] = None
+_timezone_manager_instance: TimezoneManager | None = None
 _timezone_manager_lock = threading.Lock()
 
 

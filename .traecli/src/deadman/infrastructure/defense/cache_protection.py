@@ -31,7 +31,8 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Optional, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Awaitable, Callable
 
 from ..feature_flags import is_enabled
 
@@ -125,7 +126,7 @@ class CacheProtection:
         self,
         key: str,
         loader: Callable[[], T],
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         allow_null_cache: bool = True,
     ) -> T:
         """同步:获取或加载(带 singleflight 防击穿)。"""
@@ -180,7 +181,7 @@ class CacheProtection:
         self,
         key: str,
         loader: Callable[[], Awaitable[T]],
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         allow_null_cache: bool = True,
     ) -> T:
         """异步:获取或加载(带 singleflight 防击穿)。"""
@@ -228,7 +229,7 @@ class CacheProtection:
             # 等待领导结果
             return await future
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """直接查缓存(不加载)。"""
         entry = self._get_cached(key)
         if entry is None:
@@ -239,7 +240,7 @@ class CacheProtection:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         allow_null_cache: bool = False,
     ) -> None:
         """直接写缓存。"""
@@ -273,7 +274,7 @@ class CacheProtection:
     # 内部
     # ==================================================================
 
-    def _get_cached(self, key: str) -> Optional[CacheEntry]:
+    def _get_cached(self, key: str) -> CacheEntry | None:
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -289,7 +290,7 @@ class CacheProtection:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int],
+        ttl: int | None,
         allow_null_cache: bool,
     ) -> None:
         with self._lock:
@@ -331,7 +332,7 @@ class CacheProtection:
 
 
 # 全局单例
-_cp_instance: Optional[CacheProtection] = None
+_cp_instance: CacheProtection | None = None
 _cp_lock = threading.Lock()
 
 

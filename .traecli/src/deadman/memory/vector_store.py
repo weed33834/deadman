@@ -21,7 +21,7 @@ import logging
 import math
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from ..utils.text_similarity import tokenize_for_embedding
 
@@ -141,7 +141,7 @@ class VectorStore(ABC):
     """向量库抽象基类"""
 
     @abstractmethod
-    def add(self, id: str, text: str, metadata: Optional[dict] = None) -> None:
+    def add(self, id: str, text: str, metadata: dict | None = None) -> None:
         """添加一条向量。同 id 覆盖。"""
 
     @abstractmethod
@@ -169,12 +169,12 @@ class InMemoryVectorStore(VectorStore):
     embedding 用 hash 模拟(无外部依赖),余弦相似度计算。
     """
 
-    def __init__(self, embedding_func: Optional[_EmbeddingFunc] = None) -> None:
+    def __init__(self, embedding_func: _EmbeddingFunc | None = None) -> None:
         self._embed: _EmbeddingFunc = embedding_func or _EmbeddingFunc()
         # id -> {"vector": list[float], "text": str, "metadata": dict}
         self._store: dict[str, dict[str, Any]] = {}
 
-    def add(self, id: str, text: str, metadata: Optional[dict] = None) -> None:
+    def add(self, id: str, text: str, metadata: dict | None = None) -> None:
         vec = self._embed.embed(text)
         self._store[id] = {
             "vector": vec,
@@ -220,8 +220,8 @@ class ChromaVectorStore(VectorStore):
     def __init__(
         self,
         collection_name: str = "deadman_episodes",
-        persist_path: Optional[str] = None,
-        embedding_func: Optional[_EmbeddingFunc] = None,
+        persist_path: str | None = None,
+        embedding_func: _EmbeddingFunc | None = None,
     ) -> None:
         if not _HAS_CHROMADB:
             raise RuntimeError("chromadb 未安装,请用 InMemoryVectorStore")
@@ -236,7 +236,7 @@ class ChromaVectorStore(VectorStore):
             metadata={"hnsw:space": "cosine"},
         )
 
-    def add(self, id: str, text: str, metadata: Optional[dict] = None) -> None:
+    def add(self, id: str, text: str, metadata: dict | None = None) -> None:
         vec = self._embedding_func.embed(text)
         # chromadb 要求 metadata 值为基本类型
         safe_meta = self._sanitize_metadata(metadata)
@@ -279,7 +279,7 @@ class ChromaVectorStore(VectorStore):
             return 0
 
     @staticmethod
-    def _sanitize_metadata(meta: Optional[dict]) -> dict[str, Any]:
+    def _sanitize_metadata(meta: dict | None) -> dict[str, Any]:
         """chromadb metadata 值必须是 str/int/float/bool/None"""
         if not meta:
             return {}
@@ -297,10 +297,10 @@ class ChromaVectorStore(VectorStore):
 # =====================================================================
 
 # 模块级单例(避免反复初始化 ST 模型,启动开销大)
-_vector_store_singleton: Optional[VectorStore] = None
+_vector_store_singleton: VectorStore | None = None
 
 
-def get_vector_store(force_refresh: bool = False) -> Optional[VectorStore]:
+def get_vector_store(force_refresh: bool = False) -> VectorStore | None:
     """工厂函数:按 feature flag 与依赖可用性返回 VectorStore 实例。
 
     优先级:

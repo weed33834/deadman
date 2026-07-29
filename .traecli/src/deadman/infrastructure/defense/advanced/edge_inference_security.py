@@ -51,7 +51,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -141,7 +141,7 @@ class ModelSignatureVerifier:
         client.load_model("llama-7b")
     """
 
-    def __init__(self, store_path: Optional[str] = None) -> None:
+    def __init__(self, store_path: str | None = None) -> None:
         self.store_path = store_path
         self._lock = threading.RLock()
         # model_name -> ModelSignature
@@ -158,7 +158,7 @@ class ModelSignatureVerifier:
         *,
         signature: str = "",
         registered_by: str = "",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> ModelSignature:
         """注册模型签名。
 
@@ -310,7 +310,7 @@ class ModelSignatureVerifier:
 
     def _load(self) -> None:
         try:
-            with open(self.store_path, "r", encoding="utf-8") as f:
+            with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
             for k, v in data.get("signatures", {}).items():
                 self._signatures[k] = ModelSignature(
@@ -448,7 +448,7 @@ class InferenceAuditor:
         )
     """
 
-    def __init__(self, store_path: Optional[str] = None) -> None:
+    def __init__(self, store_path: str | None = None) -> None:
         self.store_path = store_path
         self._lock = threading.RLock()
         self._records: list[InferenceAuditRecord] = []
@@ -470,7 +470,7 @@ class InferenceAuditor:
 
     def list_records(
         self,
-        model_name: Optional[str] = None,
+        model_name: str | None = None,
         limit: int = 100,
     ) -> list[InferenceAuditRecord]:
         with self._lock:
@@ -543,14 +543,14 @@ class InferenceAuditor:
 # 全局单例
 # =====================================================================
 
-_verifier: Optional[ModelSignatureVerifier] = None
-_tee: Optional[TEEAbstraction] = None
-_auditor: Optional[InferenceAuditor] = None
+_verifier: ModelSignatureVerifier | None = None
+_tee: TEEAbstraction | None = None
+_auditor: InferenceAuditor | None = None
 _lock = threading.Lock()
 
 
 def get_model_signature_verifier(
-    store_path: Optional[str] = None,
+    store_path: str | None = None,
 ) -> ModelSignatureVerifier:
     global _verifier
     with _lock:
@@ -572,7 +572,7 @@ def get_tee_abstraction(backend: str = "auto") -> TEEAbstraction:
 
 
 def get_inference_auditor(
-    store_path: Optional[str] = None,
+    store_path: str | None = None,
 ) -> InferenceAuditor:
     global _auditor
     with _lock:

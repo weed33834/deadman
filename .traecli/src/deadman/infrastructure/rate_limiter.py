@@ -21,7 +21,6 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ class TokenBucket:
         self,
         rate_per_second: float,
         capacity: int,
-        clock: Optional[callable] = None,
+        clock: callable | None = None,
     ) -> None:
         """
         Args:
@@ -137,9 +136,9 @@ class RateLimiter:
 
     def __init__(
         self,
-        config: Optional[RateLimitConfig] = None,
+        config: RateLimitConfig | None = None,
         max_buckets: int = 10000,
-        clock: Optional[callable] = None,
+        clock: callable | None = None,
     ) -> None:
         self.config = config or RateLimitConfig()
         self.max_buckets = max_buckets
@@ -172,7 +171,7 @@ class RateLimiter:
         # 实际 acquire 在锁外执行(避免长锁)
         return bucket.acquire(tokens)
 
-    def get_state(self, key: str) -> Optional[dict]:
+    def get_state(self, key: str) -> dict | None:
         """查询某 key 的限流状态(看板用)。"""
         with self._lock:
             entry = self._buckets.get(key)
@@ -192,7 +191,7 @@ class RateLimiter:
         with self._lock:
             return list(self._buckets.keys())
 
-    def reset(self, key: Optional[str] = None) -> None:
+    def reset(self, key: str | None = None) -> None:
         """重置限流(指定 key 或全部)。"""
         with self._lock:
             if key is None:

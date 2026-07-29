@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from ..notification.guardrail import NotificationGuardrail
 from .connectors.base import PlatformConnector
@@ -51,7 +51,7 @@ class Gateway:
 
     def __init__(
         self,
-        guard: Optional[NotificationGuardrail] = None,
+        guard: NotificationGuardrail | None = None,
         memory_manager: Any = None,
         graph: Any = None,
     ) -> None:

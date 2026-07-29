@@ -62,7 +62,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -275,8 +275,8 @@ class ConstitutionalDriftDetector:
 
     def __init__(
         self,
-        config: Optional[dict] = None,
-        store_path: Optional[str] = None,
+        config: dict | None = None,
+        store_path: str | None = None,
     ) -> None:
         self.config = {**DETECTOR_DEFAULTS, **(config or {})}
         self.store_path = store_path
@@ -303,7 +303,7 @@ class ConstitutionalDriftDetector:
         *,
         type: ThresholdType = ThresholdType.NUMERIC,
         actor: str = "system",
-        tags: Optional[dict] = None,
+        tags: dict | None = None,
     ) -> ThresholdSnapshot:
         """设置阈值基线(用于后续漂移比对)。"""
         snap = ThresholdSnapshot(
@@ -325,7 +325,7 @@ class ConstitutionalDriftDetector:
         logger.info("Baseline set: %s = %s", name, value)
         return snap
 
-    def get_baseline(self, name: str) -> Optional[ThresholdSnapshot]:
+    def get_baseline(self, name: str) -> ThresholdSnapshot | None:
         with self._lock:
             return self._baseline.get(name)
 
@@ -367,8 +367,8 @@ class ConstitutionalDriftDetector:
         actor: str = "system",
         reason: ChangeReason = ChangeReason.UNKNOWN,
         reason_text: str = "",
-        type: Optional[ThresholdType] = None,
-        tags: Optional[dict] = None,
+        type: ThresholdType | None = None,
+        tags: dict | None = None,
     ) -> ThresholdSnapshot:
         """记录阈值变更。"""
         with self._lock:
@@ -418,7 +418,7 @@ class ConstitutionalDriftDetector:
     # 漂移检测
     # ==================================================================
 
-    def check_drift(self, name: str) -> Optional[DriftAlert]:
+    def check_drift(self, name: str) -> DriftAlert | None:
         """检测单阈值的漂移。"""
         if not is_enabled("defense"):
             return None
@@ -636,7 +636,7 @@ class ConstitutionalDriftDetector:
     def get_alerts(
         self,
         *,
-        severity: Optional[DriftSeverity] = None,
+        severity: DriftSeverity | None = None,
         limit: int = 100,
     ) -> list[DriftAlert]:
         """获取告警列表。"""
@@ -658,7 +658,7 @@ class ConstitutionalDriftDetector:
     # 内部
     # ==================================================================
 
-    def _get_current_snapshot(self, name: str) -> Optional[ThresholdSnapshot]:
+    def _get_current_snapshot(self, name: str) -> ThresholdSnapshot | None:
         """获取当前(最新)快照。"""
         history = self._history.get(name, [])
         if not history:
@@ -690,7 +690,7 @@ class ConstitutionalDriftDetector:
         if not self.store_path or not os.path.exists(self.store_path):
             return
         try:
-            with open(self.store_path, "r", encoding="utf-8") as f:
+            with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
             with self._lock:
                 for name, snapshots_data in data.get("history", {}).items():
@@ -712,7 +712,7 @@ class ConstitutionalDriftDetector:
 # 全局单例
 # =====================================================================
 
-_detector_instance: Optional[ConstitutionalDriftDetector] = None
+_detector_instance: ConstitutionalDriftDetector | None = None
 _detector_lock = threading.RLock()
 
 

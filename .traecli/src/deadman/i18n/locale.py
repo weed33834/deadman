@@ -26,7 +26,6 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -48,7 +47,7 @@ class Locale(str, Enum):
     KO_KR = "ko-KR"  # 한국어
 
     @classmethod
-    def from_string(cls, value: str) -> "Locale":
+    def from_string(cls, value: str) -> Locale:
         """宽松解析 locale 字符串,匹配失败回退到 ZH_CN。
 
         支持:
@@ -112,7 +111,7 @@ class LocaleDetector:
     线程安全: RLock + 原子写(.tmp + os.replace)
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         if store_path is None:
             store_path = resolve_data_path("i18n/locale_prefs.json")
         self.store_path = Path(store_path) if not isinstance(store_path, Path) else store_path
@@ -126,8 +125,8 @@ class LocaleDetector:
 
     def detect_from_request(
         self,
-        headers: Optional[dict[str, str]] = None,
-        accept_language: Optional[str] = None,
+        headers: dict[str, str] | None = None,
+        accept_language: str | None = None,
     ) -> Locale:
         """从 HTTP 请求头检测 locale。
 
@@ -173,7 +172,7 @@ class LocaleDetector:
 
         return Locale.ZH_CN
 
-    def detect_from_user_profile(self, user_id: str) -> Optional[Locale]:
+    def detect_from_user_profile(self, user_id: str) -> Locale | None:
         """从用户持久化偏好检测 locale。
 
         Returns:
@@ -312,10 +311,10 @@ class LocaleDetector:
 
     def detect(
         self,
-        user_id: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        accept_language: Optional[str] = None,
-        ip: Optional[str] = None,
+        user_id: str | None = None,
+        headers: dict[str, str] | None = None,
+        accept_language: str | None = None,
+        ip: str | None = None,
     ) -> Locale:
         """综合检测:用户偏好 > Accept-Language > IP > 默认 ZH_CN。"""
         if not is_enabled("i18n"):
@@ -378,7 +377,7 @@ class LocaleDetector:
 
 
 # 全局单例
-_locale_detector_instance: Optional[LocaleDetector] = None
+_locale_detector_instance: LocaleDetector | None = None
 _locale_detector_lock = threading.Lock()
 
 

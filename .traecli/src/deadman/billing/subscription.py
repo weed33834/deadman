@@ -20,7 +20,6 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from .plans import Plan, PlanName, get_plan
@@ -66,8 +65,8 @@ class Subscription:
     billing_cycle: BillingCycle
     current_period_start: float  # epoch
     current_period_end: float  # epoch
-    trial_end: Optional[float] = None  # 试用期结束时间
-    canceled_at: Optional[float] = None
+    trial_end: float | None = None  # 试用期结束时间
+    canceled_at: float | None = None
     cancel_at_period_end: bool = False  # 周期末取消
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -81,7 +80,7 @@ class Subscription:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Subscription":
+    def from_dict(cls, data: dict) -> Subscription:
         return cls(
             user_id=data["user_id"],
             plan_name=data["plan_name"],
@@ -97,7 +96,7 @@ class Subscription:
             history=data.get("history", []),
         )
 
-    def is_active(self, now: Optional[float] = None) -> bool:
+    def is_active(self, now: float | None = None) -> bool:
         """当前是否生效(包含 trial)。"""
         now = now or time.time()
         if self.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING):
@@ -114,7 +113,7 @@ class SubscriptionManager:
     线程安全:单实例读写各自加锁,跨实例并发写靠原子 os.replace 保护。
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_SUBSCRIPTION_STORE", "data/billing/subscriptions.json")
         )
@@ -132,7 +131,7 @@ class SubscriptionManager:
         plan_name: str,
         billing_cycle: str = "monthly",
         with_trial: bool = False,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> Subscription:
         """创建订阅。
 
@@ -195,7 +194,7 @@ class SubscriptionManager:
         user_id: str,
         immediately: bool = False,
         reason: str = "",
-    ) -> Optional[Subscription]:
+    ) -> Subscription | None:
         """取消订阅。
 
         Args:
@@ -268,7 +267,7 @@ class SubscriptionManager:
             logger.info("User %s upgraded %s → %s (prorate=%s)", user_id, old_plan_name, new_plan_name, prorate)
             return sub
 
-    def renew(self, user_id: str) -> Optional[Subscription]:
+    def renew(self, user_id: str) -> Subscription | None:
         """续费(周期末调用,自动续期到下一周期)。"""
         if not is_enabled("billing"):
             return None
@@ -300,7 +299,7 @@ class SubscriptionManager:
     # 查询
     # ==================================================================
 
-    def get_current(self, user_id: str) -> Optional[Subscription]:
+    def get_current(self, user_id: str) -> Subscription | None:
         """查当前订阅(可能已过期,业务层需检查 is_active)。"""
         if not is_enabled("billing"):
             return self._disabled_subscription(user_id)
@@ -332,7 +331,7 @@ class SubscriptionManager:
     # 状态机推进(定时任务调用)
     # ==================================================================
 
-    def advance_status(self, now: Optional[float] = None) -> int:
+    def advance_status(self, now: float | None = None) -> int:
         """推进所有订阅的状态(定时任务调用)。
 
         - TRIALING → ACTIVE(trial_end 到期)
@@ -425,7 +424,7 @@ class SubscriptionManager:
 
 
 # 全局单例
-_sm_instance: Optional[SubscriptionManager] = None
+_sm_instance: SubscriptionManager | None = None
 _sm_lock = threading.Lock()
 
 

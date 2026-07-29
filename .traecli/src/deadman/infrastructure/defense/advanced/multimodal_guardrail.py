@@ -47,7 +47,7 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ...feature_flags import is_enabled
 
@@ -143,7 +143,7 @@ class MultimodalGuardrail:
 
     def __init__(
         self,
-        size_limits: Optional[dict[str, int]] = None,
+        size_limits: dict[str, int] | None = None,
         enable_content_safety: bool = True,
         enable_prompt_injection: bool = True,
     ) -> None:
@@ -164,9 +164,9 @@ class MultimodalGuardrail:
         capability: str,
         input_data: Any,
         *,
-        prompt: Optional[str] = None,
-        budget_remaining: Optional[float] = None,
-        estimated_cost: Optional[float] = None,
+        prompt: str | None = None,
+        budget_remaining: float | None = None,
+        estimated_cost: float | None = None,
         user_id: str = "",
     ) -> GuardrailDecision:
         """输入预检。
@@ -380,7 +380,7 @@ class MultimodalGuardrail:
 # 全局单例
 # =====================================================================
 
-_guard_instance: Optional[MultimodalGuardrail] = None
+_guard_instance: MultimodalGuardrail | None = None
 _lock = threading.Lock()
 
 

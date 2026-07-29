@@ -31,7 +31,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -96,7 +96,7 @@ class CommitteeMember:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CommitteeMember":
+    def from_dict(cls, data: dict[str, Any]) -> CommitteeMember:
         return cls(
             member_id=data["member_id"],
             name=data.get("name", ""),
@@ -134,9 +134,9 @@ class EthicsCase:
     status: CaseStatus = CaseStatus.SUBMITTED
     submitted_at: float = field(default_factory=time.time)
     assigned_members: list[str] = field(default_factory=list)
-    decision: Optional[CaseDecision] = None
+    decision: CaseDecision | None = None
     decision_text: str = ""
-    decision_date: Optional[float] = None
+    decision_date: float | None = None
     user_consent_verified: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -147,7 +147,7 @@ class EthicsCase:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "EthicsCase":
+    def from_dict(cls, data: dict[str, Any]) -> EthicsCase:
         decision_val = data.get("decision")
         decision = None
         if decision_val:
@@ -187,7 +187,7 @@ class EthicsCommittee:
         ec.decide(case.case_id, CaseDecision.APPROVED, "已审议通过")
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path("governance/ethics_cases.json")
         self._lock = threading.RLock()
         self._members: dict[str, CommitteeMember] = {}
@@ -211,7 +211,7 @@ class EthicsCommittee:
             logger.info("Committee member registered: %s (%s)", member.member_id, member.role.value)
             return member
 
-    def list_members(self, role: Optional[MemberRole] = None) -> list[CommitteeMember]:
+    def list_members(self, role: MemberRole | None = None) -> list[CommitteeMember]:
         """列出委员 (可按 role 过滤)。"""
         with self._lock:
             self._load()
@@ -220,7 +220,7 @@ class EthicsCommittee:
                 members = [m for m in members if m.role == role]
             return members
 
-    def get_member(self, member_id: str) -> Optional[CommitteeMember]:
+    def get_member(self, member_id: str) -> CommitteeMember | None:
         with self._lock:
             self._load()
             return self._members.get(member_id)
@@ -324,8 +324,8 @@ class EthicsCommittee:
 
     def list_cases(
         self,
-        status: Optional[CaseStatus] = None,
-        category: Optional[str] = None,
+        status: CaseStatus | None = None,
+        category: str | None = None,
     ) -> list[EthicsCase]:
         """列出案件 (可按 status / category 过滤)。"""
         with self._lock:
@@ -338,7 +338,7 @@ class EthicsCommittee:
             cases.sort(key=lambda c: c.submitted_at, reverse=True)
             return cases
 
-    def get(self, case_id: str) -> Optional[EthicsCase]:
+    def get(self, case_id: str) -> EthicsCase | None:
         with self._lock:
             self._load()
             return self._cases.get(case_id)
@@ -470,7 +470,7 @@ class EthicsCommittee:
 
 
 # 全局单例
-_ec_instance: Optional[EthicsCommittee] = None
+_ec_instance: EthicsCommittee | None = None
 _ec_lock = threading.Lock()
 
 

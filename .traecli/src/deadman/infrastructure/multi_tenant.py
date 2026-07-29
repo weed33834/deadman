@@ -22,7 +22,7 @@ import os
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .feature_flags import is_enabled
 
@@ -63,7 +63,7 @@ class TenantInfo:
 
 
 # ContextVar - 协程安全(支持 async + 线程)
-_current_tenant: contextvars.ContextVar[Optional[TenantInfo]] = contextvars.ContextVar(
+_current_tenant: contextvars.ContextVar[TenantInfo | None] = contextvars.ContextVar(
     "current_tenant", default=None
 )
 
@@ -79,7 +79,7 @@ class TenantContext:
 
     def __init__(self, tenant: TenantInfo) -> None:
         self.tenant = tenant
-        self._token: Optional[contextvars.Token] = None
+        self._token: contextvars.Token | None = None
 
     def __enter__(self) -> TenantInfo:
         self._token = _current_tenant.set(self.tenant)
@@ -90,7 +90,7 @@ class TenantContext:
             _current_tenant.reset(self._token)
 
 
-def get_current_tenant() -> Optional[TenantInfo]:
+def get_current_tenant() -> TenantInfo | None:
     """获取当前协程/线程的租户(None = 未设置,走默认)。"""
     return _current_tenant.get()
 
@@ -110,7 +110,7 @@ def is_multi_tenant_enabled() -> bool:
 # 路径路由
 # =====================================================================
 
-def resolve_tenant_path(sub_path: str, tenant_id: Optional[str] = None) -> Path:
+def resolve_tenant_path(sub_path: str, tenant_id: str | None = None) -> Path:
     """按租户路由数据路径。
 
     Args:
@@ -129,17 +129,17 @@ def resolve_tenant_path(sub_path: str, tenant_id: Optional[str] = None) -> Path:
     return TENANTS_ROOT / tid / sub_path
 
 
-def resolve_memory_path(filename: str, tenant_id: Optional[str] = None) -> Path:
+def resolve_memory_path(filename: str, tenant_id: str | None = None) -> Path:
     """便捷方法:解析 memory 目录下的文件。"""
     return resolve_tenant_path(f"memory/{filename}", tenant_id)
 
 
-def resolve_vault_path(filename: str, tenant_id: Optional[str] = None) -> Path:
+def resolve_vault_path(filename: str, tenant_id: str | None = None) -> Path:
     """便捷方法:解析 vault 目录下的文件。"""
     return resolve_tenant_path(f"vault/{filename}", tenant_id)
 
 
-def resolve_data_path(filename: str, tenant_id: Optional[str] = None) -> Path:
+def resolve_data_path(filename: str, tenant_id: str | None = None) -> Path:
     """便捷方法:解析 data 目录下的文件。"""
     return resolve_tenant_path(f"data/{filename}", tenant_id)
 
@@ -154,7 +154,7 @@ class TenantRegistry:
     持久化到 ~/.deadman/tenants/registry.json(单文件,低频写)。
     """
 
-    def __init__(self, registry_path: Optional[Path] = None) -> None:
+    def __init__(self, registry_path: Path | None = None) -> None:
         self.registry_path = registry_path or (TENANTS_ROOT / "registry.json")
         self._lock = threading.RLock()
         self._cache: dict[str, TenantInfo] = {}
@@ -174,7 +174,7 @@ class TenantRegistry:
             logger.info("Tenant registered: %s (%s)", tenant.tenant_id, tenant.name)
             return tenant
 
-    def get(self, tenant_id: str) -> Optional[TenantInfo]:
+    def get(self, tenant_id: str) -> TenantInfo | None:
         with self._lock:
             self._load()
             return self._cache.get(tenant_id)
@@ -184,7 +184,7 @@ class TenantRegistry:
             self._load()
             return list(self._cache.values())
 
-    def update(self, tenant_id: str, **fields) -> Optional[TenantInfo]:
+    def update(self, tenant_id: str, **fields) -> TenantInfo | None:
         """更新租户字段。"""
         with self._lock:
             self._load()
@@ -245,7 +245,7 @@ class TenantRegistry:
 
 
 # 全局单例
-_tenant_registry: Optional[TenantRegistry] = None
+_tenant_registry: TenantRegistry | None = None
 _registry_lock = threading.Lock()
 
 

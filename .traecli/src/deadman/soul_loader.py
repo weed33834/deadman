@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +71,7 @@ class SoulLoader:
         soul = loader.load_soul() or loader.default_soul()
     """
 
-    def __init__(self, soul_path: Optional[Path] = None) -> None:
+    def __init__(self, soul_path: Path | None = None) -> None:
         """初始化 SOUL 加载器。
 
         Args:
@@ -80,7 +79,7 @@ class SoulLoader:
         """
         self.soul_path: Path = soul_path if soul_path is not None else DEFAULT_SOUL_PATH
 
-    def load_soul(self) -> Optional[str]:
+    def load_soul(self) -> str | None:
         """读取 SOUL.md 内容（纯 markdown 文本，无 frontmatter）。
 
         Returns:

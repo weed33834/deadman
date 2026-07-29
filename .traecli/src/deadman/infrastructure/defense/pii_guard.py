@@ -35,7 +35,7 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 
@@ -173,9 +173,9 @@ class PIIRedactor:
     def __init__(
         self,
         # 各类型 PII 的脱敏策略(可按需覆盖)
-        strategies: Optional[dict[PIIType, RedactStrategy]] = None,
+        strategies: dict[PIIType, RedactStrategy] | None = None,
         # 白名单(已获用户同意,不需脱敏)
-        whitelisted_pii: Optional[set[PIIType]] = None,
+        whitelisted_pii: set[PIIType] | None = None,
     ) -> None:
         self.strategies = strategies or self._default_strategies()
         self.whitelisted_pii = whitelisted_pii or set()
@@ -373,7 +373,7 @@ class PIIRedactor:
 
 
 # 全局单例
-_pr_instance: Optional[PIIRedactor] = None
+_pr_instance: PIIRedactor | None = None
 _pr_lock = threading.Lock()
 
 

@@ -41,7 +41,6 @@ import os
 import resource
 import threading
 from dataclasses import dataclass, field
-from typing import Optional
 
 from ...feature_flags import is_enabled
 
@@ -189,9 +188,9 @@ class SandboxHardener:
     def create_fs_guard(
         self,
         allowed_paths: set[str],
-        readonly_paths: Optional[set[str]] = None,
-        blocked_paths: Optional[set[str]] = None,
-    ) -> "FilesystemGuard":
+        readonly_paths: set[str] | None = None,
+        blocked_paths: set[str] | None = None,
+    ) -> FilesystemGuard:
         """创建文件系统守卫。
 
         Args:
@@ -418,7 +417,7 @@ class FilesystemGuard:
 # 全局单例
 # =====================================================================
 
-_hardener: Optional[SandboxHardener] = None
+_hardener: SandboxHardener | None = None
 _lock = threading.Lock()
 
 

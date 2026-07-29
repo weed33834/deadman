@@ -35,7 +35,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -107,8 +107,8 @@ class AILabeling:
 
     def __init__(
         self,
-        config: Optional[LabelingConfig] = None,
-        store_path: Optional[Path] = None,
+        config: LabelingConfig | None = None,
+        store_path: Path | None = None,
     ) -> None:
         self.config = config or LabelingConfig()
         self.store_path = store_path or Path(
@@ -126,8 +126,8 @@ class AILabeling:
         *,
         user_id: str = "",
         model: str = "",
-        tenant_id: Optional[str] = None,
-        config: Optional[LabelingConfig] = None,
+        tenant_id: str | None = None,
+        config: LabelingConfig | None = None,
     ) -> LabelingResult:
         """对 AI 生成内容打标识。
 
@@ -206,7 +206,7 @@ class AILabeling:
     def verify(
         self,
         text: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """验证内容是否被正确标识(用于审核 / 监管检查)。
 
@@ -223,7 +223,7 @@ class AILabeling:
             result["signature_valid"] = self._verify_signature(metadata)
         return result
 
-    def extract_watermark(self, text: str) -> Optional[str]:
+    def extract_watermark(self, text: str) -> str | None:
         """从带水印的文本中提取指纹(溯源用)。
 
         若水印未启用或被破坏,返回 None。
@@ -326,7 +326,7 @@ class AILabeling:
             }
             self._save()
 
-    def lookup_fingerprint(self, fingerprint: str) -> Optional[dict[str, Any]]:
+    def lookup_fingerprint(self, fingerprint: str) -> dict[str, Any] | None:
         """根据水印指纹反查溯源信息。"""
         with self._lock:
             self._load()
@@ -337,7 +337,7 @@ class AILabeling:
             return
         try:
             if self.store_path.exists():
-                with open(self.store_path, "r", encoding="utf-8") as f:
+                with open(self.store_path, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if not line:
@@ -365,7 +365,7 @@ class AILabeling:
 
 
 # 全局单例
-_al_instance: Optional[AILabeling] = None
+_al_instance: AILabeling | None = None
 _al_lock = threading.Lock()
 
 

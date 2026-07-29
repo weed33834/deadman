@@ -106,7 +106,7 @@ class SwitchConfig:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "SwitchConfig":
+    def from_dict(cls, d: dict[str, Any]) -> SwitchConfig:
         return cls(
             check_in_frequency_days=int(d.get("check_in_frequency_days", 30)),
             missed_threshold=int(d.get("missed_threshold", 3)),
@@ -190,7 +190,7 @@ class SwitchRecord:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "SwitchRecord":
+    def from_dict(cls, d: dict[str, Any]) -> SwitchRecord:
         def _parse_dt(v: Any) -> datetime | None:
             if not v:
                 return None
@@ -220,7 +220,7 @@ class SwitchRecord:
         )
 
     @classmethod
-    def new(cls, user_id: str, config: SwitchConfig | None = None) -> "SwitchRecord":
+    def new(cls, user_id: str, config: SwitchConfig | None = None) -> SwitchRecord:
         """创建一条新的 switch 记录，初始状态 ACTIVE"""
         cfg = config or SwitchConfig()
         now = datetime.utcnow()
@@ -263,7 +263,7 @@ class CheckInLog:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "CheckInLog":
+    def from_dict(cls, d: dict[str, Any]) -> CheckInLog:
         return cls(
             user_id=d["user_id"],
             check_in_at=datetime.fromisoformat(d["check_in_at"]),

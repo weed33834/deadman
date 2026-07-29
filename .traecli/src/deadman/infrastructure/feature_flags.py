@@ -34,7 +34,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class EvaluationResult:
 
     name: str
     value: bool
-    variant: Optional[dict[str, Any]] = None
+    variant: dict[str, Any] | None = None
     reason: str = ""  # "default" / "env_var" / "dynamic" / "whitelist" / "blacklist" / "percentage"
 
 
@@ -177,7 +177,7 @@ class FeatureFlagManager:
 
     def __init__(
         self,
-        flags_file: Optional[Path] = None,
+        flags_file: Path | None = None,
         cache_ttl: int = _CACHE_TTL_SECONDS,
     ) -> None:
         self.flags_file = flags_file or DEFAULT_FLAGS_FILE
@@ -194,7 +194,7 @@ class FeatureFlagManager:
     def is_enabled(
         self,
         flag_name: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> bool:
         """评估 flag 是否启用。
 
@@ -221,7 +221,7 @@ class FeatureFlagManager:
     def evaluate(
         self,
         flag_name: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> EvaluationResult:
         """详细评估(含 reason + variant),便于审计。"""
         # 1. 系统总开关关闭 → 完全走 env var(向后兼容老配置)
@@ -302,8 +302,8 @@ class FeatureFlagManager:
     def get_variant(
         self,
         flag_name: str,
-        user_id: Optional[str] = None,
-    ) -> Optional[dict[str, Any]]:
+        user_id: str | None = None,
+    ) -> dict[str, Any] | None:
         """获取 flag 的 variant 配置(用于 AB 测试切换 prompt/模型)。
 
         仅当 flag enabled 且 percentage 命中时返回 variant。
@@ -320,12 +320,12 @@ class FeatureFlagManager:
     def set_flag(
         self,
         flag_name: str,
-        enabled: Optional[bool] = None,
-        percentage: Optional[int] = None,
-        variant: Optional[dict[str, Any]] = None,
-        user_whitelist: Optional[list[str]] = None,
-        user_blacklist: Optional[list[str]] = None,
-        description: Optional[str] = None,
+        enabled: bool | None = None,
+        percentage: int | None = None,
+        variant: dict[str, Any] | None = None,
+        user_whitelist: list[str] | None = None,
+        user_blacklist: list[str] | None = None,
+        description: str | None = None,
         updated_by: str = "admin",
     ) -> FlagRule:
         """动态更新单个 flag(热更新,无需重启)。
@@ -483,7 +483,7 @@ class FeatureFlagManager:
             logger.error("Feature flags save failed: %s", e)
             raise
 
-    def _read_env_var(self, flag_name: str) -> Optional[bool]:
+    def _read_env_var(self, flag_name: str) -> bool | None:
         """读环境变量 DEADMAN_<NAME>_ENABLED(向后兼容)。
 
         Returns:
@@ -511,7 +511,7 @@ class FeatureFlagManager:
 # =====================================================================
 # 全局单例(惰性初始化,避免 import 时 IO)
 # =====================================================================
-_flags_instance: Optional[FeatureFlagManager] = None
+_flags_instance: FeatureFlagManager | None = None
 _flags_lock = threading.Lock()
 
 
@@ -526,16 +526,16 @@ def get_flags() -> FeatureFlagManager:
 
 
 # 便捷模块级 API(向后兼容老代码 if FeatureFlagManager.is_enabled(...) 写法)
-def is_enabled(flag_name: str, user_id: Optional[str] = None) -> bool:
+def is_enabled(flag_name: str, user_id: str | None = None) -> bool:
     """模块级便捷函数,代理到全局单例。"""
     return get_flags().is_enabled(flag_name, user_id)
 
 
-def evaluate(flag_name: str, user_id: Optional[str] = None) -> EvaluationResult:
+def evaluate(flag_name: str, user_id: str | None = None) -> EvaluationResult:
     """模块级便捷函数。"""
     return get_flags().evaluate(flag_name, user_id)
 
 
-def get_variant(flag_name: str, user_id: Optional[str] = None) -> Optional[dict[str, Any]]:
+def get_variant(flag_name: str, user_id: str | None = None) -> dict[str, Any] | None:
     """模块级便捷函数。"""
     return get_flags().get_variant(flag_name, user_id)

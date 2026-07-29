@@ -42,7 +42,6 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 logger = logging.getLogger(__name__)
@@ -103,7 +102,7 @@ class ComplexitySignals:
     needs_multi_step: bool = False  # 需多步推理
     needs_tool_use: bool = False  # 需工具调用
     needs_debate: bool = False  # 需辩论
-    llm_intent: Optional[str] = None  # LLM 分类结果
+    llm_intent: str | None = None  # LLM 分类结果
     confidence: float = 0.0  # LLM 分类置信度
 
 
@@ -137,7 +136,7 @@ class ComplexityClassifier:
 
     def __init__(
         self,
-        llm_classifier: Optional[callable] = None,
+        llm_classifier: callable | None = None,
         use_llm: bool = False,
     ) -> None:
         """
@@ -153,7 +152,7 @@ class ComplexityClassifier:
         self,
         query: str,
         *,
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ) -> tuple[TaskComplexity, ComplexitySignals]:
         """分类任务复杂度。
 
@@ -202,7 +201,7 @@ class ComplexityClassifier:
     def classify_with_llm(
         self,
         query: str,
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ) -> tuple[TaskComplexity, ComplexitySignals, float]:
         """LLM 增强分类(若配置了 llm_classifier)。
 
@@ -358,10 +357,10 @@ class ComplexityRouter:
     def route(
         self,
         complexity: TaskComplexity,
-        signals: Optional[ComplexitySignals] = None,
+        signals: ComplexitySignals | None = None,
         *,
-        budget_remaining: Optional[float] = None,
-        budget_per_call_limit: Optional[float] = None,
+        budget_remaining: float | None = None,
+        budget_per_call_limit: float | None = None,
     ) -> RoutingDecision:
         """按复杂度 + budget 路由。"""
         decision = self.DEFAULT_ROUTING.get(
@@ -434,8 +433,8 @@ class ComplexityRouter:
 # 全局单例
 # =====================================================================
 
-_classifier: Optional[ComplexityClassifier] = None
-_router: Optional[ComplexityRouter] = None
+_classifier: ComplexityClassifier | None = None
+_router: ComplexityRouter | None = None
 _lock = threading.Lock()
 
 

@@ -100,7 +100,7 @@ class ToolResultCache:
             enabled: 是否启用；None 表示用模块级 TOOL_CACHE_ENABLED（默认随 feature flag）
                      显式传 True 可在 feature flag 关闭时强制启用（单元测试用）
         """
-        self._store: "OrderedDict[tuple[str, str], _CacheEntry]" = OrderedDict()
+        self._store: OrderedDict[tuple[str, str], _CacheEntry] = OrderedDict()
         self._max_entries = max(1, max_entries)
         self._default_ttl = max(0, default_ttl)
         self._enabled = TOOL_CACHE_ENABLED if enabled is None else bool(enabled)

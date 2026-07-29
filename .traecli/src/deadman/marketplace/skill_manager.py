@@ -25,7 +25,7 @@ import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def _atomic_write(path: Path, content: str) -> None:
     """原子写入: 先写 .tmp 再 os.replace, 防止写入中断损坏文件。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = None
-    tmp_path: Optional[Path] = None
+    tmp_path: Path | None = None
     try:
         fd, tmp_name = tempfile.mkstemp(
             suffix=".tmp",
@@ -187,7 +187,7 @@ class SkillManager:
 
     SKILL_FILENAME = "SKILL.md"
 
-    def __init__(self, skills_dir: Optional[Path] = None) -> None:
+    def __init__(self, skills_dir: Path | None = None) -> None:
         if skills_dir is not None:
             self._skills_dir = Path(skills_dir)
         else:
@@ -668,11 +668,11 @@ class SkillManager:
 # =====================================================================
 # 全局单例
 # =====================================================================
-_skill_manager_instance: Optional[SkillManager] = None
+_skill_manager_instance: SkillManager | None = None
 _skill_manager_lock = threading.Lock()
 
 
-def get_skill_manager(skills_dir: Optional[Path] = None) -> SkillManager:
+def get_skill_manager(skills_dir: Path | None = None) -> SkillManager:
     """获取全局 SkillManager 单例。
 
     首次调用时创建实例, 后续调用返回同一实例。

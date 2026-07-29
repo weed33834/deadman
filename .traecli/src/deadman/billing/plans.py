@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class PlanName(str, Enum):
@@ -235,7 +234,7 @@ PLANS: dict[str, Plan] = {
 }
 
 
-def get_plan(name: str) -> Optional[Plan]:
+def get_plan(name: str) -> Plan | None:
     """按名查 plan,未知返回 None。"""
     return PLANS.get(name)
 

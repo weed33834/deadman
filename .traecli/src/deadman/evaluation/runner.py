@@ -28,7 +28,8 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any
+from collections.abc import Callable, Coroutine
 
 import yaml
 

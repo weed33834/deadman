@@ -15,7 +15,8 @@ P0.4 配套:react_loop.py 通过 _TOOL_REGISTRY 分发 Action,本模块负责
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from .react_loop import register_react_tool
 

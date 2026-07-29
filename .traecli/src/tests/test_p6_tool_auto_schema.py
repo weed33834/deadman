@@ -57,8 +57,8 @@ class TestPythonTypeToJsonSchema:
         """Optional[str] / str | None → string"""
         from deadman.mcp_server.server import _python_type_to_json_schema
 
-        # Optional[str] (typing.Optional)
-        result = _python_type_to_json_schema(Optional[str])
+        # Optional[str] (typing.Optional) —— 故意用旧形式测试输入兼容性，与下方 str|None 对照
+        result = _python_type_to_json_schema(Optional[str])  # noqa: UP045
         assert result == {"type": "string"}
 
         # str | None (Python 3.10+ 语法)

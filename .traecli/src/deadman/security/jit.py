@@ -99,7 +99,7 @@ class JITToken:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "JITToken":
+    def from_dict(cls, data: dict[str, Any]) -> JITToken:
         """从 dict 反序列化（容错：缺失字段填默认）"""
         return cls(
             token=str(data.get("token", "")),
@@ -148,7 +148,7 @@ class JITPermissionManager:
         if not self._path.exists():
             return
         try:
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 data = json.load(f)
             if not isinstance(data, dict):
                 return

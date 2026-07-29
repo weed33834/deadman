@@ -22,7 +22,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -94,9 +94,9 @@ class Invoice:
     total: float  # 总计
     currency: str = "CNY"
     status: InvoiceStatus = InvoiceStatus.DRAFT
-    payment_gateway: Optional[str] = None  # PaymentGateway.value
-    payment_id: Optional[str] = None  # 网关返回的支付 ID
-    paid_at: Optional[float] = None
+    payment_gateway: str | None = None  # PaymentGateway.value
+    payment_id: str | None = None  # 网关返回的支付 ID
+    paid_at: float | None = None
     created_at: float = field(default_factory=time.time)
     due_at: float = 0.0  # 付款截止时间
     # 退款相关
@@ -112,7 +112,7 @@ class Invoice:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Invoice":
+    def from_dict(cls, data: dict) -> Invoice:
         line_items_data = data.get("line_items", [])
         line_items = [
             InvoiceLineItem(**li) if isinstance(li, dict) else li
@@ -159,9 +159,9 @@ class InvoiceGenerator:
 
     def __init__(
         self,
-        store_path: Optional[Path] = None,
-        subscriptions: Optional[SubscriptionManager] = None,
-        metering: Optional[MeteringService] = None,
+        store_path: Path | None = None,
+        subscriptions: SubscriptionManager | None = None,
+        metering: MeteringService | None = None,
     ) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_INVOICE_STORE", "data/billing/invoices.json")
@@ -181,8 +181,8 @@ class InvoiceGenerator:
         user_id: str,
         period_start: float,
         period_end: float,
-        tenant_id: Optional[str] = None,
-    ) -> Optional[Invoice]:
+        tenant_id: str | None = None,
+    ) -> Invoice | None:
         """生成账单(月度调用)。
 
         Args:
@@ -296,7 +296,7 @@ class InvoiceGenerator:
     # 发票导出
     # ==================================================================
 
-    def export(self, invoice_id: str, format: str = "json") -> Optional[bytes]:
+    def export(self, invoice_id: str, format: str = "json") -> bytes | None:
         """导出发票。
 
         Args:
@@ -382,7 +382,7 @@ th {{ background: #f5f5f5; text-align: left; }}
         self,
         invoice_id: str,
         gateway: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """发送到支付网关(模拟实现,真实集成需对接 SDK)。
 
         Returns:
@@ -411,7 +411,7 @@ th {{ background: #f5f5f5; text-align: left; }}
         logger.info("Invoice %s sent to %s (payment_id=%s)", invoice_id, gateway, payment_id)
         return payment_id
 
-    def mark_paid(self, invoice_id: str, payment_id: str) -> Optional[Invoice]:
+    def mark_paid(self, invoice_id: str, payment_id: str) -> Invoice | None:
         """标记账单已付款(网关回调)。"""
         if not is_enabled("billing"):
             return None
@@ -430,9 +430,9 @@ th {{ background: #f5f5f5; text-align: left; }}
     def refund(
         self,
         invoice_id: str,
-        amount: Optional[float] = None,
+        amount: float | None = None,
         reason: str = "",
-    ) -> Optional[Invoice]:
+    ) -> Invoice | None:
         """退款(部分 / 全额)。
 
         Args:
@@ -466,7 +466,7 @@ th {{ background: #f5f5f5; text-align: left; }}
             self._save()
             return invoice
 
-    def void(self, invoice_id: str, reason: str = "") -> Optional[Invoice]:
+    def void(self, invoice_id: str, reason: str = "") -> Invoice | None:
         """作废账单。"""
         with self._lock:
             self._load()
@@ -484,7 +484,7 @@ th {{ background: #f5f5f5; text-align: left; }}
     # 查询
     # ==================================================================
 
-    def get(self, invoice_id: str) -> Optional[Invoice]:
+    def get(self, invoice_id: str) -> Invoice | None:
         with self._lock:
             self._load()
             return self._invoices.get(invoice_id)
@@ -537,7 +537,7 @@ th {{ background: #f5f5f5; text-align: left; }}
 
 
 # 全局单例
-_ig_instance: Optional[InvoiceGenerator] = None
+_ig_instance: InvoiceGenerator | None = None
 _ig_lock = threading.Lock()
 
 

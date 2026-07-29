@@ -27,7 +27,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -79,7 +79,7 @@ class ModelCard:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ModelCard":
+    def from_dict(cls, data: dict[str, Any]) -> ModelCard:
         return cls(
             model_id=data["model_id"],
             name=data.get("name", ""),
@@ -107,7 +107,7 @@ class ModelCardRegistry:
     线程安全 + 原子写。
     """
 
-    def __init__(self, store_path: Optional[Path] = None) -> None:
+    def __init__(self, store_path: Path | None = None) -> None:
         self.store_path = store_path or resolve_data_path("governance/model_cards.json")
         self._lock = threading.RLock()
         self._cache: dict[str, ModelCard] = {}
@@ -125,7 +125,7 @@ class ModelCardRegistry:
             logger.info("Model card registered: %s (%s)", card.model_id, card.version)
             return card
 
-    def get(self, model_id: str) -> Optional[ModelCard]:
+    def get(self, model_id: str) -> ModelCard | None:
         """按 ID 获取模型卡。"""
         with self._lock:
             self._load()
@@ -143,7 +143,7 @@ class ModelCardRegistry:
             self._load()
             return [c for c in self._cache.values() if not c.archived]
 
-    def update(self, model_id: str, **fields: Any) -> Optional[ModelCard]:
+    def update(self, model_id: str, **fields: Any) -> ModelCard | None:
         """更新模型卡字段 (部分字段)。"""
         with self._lock:
             self._load()
@@ -156,7 +156,7 @@ class ModelCardRegistry:
             self._save()
             return card
 
-    def archive(self, model_id: str) -> Optional[ModelCard]:
+    def archive(self, model_id: str) -> ModelCard | None:
         """归档模型 (deprecated,不再用于新决策)。"""
         with self._lock:
             self._load()
@@ -213,7 +213,7 @@ class ModelCardRegistry:
 
 
 # 全局单例
-_mcr_instance: Optional[ModelCardRegistry] = None
+_mcr_instance: ModelCardRegistry | None = None
 _mcr_lock = threading.Lock()
 
 

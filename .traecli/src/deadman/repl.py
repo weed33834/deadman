@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from . import __version__
@@ -65,10 +65,10 @@ class ChatREPL:
 
     def __init__(
         self,
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        soul_loader: Optional[SoulLoader] = None,
-        memory_manager: Optional[MemoryManager] = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        soul_loader: SoulLoader | None = None,
+        memory_manager: MemoryManager | None = None,
         graph: Any = None,
         stdin: Any = None,
         stdout: Any = None,
@@ -153,7 +153,7 @@ class ChatREPL:
                 logger.error("处理输入异常: %s", e, exc_info=True)
                 self._print(f"[错误] 处理输入时: {type(e).__name__}: {e}")
 
-    def _read_input(self) -> Optional[str]:
+    def _read_input(self) -> str | None:
         """读取一行输入。
 
         Returns:

@@ -44,7 +44,6 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from ...feature_flags import is_enabled
 
@@ -337,7 +336,7 @@ class StyleNormalizer:
 
     def __init__(
         self,
-        profile: Optional[StyleProfile] = None,
+        profile: StyleProfile | None = None,
     ) -> None:
         self.profile = profile or StyleProfile()
         self._lock = threading.RLock()
@@ -365,7 +364,7 @@ class StyleNormalizer:
         self,
         response: str,
         source_provider: Provider,
-        prev_response: Optional[str] = None,
+        prev_response: str | None = None,
     ) -> str:
         if not is_enabled("defense"):
             return response
@@ -395,7 +394,7 @@ class StyleNormalizer:
 # 全局单例
 # =====================================================================
 
-_normalizer: Optional[StyleNormalizer] = None
+_normalizer: StyleNormalizer | None = None
 _lock = threading.Lock()
 
 

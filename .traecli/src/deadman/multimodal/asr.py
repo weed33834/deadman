@@ -25,7 +25,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 
@@ -102,7 +102,7 @@ class CloudASRProvider(ASRProvider):
 
     name = "cloud"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
 
     def is_available(self) -> bool:
@@ -129,9 +129,9 @@ class OpenAIWhisperProvider(ASRProvider):
 
     name = "openai_whisper"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -182,9 +182,9 @@ class WhisperCppProvider(ASRProvider):
 
     name = "whisper_cpp"
 
-    def __init__(self, model_path: Optional[str] = None) -> None:
+    def __init__(self, model_path: str | None = None) -> None:
         self.model_path = model_path
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         if self._available is not None:
@@ -238,9 +238,9 @@ class ASRService:
 
     def __init__(
         self,
-        cloud_api_key: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
-        custom_providers: Optional[list[ASRProvider]] = None,
+        cloud_api_key: str | None = None,
+        openai_api_key: str | None = None,
+        custom_providers: list[ASRProvider] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self.cloud_api_key = cloud_api_key
@@ -257,7 +257,7 @@ class ASRService:
     def is_enabled(self) -> bool:
         return is_enabled("multimodal")
 
-    def register_provider(self, provider: ASRProvider, position: Optional[int] = None) -> None:
+    def register_provider(self, provider: ASRProvider, position: int | None = None) -> None:
         with self._lock:
             if position is None:
                 self._providers.append(provider)
@@ -302,7 +302,7 @@ class ASRService:
         with self._lock:
             providers = list(self._providers)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for provider in providers:
             try:
                 if not provider.is_available():
@@ -329,7 +329,7 @@ class ASRService:
 
 
 # 全局单例
-_asr_instance: Optional[ASRService] = None
+_asr_instance: ASRService | None = None
 _asr_lock = threading.Lock()
 
 

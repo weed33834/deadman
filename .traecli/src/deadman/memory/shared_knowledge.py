@@ -21,7 +21,6 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -80,7 +79,7 @@ class SharedKnowledgeStore:
         4. 写入 SHARED_KNOWLEDGE.json(原子写入)
     """
 
-    def __init__(self, file_path: Optional[Path] = None) -> None:
+    def __init__(self, file_path: Path | None = None) -> None:
         self.file_path: Path = (
             file_path if file_path is not None else DEFAULT_SHARED_KNOWLEDGE_FILE
         )
@@ -149,7 +148,7 @@ class SharedKnowledgeStore:
         topic: str,
         content: str,
         user_consent: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """添加一条跨用户共享知识。
 
         流程:
@@ -190,7 +189,7 @@ class SharedKnowledgeStore:
         self._load()
 
         # 查找同 topic 的现有 entry
-        existing: Optional[SharedKnowledgeEntry] = None
+        existing: SharedKnowledgeEntry | None = None
         for entry in self._cache.values():
             if entry.topic == safe_topic:
                 existing = entry
@@ -256,7 +255,7 @@ class SharedKnowledgeStore:
         )
         return matched[:top_k]
 
-    def merge_entries(self, topic: str) -> Optional[SharedKnowledgeEntry]:
+    def merge_entries(self, topic: str) -> SharedKnowledgeEntry | None:
         """合并同主题的多用户经验为一条。
 
         把所有 topic 匹配的 entry 合并为一条:

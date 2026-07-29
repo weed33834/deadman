@@ -35,7 +35,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .feature_flags import is_enabled
 from .multi_tenant import get_current_tenant_id
@@ -192,7 +192,7 @@ class CredentialVault:
 
     def __init__(
         self,
-        vault_path: Optional[Path] = None,
+        vault_path: Path | None = None,
         cache_ttl: int = CACHE_TTL_SECONDS,
     ) -> None:
         self.vault_path = vault_path or DEFAULT_VAULT_PATH
@@ -213,8 +213,8 @@ class CredentialVault:
         self,
         name: str,
         value: str,
-        tenant_id: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        tenant_id: str | None = None,
+        metadata: dict | None = None,
     ) -> CredentialRecord:
         """存储凭证(加密后落盘)。"""
         if not is_enabled("credential_vault"):
@@ -254,7 +254,7 @@ class CredentialVault:
     def get(
         self,
         name: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         audit_actor: str = "system",
     ) -> str:
         """读取凭证明文(优先从缓存取)。
@@ -301,7 +301,7 @@ class CredentialVault:
             logger.info("Credential %s accessed by %s for tenant %s", name, audit_actor, tid)
             return plaintext
 
-    def delete(self, name: str, tenant_id: Optional[str] = None) -> bool:
+    def delete(self, name: str, tenant_id: str | None = None) -> bool:
         """删除凭证。"""
         if not is_enabled("credential_vault"):
             return False
@@ -318,7 +318,7 @@ class CredentialVault:
 
     def list_credentials(
         self,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> list[CredentialRecord]:
         """列出某租户的所有凭证(不返回明文)。"""
         if not is_enabled("credential_vault"):
@@ -336,14 +336,14 @@ class CredentialVault:
         self,
         name: str,
         new_value: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> CredentialRecord:
         """轮换凭证(更新 value + last_rotated_at)。"""
         return self.set(name, new_value, tenant_id)
 
     def list_needing_rotation(
         self,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         rotation_days: int = DEFAULT_ROTATION_DAYS,
     ) -> list[CredentialRecord]:
         """列出需要轮换的凭证。"""
@@ -412,7 +412,7 @@ class CredentialVault:
 
 
 # 全局单例
-_vault_instance: Optional[CredentialVault] = None
+_vault_instance: CredentialVault | None = None
 _vault_lock = threading.Lock()
 
 

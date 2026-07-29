@@ -38,7 +38,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
-from typing import Awaitable, Callable, Union
+from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ REDTEAM_ENABLED: bool = os.environ.get(
 ).lower() in ("1", "true", "yes", "on")
 
 # target_callable 可以是 sync 或 async
-TargetCallable = Callable[[str], Union[str, Awaitable[str]]]
+TargetCallable = Callable[[str], str | Awaitable[str]]
 
 
 # =====================================================================

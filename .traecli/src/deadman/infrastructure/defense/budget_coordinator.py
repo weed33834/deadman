@@ -44,7 +44,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 from ..multi_tenant import get_current_tenant_id
@@ -85,7 +85,7 @@ class BudgetAllocation:
     timestamp: float = field(default_factory=time.time)
     # 释放相关
     released: bool = False
-    released_at: Optional[float] = None
+    released_at: float | None = None
     actual_used: int = 0  # 实际使用量(<= amount)
 
     def to_dict(self) -> dict:
@@ -137,12 +137,12 @@ class BudgetCoordinator:
 
     def __init__(
         self,
-        store_path: Optional[Path] = None,
+        store_path: Path | None = None,
         # 默认上限(可被租户级 / 用户级覆盖)
-        global_limits: Optional[dict[BudgetDimension, int]] = None,
-        tenant_limits: Optional[dict[BudgetDimension, int]] = None,
-        user_limits: Optional[dict[BudgetDimension, int]] = None,
-        session_limits: Optional[dict[BudgetDimension, int]] = None,
+        global_limits: dict[BudgetDimension, int] | None = None,
+        tenant_limits: dict[BudgetDimension, int] | None = None,
+        user_limits: dict[BudgetDimension, int] | None = None,
+        session_limits: dict[BudgetDimension, int] | None = None,
     ) -> None:
         self.store_path = store_path or Path(
             os.environ.get("DEADMAN_BUDGET_STORE", "data/defense/budget.json")
@@ -203,7 +203,7 @@ class BudgetCoordinator:
         request_id: str = "",
         # 是否严格(严格则超限抛异常,非严格则降级)
         strict: bool = False,
-    ) -> Optional[BudgetAllocation]:
+    ) -> BudgetAllocation | None:
         """预扣减 budget。
 
         检查所有父域:
@@ -261,7 +261,7 @@ class BudgetCoordinator:
     def release(
         self,
         allocation_id: str,
-        actual_used: Optional[int] = None,
+        actual_used: int | None = None,
     ) -> bool:
         """释放预分配(回退未用部分)。
 
@@ -328,7 +328,7 @@ class BudgetCoordinator:
         scope: BudgetScope,
         dimension: BudgetDimension,
         limit: int,
-        scope_id: Optional[str] = None,  # 仅 TENANT / USER 级别生效
+        scope_id: str | None = None,  # 仅 TENANT / USER 级别生效
     ) -> None:
         """设置 / 覆盖 limit(管理用)。
 
@@ -511,7 +511,7 @@ class BudgetCoordinator:
 
 
 # 全局单例
-_bc_instance: Optional[BudgetCoordinator] = None
+_bc_instance: BudgetCoordinator | None = None
 _bc_lock = threading.Lock()
 
 

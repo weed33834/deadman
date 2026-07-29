@@ -40,7 +40,7 @@ import logging
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class TenantVectorStore:
         tenant_id: str,
         id: str,
         text: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         """添加向量(强制 tenant_id)。"""
         if not tenant_id:
@@ -147,7 +147,7 @@ class TenantVectorStore:
         tenant_id: str,
         text: str,
         top_k: int = 5,
-        filter: Optional[dict] = None,
+        filter: dict | None = None,
     ) -> list[dict]:
         """查询向量(强制 tenant_id,仅返回当前租户数据)。"""
         if not tenant_id:
@@ -292,11 +292,11 @@ class TenantVectorStore:
 # 全局单例(可选 - 由 memory/manager.py 注入)
 # =====================================================================
 
-_global_tenant_store: Optional[TenantVectorStore] = None
+_global_tenant_store: TenantVectorStore | None = None
 _global_lock = threading.Lock()
 
 
-def get_global_tenant_vector_store() -> Optional[TenantVectorStore]:
+def get_global_tenant_vector_store() -> TenantVectorStore | None:
     """获取全局 TenantVectorStore(若已初始化)。
 
     注意:此单例需在系统启动时由 memory/manager.py 显式初始化。

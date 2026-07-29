@@ -19,7 +19,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from ..config import settings
@@ -109,15 +109,15 @@ class Episode:
     assistant_response: str
     transfer_triggered: bool = False
     subagents_called: list[str] = field(default_factory=list)
-    rule_check_result: Optional[dict] = None
+    rule_check_result: dict | None = None
     risk_tier: str = "R0"
     summary: str = ""
     # 关键词列表，模拟 embedding 用于语义检索
     keywords: list[str] = field(default_factory=list)
     # === P2.2 TTL + LRU 字段(默认值保证旧路径不变) ===
     archived: bool = False
-    last_accessed_at: Optional[datetime] = None
-    archived_at: Optional[datetime] = None
+    last_accessed_at: datetime | None = None
+    archived_at: datetime | None = None
     # === P2.6 遗忘曲线:重要性(0.0-1.0),默认 0.5 ===
     importance: float = 0.5
 
@@ -158,7 +158,7 @@ class EpisodicMemory:
             self._vector_store_initialized = True
         return self._vector_store
 
-    async def archive_turn(self, session_id: str, turn: dict) -> Optional[Episode]:
+    async def archive_turn(self, session_id: str, turn: dict) -> Episode | None:
         """把工作记忆溢出的轮次归档到情景记忆。
 
         流程：生成摘要 -> 提取关键词（模拟 embedding） -> 存入内存 dict ->
@@ -483,7 +483,7 @@ class EpisodicMemory:
         if EPISODIC_TTL_ENABLED:
             episode.last_accessed_at = datetime.now(timezone.utc)
 
-    def _apply_ttl_filter(self, now: Optional[datetime] = None) -> int:
+    def _apply_ttl_filter(self, now: datetime | None = None) -> int:
         """TTL 过滤:过期 episode 标记 archived=True,30 天后才物理删。
 
         Returns:

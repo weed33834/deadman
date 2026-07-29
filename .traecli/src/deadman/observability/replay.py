@@ -25,7 +25,7 @@ import difflib
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,9 @@ class ReplayRequest:
     """
 
     trace_id: str = ""
-    new_prompt: Optional[str] = None
-    new_model: Optional[str] = None
-    new_temperature: Optional[float] = None
+    new_prompt: str | None = None
+    new_model: str | None = None
+    new_temperature: float | None = None
 
 
 @dataclass

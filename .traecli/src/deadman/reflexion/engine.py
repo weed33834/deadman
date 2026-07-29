@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 from contextlib import ExitStack
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from ..config import settings
 from ..llm import llm_client
@@ -81,7 +82,7 @@ ADJUSTMENT_STRATEGIES: dict[str, dict[str, Any]] = {
 }
 
 
-def get_predefined_strategy(failure_type: str) -> Optional[dict[str, Any]]:
+def get_predefined_strategy(failure_type: str) -> dict[str, Any] | None:
     """获取预定义的调整策略（快速路径，不调 LLM）
 
     Args:
@@ -163,7 +164,7 @@ class ReflexionEngine:
 
             for attempt in range(1, max_retries + 1):
                 # 1. 执行操作
-                failure_info: Optional[dict[str, Any]] = None
+                failure_info: dict[str, Any] | None = None
                 try:
                     result = await operation(**current_input)
 
@@ -348,7 +349,7 @@ class ReflexionEngine:
 
         # 加载历史反思记忆（若有 memory_store）
         historical_pattern = 0
-        historical_adjustment: Optional[str] = None
+        historical_adjustment: str | None = None
         memory = await self._load_memory()
         if memory:
             historical_pattern = (
@@ -481,7 +482,7 @@ class ReflexionEngine:
         adjusted = dict(current_input)
 
         # 找到 prompt 字段（兼容 prompt / task / message）
-        prompt_key: Optional[str] = None
+        prompt_key: str | None = None
         prompt_value: str = ""
         for key in ("prompt", "task", "message"):
             val = adjusted.get(key)
@@ -529,7 +530,7 @@ class ReflexionEngine:
             reason += f"。反思：{last_reflection.get('failure_reason', '')}"
         return reason
 
-    async def _load_memory(self) -> Optional[dict[str, Any]]:
+    async def _load_memory(self) -> dict[str, Any] | None:
         """从 Graphiti 加载反思记忆（若 memory_store 不可用则返回 None）"""
         if not self.memory_store:
             return None
@@ -609,7 +610,7 @@ class ReflexionEngine:
         self,
         stack: ExitStack,
         attrs: dict[str, Any],
-    ) -> Optional[str]:
+    ) -> str | None:
         """进入 reflexion trace span，返回 span_id（若不可用返回 None）
 
         使用 ExitStack 确保退出时自动调用 __exit__，即使业务逻辑抛异常。
@@ -625,7 +626,7 @@ class ReflexionEngine:
 
     def _add_span_event(
         self,
-        span_id: Optional[str],
+        span_id: str | None,
         failure_info: dict[str, Any],
         reflection: dict[str, Any],
         attempt: int,
@@ -655,7 +656,7 @@ class ReflexionEngine:
 
     def _finalize_span(
         self,
-        span_id: Optional[str],
+        span_id: str | None,
         result: dict[str, Any],
     ) -> None:
         """在 span 结束前更新最终属性（成功/失败、尝试次数等）

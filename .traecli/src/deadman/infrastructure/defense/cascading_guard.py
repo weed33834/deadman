@@ -39,7 +39,7 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..feature_flags import is_enabled
 
@@ -75,9 +75,9 @@ class DependencyNode:
     # 故障计数(连续失败次数)
     failure_count: int = 0
     # 最近一次成功
-    last_success_at: Optional[float] = None
+    last_success_at: float | None = None
     # 最近一次失败
-    last_failure_at: Optional[float] = None
+    last_failure_at: float | None = None
     # 故障原因
     last_error: str = ""
 
@@ -142,8 +142,8 @@ class CascadingGuard:
     def register(
         self,
         name: str,
-        depends_on: Optional[list[str]] = None,
-        depended_by: Optional[list[str]] = None,
+        depends_on: list[str] | None = None,
+        depended_by: list[str] | None = None,
     ) -> None:
         """注册节点 + 依赖关系。"""
         with self._lock:
@@ -335,7 +335,7 @@ class CascadingGuard:
 
 
 # 全局单例
-_cg_instance: Optional[CascadingGuard] = None
+_cg_instance: CascadingGuard | None = None
 _cg_lock = threading.Lock()
 
 

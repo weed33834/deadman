@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 from ..types import RuleCheckResult, SubagentResult, TransferSummary
 
@@ -36,15 +36,15 @@ class ConversationState(TypedDict, total=False):
     agent_history: list[str]  # 本轮对话经过的智能体序列
 
     # === 转介机制 ===
-    pending_transfer: Optional[TransferSummary]
-    transfer_confirmed: Optional[bool]  # None=未询问, True=已确认, False=已拒绝
+    pending_transfer: TransferSummary | None
+    transfer_confirmed: bool | None  # None=未询问, True=已确认, False=已拒绝
     transfer_history: list[TransferSummary]
 
     # === 子智能体结果 ===
     subagent_results: list[SubagentResult]
 
     # === 规则校验 ===
-    rule_check: Optional[RuleCheckResult]
+    rule_check: RuleCheckResult | None
     safety_override: bool  # L0 触发时为 True，跳过其他流程
 
     # === 知识库检索 ===

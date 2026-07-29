@@ -82,7 +82,7 @@ class ToolManifest:
 
     def to_signing_payload(self) -> bytes:
         """构造签名输入：name|version|schema_hash"""
-        return f"{self.name}|{self.version}|{self.schema_hash}".encode("utf-8")
+        return f"{self.name}|{self.version}|{self.schema_hash}".encode()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

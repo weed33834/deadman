@@ -32,7 +32,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.defense.pii_guard import PIIRedactor, get_pii_redactor
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -123,7 +123,7 @@ class PreferenceExample:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PreferenceExample":
+    def from_dict(cls, data: dict[str, Any]) -> PreferenceExample:
         # 兼容 source 字段(string / enum)
         source = data.get("source", PreferenceSource.USER_FEEDBACK.value)
         if isinstance(source, str):
@@ -265,8 +265,8 @@ class DPOTrainer:
 
     def __init__(
         self,
-        pii_redactor: Optional[PIIRedactor] = None,
-        trust_tracker: Optional[TrustScoreTracker] = None,
+        pii_redactor: PIIRedactor | None = None,
+        trust_tracker: TrustScoreTracker | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._preferences: list[PreferenceExample] = []

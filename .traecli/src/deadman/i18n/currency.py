@@ -26,7 +26,7 @@ import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
@@ -50,7 +50,7 @@ class Currency(str, Enum):
     HKD = "HKD"  # 港币
 
     @classmethod
-    def from_string(cls, value: str) -> "Currency":
+    def from_string(cls, value: str) -> Currency:
         """宽松解析货币代码,匹配失败回退到 USD。"""
         if not value:
             return cls.USD
@@ -167,8 +167,8 @@ class CurrencyConverter:
 
     def __init__(
         self,
-        store_path: Optional[Path] = None,
-        initial_rates: Optional[dict[Currency, float]] = None,
+        store_path: Path | None = None,
+        initial_rates: dict[Currency, float] | None = None,
     ) -> None:
         if store_path is None:
             store_path = resolve_data_path("i18n/rates.json")
@@ -400,7 +400,7 @@ class CurrencyConverter:
         currency: Currency | str,
         locale: Locale | str,
         include_symbol: bool = True,
-        decimals: Optional[int] = None,
+        decimals: int | None = None,
     ) -> str:
         """locale 感知货币格式化。
 
@@ -475,7 +475,7 @@ class CurrencyConverter:
 
 
 # 全局单例
-_currency_converter_instance: Optional[CurrencyConverter] = None
+_currency_converter_instance: CurrencyConverter | None = None
 _currency_converter_lock = threading.Lock()
 
 

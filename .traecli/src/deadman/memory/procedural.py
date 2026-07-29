@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,12 @@ class Procedure:
     # [{step_id, action, required_documents, responsible_authority,
     #   time_estimate, common_issues, next_step}, ...]
     required_documents_total: list[str] = field(default_factory=list)
-    estimated_total_time: Optional[str] = None
+    estimated_total_time: str | None = None
     source: str = "knowledge_base"  # knowledge_base / web_search / user_taught
     verified: bool = False
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
     # 对应 9 阶段中的第几阶段（供 start_session 恢复进度用）
-    stage: Optional[int] = None
+    stage: int | None = None
 
 
 @dataclass
@@ -63,7 +63,7 @@ class ProceduralMemory:
         self,
         procedure_name: str,
         jurisdiction: dict | None = None,
-    ) -> Optional[Procedure]:
+    ) -> Procedure | None:
         """获取流程（按名称 + 地域匹配）。
 
         jurisdiction 为空时返回第一个同名流程。
@@ -83,7 +83,7 @@ class ProceduralMemory:
 
     def get_user_progress(
         self, user_id: str, procedure_id: str
-    ) -> Optional[UserProgress]:
+    ) -> UserProgress | None:
         """获取用户进度"""
         return self.user_progress.get((user_id, procedure_id))
 
@@ -129,7 +129,7 @@ class ProceduralMemory:
         procedure_name: str,
         jurisdiction: dict,
         user_correction: dict,
-    ) -> Optional[Procedure]:
+    ) -> Procedure | None:
         """从用户反馈中学习 - 用户纠正了流程的某一步（Reflexion 机制）。
 
         user_correction 形如：{"step_id": 1, "correction": "..."}

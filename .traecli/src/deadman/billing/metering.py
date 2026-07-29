@@ -25,7 +25,6 @@ import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id
@@ -60,7 +59,7 @@ class MeteringEvent:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MeteringEvent":
+    def from_dict(cls, data: dict) -> MeteringEvent:
         return cls(
             timestamp=data["timestamp"],
             user_id=data["user_id"],
@@ -82,7 +81,7 @@ class MeteringService:
         - 异步写盘(可选,默认同步)
     """
 
-    def __init__(self, data_dir: Optional[Path] = None) -> None:
+    def __init__(self, data_dir: Path | None = None) -> None:
         self.data_dir = data_dir or Path(
             os.environ.get("DEADMAN_METERING_DIR", "data/billing/metering")
         )
@@ -96,11 +95,11 @@ class MeteringService:
         user_id: str,
         dimension: MeteringDimension,
         amount: int,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         model: str = "",
         tool_name: str = "",
         multimodal_type: str = "",
-    ) -> Optional[MeteringEvent]:
+    ) -> MeteringEvent | None:
         """记录一条计量事件。
 
         Args:
@@ -148,8 +147,8 @@ class MeteringService:
         user_id: str,
         tokens: int,
         model: str = "",
-        tenant_id: Optional[str] = None,
-    ) -> Optional[MeteringEvent]:
+        tenant_id: str | None = None,
+    ) -> MeteringEvent | None:
         return self.record(
             user_id,
             MeteringDimension.LLM_TOKENS,
@@ -162,8 +161,8 @@ class MeteringService:
         self,
         user_id: str,
         tool_name: str = "",
-        tenant_id: Optional[str] = None,
-    ) -> Optional[MeteringEvent]:
+        tenant_id: str | None = None,
+    ) -> MeteringEvent | None:
         return self.record(
             user_id,
             MeteringDimension.TOOL_CALLS,
@@ -176,8 +175,8 @@ class MeteringService:
         self,
         user_id: str,
         bytes_: int,
-        tenant_id: Optional[str] = None,
-    ) -> Optional[MeteringEvent]:
+        tenant_id: str | None = None,
+    ) -> MeteringEvent | None:
         # bytes → MB(向上取整,避免小数)
         mb = (bytes_ + 1024 * 1024 - 1) // (1024 * 1024)
         return self.record(
@@ -191,8 +190,8 @@ class MeteringService:
         self,
         user_id: str,
         multimodal_type: str,
-        tenant_id: Optional[str] = None,
-    ) -> Optional[MeteringEvent]:
+        tenant_id: str | None = None,
+    ) -> MeteringEvent | None:
         return self.record(
             user_id,
             MeteringDimension.MULTIMODAL,
@@ -348,7 +347,7 @@ class MeteringService:
 
 
 # 全局单例
-_ms_instance: Optional[MeteringService] = None
+_ms_instance: MeteringService | None = None
 _ms_lock = threading.Lock()
 
 

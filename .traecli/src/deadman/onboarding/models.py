@@ -57,7 +57,7 @@ class OnboardingProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OnboardingProfile":
+    def from_dict(cls, data: dict[str, Any]) -> OnboardingProfile:
         return cls(
             user_id=data["user_id"],
             relationship=data["relationship"],
