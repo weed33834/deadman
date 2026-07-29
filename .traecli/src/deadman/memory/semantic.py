@@ -129,11 +129,11 @@ class SemanticMemory:
 
             # list 类型：去重合并
             if isinstance(old_value, list) and isinstance(value, list):
-                merged = list(old_value)
+                merged_list = list(old_value)
                 for v in value:
-                    if v not in merged:
-                        merged.append(v)
-                setattr(profile, key, merged)
+                    if v not in merged_list:
+                        merged_list.append(v)
+                setattr(profile, key, merged_list)
                 continue
 
             # 标量类型：直接比较

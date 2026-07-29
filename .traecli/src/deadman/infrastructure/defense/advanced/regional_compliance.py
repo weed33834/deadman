@@ -289,7 +289,7 @@ class RegionalComplianceOrchestrator:
         if self._data_residency is not None:
             return self._data_residency
         try:
-            from ...compliance.data_residency import get_data_residency
+            from ...compliance.data_residency import get_data_residency  # type: ignore[import-untyped]
             self._data_residency = get_data_residency()
         except ImportError:
             self._data_residency = None
@@ -299,7 +299,7 @@ class RegionalComplianceOrchestrator:
         if self._law_adapter is not None:
             return self._law_adapter
         try:
-            from ...i18n.law_adapter import get_law_adapter
+            from ...i18n.law_adapter import get_law_adapter  # type: ignore[import-untyped]
             self._law_adapter = get_law_adapter()
         except ImportError:
             self._law_adapter = None
@@ -309,7 +309,7 @@ class RegionalComplianceOrchestrator:
         if self._consent_manager is not None:
             return self._consent_manager
         try:
-            from ...compliance.consent import get_consent_manager
+            from ...compliance.consent import get_consent_manager  # type: ignore[import-untyped]
             self._consent_manager = get_consent_manager()
         except ImportError:
             self._consent_manager = None
@@ -372,15 +372,16 @@ class RegionalComplianceOrchestrator:
 
         # 2. 跨境检查
         rules = _RESIDENCY_RULES.get(from_unified, _RESIDENCY_RULES[UnifiedRegion.GLOBAL])
-        result.cross_border_ok = rules.get("cross_border_allowed", True)
+        result.cross_border_ok = bool(rules.get("cross_border_allowed", True))
 
         # 法律依据
-        result.legal_basis = rules.get("legal_basis", "")
+        result.legal_basis = str(rules.get("legal_basis", ""))
         if result.legal_basis:
             result.legal_references.append(result.legal_basis)
 
         # 是否需要用户同意
-        exceptions = rules.get("cross_border_exceptions", [])
+        exceptions_raw = rules.get("cross_border_exceptions", [])
+        exceptions: list[str] = list(exceptions_raw) if isinstance(exceptions_raw, (list, tuple)) else []
         result.consent_required = "consent" in exceptions
 
         # 敏感数据额外严格

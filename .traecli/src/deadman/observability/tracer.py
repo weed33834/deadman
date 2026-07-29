@@ -89,6 +89,7 @@ def _setup_otel_provider() -> Any | None:
     """
     if not OTEL_AVAILABLE:
         return None
+    assert otel_trace_module is not None  # narrowed by OTEL_AVAILABLE
 
     # 避免重复初始化：若已有非代理 provider，直接复用
     existing = otel_trace_module.get_tracer_provider()
@@ -137,7 +138,7 @@ def _to_otel_value(value: Any) -> Any:
 
 def _status_to_otel(status: str) -> Any:
     """将平台 status 字符串映射为 OTel Status。"""
-    if not OTEL_AVAILABLE:
+    if not OTEL_AVAILABLE or otel_status_module is None:
         return None
     Status, StatusCode = otel_status_module
     upper = (status or "").upper()
@@ -512,9 +513,9 @@ class _ToolSpanContext:
         )
         return self.span_id
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.span_id is None:
-            return False
+            return
         if exc_type is None:
             tracer.end_span(self.span_id, status="OK")
         else:
@@ -529,7 +530,7 @@ class _ToolSpanContext:
                     }
                 ],
             )
-        return False  # 不吞异常
+        return  # 不吞异常
 
     def __call__(self, func: Callable) -> Callable:
         @functools.wraps(func)
@@ -573,9 +574,9 @@ class _ReflexionSpanContext:
         )
         return self.span_id
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.span_id is None:
-            return False
+            return
         if exc_type is None:
             # 由调用方在 with 块内通过 set_attribute 设置 success 等字段
             tracer.end_span(self.span_id, status="OK")
@@ -591,7 +592,7 @@ class _ReflexionSpanContext:
                     }
                 ],
             )
-        return False
+        return
 
     def __call__(self, func: Callable) -> Callable:
         @functools.wraps(func)

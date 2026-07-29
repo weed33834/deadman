@@ -52,7 +52,7 @@ def derive_key(passphrase: bytes, salt: bytes, iterations: int = _KDF_ITERATIONS
 # envelope 格式（JSON 可序列化）— 用于 ending_note
 # =====================================================================
 
-def encrypt_envelope(plaintext: bytes, passphrase: bytes) -> dict[str, str]:
+def encrypt_envelope(plaintext: bytes, passphrase: bytes) -> dict[str, str | int]:
     """AES-256-GCM 加密，返回 JSON 可序列化的 envelope
 
     Args:

@@ -62,7 +62,7 @@ _STRUCTLOG_HANDLER_MARK = "_deadman_structlog_handler"
 # 共享 processor 链：structlog 原生 logger 与 stdlib foreign logger 共用
 # 顺序：合并 contextvars -> 补 level -> 补时间戳 -> 栈信息 -> 异常格式化
 if _HAS_STRUCTLOG:
-    _SHARED_PROCESSORS = [
+    _SHARED_PROCESSORS: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),

@@ -138,7 +138,7 @@ class ChainCircuitBreaker:
                 cb_name, chain.level_config(level)
             )
         # 统计
-        self._stats = {
+        self._stats: dict[str, Any] = {
             "total_calls": 0,
             "successful_calls": 0,
             "fallback_count": 0,

@@ -181,6 +181,8 @@ class QuotaManager:
         self._counters: dict[str, dict[str, SlidingWindowCounter]] = {}
         # 默认配额限制(可被 tenant-level 覆盖)
         self._default_limits: dict[str, QuotaLimit] = self._init_default_limits()
+        # tenant-level 配额覆盖(惰性加载)
+        self._tenant_limits: dict[str, dict[str, QuotaLimit]] = {}
         self._loaded = False
 
     def _init_default_limits(self) -> dict[str, QuotaLimit]:
@@ -372,7 +374,7 @@ class QuotaManager:
 
     def _get_limit(self, tenant_id: str, quota_name: str) -> QuotaLimit:
         """获取配额限制(优先 tenant 自定义,其次默认)。"""
-        tenant_overrides = getattr(self, "_tenant_limits", {}).get(tenant_id, {})
+        tenant_overrides = self._tenant_limits.get(tenant_id, {})
         if quota_name in tenant_overrides:
             return tenant_overrides[quota_name]
         return self._default_limits[quota_name]
@@ -401,8 +403,6 @@ class QuotaManager:
     def _load(self) -> None:
         if self._loaded:
             return
-        if not hasattr(self, "_tenant_limits"):
-            self._tenant_limits = {}
         try:
             if self.store_path.exists():
                 data = json.loads(self.store_path.read_text(encoding="utf-8"))
@@ -438,11 +438,12 @@ class QuotaManager:
                 },
                 "tenant_limits": {
                     tid: {qname: asdict(limit) for qname, limit in limits.items()}
-                    for tid, limits in getattr(self, "_tenant_limits", {}).items()
+                    for tid, limits in self._tenant_limits.items()
                 },
             }
             # 序列化 Enum 为 value
-            for _tid, limits in data["tenant_limits"].items():
+            tenant_limits_data: dict[str, dict[str, dict]] = data["tenant_limits"]  # type: ignore[assignment]
+            for _tid, limits in tenant_limits_data.items():
                 for _qname, limit in limits.items():
                     limit["period"] = limit["period"].value if hasattr(limit["period"], "value") else limit["period"]
                     limit["actions"] = [a.value if hasattr(a, "value") else a for a in limit["actions"]]

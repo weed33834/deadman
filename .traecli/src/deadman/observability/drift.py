@@ -400,9 +400,9 @@ class DriftDetector:
         return words
 
     @staticmethod
-    def _word_freq(words: list[str]) -> dict[str, int]:
+    def _word_freq(words: list[str]) -> dict[str, float]:
         """词频统计"""
-        freq: dict[str, int] = {}
+        freq: dict[str, float] = {}
         for w in words:
             freq[w] = freq.get(w, 0) + 1
         return freq

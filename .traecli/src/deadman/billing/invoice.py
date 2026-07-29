@@ -98,6 +98,7 @@ class Invoice:
     payment_id: str | None = None  # 网关返回的支付 ID
     paid_at: float | None = None
     created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
     due_at: float = 0.0  # 付款截止时间
     # 退款相关
     refunded_amount: float = 0.0
@@ -135,6 +136,7 @@ class Invoice:
             payment_id=data.get("payment_id"),
             paid_at=data.get("paid_at"),
             created_at=data.get("created_at", time.time()),
+            updated_at=data.get("updated_at", time.time()),
             due_at=data.get("due_at", 0.0),
             refunded_amount=data.get("refunded_amount", 0.0),
             refund_history=data.get("refund_history", []),

@@ -223,9 +223,9 @@ class CrossSessionLinker:
             return
         try:
             import json
-            path = self.store_path
+            from pathlib import Path
+            path: Path | str = self.store_path
             if isinstance(path, str):
-                from pathlib import Path
                 path = Path(path)
             if path.exists():
                 data = json.loads(path.read_text(encoding="utf-8"))

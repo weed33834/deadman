@@ -173,7 +173,8 @@ class ClaudeVisionProvider(VisionProvider):
                 ],
             }],
         )
-        text = resp.content[0].text if resp.content else ""
+        block = resp.content[0] if resp.content else None
+        text = getattr(block, "text", "") or ""
         return VisionDescription(text=text, confidence=0.9, provider=self.name)
 
     def extract_objects(self, image_path: Path) -> list[DetectedObject]:

@@ -117,8 +117,8 @@ try:
 except (ImportError, OSError):
     logger.info("observability.tracer 不可用，trace span 将被跳过")
 
-    @contextmanager  # type: ignore
-    def trace_tool_span(tool_name: str, attributes: dict[str, Any] | None = None):
+    @contextmanager  # type: ignore[misc]
+    def trace_tool_span(tool_name: str, attributes: dict[str, Any] | None = None):  # type: ignore[misc]
         """降级版 trace_tool_span - no-op 上下文管理器，签名对齐全局实现"""
         yield None
 
@@ -985,6 +985,8 @@ class McpServer:
                 return {"jsonrpc": "2.0", "id": req_id, "result": {"tools": self.list_tools()}}
             if method == "tools/call":
                 name = params.get("name")
+                if not isinstance(name, str):
+                    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": "Invalid params: name must be a string"}}
                 arguments = params.get("arguments", {}) or {}
                 result = await self.call_tool(name, arguments)
                 return {"jsonrpc": "2.0", "id": req_id, "result": result}
@@ -1106,11 +1108,13 @@ class McpServer:
                 return None
 
         # handler_code：执行 Python 源码，取其中名为 handler 的 async 函数
+        # 安全边界：本路径仅由 _handle_tools_register 调用，前置 _check_admin_token
+        # 已校验 DYNAMIC_TOOL_REGISTRATION_ENABLED=1 + ADMIN_TOKEN 匹配，非公开可达。
+        # exec 仍继承完整 builtins（不裁剪），仅适用于受信任 admin 提交的 handler。
         handler_code = params.get("handler_code")
         if handler_code and isinstance(handler_code, str):
             try:
                 local_ns: dict[str, Any] = {}
-                # 限制 exec 的内建（最小化供应链风险）
                 exec(
                     handler_code,
                     {"__builtins__": __builtins__},

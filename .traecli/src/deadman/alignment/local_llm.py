@@ -129,7 +129,7 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
     # 1. requests
     try:
         import requests  # type: ignore
-        resp = requests.post(url, data=body, headers=hdrs, timeout=timeout)
+        resp: Any = requests.post(url, data=body, headers=hdrs, timeout=timeout)
         try:
             return resp.status_code, resp.json()
         except ValueError:
@@ -176,7 +176,7 @@ def _get_json(url: str, timeout: float,
 
     try:
         import requests  # type: ignore
-        resp = requests.get(url, headers=hdrs, timeout=timeout)
+        resp: Any = requests.get(url, headers=hdrs, timeout=timeout)
         try:
             return resp.status_code, resp.json()
         except ValueError:

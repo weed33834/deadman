@@ -136,6 +136,11 @@ class A2AServer:
         """返回 AgentCard"""
         return self.card.to_dict()
 
+    def run(self, host: str | None = None, port: int | None = None) -> None:
+        """启动 HTTP 服务器（由 _a2a_server_run 实现，见文件末尾动态绑定）。"""
+        # 实际实现在 _a2a_server_run 中，通过 A2AServer.run = _a2a_server_run 绑定
+        raise NotImplementedError("run method not bound")
+
     async def handle_jsonrpc(self, req: dict[str, Any]) -> dict[str, Any]:
         """处理 JSON-RPC 2.0 请求
 
@@ -523,6 +528,14 @@ class A2AServer:
                     public_exponent=65537, key_size=2048
                 )
             # 对 AgentCard 的 canonical JSON 做 SHA-256 with RSA 签名
+            # load_pem_private_key 返回联合类型,这里仅支持 RSA 签名
+            from cryptography.hazmat.primitives.asymmetric.rsa import (
+                RSAPrivateKey,
+            )
+
+            if not isinstance(private_key, RSAPrivateKey):
+                logger.warning("AgentCard 签名仅支持 RSA 私钥")
+                return None
             card_bytes = json.dumps(
                 self.card.to_dict(), sort_keys=True, ensure_ascii=False
             ).encode("utf-8")
@@ -569,6 +582,14 @@ class A2AServer:
                 card_data, sort_keys=True, ensure_ascii=False
             ).encode("utf-8")
             signature = bytes.fromhex(signature_hex)
+            # load_pem_public_key 返回联合类型,这里仅支持 RSA 验签
+            from cryptography.hazmat.primitives.asymmetric.rsa import (
+                RSAPublicKey,
+            )
+
+            if not isinstance(public_key, RSAPublicKey):
+                logger.warning("AgentCard 验签仅支持 RSA 公钥")
+                return False
             public_key.verify(
                 signature,
                 card_bytes,
@@ -691,7 +712,7 @@ def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None =
 
 
 # 绑定到 A2AServer 类作为 run 方法
-A2AServer.run = _a2a_server_run  # type: ignore[attr-defined]
+A2AServer.run = _a2a_server_run  # type: ignore[attr-defined,method-assign]
 
 
 # 全局单例

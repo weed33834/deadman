@@ -173,7 +173,7 @@ class CapabilityRouter:
         self._lock = threading.RLock()
         self._profiles: dict[str, ModelProfile] = {}  # key = f"{provider}:{model_name}"
         # 缓存(按 req 签名)
-        self._cache: dict[str, tuple[ModelProfile, float]] = {}
+        self._cache: dict[str, tuple[ModelProfile | None, float]] = {}
         self._cache_ttl_seconds = 60.0
 
     def register(self, profile: ModelProfile) -> None:

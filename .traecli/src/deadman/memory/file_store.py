@@ -923,8 +923,9 @@ class FileMemoryStore:
         )
         if use_aes:
             try:
+                assert aes_key is not None  # narrowed by use_aes check
                 nonce = os.urandom(12)
-                aesgcm = AESGCM(aes_key)  # type: ignore[misc]
+                aesgcm = AESGCM(aes_key)
                 ciphertext = aesgcm.encrypt(nonce, gz_bytes, None)
                 header = (
                     _SNAPSHOT_MAGIC
@@ -983,7 +984,7 @@ class FileMemoryStore:
             nonce = body[:12]
             ciphertext = body[12:]
             try:
-                aesgcm = AESGCM(aes_key)  # type: ignore[misc]
+                aesgcm = AESGCM(aes_key)
                 gz_bytes = aesgcm.decrypt(nonce, ciphertext, None)
             except Exception as exc:
                 logger.warning("snapshot AES-GCM 解密失败: %s", exc)

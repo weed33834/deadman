@@ -74,7 +74,7 @@ def _parse_frontmatter_raw(text: str) -> tuple[dict[str, Any], str]:
 
     # --- 尝试 python-frontmatter ---
     try:
-        import frontmatter as _fm  # type: ignore[import-untyped]
+        import frontmatter as _fm  # type: ignore[import-not-found]
 
         post = _fm.loads(text)
         return dict(post.metadata), post.content.strip()
@@ -97,7 +97,7 @@ def _parse_frontmatter_raw(text: str) -> tuple[dict[str, Any], str]:
         logger.debug("PyYAML 解析失败, 回退到手动解析: %s", exc)
 
     # --- 手动 key: value 解析 ---
-    meta: dict[str, Any] = {}
+    meta = {}
     for line in fm_text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):

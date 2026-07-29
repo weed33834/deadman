@@ -233,7 +233,7 @@ class ToolGateway:
                 if req not in args:
                     return False, f"缺少必填参数: {req}", 0.2
             # 类型校验（粗粒度：仅校验 JSON Schema type）
-            _TYPE_MAP = {
+            _TYPE_MAP: dict[str, type | tuple[type, ...]] = {
                 "string": str,
                 "integer": int,
                 "number": (int, float),

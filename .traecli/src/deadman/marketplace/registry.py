@@ -23,7 +23,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -340,7 +340,7 @@ class MarketplaceRegistry:
         """按 listing_id 查询(listing_id == agent_id)。"""
         return self.get(listing_id)
 
-    def search(self, keyword: str) -> list[AgentListing]:
+    def search(self, keyword: str) -> List[AgentListing]:
         """全文搜索(仅 approved),匹配 name / description / tags。
 
         匹配规则: 关键词小写后任一字段包含即返回。

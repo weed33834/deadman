@@ -50,7 +50,7 @@ try:
 except Exception:  # pragma: no cover - 极端情况
     _VS_FLAG = False
 
-    def _get_vector_store(*a, **kw):  # type: ignore[no-redef]
+    def _get_vector_store(*a, **kw):  # type: ignore[no-redef,misc]
         return None
 
 # =====================================================================
@@ -435,7 +435,7 @@ class EpisodicMemory:
                     # 已在异步事件循环中，不能阻塞，降级
                     return []
                 except RuntimeError:
-                    raw = asyncio.run(raw)
+                    raw = asyncio.run(raw)  # type: ignore[arg-type]
 
             if not isinstance(raw, list):
                 return []

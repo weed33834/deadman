@@ -65,9 +65,9 @@ def validate_body(model_cls: type[BaseModel], data: dict) -> tuple[bool, list]:
         model_cls(**data)
         return True, []
     except Exception as exc:
-        # pydantic v1/v2 均提供 .json()，输出可安全 JSON 序列化的结构
+        # pydantic v1/v2 均提供 .errors()，输出可安全 JSON 序列化的结构
         try:
-            errors = exc.errors()
+            errors = exc.errors()  # type: ignore[attr-defined]
         except Exception:
             errors = [{"msg": str(exc)}]
         # errors 中可能含不可直接 json 序列化的对象（如 pydantic v2 的 url/input）

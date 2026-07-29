@@ -708,7 +708,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     # SCRATCHPAD_ENABLED 关闭时 get 返回 []，system_prompt 不变
     if SCRATCHPAD_ENABLED:
         try:
-            scratchpad_mgr = ScratchpadManager(state=state)
+            scratchpad_mgr = ScratchpadManager(state=dict(state))
             notes = scratchpad_mgr.get(current_agent)
             if notes:
                 system_prompt += (
@@ -724,7 +724,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     handoff_ctx = state.get("handoff_context")
     if handoff_ctx is not None:
         try:
-            HandoffManager().apply_handoff(handoff_ctx, state)
+            HandoffManager().apply_handoff(handoff_ctx, dict(state))
         except Exception as e:  # pragma: no cover - 防御性
             logger.warning("应用 handoff 上下文失败，跳过: %s", e)
 
@@ -864,7 +864,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     # 仅在检测到转介信号时写入（让目标 agent 能读到本轮关键信息）
     if SCRATCHPAD_ENABLED and transfer_target:
         try:
-            scratchpad_mgr = ScratchpadManager(state=state)
+            scratchpad_mgr = ScratchpadManager(state=dict(state))
             scratchpad_mgr.add(
                 current_agent,
                 f"检测到 {transfer_target} 相关信号，已触发转介；"

@@ -463,22 +463,22 @@ class WebServer:
                         self._send_json(422, {"error": "validation failed", "details": errors})
                         return
                     try:
-                        resp = asyncio.run(server_ref._handle_auth_login(req))
-                        if resp is None:
+                        login_resp: dict | None = asyncio.run(server_ref._handle_auth_login(req))  # type: ignore[arg-type]
+                        if login_resp is None:
                             # 防枚举：不区分"邮箱不存在" vs "密码错"
                             self._send_json(401, {"error": "邮箱或密码错误"})
                         else:
-                            self._send_json(200, resp)
+                            self._send_json(200, login_resp)
                     except Exception as exc:
                         logger.exception("auth login failed")
                         self._send_json(500, {"error": f"server error: {exc}"})
                 elif path == "/api/auth/refresh":
                     headers = self._get_headers_dict()
-                    resp = server_ref._handle_auth_refresh(headers)
-                    if resp is None:
+                    refresh_resp = server_ref._handle_auth_refresh(headers)
+                    if refresh_resp is None:
                         self._send_json(401, {"error": "token 无效或无需刷新"})
                     else:
-                        self._send_json(200, resp)
+                        self._send_json(200, refresh_resp)
                 elif path == "/api/chat":
                     length = int(self.headers.get("Content-Length", "0"))
                     raw = self.rfile.read(length) if length else b"{}"
@@ -3034,6 +3034,84 @@ class WebServer:
                     logger.exception("billing subscribe failed")
                     self._send_json(500, {"error": f"server error: {exc}"})
 
+            # === Alignment / Governance / Multimodal status handlers ===
+            # 注意：这些方法必须定义在 Handler 内（路由 do_GET 通过 self 调用），
+            # 之前误放在 WebServer 类导致运行时 AttributeError。
+
+            def _handle_alignment_status(self) -> None:
+                """GET /api/alignment/status - Alignment 对齐训练状态"""
+                try:
+                    from ..alignment import AlignmentDisabledError, get_alignment_manager
+                    try:
+                        mgr = get_alignment_manager()
+                    except AlignmentDisabledError:
+                        self._send_json(200, {
+                            "enabled": False,
+                            "message": "Alignment 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)",
+                        })
+                        return
+                    stats = mgr.stats()
+                    self._send_json(200, {
+                        "enabled": True,
+                        "stats": stats,
+                    })
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_governance_status(self) -> None:
+                """GET /api/governance/status - Governance 治理框架状态"""
+                try:
+                    from ..governance import GovernanceDisabledError, get_governance_manager
+                    try:
+                        gm = get_governance_manager()
+                    except GovernanceDisabledError:
+                        self._send_json(200, {
+                            "enabled": False,
+                            "message": "Governance 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)",
+                            "redline_enforced": True,
+                        })
+                        return
+                    self._send_json(200, {
+                        "enabled": True,
+                        "decision_count": gm._decision_count,
+                        "ai_decision_count": gm._ai_decision_count,
+                        "human_review_count": gm._human_review_count,
+                        "bias_incidents": gm._bias_incidents,
+                        "model_usage": gm._model_usage,
+                        "user_feedback": gm._user_feedback,
+                    })
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
+            def _handle_multimodal_status(self) -> None:
+                """GET /api/multimodal/status - Multimodal 多模态管道状态"""
+                try:
+                    from ..multimodal import MultimodalDisabledError, get_multimodal_pipeline
+                    try:
+                        pipe = get_multimodal_pipeline()
+                    except MultimodalDisabledError:
+                        self._send_json(200, {
+                            "enabled": False,
+                            "message": "Multimodal 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)",
+                        })
+                        return
+                    caps = pipe.list_capabilities()
+                    cfg = pipe.config
+                    audit = pipe.get_audit_log(limit=10)
+                    self._send_json(200, {
+                        "enabled": pipe.is_enabled(),
+                        "capabilities": caps,
+                        "config": {
+                            "default_provider": cfg.default_provider,
+                            "budget_token_per_session": cfg.budget_token_per_session,
+                            "audit_log_enabled": cfg.audit_log_enabled,
+                            "pii_redact_ocr": cfg.pii_redact_ocr,
+                        },
+                        "recent_audit": list(audit),
+                    })
+                except Exception as exc:
+                    self._send_json(500, {"error": str(exc)})
+
         httpd = ThreadingHTTPServer((host, port), Handler)
         logger.info("AG-UI Web Server listening on http://%s:%d", host, port)
         print(f"AG-UI Web Server listening on http://{host}:{port}")
@@ -3627,84 +3705,6 @@ class WebServer:
         from ..auth.jwt import JWTManager
         secret = settings.jwt_secret or None
         return JWTManager(secret=secret, expiry_days=settings.jwt_expiry_days)
-
-    # ==================================================================
-    # Alignment / Governance / Multimodal API handlers
-    # ==================================================================
-
-    def _handle_alignment_status(self) -> None:
-        """GET /api/alignment/status - Alignment 对齐训练状态"""
-        try:
-            from ..alignment import AlignmentDisabledError, get_alignment_manager
-            try:
-                mgr = get_alignment_manager()
-            except AlignmentDisabledError:
-                self._send_json(200, {
-                    "enabled": False,
-                    "message": "Alignment 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)",
-                })
-                return
-            stats = mgr.stats()
-            self._send_json(200, {
-                "enabled": True,
-                "stats": stats,
-            })
-        except Exception as exc:
-            self._send_json(500, {"error": str(exc)})
-
-    def _handle_governance_status(self) -> None:
-        """GET /api/governance/status - Governance 治理框架状态"""
-        try:
-            from ..governance import GovernanceDisabledError, get_governance_manager
-            try:
-                gm = get_governance_manager()
-            except GovernanceDisabledError:
-                self._send_json(200, {
-                    "enabled": False,
-                    "message": "Governance 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)",
-                    "redline_enforced": True,
-                })
-                return
-            self._send_json(200, {
-                "enabled": True,
-                "decision_count": gm._decision_count,
-                "ai_decision_count": gm._ai_decision_count,
-                "human_review_count": gm._human_review_count,
-                "bias_incidents": gm._bias_incidents,
-                "model_usage": gm._model_usage,
-                "user_feedback": gm._user_feedback,
-            })
-        except Exception as exc:
-            self._send_json(500, {"error": str(exc)})
-
-    def _handle_multimodal_status(self) -> None:
-        """GET /api/multimodal/status - Multimodal 多模态管道状态"""
-        try:
-            from ..multimodal import MultimodalDisabledError, get_multimodal_pipeline
-            try:
-                pipe = get_multimodal_pipeline()
-            except MultimodalDisabledError:
-                self._send_json(200, {
-                    "enabled": False,
-                    "message": "Multimodal 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)",
-                })
-                return
-            caps = pipe.list_capabilities()
-            cfg = pipe.config
-            audit = pipe.get_audit_log(limit=10)
-            self._send_json(200, {
-                "enabled": pipe.is_enabled(),
-                "capabilities": caps,
-                "config": {
-                    "default_provider": cfg.default_provider,
-                    "budget_token_per_session": cfg.budget_token_per_session,
-                    "audit_log_enabled": cfg.audit_log_enabled,
-                    "pii_redact_ocr": cfg.pii_redact_ocr,
-                },
-                "recent_audit": list(audit),
-            })
-        except Exception as exc:
-            self._send_json(500, {"error": str(exc)})
 
     def _require_auth(self, headers: dict) -> dict | None:
         """从 Authorization: Bearer <token> 解析用户

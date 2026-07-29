@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class TokenBucket:
         self,
         rate_per_second: float,
         capacity: int,
-        clock: callable | None = None,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         """
         Args:
@@ -138,7 +139,7 @@ class RateLimiter:
         self,
         config: RateLimitConfig | None = None,
         max_buckets: int = 10000,
-        clock: callable | None = None,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self.config = config or RateLimitConfig()
         self.max_buckets = max_buckets
@@ -202,8 +203,9 @@ class RateLimiter:
     def _make_bucket(self) -> TokenBucket:
         """根据 config 创建新桶。"""
         # 优先级:rate_per_second > rate_per_minute/60
+        rate: float
         if self.config.rate_per_second > 0:
-            rate = self.config.rate_per_second
+            rate = float(self.config.rate_per_second)
         elif self.config.rate_per_minute > 0:
             rate = self.config.rate_per_minute / 60.0
         elif self.config.rate_per_hour > 0:

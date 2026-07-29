@@ -421,9 +421,9 @@ class GraphitiRuntime:
                 if nid in visited:
                     continue
                 visited.add(nid)
-                node = self._graph.get_node(nid)
-                if node is not None:
-                    ordered.append(node)
+                found = self._graph.get_node(nid)
+                if found is not None:
+                    ordered.append(found)
                 if depth >= max_depth:
                     continue
                 for nb in self._graph.neighbors(nid):

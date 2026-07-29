@@ -229,7 +229,7 @@ class FeatureFlagManager:
             env_val = self._read_env_var(flag_name)
             return EvaluationResult(
                 name=flag_name,
-                value=env_val,
+                value=env_val if env_val is not None else _DEFAULTS.get(flag_name, False),
                 reason="env_var_fallback",
             )
 

@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 try:
     from zoneinfo import ZoneInfo
 except ImportError:  # pragma: no cover
-    ZoneInfo = None  # type: ignore[assignment]
+    ZoneInfo = None  # type: ignore[misc,assignment]
 
 from ..infrastructure.feature_flags import is_enabled
 from .locale import Locale

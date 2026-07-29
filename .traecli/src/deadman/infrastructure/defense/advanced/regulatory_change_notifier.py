@@ -444,6 +444,8 @@ class RegulatoryChangeDetector:
             logger.error("Failed to save regulatory change store: %s", e)
 
     def _load(self) -> None:
+        if not self.store_path:
+            return
         try:
             with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)

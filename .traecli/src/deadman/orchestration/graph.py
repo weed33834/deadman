@@ -66,8 +66,8 @@ try:
     # 优先使用 AsyncSqliteSaver：web/api_chat 走 await graph.ainvoke() 异步路径，
     # 同步 SqliteSaver 不支持 async 方法（NotImplementedError）。
     try:
-        from langgraph.checkpoint.sqlite.aio import (
-            AsyncSqliteSaver as _AsyncSqliteSaver,  # type: ignore
+        from langgraph.checkpoint.sqlite.aio import (  # type: ignore[import-not-found]
+            AsyncSqliteSaver as _AsyncSqliteSaver,
         )
 
         AsyncSqliteSaver = _AsyncSqliteSaver
@@ -244,7 +244,7 @@ class SequentialExecutor:
         # 检查是否从中断恢复（state 中有 _seq_executor_next 标记）
         next_node = state.get("_seq_executor_next", self._entry)  # type: ignore[typeddict-item]
         resuming = "_seq_executor_next" in state  # 是否为恢复执行
-        current = next_node if isinstance(next_node, str) else self._entry
+        current: str | None = next_node if isinstance(next_node, str) else self._entry
         # 恢复时清除标记，避免下次再次触发同一节点的 interrupt
         if resuming:
             state.pop("_seq_executor_next", None)  # type: ignore[typeddict-item]
@@ -291,7 +291,7 @@ class SequentialExecutor:
                 try:
                     result = await node_fn(state)
                     if isinstance(result, dict):
-                        state.update(result)
+                        state.update(dict(result))  # type: ignore[typeddict-item]
                 except Exception as e:
                     logger.error("节点 %s 执行异常: %s", current, e, exc_info=True)
                     # 异常不中断流程，继续到下一节点

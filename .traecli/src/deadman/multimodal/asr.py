@@ -149,7 +149,7 @@ class OpenAIWhisperProvider(ASRProvider):
 
         client = openai.OpenAI(api_key=self.api_key)
         with open(audio_path, "rb") as f:
-            resp = client.audio.transcriptions.create(
+            resp = client.audio.transcriptions.create(  # type: ignore[call-overload]
                 model="whisper-1",
                 file=f,
                 language=None if language == "auto" else language,

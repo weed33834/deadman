@@ -261,7 +261,7 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         stop: list[str] | None = None,
         callbacks: Any = None,
     ) -> Any:
-        return await self._agenerate(prompt, n, temperature)
+        return await self._agenerate(prompt, n, temperature if temperature is not None else 0.01)
 
     async def _agenerate(
         self, prompt: Any, n: int, temperature: float

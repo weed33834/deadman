@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 # === 可选依赖: Jinja2(优先),缺失降级为简单 {{var}} 替换 ===
 try:
-    from jinja2 import Template as _JinjaTemplate
+    from jinja2 import Template as _JinjaTemplate  # type: ignore[import-not-found]
 
     _HAS_JINJA = True
 except ImportError:

@@ -149,7 +149,8 @@ class DallEProvider(ImageGenProvider):
         )
         # 实际应通过 url 下载,这里简化直接返回 b64
         import base64
-        b64 = resp.data[0].b64_json
+        data = resp.data[0] if resp.data else None
+        b64 = data.b64_json if data else None
         return base64.b64decode(b64) if b64 else b""
 
 

@@ -34,7 +34,7 @@ SLO_DASHBOARD_ENABLED: bool = os.environ.get(
 #   - latency_p95: 小于目标（lower is better），error_budget=1-target/window
 #   - faithfulness / tool_call_success_rate / user_satisfaction: 大于等于目标
 # =====================================================================
-SLO_TARGETS: dict[str, dict[str, float]] = {
+SLO_TARGETS: dict[str, dict[str, float | str]] = {
     "latency_p95": {
         "target": 3000.0,        # 目标：< 3000ms
         "direction": "lower",    # 越低越好
@@ -371,10 +371,10 @@ class MetricsCollector:
         if uncategorized:
             uc_view: dict[str, Any] = {}
             for metric_name, tag_map in uncategorized.items():
-                all_records: list[dict[str, Any]] = []
+                uc_records: list[dict[str, Any]] = []
                 for rec_list in tag_map.values():
-                    all_records.extend(rec_list)
-                uc_view[metric_name] = self._aggregate(all_records)
+                    uc_records.extend(rec_list)
+                uc_view[metric_name] = self._aggregate(uc_records)
             dashboard["uncategorized"] = {
                 "name_cn": "未分类",
                 "dashboard": "未分类看板",

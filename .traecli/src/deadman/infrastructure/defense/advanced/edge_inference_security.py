@@ -51,6 +51,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from collections.abc import Callable
 from typing import Any
 
 from ...feature_flags import is_enabled
@@ -309,6 +310,8 @@ class ModelSignatureVerifier:
             logger.error("Failed to save signature store: %s", e)
 
     def _load(self) -> None:
+        if not self.store_path:
+            return
         try:
             with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
@@ -378,7 +381,7 @@ class TEEAbstraction:
             "mr_signer": "PLACEHOLDER_HASH",  # MRSIGNER
         }
 
-    def secure_compute(self, func: callable, *args, **kwargs) -> Any:
+    def secure_compute(self, func: Callable[..., Any], *args, **kwargs) -> Any:
         """在 TEE 中执行函数。
 
         生产实现:

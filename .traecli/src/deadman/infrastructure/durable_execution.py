@@ -38,7 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from .feature_flags import is_enabled
 
@@ -270,7 +270,7 @@ class DurableExecutionManager:
             self.cached_result: Any = None
             self.is_cached: bool = False
 
-        def __enter__(self) -> _ExecutionScope:  # noqa: F821  嵌套 class 自引用
+        def __enter__(self) -> Self:
             if not is_enabled("durable_execution"):
                 # feature flag 关闭:不做任何事,直接执行
                 return self
@@ -287,12 +287,12 @@ class DurableExecutionManager:
                 self.cached_result = self.record.result
             return self
 
-        def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        def __exit__(self, exc_type, exc_val, exc_tb) -> None:
             if not is_enabled("durable_execution"):
-                return False
+                return
             if self.is_cached:
                 # 幂等命中,不重复记录
-                return False
+                return
 
             if exc_type is None:
                 # 成功完成(result 由 caller 通过 set_result 设置)
@@ -303,7 +303,7 @@ class DurableExecutionManager:
                     self.idempotency_key,
                     error=f"{exc_type.__name__}: {exc_val}",
                 )
-            return False  # 不吞异常,继续抛出
+            return  # 不吞异常,继续抛出
 
         def set_result(self, result: Any) -> None:
             """设置执行结果(在 with 块内调用)。"""
@@ -315,7 +315,7 @@ class DurableExecutionManager:
         trace_id: str,
         node_name: str,
         args: dict,
-    ) -> _ExecutionScope:
+    ) -> "DurableExecutionManager._ExecutionScope":
         """创建执行作用域(上下文管理器)。
 
         用法:

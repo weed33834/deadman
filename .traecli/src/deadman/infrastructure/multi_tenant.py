@@ -20,7 +20,7 @@ import contextvars
 import logging
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +47,7 @@ class TenantInfo:
     quota_token_per_day: int = 100_000
     quota_tool_calls_per_day: int = 1_000
     quota_storage_mb: int = 100
-    features: list[str] = None  # 启用的 feature flag 白名单
+    features: list[str] = field(default_factory=list)  # 启用的 feature flag 白名单
 
     def to_dict(self) -> dict[str, Any]:
         return {

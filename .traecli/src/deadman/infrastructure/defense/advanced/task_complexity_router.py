@@ -40,8 +40,10 @@ from __future__ import annotations
 import logging
 import re
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +137,7 @@ class ComplexityClassifier:
 
     def __init__(
         self,
-        llm_classifier: callable | None = None,
+        llm_classifier: Callable[..., Any] | None = None,
         use_llm: bool = False,
     ) -> None:
         """

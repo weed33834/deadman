@@ -164,6 +164,7 @@ class EvaluatorOptimizer:
         self.threshold = threshold
         # evaluator 可选：复用 LLMJudge（如传入或可导入）；否则用内置 chat_json 评估器
         self.evaluator = evaluator
+        self._llm_judge_cls: Any = None
         # 尝试导入 LLMJudge（不强制，导入失败用内置评估器）
         if self.evaluator is None:
             try:

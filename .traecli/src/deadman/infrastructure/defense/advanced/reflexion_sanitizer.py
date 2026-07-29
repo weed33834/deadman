@@ -63,7 +63,7 @@ class SanitizationResult:
 
 
 # 简化的 PII 正则(production 用 PIIRedactor 完整版)
-_PATTERNS: dict[str, re.Pattern] = {
+_PATTERNS: dict[str, re.Pattern[str]] = {
     "china_id_card": re.compile(r"\b\d{17}[\dXx]\b"),
     "china_phone": re.compile(r"\b1[3-9]\d{9}\b"),
     "email": re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"),
@@ -72,7 +72,7 @@ _PATTERNS: dict[str, re.Pattern] = {
 }
 
 # 反思日志中常见的 PII 模式(姓名后跟描述)
-_NAME_PATTERNS: list[re.Pattern] = [
+_NAME_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?:姓名|名字|叫|名为|姓名为)\s*[：:]?\s*([^\s,，。.!]{2,4})"),
     re.compile(r"(?:父亲|母亲|儿子|女儿|丈夫|妻子|配偶)\s*[：:]?\s*([^\s,，。.!]{2,4})"),
 ]
@@ -122,10 +122,10 @@ class ReflexionSanitizer:
         if not text:
             return SanitizationResult(sanitized="", original_length=0)
         if not is_enabled("defense"):
-            truncated = text[: max_chars or self.max_input_chars]
+            truncated_text = text[: max_chars or self.max_input_chars]
             return SanitizationResult(
-                sanitized=truncated,
-                truncated=len(text) > len(truncated),
+                sanitized=truncated_text,
+                truncated=len(text) > len(truncated_text),
                 original_length=len(text),
             )
 
@@ -264,10 +264,13 @@ class ReflexionSanitizer:
                 count += len(matches)
                 placeholder = self._placeholder("name")
                 # 替换捕获组(保留前缀)
-                redacted = pattern.sub(
-                    lambda m, pl=placeholder: m.group(0).replace(m.group(1), pl),
-                    redacted,
-                )
+
+                def _replace(m: re.Match[str], pl: str = placeholder) -> str:
+                    g0 = m.group(0)
+                    g1 = m.group(1)
+                    return g0.replace(g1, pl) if g1 else g0
+
+                redacted = pattern.sub(_replace, redacted)
         return redacted, count
 
     def _placeholder(self, pii_type: str) -> str:
