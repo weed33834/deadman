@@ -93,7 +93,7 @@ target-version = "py310"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = [".traecli/src/tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"'). Used for RAGAS / red-team / integration tests that burn tokens.",
     "ragas: marks tests that require ragas package installed.",
