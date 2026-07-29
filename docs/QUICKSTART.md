@@ -1,12 +1,17 @@
 # 快速开始
 
+## 环境要求
+
+- Python 3.10 – 3.13（CI 锁定 3.12；3.14 尚未验证，依赖链可能不兼容）
+
 ## 安装
 
 ```bash
 git clone https://github.com/weed33834/deadman.git
 # 或国内镜像：git clone https://gitcode.com/badhope/deadman.git
 cd deadman
-pip install -e .
+pip install -e .          # 运行时依赖
+pip install -e .[dev]     # 含 pytest / pytest-asyncio / ruff，跑测试与 lint 必装
 ```
 
 ## 配置 LLM
@@ -83,7 +88,7 @@ docker run -p 8002:8002 -e LLM_API_KEY=sk-xxx deadman web-server
 ## 测试
 
 ```bash
-python -m pytest .traecli/src/tests/ -v
+pytest -v
 ```
 
 ## 评估
