@@ -89,3 +89,19 @@ def _reset_global_singletons():
         metrics_collector.clear()
     except Exception:
         pass
+
+
+@pytest.fixture(autouse=True)
+def _disable_switch_auto_tick(monkeypatch):
+    """全局禁用 Dead Man Switch 自动 tick 后台线程。
+
+    11 个测试用例通过 ``server.run()`` 启动真实 WebServer，会触发
+    ``_maybe_start_switch_auto_ticker()`` 启动后台 asyncio 线程。该线程
+    默认 sleep 300s 一轮，测试期间无法及时停止，且会扫描 ``~/.deadman``
+    下的脏数据，在 event loop 关闭后抛
+    ``RuntimeError: cannot schedule new futures after shutdown``。
+
+    测试不需要后台调度器；如需测试 auto-ticker 本身，在具体测试内
+    ``monkeypatch.setenv("DEADMAN_SWITCH_AUTO_TICK_ENABLED", "1")`` 覆盖。
+    """
+    monkeypatch.setenv("DEADMAN_SWITCH_AUTO_TICK_ENABLED", "0")

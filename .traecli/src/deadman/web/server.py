@@ -3981,12 +3981,16 @@ def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
             ticker = SwitchAutoTicker(store)
             loop = _asyncio.new_event_loop()
             _asyncio.set_event_loop(loop)
+            # 保存引用供 _stop_switch_auto_ticker 优雅停止
+            _ticker_state["ticker"] = ticker
+            _ticker_state["loop"] = loop
             try:
                 loop.run_until_complete(
                     ticker.run_forever(interval_seconds=interval)
                 )
             finally:
                 loop.close()
+                _ticker_state.clear()
         except Exception as exc:
             # 后台调度器异常不应影响 Web Server 主流程
             logger.exception("SwitchAutoTicker 后台线程异常退出: %s", exc)
@@ -4003,15 +4007,41 @@ def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
     return thread
 
 
+# 保存运行中的 ticker/loop 引用，供 _stop_switch_auto_ticker 优雅停止
+_ticker_state: dict[str, Any] = {}
+
+
 def _stop_switch_auto_ticker(thread: threading.Thread | None) -> None:
     """服务器退出时停止后台调度器
 
-    daemon 线程会在主进程退出时被强制回收，此处仅做日志记录。
+    1. 通过 ticker.stop() 设置 _running=False，让 run_forever 下一轮退出
+    2. 通过 loop.call_soon_threadsafe(loop.stop) 中断当前 asyncio.sleep，
+       避免最长 interval_seconds 的退出延迟
     """
     if thread is None:
         return
+    ticker = _ticker_state.get("ticker")
+    loop = _ticker_state.get("loop")
+    if ticker is not None:
+        try:
+            ticker.stop()
+        except Exception as exc:  # pragma: no cover - 防御性
+            logger.debug("ticker.stop() 异常: %s", exc)
+    if loop is not None and loop.is_running():
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+        except Exception as exc:  # pragma: no cover - 防御性
+            logger.debug("loop.stop() 异常: %s", exc)
     if thread.is_alive():
-        logger.info("SwitchAutoTicker 后台线程随主进程退出（daemon）")
+        # 给后台线程最多 2s 退出，避免 lifespan teardown 卡住
+        thread.join(timeout=2.0)
+        if thread.is_alive():
+            logger.warning(
+                "SwitchAutoTicker 后台线程 2s 内未退出（daemon，随主进程回收）"
+            )
+        else:
+            logger.info("SwitchAutoTicker 后台线程已优雅退出")
+    _ticker_state.clear()
 
 
 # 全局单例

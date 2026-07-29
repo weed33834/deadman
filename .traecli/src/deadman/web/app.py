@@ -166,6 +166,7 @@ class _WfileAdapter:
 
     def __init__(self) -> None:
         self.queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+        self._closed = False
 
     def write(self, data: Any) -> int:
         if isinstance(data, str):
@@ -177,6 +178,17 @@ class _WfileAdapter:
 
     def flush(self) -> None:  # noqa: D401 - 兼容接口
         pass
+
+    def close(self) -> None:
+        """发送终止哨兵（None），让 :func:`event_stream` 消费者退出。
+
+        ``web_server._stream_chat`` 是被复用的同步实现，结束后不会主动
+        通知消费者；由调用方在 ``finally`` 中调用本方法投递 None，
+        保证 SSE 流必然终止（否则消费者永久阻塞在 ``queue.get()``）。
+        """
+        if not self._closed:
+            self._closed = True
+            self.queue.put_nowait(None)
 
 
 # =====================================================================
@@ -628,7 +640,19 @@ async def api_whoami_post():
     return web_server._handle_whoami()
 
 
-@app.get("/api/stream", tags=["chat"])
+@app.get(
+    "/api/stream",
+    tags=["chat"],
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "content": {
+                "text/event-stream": {"schema": {"type": "string"}},
+            },
+            "description": "SSE 流式响应（event: message / trace / done / error）",
+        }
+    },
+)
 async def api_stream(
     query: str = Query(default=""),
     agent: str = Query(default="death-aftercare"),
@@ -643,10 +667,18 @@ async def api_stream(
 
     async def event_stream():
         adapter = _WfileAdapter()
-        # 在后台 task 跑 _stream_chat，主协程从队列消费
-        task = asyncio.create_task(
-            web_server._stream_chat(adapter, query, agent, user_id)
-        )
+
+        # 在后台 task 跑 _stream_chat，主协程从队列消费。
+        # _stream_chat 是被复用的同步实现，结束后不会主动通知消费者，
+        # 故在 finally 中调用 adapter.close() 投递 None 哨兵，
+        # 保证下方 while 循环必然退出（否则永久阻塞在 queue.get()）。
+        async def _run_stream() -> None:
+            try:
+                await web_server._stream_chat(adapter, query, agent, user_id)
+            finally:
+                adapter.close()
+
+        task = asyncio.create_task(_run_stream())
         try:
             while True:
                 chunk = await adapter.queue.get()
