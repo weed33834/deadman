@@ -277,7 +277,7 @@ class TestSFTDataset:
         ds.add(SFTExample(prompt="q2", completion="c2"))
         data = ds.export(ExportFormat.JSONL)
         text = data.decode("utf-8")
-        lines = [l for l in text.strip().split("\n") if l]
+        lines = [line for line in text.strip().split("\n") if line]
         assert len(lines) == 2
         parsed = json.loads(lines[0])
         assert "prompt" in parsed

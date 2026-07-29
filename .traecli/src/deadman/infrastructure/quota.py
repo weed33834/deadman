@@ -438,15 +438,15 @@ class QuotaManager:
                     for tid, quotas in self._counters.items()
                 },
                 "tenant_limits": {
-                    tid: {qname: asdict(l) for qname, l in limits.items()}
+                    tid: {qname: asdict(limit) for qname, limit in limits.items()}
                     for tid, limits in getattr(self, "_tenant_limits", {}).items()
                 },
             }
             # 序列化 Enum 为 value
             for tid, limits in data["tenant_limits"].items():
-                for qname, l in limits.items():
-                    l["period"] = l["period"].value if hasattr(l["period"], "value") else l["period"]
-                    l["actions"] = [a.value if hasattr(a, "value") else a for a in l["actions"]]
+                for qname, limit in limits.items():
+                    limit["period"] = limit["period"].value if hasattr(limit["period"], "value") else limit["period"]
+                    limit["actions"] = [a.value if hasattr(a, "value") else a for a in limit["actions"]]
             tmp = self.store_path.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
             os.replace(tmp, self.store_path)

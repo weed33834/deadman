@@ -402,7 +402,7 @@ class TestAuditPersistence:
         # 文件存在且有 2 行
         assert tmp_audit_path.exists()
         content = tmp_audit_path.read_text(encoding="utf-8")
-        lines = [l for l in content.strip().split("\n") if l]
+        lines = [line for line in content.strip().split("\n") if line]
         assert len(lines) == 2
 
         # 重新构造 chain（模拟重启）能加载链

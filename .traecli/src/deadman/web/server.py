@@ -2874,7 +2874,7 @@ class WebServer:
                     listings = registry.list(query=q, category=category, sort_by=sort_by)
                     self._send_json(200, {
                         "enabled": True,
-                        "skills": [l.to_dict() for l in listings],
+                        "skills": [listing.to_dict() for listing in listings],
                         "count": len(listings),
                     })
                 except ImportError as exc:

@@ -303,16 +303,16 @@ class MarketplaceRegistry:
         with self._lock:
             self._load()
             results: list[AgentListing] = [
-                l for l in self._cache.values()
-                if l.status == ListingStatus.APPROVED.value
+                item for item in self._cache.values()
+                if item.status == ListingStatus.APPROVED.value
             ]
             if category is not None:
-                results = [l for l in results if l.category == category]
+                results = [item for item in results if item.category == category]
             if query:
                 q = query.lower()
                 results = [
-                    l for l in results
-                    if q in l.name.lower() or q in l.description.lower()
+                    item for item in results
+                    if q in item.name.lower() or q in item.description.lower()
                 ]
             # 排序
             try:
@@ -320,13 +320,13 @@ class MarketplaceRegistry:
             except ValueError:
                 sort_enum = ListingSort.NEWEST
             if sort_enum == ListingSort.NEWEST:
-                results.sort(key=lambda l: l.created_at, reverse=True)
+                results.sort(key=lambda item: item.created_at, reverse=True)
             elif sort_enum == ListingSort.NAME:
-                results.sort(key=lambda l: l.name)
+                results.sort(key=lambda item: item.name)
             elif sort_enum == ListingSort.PRICE_ASC:
-                results.sort(key=lambda l: l.price_per_call)
+                results.sort(key=lambda item: item.price_per_call)
             elif sort_enum == ListingSort.PRICE_DESC:
-                results.sort(key=lambda l: l.price_per_call, reverse=True)
+                results.sort(key=lambda item: item.price_per_call, reverse=True)
             return results
 
     def get(self, agent_id: str) -> Optional[AgentListing]:
@@ -352,15 +352,15 @@ class MarketplaceRegistry:
             if not kw:
                 return []
             results: list[AgentListing] = []
-            for l in self._cache.values():
-                if l.status != ListingStatus.APPROVED.value:
+            for item in self._cache.values():
+                if item.status != ListingStatus.APPROVED.value:
                     continue
-                haystacks = [l.name.lower(), l.description.lower()]
-                haystacks.extend(t.lower() for t in l.tags)
+                haystacks = [item.name.lower(), item.description.lower()]
+                haystacks.extend(t.lower() for t in item.tags)
                 if any(kw in h for h in haystacks):
-                    results.append(l)
+                    results.append(item)
             # 默认按 newest 排序
-            results.sort(key=lambda l: l.created_at, reverse=True)
+            results.sort(key=lambda item: item.created_at, reverse=True)
             return results
 
     def update_version(
@@ -435,7 +435,7 @@ class MarketplaceRegistry:
                 "updated_at": time.time(),
                 "tenant_id": get_current_tenant_id(),
                 "listings": {
-                    aid: l.to_dict() for aid, l in self._cache.items()
+                    aid: item.to_dict() for aid, item in self._cache.items()
                 },
             }
             tmp_path = store.with_suffix(store.suffix + ".tmp")

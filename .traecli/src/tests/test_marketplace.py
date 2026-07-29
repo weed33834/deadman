@@ -234,7 +234,7 @@ class TestRegistry:
         registry.approve("a2")
         registry.approve("a3")
         asc = registry.list(sort_by="price_asc")
-        assert [l.agent_id for l in asc] == ["a2", "a1", "a3"]
+        assert [listing.agent_id for listing in asc] == ["a2", "a1", "a3"]
 
     def test_search_matches_name_description_tags(self, registry):
         registry.submit(_make_listing(

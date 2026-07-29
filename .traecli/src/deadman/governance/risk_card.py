@@ -206,8 +206,8 @@ class RiskCard:
 def _compute_risk_score(severity: RiskSeverity, likelihood: RiskLikelihood) -> RiskScore:
     """矩阵评分:score = severity_rank × likelihood_rank (1-25)。"""
     s = severity.rank()
-    l = likelihood.rank()
-    score = s * l
+    likel = likelihood.rank()
+    score = s * likel
     if score >= ETHICS_COMMITTEE_THRESHOLD:
         level = "critical"
     elif score >= REVIEW_THRESHOLD:

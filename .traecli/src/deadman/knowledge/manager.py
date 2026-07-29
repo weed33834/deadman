@@ -321,10 +321,10 @@ class KnowledgeManager:
         self,
         node: KGNode,
         k: int = 5,
-        l: int = 2,
+        l_diversity: int = 2,
     ):
         """对节点做匿名化(供跨用户共享)。"""
-        return self.anonymizer.anonymize(node, k=k, l=l)
+        return self.anonymizer.anonymize(node, k=k, l_diversity=l_diversity)
 
     # ==================================================================
     # 信任度更新(供用户反馈机制接入)

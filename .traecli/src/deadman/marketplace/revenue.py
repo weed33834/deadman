@@ -425,8 +425,8 @@ class RevenueShare:
             cache = getattr(self._registry, "_cache", {})
             if cache:
                 return [
-                    aid for aid, l in cache.items()
-                    if l.author == author_id
+                    aid for aid, listing in cache.items()
+                    if listing.author == author_id
                 ]
         except Exception as e:
             logger.debug("按作者查找列表失败: %s", e)

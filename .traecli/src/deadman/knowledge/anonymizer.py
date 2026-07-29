@@ -209,7 +209,7 @@ class Anonymizer:
         self,
         node: KGNode,
         k: int = 5,
-        l: int = 2,
+        l_diversity: int = 2,
     ) -> AnonymizationResult:
         """对节点做 k-匿名 + l-多样性匿名化。
 
@@ -264,7 +264,7 @@ class Anonymizer:
             # 3. 注入 _anonymized 标记(供下游识别)
             props["_anonymized"] = True
             props["_k_target"] = k
-            props["_l_target"] = l
+            props["_l_target"] = l_diversity
             safe_node.properties = props
 
             # 4. 计算 k / l 实际值(简化:k = max(1, 已泛化字段数),l 由调用方基于群体计算)
@@ -284,7 +284,7 @@ class Anonymizer:
         node: KGNode,
         other_users_count: int,
         k: int = 5,
-        l: int = 2,
+        l_diversity: int = 2,
     ) -> bool:
         """判断节点是否可在 other_users_count 个其他用户中安全共享。
 
@@ -314,12 +314,12 @@ class Anonymizer:
             node.properties.get(k) for k in node.properties
             if k in SENSITIVE_ATTRIBUTES and node.properties.get(k) is not None
         ]
-        if l > 1 and len(set(sensitive_values)) < l:
+        if l_diversity > 1 and len(set(sensitive_values)) < l_diversity:
             return False
         return True
 
     @staticmethod
-    def check_l_diversity(nodes: list[KGNode], l: int = 2) -> bool:
+    def check_l_diversity(nodes: list[KGNode], l_diversity: int = 2) -> bool:
         """校验一组节点的 l-多样性。
 
         Args:
@@ -336,7 +336,7 @@ class Anonymizer:
             for attr in SENSITIVE_ATTRIBUTES:
                 if attr in node.properties and node.properties[attr] is not None:
                     sensitive_values.add(str(node.properties[attr]))
-        return len(sensitive_values) >= l
+        return len(sensitive_values) >= l_diversity
 
     @staticmethod
     def check_k_anonymity(nodes: list[KGNode], k: int = 5) -> bool:

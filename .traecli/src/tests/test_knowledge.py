@@ -522,7 +522,7 @@ class TestAnonymizer:
                 "name": "张三",
             },
         )
-        result = anonymizer.anonymize(node, k=5, l=2)
+        result = anonymizer.anonymize(node, k=5, l_diversity=2)
         # 原节点不应被修改
         assert node.properties["location"] == "北京市朝阳区"
         # 泛化后节点应被处理
@@ -544,9 +544,9 @@ class TestAnonymizer:
             KGNode(id="d3", content="x", properties={"income": "low"}),
         ]
         # l=2 → 应通过(2 个不同值)
-        assert Anonymizer.check_l_diversity(nodes, l=2) is True
+        assert Anonymizer.check_l_diversity(nodes, l_diversity=2) is True
         # l=3 → 应失败(只有 2 个不同值)
-        assert Anonymizer.check_l_diversity(nodes, l=3) is False
+        assert Anonymizer.check_l_diversity(nodes, l_diversity=3) is False
 
     def test_can_share_threshold(self, anonymizer):
         """can_share:other_users_count < k 应返回 False。"""
@@ -555,15 +555,15 @@ class TestAnonymizer:
             "income": "low",
         })
         # other_users_count=3 < k=5 → False
-        assert anonymizer.can_share(node, other_users_count=3, k=5, l=1) is False
+        assert anonymizer.can_share(node, other_users_count=3, k=5, l_diversity=1) is False
         # other_users_count=10 >= k=5 且 _anonymized → True(若 l=1)
-        assert anonymizer.can_share(node, other_users_count=10, k=5, l=1) is True
+        assert anonymizer.can_share(node, other_users_count=10, k=5, l_diversity=1) is True
 
     def test_can_share_requires_anonymized(self, anonymizer):
         """can_share:未匿名化的节点应返回 False。"""
         node = KGNode(id="s2", content="test", properties={})
         # _anonymized 未设置 → False
-        assert anonymizer.can_share(node, other_users_count=100, k=5, l=1) is False
+        assert anonymizer.can_share(node, other_users_count=100, k=5, l_diversity=1) is False
 
     def test_content_redaction(self, anonymizer):
         """content 内嵌的 PII(身份证 / 手机号 / email)应被脱敏。"""
@@ -572,7 +572,7 @@ class TestAnonymizer:
             content="用户 13800138000 联系邮箱 test@example.com, 身份证 11010119900307234X",
             properties={"location": "北京市"},
         )
-        result = anonymizer.anonymize(node, k=5, l=2)
+        result = anonymizer.anonymize(node, k=5, l_diversity=2)
         assert "[REDACTED-PHONE]" in result.node.content
         assert "[REDACTED-EMAIL]" in result.node.content
         assert "[REDACTED-ID]" in result.node.content
