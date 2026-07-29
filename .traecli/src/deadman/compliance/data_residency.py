@@ -67,6 +67,18 @@ class ResidencyPolicy:
     # key = data_kind(user_profile / chat_history / financial / legal_doc)
 
 
+@dataclass
+class ExportResult:
+    """受控跨境导出结果。"""
+
+    success: bool
+    user_id: str
+    target_region: str
+    data_kind: str
+    audited: bool
+    reason: str = ""
+
+
 class DataResidency:
     """数据驻留管理器。
 
@@ -215,23 +227,12 @@ class DataResidency:
         user_id: str,
         target_region: str,
         data_kind: str = "",
-    ) -> "ExportResult":
+    ) -> ExportResult:
         """受控跨境导出(已获同意 + 审计)。
 
         Returns:
             ExportResult: 导出结果(若违规则 success=False)
         """
-        from dataclasses import dataclass as _dc
-
-        @_dc
-        class ExportResult:
-            success: bool
-            user_id: str
-            target_region: str
-            data_kind: str
-            audited: bool
-            reason: str = ""
-
         if not is_enabled("compliance"):
             return ExportResult(True, user_id, target_region, data_kind, False, "compliance_disabled")
 

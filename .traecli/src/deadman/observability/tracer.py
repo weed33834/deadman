@@ -12,6 +12,7 @@ OpenTelemetry 为可选依赖：若不可用则降级为内存 span 记录（dic
 from __future__ import annotations
 
 import functools
+import logging
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -19,6 +20,8 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from ..config import settings
+
+logger = logging.getLogger(__name__)
 
 # === OpenTelemetry 可选依赖探测 ===
 # 任何一项导入失败即降级为内存模式

@@ -25,6 +25,7 @@ import os
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any, Callable, Optional
+from urllib.parse import urlparse
 
 from .feature_flags import is_enabled
 from .rate_limiter import RateLimiter, RateLimitConfig
@@ -421,7 +422,6 @@ def with_middleware(chain: MiddlewareChain, security_headers: SecurityHeadersMid
                 body = self.rfile.read(content_length)
 
             # 执行中间件链
-            from urllib.parse import urlparse
             parsed = urlparse(self.path)
             intercept = chain.run(method, path, headers, body, client_ip)
             if intercept is not None:
