@@ -56,10 +56,10 @@
   - 4 张柱状图：智能体调用次数 / 风险分级分布 / span 类型分布 / 终止触发原因
 - 设计选择：进程内统计而非 SQLite 持久化（避免引入新依赖 + 避免跨会话 PII 串扰）；dashboard 仅展示聚合维度，不展示用户输入/响应内容
 
-### P8：12 个 MCP 工具迁移到 tool_auto
+### P8：13 个 MCP 工具迁移到 tool_auto
 
 - 修改 [mcp_server/server.py](.traecli/src/deadman/mcp_server/server.py)：
-  - 12 个工具从 `@mcp.tool(name=, description=, input_schema={...}, output_schema=...)` 改为 `@mcp.tool_auto(name=, description=, output_schema=...)`
+  - 13 个工具从 `@mcp.tool(name=, description=, input_schema={...}, output_schema=...)` 改为 `@mcp.tool_auto(name=, description=, output_schema=...)`
   - enum 字段从 schema dict 改为 `Literal[...]` type hint
   - docstring 加 `Args:` 段（Google-style），`tool_auto` 解析后自动生成参数描述
   - 迁移工具：`query_knowledge` / `read_file` / `write_file` / `invoke_subagent` / `query_memory` / `initiate_debate` / `call_external_agent` / `execute_reflexion` / `web_search` / `web_search_official` / `execute_code` / `init_transfer` / `report_incident`

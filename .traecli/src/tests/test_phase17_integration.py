@@ -5,10 +5,10 @@
 
 共 22 个集成测试，分 5 个子部分：
     2.1 Phase 14 + Phase 15 集成（4 个）
-        - ending_note v2 加密落盘 + plan_score 联动
+        - ending_note v3 加密落盘 + plan_score 联动
         - vault 加密 + deadman_switch 联动
         - memorial_writer + notification_letters 共享 decedent_name
-        - Phase 14 v1/v2 envelope 兼容路径
+        - Phase 14 v1/v3 envelope 兼容路径
     2.2 Phase 16 + Phase 15 集成（4 个）
         - plan_score 与 onboarding profile 联动
         - knowledge_freshness 扫描 Phase 16A 5 省份文件
@@ -300,12 +300,12 @@ def test_memorial_writer_with_notification_letters(tmp_path: Path, patch_llm):
     assert letter_result.disclaimer
 
 
-def test_phase14_v1_v2_envelope_compatibility(tmp_path: Path):
-    """Phase 14 v1/v2 envelope 兼容路径
+def test_phase14_v1_v3_envelope_compatibility(tmp_path: Path):
+    """Phase 14 v1/v3 envelope 兼容路径
 
     场景：构造一个 v1 envelope（Phase 14 之前的旧格式）→
-          _decrypt_v1() 可解密 → 再用 _encrypt/_decrypt v2 重新加密 →
-          envelope version=2，alg 字段正确。
+          _decrypt_v1() 可解密 → 再用 _encrypt/_decrypt v3 重新加密 →
+          envelope version=3，alg=aes-256-gcm。
     """
     from deadman.ending_note.store import (
         _encrypt,
@@ -315,11 +315,14 @@ def test_phase14_v1_v2_envelope_compatibility(tmp_path: Path):
     )
 
     # 1. 构造 v1 envelope（无 passphrase 派生）
+    # v1 参数与 ending_note.store._decrypt_v1 内联常量一致
     import base64
     import hashlib
     import hmac
     import secrets
-    from deadman.ending_note.store import _KDF_ITERATIONS, _KEY_LEN, _HMAC_ALGO
+
+    _V1_KDF_ITERATIONS = 100_000
+    _V1_KEY_LEN = 32
 
     plaintext = b'{"test": "v1-legacy-data"}'
     nonce = secrets.token_bytes(16)
@@ -328,21 +331,28 @@ def test_phase14_v1_v2_envelope_compatibility(tmp_path: Path):
         "sha256",
         ("enc:" + base64.b16encode(salt).decode()).encode("utf-8"),
         nonce + salt,
-        _KDF_ITERATIONS,
-        dklen=_KEY_LEN,
+        _V1_KDF_ITERATIONS,
+        dklen=_V1_KEY_LEN,
     )
     mac_key = hashlib.pbkdf2_hmac(
         "sha256",
         ("mac:" + base64.b16encode(salt).decode()).encode("utf-8"),
         nonce + salt,
-        _KDF_ITERATIONS,
-        dklen=_KEY_LEN,
+        _V1_KDF_ITERATIONS,
+        dklen=_V1_KEY_LEN,
     )
-    # 简单 keystream（与 v1 实现等价）
-    from deadman.ending_note.store import _keystream
-    keystream = _keystream(enc_key, len(plaintext), nonce)
+    # v1 keystream（HMAC-SHA256 counter mode，与 _decrypt_v1 内联实现等价）
+    out = bytearray()
+    counter = 0
+    while len(out) < len(plaintext):
+        block = hmac.new(
+            enc_key, nonce + counter.to_bytes(8, "big"), hashlib.sha256
+        ).digest()
+        out.extend(block)
+        counter += 1
+    keystream = bytes(out[: len(plaintext)])
     ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
-    tag = hmac.new(mac_key, ct, _HMAC_ALGO).digest()
+    tag = hmac.new(mac_key, ct, hashlib.sha256).digest()
     v1_envelope = {
         "nonce": base64.b64encode(nonce).decode("ascii"),
         "salt": base64.b64encode(salt).decode("ascii"),
@@ -354,20 +364,20 @@ def test_phase14_v1_v2_envelope_compatibility(tmp_path: Path):
     recovered_v1 = _decrypt_v1(v1_envelope)
     assert recovered_v1 == plaintext
 
-    # 3. 用 v2 重新加密
+    # 3. 用 v3（AES-256-GCM）重新加密
     passphrase = _get_passphrase(user_id="compat-user")
-    v2_envelope = _encrypt(plaintext, passphrase)
-    assert v2_envelope["version"] == 2
-    assert v2_envelope["alg"] == "pbkdf2-hmac-sha256+xor+hmac-sha256-v2"
+    v3_envelope = _encrypt(plaintext, passphrase)
+    assert v3_envelope["version"] == 3
+    assert v3_envelope["alg"] == "aes-256-gcm"
 
-    # 4. v2 envelope 可被 _decrypt 解密
-    recovered_v2 = _decrypt(v2_envelope, passphrase)
-    assert recovered_v2 == plaintext
+    # 4. v3 envelope 可被 _decrypt 解密
+    recovered_v3 = _decrypt(v3_envelope, passphrase)
+    assert recovered_v3 == plaintext
 
-    # 5. 用错误 passphrase 解密 v2 应失败
+    # 5. 用错误 passphrase 解密 v3 应失败
     wrong_passphrase = b"wrong-passphrase"
-    with pytest.raises(ValueError, match="HMAC tag"):
-        _decrypt(v2_envelope, wrong_passphrase)
+    with pytest.raises(ValueError, match="AES-GCM 解密失败"):
+        _decrypt(v3_envelope, wrong_passphrase)
 
 
 # =====================================================================
@@ -783,11 +793,11 @@ def test_web_support_ticket_flow(tmp_path: Path, monkeypatch):
 def test_web_ending_note_auth_with_phase14_encryption(
     tmp_path: Path, monkeypatch
 ):
-    """ending-note auth 穿透 + Phase 14 加密 v2 落盘
+    """ending-note auth 穿透 + Phase 14 加密 v3 落盘
 
     场景：注册用户 A → 用 A 的 token POST /api/ending-note/section 保存笔记 →
           A 没带 token 访问应 401 → A 带 token GET /api/ending-note 应 200 →
-          落盘文件应是加密 envelope（version=2）。
+          落盘文件应是加密 envelope（version=3，AES-256-GCM）。
     """
     _patch_settings(tmp_path, monkeypatch)
 
@@ -871,10 +881,10 @@ def test_web_ending_note_auth_with_phase14_encryption(
 
         note_path = en_store._note_path("note-auth-user")
         raw = note_path.read_text(encoding="utf-8")
-        # v2 envelope 字段应齐全
+        # v3 envelope 字段应齐全
         envelope = json.loads(raw)
-        assert envelope.get("version") == 2, f"应为 v2 envelope，实际 {envelope.get('version')}"
-        assert envelope.get("alg") == "pbkdf2-hmac-sha256+xor+hmac-sha256-v2"
+        assert envelope.get("version") == 3, f"应为 v3 envelope，实际 {envelope.get('version')}"
+        assert envelope.get("alg") == "aes-256-gcm"
         # 明文 PII 不应在落盘文件中
         assert "李**" not in raw
     finally:

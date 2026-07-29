@@ -1893,7 +1893,7 @@ function scheduleTokenRefresh() {
 async function tryRefreshToken() {
   if (!getToken()) return;
   try {
-    const r = await fetch("/api/auth/refresh", { headers: authHeaders() });
+    const r = await fetch("/api/auth/refresh", { method: "POST", headers: authHeaders() });
     if (r.ok) {
       const data = await r.json();
       if (data.token) {
@@ -2062,7 +2062,7 @@ async function authedFetch(url, options) {
   if (r.status === 401) {
     // 尝试刷新 token
     try {
-      const refreshR = await fetch("/api/auth/refresh", { headers: authHeaders() });
+      const refreshR = await fetch("/api/auth/refresh", { method: "POST", headers: authHeaders() });
       if (refreshR.ok) {
         const data = await refreshR.json();
         if (data.token) {

@@ -342,13 +342,21 @@ class RetentionManager:
                 # 无清理器:仅删除记录(数据本身由其他机制清理)
                 return True
             elif policy.disposal_action == DisposalAction.ANONYMIZE:
-                # 占位:实际需调用 anonymizer
-                logger.info("Anonymizing %s/%s", record.category.value, record.data_id)
-                return True
+                if cleaner:
+                    return cleaner(record.user_id, record.data_id)
+                logger.warning(
+                    "No anonymizer registered for %s/%s, disposal skipped",
+                    record.category.value, record.data_id,
+                )
+                return False
             elif policy.disposal_action == DisposalAction.ARCHIVE:
-                # 占位:实际需调用 archiver
-                logger.info("Archiving %s/%s", record.category.value, record.data_id)
-                return True
+                if cleaner:
+                    return cleaner(record.user_id, record.data_id)
+                logger.warning(
+                    "No archiver registered for %s/%s, disposal skipped",
+                    record.category.value, record.data_id,
+                )
+                return False
             elif policy.disposal_action == DisposalAction.KEEP:
                 return False
         except Exception as e:

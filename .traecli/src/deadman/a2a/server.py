@@ -217,7 +217,7 @@ class A2AServer:
             task.error = f"未知 skill_id: {skill_id}"
             return {"jsonrpc": "2.0", "id": req_id, "result": task.to_dict()}
 
-        # 执行任务（调用 LLM）
+        # 执行任务（通过编排图，走完整 L0-L8 规则链）
         task.state = TaskState.WORKING
         try:
             # 提取用户消息文本
@@ -228,32 +228,67 @@ class A2AServer:
                     if isinstance(part, dict) and part.get("type") == "text":
                         user_text += part.get("content", "")
 
-            # 调用 LLM
+            # 走编排图（与 CLI / Web 入口一致，L0-L8 规则链全部生效）
             from ..llm import llm_client
 
-            if llm_client.api_key:
-                response = await llm_client.chat(
-                    [
-                        {
-                            "role": "system",
-                            "content": (
-                                f"你是 {skill.name}。{skill.description}。"
-                                f"适用地区: {', '.join(skill.jurisdictions)}。"
-                                "请基于你的专业知识回答用户问题。"
-                            ),
-                        },
-                        {"role": "user", "content": user_text},
-                    ],
-                    temperature=0.3,
-                )
-                task.result = {
-                    "role": "agent",
-                    "parts": [{"type": "text", "content": response}],
-                }
-                task.state = TaskState.COMPLETED
-            else:
+            # 先检查 LLM 可用性：未配置 API key 时直接失败，不走 graph
+            if not llm_client.api_key:
                 task.state = TaskState.FAILED
                 task.error = "LLM API key 未配置，无法执行任务"
+            else:
+                from ..orchestration.graph import build_main_graph
+                from ..orchestration.state import ConversationState
+
+                # skill_id → agent_name（短横线转下划线）
+                agent_name = skill_id.replace("-", "_")
+                state = ConversationState(
+                    user_input=user_text,
+                    current_agent=agent_name,
+                    session_id=task_id,
+                    agent_name=agent_name,  # type: ignore[typeddict-unknown-key]
+                    user_id="a2a",  # type: ignore[typeddict-unknown-key]
+                )
+
+                try:
+                    graph = build_main_graph()
+                    result_state = await graph.ainvoke(
+                        state, config={"configurable": {"thread_id": task_id}}
+                    )
+                    response = (
+                        result_state.get("final_response")
+                        or result_state.get("draft_response", "")
+                    )
+                    if response:
+                        task.result = {
+                            "role": "agent",
+                            "parts": [{"type": "text", "content": response}],
+                        }
+                        task.state = TaskState.COMPLETED
+                    else:
+                        task.state = TaskState.FAILED
+                        task.error = "编排图未返回响应"
+                except Exception as graph_exc:
+                    # graph 失败时降级到直调 LLM（保留最低可用性）
+                    logger.warning("A2A graph 执行失败，降级到直调 LLM: %s", graph_exc)
+                    response = await llm_client.chat(
+                        [
+                            {
+                                "role": "system",
+                                "content": (
+                                    f"你是 {skill.name}。{skill.description}。"
+                                    f"适用地区: {', '.join(skill.jurisdictions)}。"
+                                    "请基于你的专业知识回答用户问题。"
+                                ),
+                            },
+                            {"role": "user", "content": user_text},
+                        ],
+                        temperature=0.3,
+                    )
+                    task.result = {
+                        "role": "agent",
+                        "parts": [{"type": "text", "content": response}],
+                    }
+                    task.state = TaskState.COMPLETED
         except Exception as exc:
             task.state = TaskState.FAILED
             task.error = f"{type(exc).__name__}: {exc}"
@@ -551,7 +586,7 @@ class A2AServer:
 
 
 def _now_iso() -> str:
-    """当前时间 ISO 字符串（避免循环 import datetime）"""
+    """当前时间 ISO 字符串"""
     from datetime import datetime
     return datetime.now().isoformat()
 

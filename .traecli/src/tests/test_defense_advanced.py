@@ -639,11 +639,20 @@ print(result)
         assert guard.check_read("/usr/share/data/file.txt")
         assert not guard.check_write("/usr/share/data/file.txt")
 
-    def test_apply_resource_limits_returns_applied(self):
-        """apply_resource_limits 返回实际应用的限制。"""
+    def test_apply_resource_limits_returns_applied(self, monkeypatch):
+        """apply_resource_limits 返回实际应用的限制。
+
+        ⚠️ 必须 mock resource.setrlimit，否则 RLIMIT_AS 会限制本进程内存
+        导致 MemoryError（测试进程本身已占用 >256MB）。
+        """
         from deadman.infrastructure.defense.advanced.marketplace_sandbox_hardener import (
             SandboxHardener,
         )
+        import resource as _resource
+
+        # mock setrlimit 避免真正限制本进程资源
+        monkeypatch.setattr(_resource, "setrlimit", lambda *args: None)
+
         hardener = SandboxHardener()
         applied = hardener.apply_resource_limits(
             max_cpu_seconds=5,

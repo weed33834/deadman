@@ -7,8 +7,8 @@
     ~/.deadman/ending_notes/{user_id}/pending_deliveries.json - 待投递（7 天等待期）
 
 PIPL 合规（legal-compliance-framework.md 第五章）：
-    - 文件级加密（密钥从用户密码派生；当前用 PBKDF2-HMAC-SHA256 + XOR 流密码 + HMAC-SHA256 标签
-      临时方案，注释见下；生产应换 AES-256-GCM）
+    - 文件级加密（密钥从用户密码派生；PBKDF2-HMAC-SHA256 派生 + AES-256-GCM 认证加密，
+      统一 utils.crypto 原语；向后兼容解密旧版 XOR/HMAC envelope）
     - PII 字段（full_name/birth_date/contact/phone/account）落盘前由
       EndingNoteGuide._mask_pii 掩码；本存储层不再做二次掩码
     - 共享时仅传递已脱敏的笔记正文，不向家庭成员泄露其他成员的 PII
@@ -20,154 +20,32 @@ notification-guardrails 合规：
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
 import logging
 import os
-import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from ..utils import crypto
 from .models import EndingNote
 
 logger = logging.getLogger(__name__)
 
 
 # ====================================================================
-# 加密原语 - Phase 14 P0-gap-3 修复
+# 加密原语 - 统一使用 utils.crypto（AES-256-GCM）
 # ====================================================================
-# 设计目标：满足 "明文不出现在文件中" + "篡改可检测" + "密钥与用户绑定"
-#
-# Phase 14 修复（PM v2 P0-gap-3）：
-#   原实现 _encrypt(plaintext, key) 中 key 参数完全未使用，enc_key/mac_key
-#   仅由随机 nonce+salt 派生 —— 任何拿到 envelope 的人都能解密，零保密性。
-#
-# 现实现：
-#   - 密钥派生：PBKDF2-HMAC-SHA256（100k 迭代，32 字节输出）
-#     输入 = user_passphrase（来自 auth）+ per-message random salt
-#   - 流密码：HMAC-SHA256(key, nonce || counter) keystream 与明文 XOR
-#   - 完整性：HMAC-SHA256(mac_key, ct) 作为 tag（encrypt-then-MAC）
-#   - 双子密钥：enc_key 与 mac_key 用不同 info string 派生，避免复用
-#
-# ⚠️ 临时性声明：HMAC-SHA256 keystream 流密码对已知明文攻击的安全性
-#    弱于 AES-256-GCM，但 Phase 14 已修复"密钥未参与"的关键缺陷。
-#    生产环境后续可平滑切换到 cryptography.hazmat.primitives.ciphers.aead.AESGCM，
-#    接口签名保持 encrypt(plaintext, passphrase) -> envelope 不变。
+# v5.2 迁移：从手写 HMAC-SHA256 keystream 流密码升级到 AES-256-GCM，
+# 消除 R1（重复加密实现）和 W1（手写弱密码学）问题。
+# 旧 v1/v2 envelope 仍可解密（向后兼容），新写入一律用 v3（AES-GCM）。
+# 加密接口签名保持不变：encrypt(plaintext, passphrase) -> envelope
 # ====================================================================
 
-_KDF_ITERATIONS = 100_000
-_KEY_LEN = 32  # 256 bit
-_HMAC_ALGO = hashlib.sha256
-
-
-def _derive_subkey(passphrase: bytes, salt: bytes, info: bytes) -> bytes:
-    """PBKDF2 派生子密钥（enc_key / mac_key）
-
-    Args:
-        passphrase: 用户口令字节（由 auth 模块注入）
-        salt: per-message 随机盐（16 字节）
-        info: 子密钥用途标签（b"enc" 或 b"mac"），避免同一密钥复用
-
-    Returns:
-        32 字节派生子密钥
-    """
-    return hashlib.pbkdf2_hmac(
-        "sha256",
-        info + b":" + passphrase,
-        salt,
-        _KDF_ITERATIONS,
-        dklen=_KEY_LEN,
-    )
-
-
-def _keystream(key: bytes, length: int, nonce: bytes) -> bytes:
-    """生成 HMAC-SHA256 流密码 keystream（counter mode）
-
-    block_i = HMAC-SHA256(key, nonce || counter_i)
-    keystream = block_0 || block_1 || ... 截断到 length
-    """
-    out = bytearray()
-    counter = 0
-    while len(out) < length:
-        block = hmac.new(
-            key, nonce + counter.to_bytes(8, "big"), _HMAC_ALGO
-        ).digest()
-        out.extend(block)
-        counter += 1
-    return bytes(out[:length])
-
-
-def _encrypt(plaintext: bytes, passphrase: bytes) -> dict[str, str]:
-    """加密 - 返回 JSON 可序列化的 envelope
-
-    Args:
-        plaintext: 明文字节
-        passphrase: 用户口令字节（Phase 14：必须传入，不再接受空值）
-
-    envelope = {
-        "nonce":   base64(random 16 bytes),
-        "salt":    base64(per-message random 16 bytes，与 passphrase 一起派生子密钥),
-        "ct":      base64(plaintext XOR keystream),
-        "tag":     base64(HMAC-SHA256(mac_key, ct)),
-        "alg":     "pbkdf2-hmac-sha256+xor+hmac-sha256-v2",
-        "version": 2,
-    }
-    """
-    if not passphrase:
-        # Phase 14：禁止空口令加密（原实现允许，是 P0 漏洞根因）
-        raise ValueError(
-            "加密口令为空：Phase 14 后必须传入 user_passphrase，"
-            "请检查 auth 模块是否正确注入 DEADMAN_ENDING_NOTE_PASSPHRASE"
-        )
-    nonce = secrets.token_bytes(16)
-    salt = secrets.token_bytes(16)
-    # 派生两个独立子密钥：enc_key 与 mac_key（不同 info 标签）
-    enc_key = _derive_subkey(passphrase, salt, b"enc")
-    mac_key = _derive_subkey(passphrase, salt, b"mac")
-
-    keystream = _keystream(enc_key, len(plaintext), nonce)
-    ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
-    tag = hmac.new(mac_key, ct, _HMAC_ALGO).digest()
-
-    return {
-        "nonce": base64.b64encode(nonce).decode("ascii"),
-        "salt": base64.b64encode(salt).decode("ascii"),
-        "ct": base64.b64encode(ct).decode("ascii"),
-        "tag": base64.b64encode(tag).decode("ascii"),
-        "alg": "pbkdf2-hmac-sha256+xor+hmac-sha256-v2",
-        "version": 2,
-    }
-
-
-def _decrypt(envelope: dict[str, Any], passphrase: bytes) -> bytes:
-    """解密 + 验证 tag
-
-    Args:
-        envelope: _encrypt 返回的 envelope dict
-        passphrase: 用户口令字节（必须与加密时一致）
-
-    Raises:
-        ValueError: HMAC tag 校验失败（文件被篡改或口令错误）
-    """
-    if not passphrase:
-        raise ValueError("解密口令为空")
-    nonce = base64.b64decode(envelope["nonce"])
-    salt = base64.b64decode(envelope["salt"])
-    ct = base64.b64decode(envelope["ct"])
-    tag = base64.b64decode(envelope["tag"])
-
-    enc_key = _derive_subkey(passphrase, salt, b"enc")
-    mac_key = _derive_subkey(passphrase, salt, b"mac")
-
-    expected_tag = hmac.new(mac_key, ct, _HMAC_ALGO).digest()
-    if not hmac.compare_digest(expected_tag, tag):
-        raise ValueError("HMAC tag 校验失败：文件已被篡改或密钥不匹配")
-
-    keystream = _keystream(enc_key, len(ct), nonce)
-    return bytes(a ^ b for a, b in zip(ct, keystream))
+_encrypt = crypto.encrypt_envelope
+_decrypt = crypto.decrypt_envelope
 
 
 def _atomic_write_bytes(path: Path, data: bytes) -> None:
@@ -245,8 +123,13 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
     """v1 兼容解密路径（Phase 14 之前的 envelope，无口令加密）
 
     v1 envelope 的 enc_key/mac_key 仅由随机 nonce+salt 派生，
-    任何人都能解密 —— 仅用于读取旧数据并迁移到 v2，不应再用于新写入。
+    任何人都能解密 —— 仅用于读取旧数据并迁移到 v3，不应再用于新写入。
     """
+    import base64
+
+    _V1_KDF_ITERATIONS = 100_000
+    _V1_KEY_LEN = 32
+
     nonce = base64.b64decode(envelope["nonce"])
     salt = base64.b64decode(envelope["salt"])
     ct = base64.b64decode(envelope["ct"])
@@ -257,22 +140,31 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
         "sha256",
         ("enc:" + base64.b16encode(salt).decode()).encode("utf-8"),
         nonce + salt,
-        _KDF_ITERATIONS,
-        dklen=_KEY_LEN,
+        _V1_KDF_ITERATIONS,
+        dklen=_V1_KEY_LEN,
     )
     mac_key = hashlib.pbkdf2_hmac(
         "sha256",
         ("mac:" + base64.b16encode(salt).decode()).encode("utf-8"),
         nonce + salt,
-        _KDF_ITERATIONS,
-        dklen=_KEY_LEN,
+        _V1_KDF_ITERATIONS,
+        dklen=_V1_KEY_LEN,
     )
 
-    expected_tag = hmac.new(mac_key, ct, _HMAC_ALGO).digest()
+    expected_tag = hmac.new(mac_key, ct, hashlib.sha256).digest()
     if not hmac.compare_digest(expected_tag, tag):
         raise ValueError("v1 HMAC tag 校验失败：文件已被篡改")
 
-    keystream = _keystream(enc_key, len(ct), nonce)
+    # v1 keystream（HMAC-SHA256 counter mode）
+    out = bytearray()
+    counter = 0
+    while len(out) < len(ct):
+        block = hmac.new(
+            enc_key, nonce + counter.to_bytes(8, "big"), hashlib.sha256
+        ).digest()
+        out.extend(block)
+        counter += 1
+    keystream = bytes(out[: len(ct)])
     return bytes(a ^ b for a, b in zip(ct, keystream))
 
 
@@ -287,7 +179,7 @@ class EndingNoteStore:
                                            recipients, status}]
 
     PIPL 合规：
-        - 文件级加密（密钥从用户密码派生，PBKDF2 + HMAC-SHA256）
+        - 文件级加密（密钥从用户密码派生，PBKDF2 + AES-256-GCM）
         - PII 字段在落盘前由 EndingNoteGuide._mask_pii 掩码
         - 共享时仅传递已脱敏的笔记正文，不向家庭成员泄露其他成员的 PII
 
@@ -346,13 +238,13 @@ class EndingNoteStore:
 
         Phase 14：使用 per-user 派生的 passphrase 解密。
         兼容旧版（version=1，无 passphrase）envelope：检测到 version=1 时
-        尝试用空 passphrase 解密（仅作向后兼容，旧数据应主动迁移到 v2）。
+        尝试用 _decrypt_v1 解密（仅作向后兼容，旧数据应主动迁移到 v3）。
         """
         envelope = _read_json(self._note_path(user_id))
         if envelope is None:
             return None
         # Phase 14 兼容性：version=1 的旧 envelope 是无口令加密的
-        # （任何人都能解密）。检测到旧版本时迁移到 v2。
+        # （任何人都能解密）。检测到旧版本时迁移到 v3。
         is_v1 = envelope.get("version", 1) == 1
         try:
             if is_v1:
@@ -370,13 +262,13 @@ class EndingNoteStore:
             logger.warning("解析笔记 JSON 失败 user=%s: %s", user_id, e)
             return None
         note = EndingNote.from_dict(data)
-        # v1 -> v2 自动迁移：解密成功后用新算法重新加密
+        # v1 -> v3 自动迁移：解密成功后用新算法重新加密
         if is_v1:
             try:
                 self.save(note)
-                logger.info("已自动迁移 user=%s 笔记到 v2 加密", user_id)
+                logger.info("已自动迁移 user=%s 笔记到 v3 加密", user_id)
             except Exception as e:
-                logger.warning("v1->v2 迁移失败 user=%s: %s", user_id, e)
+                logger.warning("v1->v3 迁移失败 user=%s: %s", user_id, e)
         return note
 
     def delete_section(self, user_id: str, section_key: str) -> bool:

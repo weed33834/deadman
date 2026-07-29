@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -23,18 +22,6 @@ class ExecutionMode(str, Enum):
     SUCCESS = "success"
     FALLBACK = "fallback"
     FAILED = "failed"
-
-
-class TaskState(str, Enum):
-    """A2A 任务状态 - A2A-Protocol.md"""
-
-    SUBMITTED = "submitted"
-    RECEIVED = "received"
-    IN_PROGRESS = "in_progress"
-    AWAITING_INPUT = "awaiting_input"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    REJECTED = "rejected"
 
 
 @dataclass
@@ -80,17 +67,6 @@ class RuleCheckResult:
     risk_tier: RiskTier = RiskTier.R0
     safety_triggered: bool = False
     integrity_violations: list[str] = field(default_factory=list)
-
-
-@dataclass
-class Source:
-    """信息来源"""
-
-    url: Optional[str] = None
-    file: Optional[str] = None
-    verified: bool = False
-    trust_level: str = "medium"  # high/medium/low
-    last_verified: Optional[datetime] = None
 
 
 @dataclass

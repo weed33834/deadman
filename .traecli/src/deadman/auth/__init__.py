@@ -4,7 +4,7 @@ Phase 8：实现注册/登录/JWT 会话，纯文件存储无数据库依赖。
 
 模块：
   - store.UserStore：用户存储（PBKDF2-HMAC-SHA256 + HMAC 邮箱索引）
-  - jwt.JWTManager：JWT 签发/验证/刷新（HS256 自实现）
+  - jwt.JWTManager：JWT 签发/验证/刷新（PyJWT）
 
 遵守：
   - legal-compliance-framework：PIPL 数据最小化、加密、不存敏感 PII

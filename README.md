@@ -77,7 +77,7 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 - **可组合终止条件**（借鉴 AutoGen `TerminationCondition`）：6 个具体子类（MaxSteps / StuckAgent / TokenUsage / MessageCount / External / TextMention），用 `|`（OR 短路）/ `&`（AND 全满足）自由组合。`default_termination()` 等价 P4 的 `MAX_STEPS | STUCK_AGENT_REPEAT_LIMIT`，向后兼容
 - **本轮 token 累计**：LLM 调用后 `last_usage` → `state["metrics"]["token_usage"]` 累加（不走 cost_tracker 跨会话串扰），供 `TokenUsageTermination` 评估
 - **对话维度看板**：`/api/dashboard` 端点 + 前端 4 张柱状图 + 最近 trace span 表，进程内聚合统计（重启清零，不持久化不跨会话）
-- **MCP 工具 schema 自动化**：12 个工具迁移到 `@mcp.tool_auto`，靠 type hints + Google-style docstring 自动生成 JSON Schema，参数与函数签名单一来源
+- **MCP 工具 schema 自动化**：13 个工具迁移到 `@mcp.tool_auto`，靠 type hints + Google-style docstring 自动生成 JSON Schema，参数与函数签名单一来源
 
 ### 加密与隐私
 

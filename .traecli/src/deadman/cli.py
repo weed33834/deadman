@@ -36,7 +36,6 @@ def cmd_mcp_server(args):
 def cmd_eval(args):
     """运行评估 - 跑 golden cases + 三层判定 + 反馈闭环"""
     import json
-    from datetime import datetime
 
     from .evaluation.runner import run_all_cases
     from .config import settings

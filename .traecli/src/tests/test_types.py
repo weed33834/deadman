@@ -14,11 +14,10 @@ from deadman.types import (
     ExecutionMode,
     RuleCheckResult,
     RiskTier,
-    Source,
     SubagentResult,
-    TaskState,
     TransferSummary,
 )
+from deadman.a2a.models import TaskState
 
 
 # =====================================================================
@@ -194,12 +193,6 @@ class TestOtherTypes:
         assert r.sources == []
         assert r.execution_mode == ExecutionMode.SUCCESS
 
-    def test_source_defaults(self):
-        s = Source()
-        assert s.url is None
-        assert s.verified is False
-        assert s.trust_level == "medium"
-
     def test_confidence_label(self):
         c = ConfidenceLabel(claim="30天", confidence="高", source="医保局官网")
         assert c.claim == "30天"
@@ -207,7 +200,7 @@ class TestOtherTypes:
         assert c.source == "医保局官网"
 
     def test_task_state_enum(self):
-        # A2A 任务状态枚举
+        # A2A 任务状态枚举（from a2a/models.py）
         assert TaskState.SUBMITTED.value == "submitted"
         assert TaskState.COMPLETED.value == "completed"
         assert TaskState.FAILED.value == "failed"

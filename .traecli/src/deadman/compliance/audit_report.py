@@ -271,15 +271,29 @@ class AuditReporter:
     # ==================================================================
 
     def _submit_via_api(self, report: AuditReport) -> bool:
-        """通过监管机构 API 上报(占位,实际需 SDK)。"""
+        """通过监管机构 API 上报（httpx POST）。"""
         api_url = os.environ.get("DEADMAN_AUDIT_API_URL", "")
         api_token = os.environ.get("DEADMAN_AUDIT_API_TOKEN", "")
         if not api_url or not api_token:
             logger.warning("Audit API URL or token not configured, skipping")
             return False
-        # 占位:实际用 requests.post(api_url, json=report.to_dict(), headers={"Authorization": f"Bearer {api_token}"})
-        logger.info("Would submit report %s to %s", report.report_id, api_url)
-        return True
+        try:
+            import httpx
+
+            resp = httpx.post(
+                api_url,
+                json=report.to_dict(),
+                headers={"Authorization": f"Bearer {api_token}"},
+                timeout=30.0,
+            )
+            if resp.status_code < 300:
+                logger.info("Submitted report %s to %s (HTTP %d)", report.report_id, api_url, resp.status_code)
+                return True
+            logger.error("Audit API returned HTTP %d: %s", resp.status_code, resp.text[:200])
+            return False
+        except Exception as e:
+            logger.error("Failed to submit report %s via API: %s", report.report_id, e)
+            return False
 
     def _submit_via_email(self, report: AuditReport) -> bool:
         """通过邮件上报(附件形式)。"""

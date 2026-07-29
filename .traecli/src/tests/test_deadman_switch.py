@@ -448,12 +448,12 @@ class TestEncryption:
         assert b"13900001111" not in raw
         # 也不应出现配置中的明文 user_id（实际 user_id 在 envelope 外，
         # 但 envelope 内是密文 ct）
-        # 验证 envelope 是 v2 加密（含 ct / tag 字段）
+        # 验证 envelope 是 v3 加密（AES-256-GCM，ct 含 GCM tag）
         envelope = json.loads(raw.decode("utf-8"))
-        assert envelope.get("version") == 2
+        assert envelope.get("version") == 3
         assert "ct" in envelope
-        assert "tag" in envelope
         assert "salt" in envelope
+        assert envelope.get("alg") == "aes-256-gcm"
 
     def test_load_returns_record_after_save(self, store: SwitchStore):
         cfg = _default_config()

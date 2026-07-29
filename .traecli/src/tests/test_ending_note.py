@@ -370,14 +370,15 @@ class TestEncryptionAtRest:
         assert b'"full_name"' not in raw
         assert b'"personal_info"' not in raw
         assert b'"user_id"' not in raw
-        # 但 envelope 元数据应出现
+        # 但 envelope 元数据应出现（v3: AES-256-GCM 格式）
         assert b'"nonce"' in raw
         assert b'"ct"' in raw
-        assert b'"tag"' in raw
-        assert b"pbkdf2-hmac-sha256" in raw
+        assert b'"alg"' in raw
+        assert b'aes-256-gcm' in raw
+        assert b'"version"' in raw
 
     def test_tampered_file_decrypt_fails(self, store: EndingNoteStore):
-        """篡改密文后解密失败（HMAC tag 校验）"""
+        """篡改密文后解密失败（AES-GCM 认证失败）"""
         note = EndingNote.new("user-T")
         note.personal_info = {"full_name_masked": "张**"}
         store.save(note)
@@ -391,12 +392,12 @@ class TestEncryptionAtRest:
 
         # 解密应失败
         loaded = store.load("user-T")
-        assert loaded is None, "HMAC tag 校验失败时应返回 None"
+        assert loaded is None, "AES-GCM 认证失败时应返回 None"
 
     def test_passphrase_mismatch_decrypt_fails(
         self, store: EndingNoteStore, monkeypatch: pytest.MonkeyPatch
     ):
-        """更换口令后解密失败（HMAC tag 校验，因为派生 key 不同）"""
+        """更换口令后解密失败（AES-GCM 认证失败，因为派生 key 不同）"""
         note = EndingNote.new("user-P")
         note.personal_info = {"full_name_masked": "张**"}
         store.save(note)

@@ -140,11 +140,14 @@ class TestSendSubscribeSse:
         self, v12_server, monkeypatch
     ):
         """LLM 不可用时 sendSubscribe 仍返回 working + failed 事件"""
-        # mock LLM api_key 为空 → _tasks_send 内部走 failed 分支
+        # mock LLM api_key 为空 → graph 降级 → fallback LLM 也失败 → failed
         mock_llm = MagicMock()
         mock_llm.api_key = ""
         import deadman.llm as llm_module
         monkeypatch.setattr(llm_module, "llm_client", mock_llm)
+        # graph 在模块级导入了 llm_client，需要同步 patch
+        import deadman.orchestration.nodes as nodes_module
+        monkeypatch.setattr(nodes_module, "llm_client", mock_llm, raising=False)
 
         req = {
             "jsonrpc": "2.0",

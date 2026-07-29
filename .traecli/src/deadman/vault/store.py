@@ -6,8 +6,8 @@
     - GoodTrust Smart Digital Vault
 
 设计要点：
-    - 内容用 PBKDF2 派生密钥 + 简化对称加密（XOR + HMAC 验证）
-      生产应换 AES-256-GCM（注释中标明），但本实现仅用 stdlib 避免新依赖。
+    - 内容用 PBKDF2 派生密钥 + AES-256-GCM 认证加密（统一 utils.crypto 原语，
+      nonce + ciphertext + tag 一体），向后兼容解密旧版 XOR/HMAC envelope。
     - 元数据中不存明文 content
     - 受益人只能看到自己被指定的条目
     - on_death 投递需要 7 天等待期 + 受益人手动确认
@@ -27,16 +27,16 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import logging
 import os
-import secrets
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from ..utils import crypto
 
 logger = logging.getLogger(__name__)
 
@@ -188,11 +188,10 @@ class VaultStore:
             logger.warning("VaultStore 写入条目文件失败 %s: %s", path, exc)
 
     # ==================================================================
-    # 加密 - PBKDF2 派生 + XOR 流密码 + HMAC 完整性校验
+    # 加密 - AES-256-GCM（统一使用 utils.crypto）
     # ==================================================================
-    # 生产实现建议：用 cryptography.Fernet 或 AES-256-GCM。
-    # 此处仅用 stdlib（hashlib/hmac/secrets）做对称加密，
-    # 安全性弱于 AES-GCM 但满足"加密 + 完整性 + 不存明文"的 PIPL 基线。
+    # v5.2 迁移：从手写 HMAC-SHA256 keystream 升级到 AES-256-GCM，
+    # 消除 W2（手写弱密码学）问题。旧数据仍可解密（向后兼容）。
     def _derive_key(self, user_id: str, password: str) -> bytes:
         """从用户 ID + 主密码派生加密密钥（PBKDF2-HMAC-SHA256）
 
@@ -227,34 +226,39 @@ class VaultStore:
         return pw
 
     def _encrypt(self, plaintext: bytes, key: bytes) -> bytes:
-        """加密：生成一次性 keystream（HMAC-SHA256 PRF），与明文 XOR，
-        再附 HMAC 完整性标签。
+        """AES-256-GCM 加密
 
-        格式：nonce(16) || ciphertext(len=plaintext) || tag(32)
+        格式：nonce(12) || ciphertext + GCM tag
         """
-        nonce = secrets.token_bytes(self.PBKDF2_SALT_LEN)
-        # 用 HMAC-SHA256 作为 PRF 生成 keystream（分块）
-        keystream = bytearray()
-        counter = 0
-        while len(keystream) < len(plaintext):
-            block = hmac.new(
-                key, nonce + counter.to_bytes(4, "big"), hashlib.sha256
-            ).digest()
-            keystream.extend(block)
-            counter += 1
-        keystream = keystream[: len(plaintext)]
-        ciphertext = bytes(p ^ k for p, k in zip(plaintext, keystream))
-        tag = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
-        return nonce + ciphertext + tag
+        return crypto.encrypt_bytes(plaintext, key)
 
     def _decrypt(self, ciphertext: bytes, key: bytes) -> bytes:
-        """解密 + 完整性校验。校验失败返回空 bytes（不抛异常）"""
+        """AES-256-GCM 解密；向后兼容旧 HMAC keystream 格式
+
+        旧格式：nonce(16) || ciphertext || tag(32)（HMAC-SHA256 keystream）
+        新格式：nonce(12) || ciphertext + tag（AES-256-GCM）
+
+        校验失败返回空 bytes（不抛异常），与原接口一致。
+        """
+        # 先尝试新格式（AES-256-GCM）
+        try:
+            return crypto.decrypt_bytes(ciphertext, key)
+        except Exception:
+            pass
+        # 回退到旧格式（HMAC-SHA256 keystream）
+        return self._decrypt_v1(ciphertext, key)
+
+    def _decrypt_v1(self, ciphertext: bytes, key: bytes) -> bytes:
+        """旧格式兼容解密（HMAC-SHA256 keystream，v5.2 之前的数据迁移用）"""
+        import hmac
+        import hashlib as _hl
+
         if len(ciphertext) < self.PBKDF2_SALT_LEN + 32:
             return b""
         nonce = ciphertext[: self.PBKDF2_SALT_LEN]
         tag = ciphertext[-32:]
         body = ciphertext[self.PBKDF2_SALT_LEN : -32]
-        expected_tag = hmac.new(key, nonce + body, hashlib.sha256).digest()
+        expected_tag = hmac.new(key, nonce + body, _hl.sha256).digest()
         if not hmac.compare_digest(tag, expected_tag):
             logger.warning("VaultStore: HMAC 校验失败，可能被篡改或密钥错误")
             return b""
@@ -263,7 +267,7 @@ class VaultStore:
         counter = 0
         while len(keystream) < len(body):
             block = hmac.new(
-                key, nonce + counter.to_bytes(4, "big"), hashlib.sha256
+                key, nonce + counter.to_bytes(4, "big"), _hl.sha256
             ).digest()
             keystream.extend(block)
             counter += 1

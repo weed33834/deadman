@@ -188,13 +188,19 @@ class TestSanitizeBeforeStore:
     """测试 sanitize_before_store PII 脱敏"""
 
     def test_pii_fields_set(self):
-        # 5 个 PII 字段
+        # PII 字段（含中英文别名，共 19 个）
         assert "identifier" in PII_FIELDS
         assert "name" in PII_FIELDS
         assert "phone" in PII_FIELDS
         assert "address" in PII_FIELDS
         assert "account_number" in PII_FIELDS
-        assert len(PII_FIELDS) == 5
+        # 中文别名
+        assert "姓名" in PII_FIELDS
+        assert "身份证" in PII_FIELDS
+        # 英文变体
+        assert "tel" in PII_FIELDS
+        assert "id_card" in PII_FIELDS
+        assert len(PII_FIELDS) == 19
 
     def test_mask_pii_long_string(self):
         # 长字符串：保留首尾 2 字符，中间 ***

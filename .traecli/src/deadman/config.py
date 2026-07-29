@@ -64,11 +64,6 @@ class Settings:
     memory_max_turns: int = int(os.getenv("MEMORY_MAX_TURNS", "10"))
     memory_retention_years: int = int(os.getenv("MEMORY_RETENTION_YEARS", "7"))
 
-    # === Checkpointer（LangGraph 状态持久化）===
-    # 开发期用 SQLite，生产可换 Postgres（langgraph-checkpoint-postgres）
-    # 为空则降级为 MemorySaver（进程重启即丢）
-    checkpoint_db_path: str = os.getenv("CHECKPOINT_DB_PATH", "data/checkpoints.db")
-
     # === Docker 沙箱（工具隔离执行）===
     # 启用后 write_file 等工具在 Docker 容器内执行，避免污染主环境
     # 需要 Docker daemon 可用；不可用时自动降级为本地执行
@@ -93,6 +88,10 @@ class Settings:
     a2a_registry_url: str = os.getenv("A2A_REGISTRY_URL", "https://a2a-registry.example.com")
     a2a_self_agent_id: str = os.getenv("A2A_SELF_AGENT_ID", "deadman")
 
+    # === 工具 ===
+    # 联网搜索 provider（duckduckgo 等；详见 tools/web_search.py）
+    web_search_provider: str = os.getenv("WEB_SEARCH_PROVIDER", "duckduckgo")
+
     # === LightRAG ===
     lightrag_enabled: bool = os.getenv("LIGHTRAG_ENABLED", "false").lower() == "true"
     lightrag_storage_dir: Path = Path(
@@ -108,8 +107,6 @@ class Settings:
     # === 消息平台 Gateway / 主动通知护栏（notification-guardrails.md L4）===
     # Telegram Bot API token，未配置时 TelegramConnector 优雅降级
     telegram_bot_token: str = os.getenv("DEADMAN_TELEGRAM_BOT_TOKEN", "")
-    # Gateway 总开关，默认关闭；启用需显式 DEADMAN_GATEWAY_ENABLED=true 或调 gateway-start
-    gateway_enabled: bool = os.getenv("DEADMAN_GATEWAY_ENABLED", "false").lower() == "true"
     # 主动通知护栏数据目录（consent / unsubscribes / sent_log / last_session）
     notification_data_dir: Path = Path(
         os.getenv("DEADMAN_NOTIFICATION_DATA_DIR", str(Path.home() / ".deadman" / "notifications"))
