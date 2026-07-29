@@ -703,7 +703,8 @@ async function loadInstitutions() {
 }
 
 async function searchInstitutions(query) {
-  const data = await api('/api/institutions' + (query ? '?q=' + encodeURIComponent(query) : ''));
+  // 查询参数名与 API 对齐：keyword（非 q）
+  const data = await api('/api/institutions' + (query ? '?keyword=' + encodeURIComponent(query) : ''));
   const list = document.getElementById('instList');
   if (data && data.institutions && data.institutions.length) {
     let html = '';
@@ -1017,7 +1018,7 @@ async function checkinSwitch() {
 async function cancelSwitch() {
   showActionSheet('取消 Switch？', [
     { label: '确认取消', danger: true, action: async () => {
-      const data = await api('/api/switch/cancel', { method: 'POST' });
+      const data = await api('/api/switch/cancel', { method: 'POST', body: JSON.stringify({}) });
       if (data && !data.error) {
         showToast('已取消');
         closeFormPage();
