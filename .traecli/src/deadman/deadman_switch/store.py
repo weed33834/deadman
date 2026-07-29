@@ -75,7 +75,9 @@ class SwitchStore:
 
     def __init__(self, data_dir: Path | None = None) -> None:
         if data_dir is None:
-            data_dir = Path.home() / ".deadman" / "deadman_switch"
+            # 优先读 DEADMAN_SWITCH_DATA_DIR 环境变量（与 .env.example / config.py 对齐）
+            env_dir = os.getenv("DEADMAN_SWITCH_DATA_DIR")
+            data_dir = Path(env_dir) if env_dir else Path.home() / ".deadman" / "deadman_switch"
         self.data_dir: Path = Path(data_dir)
         try:
             self.data_dir.mkdir(parents=True, exist_ok=True)

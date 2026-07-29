@@ -79,10 +79,11 @@ else:  # pragma: no cover
 def _resolve_level(level: str | None) -> int:
     """将字符串日志级别解析为 stdlib logging 的数字级别。
 
-    ``level`` 为 ``None`` 时读取 ``DEADMAN_LOG_LEVEL`` 环境变量。
+    ``level`` 为 ``None`` 时读取 ``DEADMAN_LOG_LEVEL`` 环境变量；
+    兼容旧版 ``LOG_LEVEL``（.env.example 早期版本曾用此名），向后不破坏。
     """
     if level is None:
-        level = os.environ.get("DEADMAN_LOG_LEVEL", DEFAULT_LOG_LEVEL)
+        level = os.environ.get("DEADMAN_LOG_LEVEL") or os.environ.get("LOG_LEVEL") or DEFAULT_LOG_LEVEL
     return getattr(logging, str(level).upper(), logging.INFO)
 
 

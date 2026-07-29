@@ -14,7 +14,9 @@ from pathlib import Path
 
 from .models import OnboardingProfile
 
-_DEFAULT_DATA_DIR = Path.home() / ".deadman" / "onboarding"
+_DEFAULT_DATA_DIR = Path(
+    os.getenv("DEADMAN_ONBOARDING_DATA_DIR", str(Path.home() / ".deadman" / "onboarding"))
+)
 
 
 class OnboardingStore:

@@ -125,6 +125,20 @@ class Settings:
     # 密码最小长度（PBKDF2-HMAC-SHA256，100000 iterations）
     password_min_length: int = int(os.getenv("DEADMAN_PASSWORD_MIN_LENGTH", "8"))
 
+    # === 各业务模块数据目录（单一真相源，与 .env.example 对齐）===
+    # Dead Man Switch 状态机数据（注意：实际目录名 deadman_switch，非 switch）
+    switch_data_dir: Path = Path(
+        os.getenv("DEADMAN_SWITCH_DATA_DIR", str(Path.home() / ".deadman" / "deadman_switch"))
+    )
+    # 客服工单数据
+    support_data_dir: Path = Path(
+        os.getenv("DEADMAN_SUPPORT_DATA_DIR", str(Path.home() / ".deadman" / "support"))
+    )
+    # Onboarding 向导数据
+    onboarding_data_dir: Path = Path(
+        os.getenv("DEADMAN_ONBOARDING_DATA_DIR", str(Path.home() / ".deadman" / "onboarding"))
+    )
+
     @property
     def rules_dir(self) -> Path:
         return self.project_root / "rules"

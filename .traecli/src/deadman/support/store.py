@@ -23,7 +23,9 @@ from typing import Any
 
 from .models import Ticket, TicketReply
 
-_DEFAULT_DATA_DIR = Path.home() / ".deadman" / "support"
+_DEFAULT_DATA_DIR = Path(
+    os.getenv("DEADMAN_SUPPORT_DATA_DIR", str(Path.home() / ".deadman" / "support"))
+)
 
 
 class TicketStore:
