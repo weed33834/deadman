@@ -59,6 +59,8 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.5",
+    # Prometheus 指标（HTTP RED 指标：请求计数/延迟直方图，官方客户端）
+    "prometheus_client>=0.20",
 ]
 
 [project.optional-dependencies]

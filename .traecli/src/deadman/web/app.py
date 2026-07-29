@@ -679,16 +679,35 @@ async def api_stream(
 
 @app.get("/metrics", tags=["ops"], include_in_schema=False)
 async def metrics():
-    """Prometheus 指标端点"""
+    """Prometheus 指标端点 —— HTTP RED 指标 + 智能体质量指标
+
+    输出合并两部分：
+    1. HTTP RED 指标（prometheus_client 官方格式）：http_requests_total /
+       http_request_duration_seconds —— 由 PrometheusMetricsMiddleware 采集
+    2. 智能体质量指标（自定义格式）：规则违反率 / faithfulness / SLO 等 ——
+       由 observability.metrics_collector 采集
+    """
+    from .middleware import export_http_metrics
+
+    # HTTP RED 指标（prometheus_client 标准格式）
+    http_body, content_type = export_http_metrics()
+
+    # 智能体质量指标（自定义 prometheus 文本格式）
+    quality_body = ""
     try:
         from ..observability.metrics import metrics_collector
 
-        text = metrics_collector.export_prometheus()
-        return PlainTextResponse(
-            text, media_type="text/plain; version=0.0.4; charset=utf-8"
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        quality_body = metrics_collector.export_prometheus()
+    except Exception as exc:  # noqa: BLE001 - 质量指标失败不影响 HTTP 指标
+        logger.warning("导出质量指标失败（不影响 HTTP 指标）: %s", exc)
+
+    merged = http_body
+    if quality_body:
+        if not merged.endswith("\n"):
+            merged += "\n"
+        merged += quality_body
+
+    return PlainTextResponse(merged, media_type=content_type)
 
 
 @app.get("/api/obs/dashboard", tags=["ops"])

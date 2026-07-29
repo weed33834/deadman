@@ -27,6 +27,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -290,6 +291,90 @@ def _safe_validation_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 # =====================================================================
+# Prometheus HTTP 指标中间件（RED: Rate / Errors / Duration）
+# =====================================================================
+
+
+# 请求总数 Counter（按 method/path_template/status 维度）
+http_requests_total = Counter(
+    "http_requests_total",
+    "HTTP 请求总数（按方法/路由模板/状态码）",
+    ["method", "path", "status"],
+)
+
+# 请求延迟 Histogram（标准 SLO 桶：50ms~10s）
+http_request_duration_seconds = Histogram(
+    "http_request_duration_seconds",
+    "HTTP 请求处理耗时（秒）",
+    ["method", "path"],
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
+
+
+def _route_template(request: Request) -> str:
+    """提取路由模板（如 /api/ending-note/{section}），避免高基数路径标签。
+
+    用路由模板而非实际路径，防止 /api/cases/<uuid> 之类的路径
+    产生无限多的 label 组合（Prometheus 高基数爆炸）。
+    """
+    route = request.scope.get("route")
+    if route is not None and hasattr(route, "path_format"):
+        try:
+            return route.path_format
+        except Exception:  # pragma: no cover
+            pass
+    return request.url.path
+
+
+class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
+    """采集 HTTP RED 指标（Rate/Errors/Duration），供 /metrics 端点导出。
+
+    使用 prometheus_client 官方库（Counter + Histogram），自动生成
+    标准 Prometheus exposition 格式，兼容 Grafana / Prometheus 抓取。
+
+    指标：
+    * http_requests_total{method, path, status} —— 请求计数
+    * http_request_duration_seconds{method, path} —— 延迟直方图
+    """
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        # 健康探针/文档路径不计入指标，避免噪音
+        path = request.url.path
+        if path.startswith(_RATE_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        method = request.method
+        route_tpl = _route_template(request)
+        start = time.perf_counter()
+        try:
+            response = await call_next(request)
+            status = str(response.status_code)
+        except Exception:
+            status = "500"
+            http_requests_total.labels(method=method, path=route_tpl, status=status).inc()
+            http_request_duration_seconds.labels(
+                method=method, path=route_tpl
+            ).observe(time.perf_counter() - start)
+            raise
+
+        elapsed = time.perf_counter() - start
+        http_requests_total.labels(method=method, path=route_tpl, status=status).inc()
+        http_request_duration_seconds.labels(method=method, path=route_tpl).observe(elapsed)
+        return response
+
+
+def export_http_metrics() -> tuple[str, str]:
+    """导出 Prometheus HTTP 指标。
+
+    Returns:
+        (body, content_type) —— body 为 Prometheus 文本格式（str），content_type 为标准头
+    """
+    raw = generate_latest()
+    body = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+    return body, CONTENT_TYPE_LATEST
+
+
+# =====================================================================
 # 中间件注册入口
 # =====================================================================
 
@@ -300,15 +385,18 @@ def register_middlewares(app: FastAPI) -> None:
     顺序说明（Starlette 中间件**后添加的先执行**响应阶段，但请求阶段**先添加的先执行**）：
     * GZip —— 最外层，压缩响应
     * SecurityHeaders —— 注入安全头
+    * PrometheusMetrics —— 采集 HTTP RED 指标（需在日志前，确保所有请求被采）
     * RequestLogging —— 记录访问日志 + 注入 request_id（需在限流前，确保被限流请求也有日志）
     * RateLimit —— 限流（最内层业务前最后一道关卡）
 
-    实际请求流向：GZip → SecurityHeaders → RequestLogging → RateLimit → 路由
+    实际请求流向：GZip → SecurityHeaders → PrometheusMetrics → RequestLogging → RateLimit → 路由
     """
     # GZip 压缩（>1KB 的响应才压缩，避免小响应 CPU 浪费）
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     # 安全响应头
     app.add_middleware(SecurityHeadersMiddleware)
+    # Prometheus HTTP RED 指标
+    app.add_middleware(PrometheusMetricsMiddleware)
     # 结构化访问日志 + 请求 ID
     app.add_middleware(RequestLoggingMiddleware)
     # 限流（复用 web/rate_limiter.RateLimiter）
