@@ -55,6 +55,10 @@ dependencies = [
     "cryptography>=41.0",
     # 异步邮件发送（Dead Man Switch 状态变更通知律师/继承人）
     "aiosmtplib>=3.0",
+    # Web 框架（FastAPI + uvicorn，替代 stdlib http.server）
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.5",
 ]
 
 [project.optional-dependencies]
@@ -78,7 +82,8 @@ all = [
 deadman = "deadman.cli:main"
 deadman-mcp-server = "deadman.mcp_server.server:main"
 deadman-a2a-server = "deadman.a2a.server:main"
-deadman-web-server = "deadman.web.server:main"
+deadman-web-server = "deadman.web.app:main"
+deadman-web-server-legacy = "deadman.web.server:main"
 
 [tool.setuptools.packages.find]
 where = [".traecli/src"]
