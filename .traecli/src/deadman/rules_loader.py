@@ -106,15 +106,26 @@ class RuleChecker:
     R3_SIGNALS = CRISIS_KEYWORDS + ["自残", "轻生"]
 
     def check(self, output_text: str, context: dict | None = None) -> RuleCheckResult:
-        """执行 L0-L8 规则校验"""
+        """执行 L0-L8 规则校验
+
+        Args:
+            output_text: AI 草稿响应文本
+            context: 上下文字典，可含 user_input / current_agent 等。
+                     L0 安全检查会同时扫描 user_input 和 output_text。
+        """
         violations: list[dict] = []
         risk_tier = RiskTier.R0
         safety_triggered = False
         integrity_violations: list[str] = []
 
-        # L0 safety - 心理危机检测
+        context = context or {}
+        user_input = context.get("user_input", "")
+        # 合并用户输入和AI输出用于安全检测
+        all_text = f"{user_input}\n{output_text}"
+
+        # L0 safety - 心理危机检测（同时检查用户输入和AI输出）
         for keyword in self.CRISIS_KEYWORDS:
-            if keyword in output_text:
+            if keyword in all_text:
                 safety_triggered = True
                 risk_tier = RiskTier.R3
                 break
@@ -134,13 +145,13 @@ class RuleChecker:
         # L4 risk-tier - 风险信号检测
         if not safety_triggered:
             for signal in self.R3_SIGNALS:
-                if signal in output_text:
+                if signal in all_text:
                     risk_tier = RiskTier.R3
                     safety_triggered = True
                     break
             if risk_tier == RiskTier.R0:
                 for signal in self.R2_SIGNALS:
-                    if signal in output_text:
+                    if signal in all_text:
                         risk_tier = RiskTier.R2
                         violations.append({
                             "rule": "risk-tier-framework",

@@ -268,7 +268,8 @@ def cmd_eval_ragas(args):
 
 def cmd_run(args):
     """运行单次对话"""
-    from .orchestration.graph import build_main_graph, create_initial_state
+    from .orchestration.graph import build_main_graph
+    from .orchestration.state import create_initial_state
 
     graph = build_main_graph()
     state = create_initial_state(user_input=args.input)
@@ -278,7 +279,9 @@ def cmd_run(args):
     print("\n=== 响应 ===")
     print(result.get("final_response", "(无响应)"))
     print(f"\n=== 智能体: {result.get('current_agent', '?')} ===")
-    print(f"=== 风险等级: {result.get('risk_tier', '?')} ===")
+    rc = result.get("rule_check")
+    risk_tier = rc.risk_tier.value if rc else "?"
+    print(f"=== 风险等级: {risk_tier} ===")
 
 
 # ====================================================================

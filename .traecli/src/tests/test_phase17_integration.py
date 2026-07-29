@@ -974,23 +974,23 @@ def test_scenario_3_l0_safety_triggered_on_crisis(patch_llm):
     state["current_agent"] = "death_aftercare"
     state["draft_response"] = "我理解你现在的痛苦，但请不要伤害自己。"
 
-    # rule_check 应触发 safety_triggered=True（依赖 rule_checker 实现）
+    # rule_check 应触发 safety_triggered=True（L0 检测 user_input 中的危机关键词）
     updates = asyncio.run(rule_check_node(state))
     rc = updates.get("rule_check")
-    # 若 rule_checker 实现了 L0 检测，应触发 safety_triggered=True
-    if rc and rc.safety_triggered:
-        assert updates.get("safety_override") is True
-        state.update(updates)
-        # route_to_agent 应在 safety_override=True 时强制走 death_aftercare
-        state["current_agent"] = "legal_advisor"  # 假设错误路由
-        route = route_to_agent(state)
-        assert route == "death_aftercare", (
-            f"safety_override 时应强制 death_aftercare，实际 {route}"
-        )
-    else:
-        # rule_checker 未实现 L0 检测时，至少验证状态机不崩溃
-        # （后续版本补齐 CRISIS_KEYWORDS 触发逻辑）
-        pytest.skip("rule_checker 未实现 L0 CRISIS_KEYWORDS 检测")
+    assert rc is not None, "rule_check_node 应返回 rule_check 结果"
+    assert rc.safety_triggered, (
+        f"L0 safety check 应在 user_input 含危机关键词时触发，"
+        f"实际 safety_triggered={rc.safety_triggered}"
+    )
+    assert updates.get("safety_override") is True
+
+    # route_to_agent 应在 safety_override=True 时强制走 death_aftercare
+    state.update(updates)
+    state["current_agent"] = "legal_advisor"  # 假设错误路由
+    route = route_to_agent(state)
+    assert route == "death_aftercare", (
+        f"safety_override 时应强制 death_aftercare，实际 {route}"
+    )
 
 
 def test_scenario_5_input_guard_detects_injection():
