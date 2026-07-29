@@ -107,7 +107,7 @@ class TicketStore:
         """
         index = self._read_index()
         tickets: list[Ticket] = []
-        for tid in index.keys():
+        for tid in index:
             t = self._read_ticket(tid)
             if t is not None:
                 tickets.append(t)

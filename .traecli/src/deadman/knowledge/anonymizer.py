@@ -314,9 +314,7 @@ class Anonymizer:
             node.properties.get(k) for k in node.properties
             if k in SENSITIVE_ATTRIBUTES and node.properties.get(k) is not None
         ]
-        if l_diversity > 1 and len(set(sensitive_values)) < l_diversity:
-            return False
-        return True
+        return not (l_diversity > 1 and len(set(sensitive_values)) < l_diversity)
 
     @staticmethod
     def check_l_diversity(nodes: list[KGNode], l_diversity: int = 2) -> bool:

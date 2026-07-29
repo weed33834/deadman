@@ -143,7 +143,7 @@ class SlidingWindowCounter:
     def _evict_expired(self, now: float) -> None:
         """清除过期 buckets。"""
         cutoff = now - self.window_seconds
-        expired = [ts for ts in self._buckets.keys() if ts < cutoff]
+        expired = [ts for ts in self._buckets if ts < cutoff]
         for ts in expired:
             del self._buckets[ts]
 
@@ -347,7 +347,7 @@ class QuotaManager:
         """列出所有配额用量(看板用)。"""
         tid = tenant_id or get_current_tenant_id()
         result: list[QuotaUsage] = []
-        for name in self._default_limits.keys():
+        for name in self._default_limits:
             result.append(self.check(name, tid))
         return result
 

@@ -139,9 +139,7 @@ class KGNode:
         """该节点在 at_time 时是否有效。"""
         if at_time < self.valid_from:
             return False
-        if self.valid_to is not None and at_time > self.valid_to:
-            return False
-        return True
+        return not (self.valid_to is not None and at_time > self.valid_to)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -441,9 +439,7 @@ class GraphitiRuntime:
         if q_lower in (node.content or "").lower():
             return True
         src = node.properties.get("source", "")
-        if q_lower in src.lower():
-            return True
-        return False
+        return q_lower in src.lower()
 
     # ==================================================================
     # Temporal API

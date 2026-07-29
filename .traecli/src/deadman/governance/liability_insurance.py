@@ -117,9 +117,7 @@ class InsurancePolicy:
         current = ts if ts is not None else time.time()
         if self.start_date and current < self.start_date:
             return False
-        if self.end_date and current > self.end_date:
-            return False
-        return True
+        return not (self.end_date and current > self.end_date)
 
 
 @dataclass

@@ -334,7 +334,7 @@ class KnowledgeFreshness:
     def check_all(self) -> list[FreshnessReport]:
         """检查所有记录的时效,返回完整报告列表。"""
         with self._lock:
-            return [self.check(kid) for kid in self._records.keys()]
+            return [self.check(kid) for kid in self._records]
 
     # ==================================================================
     # 外部源注册与变更监控

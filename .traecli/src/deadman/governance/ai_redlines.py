@@ -324,7 +324,7 @@ class AIRedline:
         with self._lock:
             for rule in self._rules:
                 for kw in rule.action_keywords:
-                    if kw == action or kw == action_lower:
+                    if kw in (action, action_lower):
                         return rule
             # 子串匹配
             for rule in self._rules:

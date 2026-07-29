@@ -182,7 +182,7 @@ class PlanCache:
         # 2. 相似命中
         best_query: str | None = None
         best_score: float = 0.0
-        for cached_query in self._store.keys():
+        for cached_query in self._store:
             score = _jaccard_similarity(query, cached_query)
             if score > PLAN_CACHE_JACCARD_THRESHOLD and score > best_score:
                 best_score = score

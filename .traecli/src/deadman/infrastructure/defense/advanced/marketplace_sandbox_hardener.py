@@ -284,10 +284,7 @@ class SandboxHardener:
             rf"^\s*from\s+{escaped}\s+import\s",
             rf"^\s*from\s+{escaped}\s*$",  # 多行 import
         ]
-        for p in patterns:
-            if re.search(p, code, re.MULTILINE):
-                return True
-        return False
+        return any(re.search(p, code, re.MULTILINE) for p in patterns)
 
     def _check_ast_node(self, node: ast.AST, result: StaticCheckResult) -> None:
         """检查 AST 节点。"""
@@ -386,10 +383,7 @@ class FilesystemGuard:
             if real == a or real.startswith(a + os.sep):
                 return True
         # 3. readonly(允许读)
-        for r in self.readonly:
-            if real == r or real.startswith(r + os.sep):
-                return True
-        return False
+        return any(real == r or real.startswith(r + os.sep) for r in self.readonly)
 
     def check_write(self, path: str) -> bool:
         real = os.path.realpath(path)
@@ -401,10 +395,7 @@ class FilesystemGuard:
             if real == r or real.startswith(r + os.sep):
                 return False
         # 仅 allowed 允许写
-        for a in self.allowed:
-            if real == a or real.startswith(a + os.sep):
-                return True
-        return False
+        return any(real == a or real.startswith(a + os.sep) for a in self.allowed)
 
     def check_execute(self, path: str) -> bool:
         # 执行权限等同于读 + 文件存在 + 可执行

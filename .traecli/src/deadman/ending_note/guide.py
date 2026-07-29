@@ -376,9 +376,7 @@ def _section_is_filled(value: Any) -> bool:
     """
     if value is None:
         return False
-    if isinstance(value, (dict, list, str)) and len(value) == 0:
-        return False
-    return True
+    return not (isinstance(value, (dict, list, str)) and len(value) == 0)
 
 
 def _dict_to_text(d: Any) -> str:

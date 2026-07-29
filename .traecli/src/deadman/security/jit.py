@@ -274,9 +274,7 @@ class JITPermissionManager:
             return False
         if t.tool_name != tool_name:
             return False
-        if scope is not None and t.scope != scope:
-            return False
-        return True
+        return not (scope is not None and t.scope != scope)
 
     def revoke(self, token: str) -> bool:
         """撤销一个 token

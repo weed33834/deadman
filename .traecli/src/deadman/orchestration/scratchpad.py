@@ -185,7 +185,7 @@ class ScratchpadManager:
     def list_agents(self) -> list[str]:
         """列出所有有 scratchpad 的 agent 名（排除 __shared__ 内部 key）"""
         store = self._store()
-        return [k for k in store.keys() if k != self._shared_key()]
+        return [k for k in store if k != self._shared_key()]
 
     def count(self, agent_name: str) -> int:
         """返回 agent 的 scratchpad 条数（feature flag 关闭返回 0）"""

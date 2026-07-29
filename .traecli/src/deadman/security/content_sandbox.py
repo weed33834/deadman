@@ -240,10 +240,7 @@ class ContentSandbox:
             logger.warning("无法导入 INJECTION_PATTERNS，跳过注入检测: %s", e)
             return False
 
-        for pattern in INJECTION_PATTERNS:
-            if re.search(pattern, content, re.IGNORECASE):
-                return True
-        return False
+        return any(re.search(pattern, content, re.IGNORECASE) for pattern in INJECTION_PATTERNS)
 
 
 # =====================================================================

@@ -571,10 +571,7 @@ class MemoryManager:
                 return True
         # 4. 法律争议信号
         legal_keywords = ("诉讼", "纠纷", "继承争议", "法庭", "起诉", "被告", "原告")
-        for kw in legal_keywords:
-            if kw in text:
-                return True
-        return False
+        return any(kw in text for kw in legal_keywords)
 
     @staticmethod
     def _format_profile(profile: UserProfile) -> str:

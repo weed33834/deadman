@@ -1278,7 +1278,7 @@ async def query_knowledge(
     if not country_dir.exists():
         return {
             "found": False,
-            "needs_research": True if fallback_to_search else False,
+            "needs_research": bool(fallback_to_search),
             "research_suggestion": (
                 f"建议触发 policy-researcher 搜索 {country} 国家级政策"
                 if fallback_to_search
@@ -1302,7 +1302,7 @@ async def query_knowledge(
     if not target.exists():
         return {
             "found": False,
-            "needs_research": True if fallback_to_search else False,
+            "needs_research": bool(fallback_to_search),
             "research_suggestion": (
                 f"建议触发 policy-researcher 搜索 {country}/{region or '国家级'} 政策"
                 if fallback_to_search

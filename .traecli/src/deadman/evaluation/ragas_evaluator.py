@@ -49,6 +49,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -723,11 +724,11 @@ async def run_ragas_batch(
     degraded_count = 0
     evaluated_count = 0
 
-    out_fp = None
-    if output_file:
-        out_fp = open(output_file, "w", encoding="utf-8")
+    out_fp_ctx = (
+        open(output_file, "w", encoding="utf-8") if output_file else nullcontext()
+    )
 
-    try:
+    with out_fp_ctx as out_fp:
         for yaml_file in yaml_files:
             case_data = _load_case_for_ragas(yaml_file)
             if not case_data:
@@ -778,9 +779,6 @@ async def run_ragas_batch(
 
             if out_fp:
                 out_fp.write(json.dumps(record, ensure_ascii=False) + "\n")
-    finally:
-        if out_fp:
-            out_fp.close()
 
     return {
         "total": len(yaml_files),

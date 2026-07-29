@@ -59,9 +59,7 @@ def _docker_available() -> bool:
     """检查 Docker daemon 是否可用"""
     if not settings.sandbox_enabled:
         return False
-    if shutil.which("docker") is None:
-        return False
-    return True
+    return shutil.which("docker") is not None
 
 
 async def _docker_exec(command: list[str]) -> dict[str, Any]:

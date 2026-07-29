@@ -194,10 +194,7 @@ class NotificationGuardrail:
         if not user_records:
             return False
         # 任意一条 scope=all 的退订即视为全退订
-        for record in user_records:
-            if record.get("scope", "all") == "all":
-                return True
-        return False
+        return any(record.get("scope", "all") == "all" for record in user_records)
 
     # ==================================================================
     # 检查项 2: 静默时段
@@ -208,9 +205,7 @@ class NotificationGuardrail:
         start_hour, end_hour = self.SILENT_HOURS
         hour = dt.hour
         # 22:00-23:59 + 00:00-07:59
-        if hour >= start_hour or hour < end_hour:
-            return True
-        return False
+        return bool(hour >= start_hour or hour < end_hour)
 
     # ==================================================================
     # 检查项 3: 敏感日期

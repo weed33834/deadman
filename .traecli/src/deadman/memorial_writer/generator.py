@@ -422,10 +422,7 @@ class MemorialGenerator:
         text_lower = text.lower()
 
         def _hit(keywords: tuple[str, ...]) -> bool:
-            for kw in keywords:
-                if kw in text or kw.lower() in text_lower:
-                    return True
-            return False
+            return any(kw in text or kw.lower() in text_lower for kw in keywords)
 
         return {
             "self_harm": _hit(_SELF_HARM_KEYWORDS),

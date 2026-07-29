@@ -111,9 +111,7 @@ class ConsentRecord:
         now = now or time.time()
         if self.status != ConsentStatus.GRANTED:
             return False
-        if self.expires_at and now > self.expires_at:
-            return False
-        return True
+        return not (self.expires_at and now > self.expires_at)
 
     def to_dict(self) -> dict:
         d = asdict(self)
