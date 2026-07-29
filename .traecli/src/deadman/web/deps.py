@@ -8,17 +8,22 @@
 * :func:`get_current_user` —— 强制认证依赖，未登录或 token 无效时抛 401。
 * :func:`get_optional_user` —— 可选认证依赖，未登录返回 ``None``（用于
   ``/api/chat`` / ``/api/stream`` 等允许匿名降级的端点）。
+* :data:`bearer_scheme` —— FastAPI ``HTTPBearer`` 安全方案，使 OpenAPI 文档
+  自动出现"Authorize"按钮，并在所有认证路由上显示锁标记。
 
 设计原则：
 * 不修改 ``web/server.py`` —— 旧 stdlib http.server 保留为 fallback。
 * 直接 import 现有业务模块，不重复造轮子。
+* 用 ``HTTPBearer(auto_error=False)`` 作为子依赖，由 FastAPI 自动生成
+  OpenAPI securityScheme（``bearerAuth``），Swagger UI / ReDoc 可直接调试。
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..auth.jwt import JWTManager
 from ..auth.store import UserStore
@@ -29,7 +34,14 @@ __all__ = [
     "get_jwt_manager",
     "get_current_user",
     "get_optional_user",
+    "bearer_scheme",
 ]
+
+
+# Bearer 安全方案：auto_error=False 让 get_optional_user 能降级到匿名。
+# FastAPI 据此在 OpenAPI 中声明 securitySchemes.bearerAuth，
+# /docs 页面出现"Authorize"按钮，认证路由显示锁标记。
+bearer_scheme = HTTPBearer(auto_error=False, scheme_name="bearerAuth")
 
 
 def get_user_store() -> UserStore:
@@ -45,35 +57,50 @@ def get_jwt_manager() -> JWTManager:
     )
 
 
-def get_current_user(authorization: str | None = Header(default=None)) -> dict[str, Any]:
-    """从 ``Authorization: Bearer <token>`` 解析当前用户。
+def _resolve_user(token: str | None) -> dict[str, Any] | None:
+    """共享的用户解析逻辑：token 有效返回 user dict，否则 None。
 
-    未认证或 token 无效时抛 ``401``，与旧 ``_phase_unauthorized`` 行为一致。
+    抽出此函数避免 ``get_current_user`` 与 ``get_optional_user`` 重复解析逻辑
+    （原实现中二者各写一遍 bearer 前缀剥离 + verify + get_user）。
     """
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="未认证或 token 无效")
-    token = authorization[7:].strip()
     if not token:
-        raise HTTPException(status_code=401, detail="未认证或 token 无效")
+        return None
     jwt_mgr = get_jwt_manager()
     payload = jwt_mgr.verify(token)
     if payload is None:
-        raise HTTPException(status_code=401, detail="未认证或 token 无效")
+        return None
     store = get_user_store()
-    user = store.get_user(payload.get("user_id", ""))
+    return store.get_user(payload.get("user_id", ""))
+
+
+def get_current_user(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict[str, Any]:
+    """从 ``Authorization: Bearer <token>`` 解析当前用户。
+
+    未认证或 token 无效时抛 ``401``（附 ``WWW-Authenticate: Bearer`` 头，
+    符合 RFC 7235），与旧 ``_phase_unauthorized`` 行为一致。
+
+    通过 :data:`bearer_scheme` 子依赖，FastAPI 自动在 OpenAPI 文档中标注
+    本依赖所在路由需要 Bearer 认证。
+    """
+    token = cred.credentials if cred else None
+    user = _resolve_user(token)
     if user is None:
-        raise HTTPException(status_code=401, detail="未认证或 token 无效")
+        raise HTTPException(
+            status_code=401,
+            detail="未认证或 token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
-def get_optional_user(authorization: str | None = Header(default=None)) -> dict[str, Any] | None:
+def get_optional_user(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict[str, Any] | None:
     """可选认证：未登录或 token 无效返回 ``None``，不报错。
 
     用于 ``/api/chat`` / ``/api/stream`` 等允许匿名降级的端点。
     """
-    if not authorization or not authorization.lower().startswith("bearer "):
-        return None
-    try:
-        return get_current_user(authorization)
-    except HTTPException:
-        return None
+    token = cred.credentials if cred else None
+    return _resolve_user(token)
