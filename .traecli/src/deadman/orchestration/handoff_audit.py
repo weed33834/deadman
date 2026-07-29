@@ -49,10 +49,11 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 # =====================================================================
-# Feature flag - 默认关闭
+# Feature flag - 默认开启（P1-1：handoff 审计链是企业合规必需，随 handoff 一起启用）
+# 测试套件通过 conftest.py 的 _disable_handoff_by_default autouse fixture 关闭。
 # =====================================================================
 HANDOFF_AUDIT_ENABLED: bool = os.environ.get(
-    "DEADMAN_HANDOFF_AUDIT_ENABLED", "0"
+    "DEADMAN_HANDOFF_AUDIT_ENABLED", "1"
 ).lower() in ("1", "true", "yes", "on")
 
 # 持久化文件路径（相对 project_root）

@@ -85,11 +85,13 @@ _DEFAULTS: dict[str, bool] = {
     "dynamic_tool_registration": False,
     "tool_signing": False,
     # P4 - 多智能体协作
-    "handoff": False,
+    # P1-1：handoff / handoff_audit 默认开启（企业级落地，agent 转交是一等公民）
+    # 与 orchestration/handoff.py 的 HANDOFF_ENABLED 默认值保持一致
+    "handoff": True,
     "scratchpad": False,
     "agent_registry": False,
     "a2a_v12": False,
-    "handoff_audit": False,
+    "handoff_audit": True,
     # P5 - 安全护栏
     "audit_chain": False,
     "jit_permission": False,

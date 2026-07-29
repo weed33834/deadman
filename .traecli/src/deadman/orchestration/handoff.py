@@ -8,10 +8,11 @@
 - HandoffContext: 单次 handoff 的不可变快照（from/to/reason/压缩消息/上下文/过滤规则）
 - HandoffManager: 创建/应用 handoff，封装 LLM 压缩 + 上下文过滤 + 降级路径
 
-Feature flag: DEADMAN_HANDOFF_ENABLED=0 默认关闭
-- 关闭时 HandoffManager.create_handoff 直接返回 None，调用方走旧的
-  TransferSummary 截断路径，行为完全不变（保证不破坏现有 1316 测试）
+Feature flag: DEADMAN_HANDOFF_ENABLED=1 默认开启（P1-1 企业级落地）
 - 开启时 LLM 不可用降级到 [:500] 截断，保持旧的兜底行为
+- 显式关闭（DEADMAN_HANDOFF_ENABLED=0）时 create_handoff 返回 None，
+  调用方走旧的 TransferSummary 截断路径；测试套件通过 conftest autouse
+  fixture 默认关闭以保证隔离（test_handoff.py 显式 monkeypatch 开启）
 
 降级路径全覆盖：
 1. feature flag 关闭 → create_handoff 返回 None，调用方走旧路径
@@ -32,9 +33,11 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # =====================================================================
-# Feature flag - 默认关闭
+# Feature flag - 默认开启（P1-1：企业级落地，handoff 作为一等公民默认启用）
+# 测试套件通过 conftest.py 的 _disable_handoff_by_default autouse fixture
+# 关闭以保证隔离；test_handoff.py 显式 monkeypatch 开启。
 # =====================================================================
-HANDOFF_ENABLED: bool = os.environ.get("DEADMAN_HANDOFF_ENABLED", "0").lower() in (
+HANDOFF_ENABLED: bool = os.environ.get("DEADMAN_HANDOFF_ENABLED", "1").lower() in (
     "1", "true", "yes", "on",
 )
 

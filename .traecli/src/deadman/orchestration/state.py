@@ -72,8 +72,8 @@ class ConversationState(TypedDict, total=False):
     scratchpads: dict[str, list[str]]
 
     # === P4.1: Handoff 上下文（确认转介后构造的 HandoffContext 快照）===
-    # feature flag DEADMAN_HANDOFF_ENABLED=0 默认关闭；
-    # 关闭时该字段保持 None，行为完全不变
+    # feature flag DEADMAN_HANDOFF_ENABLED=1 默认开启（P1-1 企业级落地）；
+    # 显式关闭（=0）或测试 conftest 关闭时该字段保持 None，行为不变
     handoff_context: Any
 
     # === P5.3: GUID 沙箱（input_guard_node 检测到外部内容时填充）===

@@ -105,3 +105,23 @@ def _disable_switch_auto_tick(monkeypatch):
     ``monkeypatch.setenv("DEADMAN_SWITCH_AUTO_TICK_ENABLED", "1")`` 覆盖。
     """
     monkeypatch.setenv("DEADMAN_SWITCH_AUTO_TICK_ENABLED", "0")
+
+
+@pytest.fixture(autouse=True)
+def _disable_handoff_by_default(monkeypatch):
+    """全局默认关闭 handoff / handoff_audit，保证测试隔离。
+
+    P1-1 起 handoff 在生产环境默认开启（DEADMAN_HANDOFF_ENABLED=1），
+    但测试套件需保持旧的行为基线（handoff 关闭 → create_handoff 返回
+    None → 走 TransferSummary 截断旧路径），避免 handoff 上下文注入
+    改变 draft_response 内容导致 1300+ 既有断言失败。
+
+    需要测试 handoff 本身的用例（tests/test_handoff.py）会在测试体内
+    显式 ``monkeypatch.setattr(handoff_module, "HANDOFF_ENABLED", True)``
+    覆盖本 fixture 的设置（同一 monkeypatch 实例，后调用者生效）。
+    """
+    import deadman.orchestration.handoff as handoff_module
+    import deadman.orchestration.handoff_audit as handoff_audit_module
+
+    monkeypatch.setattr(handoff_module, "HANDOFF_ENABLED", False)
+    monkeypatch.setattr(handoff_audit_module, "HANDOFF_AUDIT_ENABLED", False)
