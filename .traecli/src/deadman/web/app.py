@@ -214,6 +214,7 @@ def _build_app() -> FastAPI:
         description="身后事多智能体引导平台 — AG-UI Web API",
         lifespan=lifespan,
     )
+    # CORS（最外层，确保预检请求不被限流拦截）
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allow_origins,
@@ -221,10 +222,75 @@ def _build_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     )
+    # 企业级横切：GZip / 安全头 / 访问日志 / 限流（复用已有组件）
+    from .middleware import register_exception_handlers, register_middlewares
+
+    register_middlewares(app)
+    register_exception_handlers(app)
     return app
 
 
 app = _build_app()
+
+
+# =====================================================================
+# Kubernetes 风格健康探针：liveness(/healthz) + readiness(/readyz)
+# =====================================================================
+
+
+@app.get("/healthz", tags=["ops"], include_in_schema=False)
+async def healthz():
+    """存活探针（liveness）—— 进程存活即 200，不检查依赖。
+
+    Kubernetes 用此判断是否需要重启容器；失败才重启，故不应因依赖抖动误杀。
+    """
+    return {"status": "alive", "service": "deadman", "version": "5.1.0"}
+
+
+@app.get("/readyz", tags=["ops"], include_in_schema=False)
+async def readyz():
+    """就绪探针（readiness）—— 检查关键依赖是否就绪，决定是否接流量。
+
+    检查项：
+    * 数据目录可写（auth/vault/ending_note/deadman_switch 共用 ~/.deadman）
+    * FastAPI app 已初始化（路由非空）
+
+    任一失败返回 503，Kubernetes 将停止把流量路由到本实例。
+    """
+    checks: dict[str, str] = {}
+    ok = True
+
+    # 数据目录可写检查
+    try:
+        data_root = Path.home() / ".deadman"
+        data_root.mkdir(parents=True, exist_ok=True)
+        probe = data_root / ".readyz_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        checks["data_dir"] = "ok"
+    except Exception as exc:
+        checks["data_dir"] = f"fail: {exc}"
+        ok = False
+
+    # 路由已加载检查
+    try:
+        route_count = len(app.routes)
+        checks["routes"] = "ok" if route_count > 0 else "fail: no routes"
+        if route_count == 0:
+            ok = False
+    except Exception as exc:
+        checks["routes"] = f"fail: {exc}"
+        ok = False
+
+    status_code = 200 if ok else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if ok else "not_ready",
+            "checks": checks,
+            "version": "5.1.0",
+        },
+    )
 
 
 # =====================================================================
