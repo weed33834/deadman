@@ -1738,6 +1738,46 @@ async def invoke_subagent(
                 llm_client.chat(messages, temperature=0.3),
                 timeout=timeout,
             )
+
+            # ---------- 规则校验（对齐编排图 rule_check_node 的 L0/L1 处理）----------
+            # invoke_subagent 直接调 LLM 生成响应，原本绕过 rule_check_node /
+            # integrity_check_node / output_guard_node。此处补做 L0 安全 / L1 诚信
+            # 校验，避免子智能体响应未过安全闸门就直接外泄。
+            rule_check_passed: bool | None = True
+            rule_violations: list[dict[str, Any]] = []
+            try:
+                rc_result = rule_checker.check(
+                    output_text=response,
+                    context={
+                        "current_agent": subagent_name,
+                        "user_input": str(context.get("user_input", "")),
+                    },
+                )
+                rule_violations = list(rc_result.violations)
+                # L0 安全风险 → 拦截响应，返回安全提示（与 rule_check_node 一致）
+                if rc_result.safety_triggered:
+                    rule_check_passed = False
+                    response = (
+                        "我注意到对话中可能涉及安全问题。您的生命安全是最重要的。\n\n"
+                        "如果您正在经历心理危机，请立即联系：\n"
+                        "- 全国心理援助热线：400-161-9995（24小时）\n"
+                        "- 北京心理危机研究与干预中心：010-82951332\n"
+                        "- 或拨打 120 / 前往最近医院急诊\n\n"
+                        "您不是一个人，请先确保安全，身后事的事务可以稍后再处理。"
+                    )
+                # L1 诚信问题 → 追加 disclaimer（不拦截，但标注）
+                elif rc_result.integrity_violations:
+                    rule_check_passed = False
+                    response = (
+                        response
+                        + "\n\n【诚信提示】以上回复中可能包含未经核实的数据/时限，"
+                        "请以官方渠道核实后再行决策。"
+                    )
+            except Exception as exc:  # 规则校验异常不应阻断子智能体响应
+                logger.warning("invoke_subagent 规则校验异常: %s", exc)
+                rule_check_passed = None  # None 表示未完成校验
+                rule_violations = []
+
             return {
                 "subagent_name": subagent_name,
                 "execution_mode": ExecutionMode.SUCCESS.value,
@@ -1748,6 +1788,8 @@ async def invoke_subagent(
                 },
                 "confidence": 0.7,
                 "sources": [str(agent_file.relative_to(settings.project_root))] if agent_def_exists else [],
+                "rule_check_passed": rule_check_passed,
+                "rule_violations": rule_violations,
             }
         except asyncio.TimeoutError:
             return _subagent_fallback(subagent_name, task, context, reason=f"LLM 调用超时（{timeout}s）")
@@ -2069,7 +2111,16 @@ async def check_rules(
 ) -> dict[str, Any]:
     """规则校验 - 调用 rule_checker"""
     context = context or {}
-    result = rule_checker.check(output_text=output_text, context=context)
+    # 将 agent_name 传入 RuleChecker 上下文（以 current_agent 字段对齐编排图约定）。
+    # 复制一份避免污染调用方传入的 dict。
+    check_context = dict(context)
+    check_context.setdefault("current_agent", agent_name)
+    result = rule_checker.check(output_text=output_text, context=check_context)
+
+    # agent_name 当前未被 RuleChecker.check() 直接消费（其签名只接受 context），
+    # 因此在此补充 agent_specific_notes，按智能体类型给出边界提示。
+    agent_specific_notes = _agent_specific_notes(agent_name)
+
     return {
         "passed": result.passed,
         "violations": result.violations,
@@ -2078,7 +2129,44 @@ async def check_rules(
         "safety_triggered": result.safety_triggered,
         "integrity_violations": result.integrity_violations,
         "agent_name": agent_name,
+        "agent_specific_notes": agent_specific_notes,
     }
+
+
+def _agent_specific_notes(agent_name: str) -> list[str]:
+    """根据智能体名返回特定的边界提示。
+
+    智能体名兼容下划线（legal_advisor）与短横线（legal-advisor）两种写法。
+    RuleChecker.check() 当前不直接使用 agent_name，故由此函数补充提示。
+    """
+    normalized = (agent_name or "").replace("-", "_").lower()
+    notes_map: dict[str, list[str]] = {
+        "legal_advisor": [
+            "法律边界：仅提供通用法律信息，不替代执业律师意见；"
+            "涉及诉讼/遗产纠纷请引导咨询专业律师。"
+        ],
+        "financial_analyst": [
+            "财务边界：不提供具体投资/税务决策建议；"
+            "大额财产/跨境资产请引导咨询持牌财务/税务顾问。"
+        ],
+        "medical_guide": [
+            "医疗边界：不替代专业医疗诊断与处置；"
+            "紧急情况请引导立即就医或拨打 120。"
+        ],
+        "cross_border_specialist": [
+            "跨境边界：涉外事务（领事馆/外籍/海外资产）需以官方最新规定为准，"
+            "提示用户核实办理时效。"
+        ],
+        "policy_researcher": [
+            "政策时效：地方政策更新频繁，输出需注明查询日期，"
+            "并提示以官方发布为准。"
+        ],
+        "death_aftercare": [
+            "服务边界：身后事流程引导不替代专业法律/医疗/财务建议；"
+            "重要决策请引导咨询专业人士。"
+        ],
+    }
+    return notes_map.get(normalized, [])
 
 
 # =====================================================================
@@ -2737,6 +2825,14 @@ async def init_transfer(
 
     P3.2 dry-run：DEADMAN_DRY_RUN_ENABLED=1 且 dry_run=True 时只模拟转介，不实际触发。
 
+    返回中额外携带 ``pending_transfer`` 与 ``state_update`` 字段，用于与编排图
+    （orchestration graph）的 ``pending_transfer`` 状态打通。MCP 工具本身无状态、
+    不能直接修改编排图 state，因此调用方（外部 agent / 编排层）应在下一次
+    ``graph.ainvoke`` 时将 ``state_update`` 合并到 state 中：
+    ``state["pending_transfer"] = state_update["pending_transfer"]``，
+    ``state["transfer_confirmed"] = state_update["transfer_confirmed"]``，
+    这样 ``user_confirm_node`` 才能识别到待确认的转介并生成转介话术。
+
     Args:
         from_agent: 当前智能体名
         to_agent: 目标智能体名
@@ -2759,6 +2855,25 @@ async def init_transfer(
     # 统计已填字段数（非空字符串视为已填）
     fields_complete = sum(1 for v in transfer_summary.values() if v)
 
+    # ---------- 与编排图 pending_transfer 打通 ----------
+    # 构造与 TransferSummary 字段对齐的 dict，调用方可据此构造
+    # TransferSummary(**pending_transfer) 写入 state["pending_transfer"]。
+    pending_transfer: dict[str, Any] = {
+        "from_agent": from_agent,
+        "to_agent": to_agent,
+        "reason": reason,
+        "summary": context_summary,
+        "current_question": current_question,
+        "user_situation": context_summary,
+        "completed_items": [],
+        "pending_items": [],
+    }
+    # 明确告诉调用方如何更新编排图 state（MCP 工具无状态，仅提供更新指引）
+    state_update: dict[str, Any] = {
+        "pending_transfer": pending_transfer,
+        "transfer_confirmed": False,
+    }
+
     # ---------- P3.2 dry-run 模拟（不实际触发）----------
     if DRY_RUN_ENABLED and dry_run:
         return {
@@ -2770,6 +2885,8 @@ async def init_transfer(
             "transfer_id": str(uuid.uuid4()),
             "status": "dry_run_preview",
             "would_trigger_transfer": True,
+            "pending_transfer": pending_transfer,
+            "state_update": state_update,
             "timestamp": _utcnow_iso(),
         }
 
@@ -2779,6 +2896,8 @@ async def init_transfer(
         "user_confirmation_required": True,
         "transfer_id": str(uuid.uuid4()),
         "status": "pending_confirmation",
+        "pending_transfer": pending_transfer,
+        "state_update": state_update,
         "timestamp": _utcnow_iso(),
     }
 

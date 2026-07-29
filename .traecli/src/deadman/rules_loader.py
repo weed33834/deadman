@@ -105,6 +105,24 @@ class RuleChecker:
     R2_SIGNALS = ["继承争议", "多继承人", "无遗嘱", "跨境", "跨国", "诉讼"]
     R3_SIGNALS = [*CRISIS_KEYWORDS, "自残", "轻生"]
 
+    # L2 input-guardrails - Prompt Injection 攻击模式（不区分大小写）
+    PROMPT_INJECTION_PATTERNS = [
+        "ignore previous instructions",
+        "disregard the above",
+        "you are now",
+        "new instructions:",
+        "system prompt:",
+        "forget your rules",
+    ]
+
+    # L3 compliance - 合规违规模式（响应中越权代办/代查/法律意见/诊断等）
+    COMPLIANCE_VIOLATION_PATTERNS = [
+        "我替你办理",
+        "我帮你查询你的银行账户",
+        "我的法律意见是",
+        "诊断为",
+    ]
+
     def check(self, output_text: str, context: dict | None = None) -> RuleCheckResult:
         """执行 L0-L8 规则校验
 
@@ -141,6 +159,31 @@ class RuleChecker:
                     "violation": f"匹配到编造模式: {pattern}",
                     "matches": matches,
                 })
+
+        # L2 input-guardrails - Prompt Injection 攻击检测
+        # 同时扫描用户输入与 AI 输出（注入可能来自任一侧），不区分大小写
+        all_text_lower = all_text.lower()
+        for pattern in self.PROMPT_INJECTION_PATTERNS:
+            if pattern in all_text_lower:
+                violations.append({
+                    "rule": "L2",
+                    "violation": "prompt_injection_detected",
+                    "severity": "high",
+                    "matched_pattern": pattern,
+                })
+                break
+
+        # L3 compliance - 合规违规检测（响应中越权代办/代查/法律意见/诊断等）
+        # 仅扫描 AI 输出文本
+        for pattern in self.COMPLIANCE_VIOLATION_PATTERNS:
+            if pattern in output_text:
+                violations.append({
+                    "rule": "L3",
+                    "violation": "compliance_violation",
+                    "severity": "high",
+                    "matched_pattern": pattern,
+                })
+                break
 
         # L4 risk-tier - 风险信号检测
         if not safety_triggered:

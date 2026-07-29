@@ -53,6 +53,8 @@ dependencies = [
     "croniter>=2.0",
     # AES-CBC 加密（WeChat 消息加密 / ending_note 生产级加密）
     "cryptography>=41.0",
+    # 异步邮件发送（Dead Man Switch 状态变更通知律师/继承人）
+    "aiosmtplib>=3.0",
 ]
 
 [project.optional-dependencies]

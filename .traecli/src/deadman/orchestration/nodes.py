@@ -435,6 +435,21 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
             "trace_spans": state.get("trace_spans", []),
         }
 
+    # 若调用方（A2A/Web server 基于 skill_id 或前端选择）已预设 current_agent，
+    # 且为有效智能体名，则跳过 LLM 意图分类，直接沿用预设值，
+    # 避免路由器无条件覆盖外部已确定的路由意图。
+    preset_agent = (state.get("current_agent") or "").strip()
+    if preset_agent and preset_agent in AGENT_NAMES:
+        _append_trace_span(state, "rule", "node.router", {
+            "selected_agent": preset_agent,
+            "reason": "external_preset",
+        })
+        return {
+            "current_agent": preset_agent,
+            "router_source": "external_preset",
+            "trace_spans": state.get("trace_spans", []),
+        }
+
     # 默认智能体
     selected_agent = DEFAULT_AGENT
     reason = "default_fallback"
@@ -485,6 +500,7 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
 
     return {
         "current_agent": selected_agent,
+        "router_source": "llm_classified",
         "trace_spans": state.get("trace_spans", []),
     }
 
@@ -634,6 +650,99 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
     }
 
 
+async def _reflexion_retry_llm_call(
+    state: ConversationState,
+    system_prompt: str,
+    user_input: str,
+    respond_llm: Any,
+    current_agent: str,
+    failure_reason: str,
+) -> tuple[str | None, int]:
+    """LLM 调用失败后，用 Reflexion 反思-调整-重试恢复
+
+    借鉴 MCP execute_reflexion 工具：调用 ReflexionEngine._reflect + _adjust_input
+    生成 adjusted_input，再用调整后的 user_input 重新调用 LLM。
+    Reflexion 模块不可用或全部重试失败时返回 (None, attempts) 供调用方降级。
+
+    Args:
+        state: 会话状态（用于累加 token usage）
+        system_prompt: 智能体 system prompt
+        user_input: 原始用户输入
+        respond_llm: 响应用 LLM 客户端
+        current_agent: 当前智能体名
+        failure_reason: 首次失败原因
+
+    Returns:
+        (recovered_response, attempts)：成功返回 (响应文本, 重试次数)；
+        全部失败或模块不可用返回 (None, attempts)。
+    """
+    # 导入保护：reflexion 模块不可用时降级跳过
+    try:
+        from ..reflexion.engine import ReflexionEngine
+    except Exception as e:
+        logger.warning("Reflexion 模块不可用，跳过反思重试: %s", e)
+        return None, 0
+
+    try:
+        engine = ReflexionEngine(agent_name=current_agent)
+        max_retries = settings.reflexion_max_retries
+        # 构造首条 failure_info（与 ReflexionEngine 内部结构一致）
+        failure_info: dict[str, Any] = {
+            "attempt": 1,
+            "failure_type": "api_error",
+            "failure_message": failure_reason,
+            "input_summary": str(user_input)[:200],
+            "output_summary": None,
+        }
+        engine.failures = [failure_info]
+        current_input: dict[str, Any] = {"prompt": user_input}
+
+        for attempt in range(1, max_retries + 1):
+            # 1. 反思失败原因并调整输入（_adjust_input 会注入历史反思上下文）
+            reflection = await engine._reflect(failure_info, "tool")
+            engine.reflections.append(reflection)
+            adjusted_input = await engine._adjust_input(
+                dict(current_input), reflection
+            )
+            # adjusted_input 的 prompt 字段为调整后的 user_input
+            retry_user_input = adjusted_input.get("prompt", user_input)
+
+            # 2. 用调整后的输入重试 LLM 调用
+            try:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": retry_user_input},
+                ]
+                response = await respond_llm.chat(messages, temperature=0.3)
+                _accumulate_token_usage(state, respond_llm.last_usage)
+                if response and response.strip():
+                    return response, attempt
+                next_failure_message = "LLM 返回空响应"
+            except Exception as e:
+                logger.warning(
+                    "Reflexion 重试 %d/%d 失败 [%s]: %s",
+                    attempt, max_retries, current_agent, e,
+                )
+                next_failure_message = f"{type(e).__name__}: {e}"
+
+            # 3. 更新 failure_info 供下一轮反思
+            failure_info = {
+                "attempt": attempt + 1,
+                "failure_type": "api_error",
+                "failure_message": next_failure_message,
+                "input_summary": str(retry_user_input)[:200],
+                "output_summary": None,
+            }
+            engine.failures.append(failure_info)
+            current_input = adjusted_input
+
+        # 全部重试均失败
+        return None, max_retries
+    except Exception as e:
+        logger.warning("Reflexion 反思重试异常，降级到 fallback: %s", e)
+        return None, 0
+
+
 # =====================================================================
 # 节点 4: agent_node - 通用智能体执行节点
 # =====================================================================
@@ -741,6 +850,9 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     # 启用时：Thought→Action→Observation 迭代，可调 MCP 工具（web_search 等）
     # 关闭时：走旧的单次 LLM 调用路径（保证不破坏现有 918 测试）
     react_used = False
+    # Reflexion 反思重试记录（LLM 失败时尝试恢复，默认未使用）
+    reflexion_used = False
+    reflexion_attempts = 0
     if REACT_ENABLED and respond_llm and respond_llm.api_key:
         try:
             from .react_loop import run_react_loop
@@ -777,6 +889,9 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
             logger.warning("ReAct 循环异常，回退到单次 LLM 调用 [%s]: %s", current_agent, e)
 
     if not react_used:
+        llm_failed = False
+        fallback_message = ""
+        failure_reason = ""
         if respond_llm and respond_llm.api_key:
             try:
                 messages = [
@@ -792,10 +907,21 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                 draft_response = await respond_llm.chat(messages, temperature=0.3)
                 # P10：累加本轮 token usage，供 TokenUsageTermination 评估
                 _accumulate_token_usage(state, respond_llm.last_usage)
+                # 空响应视为失败，交由 Reflexion 反思重试恢复
+                if not draft_response or not draft_response.strip():
+                    llm_failed = True
+                    failure_reason = "LLM 返回空响应"
+                    fallback_message = (
+                        f"抱歉，我在处理您的请求时遇到了技术问题。"
+                        f"请稍后重试，或直接联系相关机构获取帮助。\n"
+                        f"（错误信息：EmptyResponse）"
+                    )
             except Exception as e:
                 logger.warning("智能体 LLM 调用失败 [%s]: %s", current_agent, e)
                 node_log.warning("agent.llm_call_failed", error=type(e).__name__)
-                draft_response = (
+                llm_failed = True
+                failure_reason = f"{type(e).__name__}: {e}"
+                fallback_message = (
                     f"抱歉，我在处理您的请求时遇到了技术问题。"
                     f"请稍后重试，或直接联系相关机构获取帮助。\n"
                     f"（错误信息：{type(e).__name__}）"
@@ -810,6 +936,35 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                 "在 LLM 可用后将获得完整回复。"
             )
 
+        # === Reflexion 反思重试（LLM 失败时尝试恢复）===
+        # 调用 ReflexionEngine._reflect + _adjust_input 生成 adjusted_input，
+        # 用调整后的 user_input 重新调用 LLM。
+        # 模块不可用或重试全失败时降级到原有 fallback 文案。
+        if llm_failed and respond_llm and respond_llm.api_key:
+            retry_response, reflexion_attempts = await _reflexion_retry_llm_call(
+                state=state,
+                system_prompt=system_prompt,
+                user_input=user_input,
+                respond_llm=respond_llm,
+                current_agent=current_agent,
+                failure_reason=failure_reason,
+            )
+            if retry_response is not None:
+                draft_response = retry_response
+                reflexion_used = True
+                llm_failed = False
+                node_log.info(
+                    "agent_node.reflexion_recovered",
+                    reflexion_attempts=reflexion_attempts,
+                )
+            else:
+                # 重试未恢复 → 走原有 fallback 文案
+                draft_response = fallback_message
+                node_log.warning(
+                    "agent_node.reflexion_exhausted",
+                    reflexion_attempts=reflexion_attempts,
+                )
+
     # 若前序节点设置了提示前缀（如 PII 警告），前置到生成的响应前
     if existing_prefix:
         draft_response = existing_prefix + draft_response
@@ -819,6 +974,10 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
         "draft_response": draft_response,
         "agent_history": agent_history,
     }
+    # Reflexion 重试记录（便于调试与可观测）
+    if reflexion_used or reflexion_attempts > 0:
+        updates["reflexion_used"] = reflexion_used
+        updates["reflexion_attempts"] = reflexion_attempts
 
     transfer_target = _detect_transfer_signals(draft_response, current_agent)
     if transfer_target:

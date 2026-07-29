@@ -155,6 +155,19 @@ class SwitchStore:
             return None
         return self._decrypt_record(envelope, user_id)
 
+    def list_all_users(self) -> list[str]:
+        """列出所有已初始化 switch 的 user_id（扫描 data_dir 子目录）
+
+        供 SwitchAutoTicker 后台调度器遍历所有用户调用 tick()。
+        """
+        try:
+            return sorted(
+                d.name for d in self.data_dir.iterdir()
+                if d.is_dir() and (d / "switch.json").exists()
+            )
+        except OSError:
+            return []
+
     def delete(self, user_id: str) -> bool:
         """删除 switch 记录及 checkins 日志"""
         deleted = False

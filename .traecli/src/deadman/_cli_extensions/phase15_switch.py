@@ -199,6 +199,30 @@ def cmd_switch_execute(args: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def cmd_switch_engage_lawyer(args: argparse.Namespace) -> None:
+    """switch-engage-lawyer：标记律师介入
+
+    调用 SwitchStore.engage_lawyer(user_id)。
+    必须在 VERIFYING / CONFIRMED 状态、且 config.lawyer_user_id 已设置。
+    """
+    store = _make_store(args)
+    record, msg = store.engage_lawyer(args.user_id)
+    if record is None:
+        print(f"[错误] {msg}")
+        sys.exit(1)
+    if msg != "lawyer_engaged":
+        # 业务规则失败（状态不符 / 无律师配置）→ exit 1 让调用方感知
+        print(f"[拒绝] {msg}")
+        print(f"  state:  {record.state.value}")
+        sys.exit(1)
+    print(f"已标记律师介入：user_id={record.user_id}")
+    print(f"  message:           {msg}")
+    print(f"  state:             {record.state.value}")
+    print(f"  lawyer_user_id:    {record.config.lawyer_user_id}")
+    print(f"  lawyer_engaged:    {record.lawyer_engaged}")
+    print(f"  lawyer_engaged_at: {record.lawyer_engaged_at}")
+
+
 # =====================================================================
 # 辅助
 # =====================================================================
@@ -216,12 +240,12 @@ def _make_store(args: argparse.Namespace):
 # subparser 注册
 # =====================================================================
 def register_subparsers(subparsers: Any) -> None:
-    """注册 Phase 15 共 9 个子命令
+    """注册 Phase 15 共 10 个子命令
 
     子命令清单：
         switch-init / switch-checkin / switch-status / switch-tick /
         switch-verify-contact / switch-verify-heir / switch-cancel /
-        switch-list-actions / switch-execute
+        switch-list-actions / switch-execute / switch-engage-lawyer
     """
     # switch-init
     init_p = subparsers.add_parser(
@@ -323,6 +347,15 @@ def register_subparsers(subparsers: Any) -> None:
     exec_p.add_argument("--user-id", default="default-user", help="用户 ID")
     exec_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     exec_p.set_defaults(func=cmd_switch_execute)
+
+    # switch-engage-lawyer（标记律师介入）
+    lawyer_p = subparsers.add_parser(
+        "switch-engage-lawyer",
+        help="标记律师介入（VERIFYING/CONFIRMED 状态、需 config.lawyer_user_id）",
+    )
+    lawyer_p.add_argument("--user-id", default="default-user", help="用户 ID")
+    lawyer_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
+    lawyer_p.set_defaults(func=cmd_switch_engage_lawyer)
 
 
 def _str2bool(v: str) -> bool:

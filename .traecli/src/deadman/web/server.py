@@ -40,6 +40,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -576,6 +577,8 @@ class WebServer:
                     self._handle_switch_cancel()
                 elif path == "/api/switch/execute":
                     self._handle_switch_execute()
+                elif path == "/api/switch/engage-lawyer":
+                    self._handle_switch_engage_lawyer()
                 # === Phase 15: 通知信函生成器 POST 路由（只追加）===
                 elif path == "/api/letters/generate":
                     self._handle_letters_generate()
@@ -1919,6 +1922,36 @@ class WebServer:
                     return
                 self._send_json(200, result)
 
+            def _handle_switch_engage_lawyer(self) -> None:
+                """POST /api/switch/engage-lawyer - 律师介入标记
+
+                调用 SwitchStore.engage_lawyer(user_id)。
+                必须在 VERIFYING / CONFIRMED 状态、且 config.lawyer_user_id 已设置。
+                """
+                user = self._phase_auth_user()
+                if user is None:
+                    self._phase_unauthorized()
+                    return
+                from deadman.deadman_switch.store import SwitchStore
+                store = SwitchStore()
+                record, msg = store.engage_lawyer(user["user_id"])
+                if record is None:
+                    self._send_json(404, {"error": msg})
+                    return
+                # 业务规则失败（状态不符 / 无律师配置）→ 409 冲突
+                if msg != "lawyer_engaged":
+                    self._send_json(409, {
+                        "success": False,
+                        "message": msg,
+                        "record": record.to_dict(),
+                    })
+                    return
+                self._send_json(200, {
+                    "success": True,
+                    "message": msg,
+                    "record": record.to_dict(),
+                })
+
             # ==============================================================
             # Phase 15: 通知信函生成器 Handler 方法（只追加）
             # ==============================================================
@@ -3135,10 +3168,16 @@ class WebServer:
         httpd = ThreadingHTTPServer((host, port), Handler)
         logger.info("AG-UI Web Server listening on http://%s:%d", host, port)
         print(f"AG-UI Web Server listening on http://{host}:{port}")
+        # 启动 Dead Man Switch 自动 tick 后台调度器（独立线程 + asyncio 循环）
+        # 默认开启，可通过 DEADMAN_SWITCH_AUTO_TICK_ENABLED=0 关闭
+        auto_tick_thread = _maybe_start_switch_auto_ticker()
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             httpd.shutdown()
+        finally:
+            # 服务器退出时停止后台调度器，避免线程泄漏
+            _stop_switch_auto_ticker(auto_tick_thread)
 
     async def _handle_chat(
         self,
@@ -3900,6 +3939,79 @@ class WebServer:
             elif name == "doc_type":
                 result["doc_type"] = body_bytes.decode("utf-8", errors="ignore")
         return result
+
+
+# =====================================================================
+# Dead Man Switch 自动 tick 后台调度器（独立线程 + asyncio 循环）
+# =====================================================================
+def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
+    """根据环境变量决定是否启动 SwitchAutoTicker 后台线程
+
+    环境变量：
+        DEADMAN_SWITCH_AUTO_TICK_ENABLED  默认 "1"（开启）；"0"/"false" 关闭
+        DEADMAN_SWITCH_AUTO_TICK_INTERVAL 默认 "300"（秒）
+
+    Web Server 用 stdlib http.server（同步线程模型），SwitchAutoTicker 是
+    asyncio 协程，所以这里开一个 daemon 线程，在线程内创建独立事件循环
+    运行 run_forever。线程对象返回，便于主线程在退出时取消调度器。
+    """
+    enabled = os.getenv("DEADMAN_SWITCH_AUTO_TICK_ENABLED", "1").strip().lower()
+    if enabled in ("0", "false", "no", "off"):
+        logger.info("SwitchAutoTicker 已通过环境变量禁用")
+        return None
+    try:
+        interval = int(os.getenv("DEADMAN_SWITCH_AUTO_TICK_INTERVAL", "300"))
+    except ValueError:
+        interval = 300
+    if interval <= 0:
+        logger.warning(
+            "DEADMAN_SWITCH_AUTO_TICK_INTERVAL=%s 非法，回退到默认 300s",
+            os.getenv("DEADMAN_SWITCH_AUTO_TICK_INTERVAL"),
+        )
+        interval = 300
+
+    def _run_loop() -> None:
+        import asyncio as _asyncio
+
+        from ..deadman_switch.auto_tick import SwitchAutoTicker
+        from ..deadman_switch.store import SwitchStore
+
+        try:
+            store = SwitchStore()
+            ticker = SwitchAutoTicker(store)
+            loop = _asyncio.new_event_loop()
+            _asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(
+                    ticker.run_forever(interval_seconds=interval)
+                )
+            finally:
+                loop.close()
+        except Exception as exc:
+            # 后台调度器异常不应影响 Web Server 主流程
+            logger.exception("SwitchAutoTicker 后台线程异常退出: %s", exc)
+
+    thread = threading.Thread(
+        target=_run_loop,
+        name="deadman-switch-auto-ticker",
+        daemon=True,
+    )
+    thread.start()
+    logger.info(
+        "SwitchAutoTicker 后台线程已启动 interval=%ss", interval
+    )
+    return thread
+
+
+def _stop_switch_auto_ticker(thread: threading.Thread | None) -> None:
+    """服务器退出时停止后台调度器
+
+    daemon 线程会在主进程退出时被强制回收，此处仅做日志记录。
+    """
+    if thread is None:
+        return
+    if thread.is_alive():
+        logger.info("SwitchAutoTicker 后台线程随主进程退出（daemon）")
 
 
 # 全局单例
