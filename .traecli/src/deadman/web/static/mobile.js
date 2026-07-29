@@ -951,13 +951,17 @@ async function viewCase(id) {
 
 async function loadSwitch() {
   const data = await api('/api/switch/status');
+  // API 返回 record.to_dict()，状态字段为 state（ACTIVE/SUSPECTED/.../CANCELLED）；
+  // 未初始化时返回 404（data 含 error/detail），此时显示"未激活"
+  const state = data?.state || (data?.error ? '' : '未激活');
+  const isActive = state && state !== 'CANCELLED';
   showFormPage('Dead Man Switch', `
     <div class="card text-center">
       <div class="card-title">当前状态</div>
-      <div style="font-size:24px; font-weight:600; color:var(--accent); margin:12px 0">${data?.status || '未激活'}</div>
+      <div style="font-size:24px; font-weight:600; color:var(--accent); margin:12px 0">${state || '未激活'}</div>
       ${data?.last_checkin ? `<div class="text-muted text-sm">上次签到: ${data.last_checkin}</div>` : ''}
     </div>
-    ${data?.status === 'inactive' || !data?.status ? `
+    ${!isActive ? `
       <button class="btn btn-primary btn-block" data-action="init-switch">初始化 Dead Man Switch</button>
     ` : `
       <button class="btn btn-secondary btn-block" data-action="checkin-switch">签到</button>
@@ -981,22 +985,26 @@ async function initSwitch() {
   `, async () => {
     const interval = document.getElementById('switchInterval').value;
     const heir = document.getElementById('switchHeir').value.trim();
+    // 字段名与 SwitchInitRequest schema 对齐：frequency（非 checkin_interval_days）
+    const payload = { frequency: parseInt(interval) || 7, missed: 3, window: 7, cooldown: 7 };
+    if (heir) { payload.email = heir; }
     const data = await api('/api/switch/init', {
       method: 'POST',
-      body: JSON.stringify({ checkin_interval_days: parseInt(interval), heir_email: heir }),
+      body: JSON.stringify(payload),
     });
     if (data && !data.error) {
       showToast('已初始化');
       closeFormPage();
       loadSwitch();
     } else {
-      showToast(data?.error || '初始化失败');
+      showToast(data?.error || data?.message || '初始化失败');
     }
   });
 }
 
 async function checkinSwitch() {
-  const data = await api('/checkin', { method: 'POST' });
+  // 路径修正：/checkin → /api/switch/checkin（与 FastAPI 路由一致）
+  const data = await api('/api/switch/checkin', { method: 'POST', body: JSON.stringify({}) });
   if (data && !data.error) {
     showToast('签到成功');
     closeFormPage();
