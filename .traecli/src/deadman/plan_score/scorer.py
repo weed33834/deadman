@@ -146,8 +146,8 @@ class PlanScorer:
         total = 0.0
         for cat, weight in WEIGHTS.items():
             total += score_map.get(cat, 0) * weight
-        # 四舍五入 + clamp
-        result = int(round(total))
+        # 四舍五入 + clamp（round 返回 int，无需 int() 包装）
+        result = round(total)
         if result < 0:
             return 0
         if result > 100:

@@ -317,7 +317,7 @@ class TestReviewer:
     def test_security_scan_detects_path_traversal(self, reviewer):
         listing = _make_listing()
         listing.agent_card["description"] = "reads ../../etc/passwd"
-        issues, score = reviewer.security_scan(listing)
+        issues, _score = reviewer.security_scan(listing)
         assert any("Path traversal" in i.message for i in issues)
 
     def test_security_scan_detects_shadow_tool(self, reviewer):
@@ -343,12 +343,12 @@ class TestReviewer:
     def test_schema_validation_empty_skills(self, reviewer):
         listing = _make_listing()
         listing.agent_card["skills"] = []
-        issues, score = reviewer.schema_validation(listing)
+        issues, _score = reviewer.schema_validation(listing)
         assert any("skills" in i.message for i in issues)
 
     def test_pii_leak_clean_text(self, reviewer):
         listing = _make_listing(description="A perfectly safe description with no PII.")
-        issues, score = reviewer.pii_leak_check(listing)
+        issues, _score = reviewer.pii_leak_check(listing)
         # 不应有 PII issue
         assert not any(i.check == "pii_leak_check" for i in issues)
 
@@ -366,14 +366,14 @@ class TestReviewer:
         listing = _make_listing(
             description="Contact me at user@example.com for details."
         )
-        issues, score = reviewer.pii_leak_check(listing)
+        issues, _score = reviewer.pii_leak_check(listing)
         # email 是 warning(非 critical)
         pii_issues = [i for i in issues if i.check == "pii_leak_check"]
         assert len(pii_issues) >= 1
 
     def test_safety_check_clean_card(self, reviewer):
         listing = _make_listing()
-        issues, score = reviewer.safety_check(listing)
+        issues, _score = reviewer.safety_check(listing)
         assert not any(i.severity == "critical" for i in issues)
 
     def test_safety_check_detects_exec(self, reviewer):
@@ -386,7 +386,7 @@ class TestReviewer:
 
     def test_quality_score_full_score(self, reviewer):
         listing = _make_listing()
-        issues, score = reviewer.quality_score(listing)
+        _issues, score = reviewer.quality_score(listing)
         # 齐全(description/skills/tags/examples/tests) → 满分 20
         assert score == 20
 

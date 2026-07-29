@@ -212,7 +212,7 @@ class TestSupportTicketsAuth:
 
     def test_get_tickets_with_invalid_token_returns_401(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "GET", "/api/support/tickets", token="invalid.token")
+        status, _body, _ = _request(port, "GET", "/api/support/tickets", token="invalid.token")
         assert status == 401
 
 
@@ -226,7 +226,7 @@ class TestSupportTicketCreate:
 
     def test_create_ticket_without_token_returns_401(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "POST", "/api/support/tickets", body={
+        status, _body, _ = _request(port, "POST", "/api/support/tickets", body={
             "category": "咨询",
             "priority": "普通",
             "subject": "测试工单",
@@ -271,7 +271,7 @@ class TestSupportTicketCreate:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/support/tickets", body={
+        status, _body, _ = _request(port, "POST", "/api/support/tickets", body={
             "category": "咨询",
             "priority": "普通",
             "subject": "",
@@ -328,7 +328,7 @@ class TestSupportTicketGet:
 
     def test_get_ticket_without_token_returns_401(self, http_server, tmp_path):
         port = http_server
-        status, body, _ = _request(port, "GET", "/api/support/tickets/tkt-nonexistent")
+        status, _body, _ = _request(port, "GET", "/api/support/tickets/tkt-nonexistent")
         assert status == 401
 
 
@@ -371,7 +371,7 @@ class TestSupportTicketReply:
             "description": "y",
         }, token=token1)
         ticket_id = create_body["ticket"]["ticket_id"]
-        status, body, _ = _request(port, "POST", f"/api/support/tickets/{ticket_id}/replies", body={
+        status, _body, _ = _request(port, "POST", f"/api/support/tickets/{ticket_id}/replies", body={
             "content": "恶意回复",
         }, token=token2)
         assert status == 404
@@ -385,7 +385,7 @@ class TestSupportTicketReply:
 class TestOnboardingGet:
     def test_get_onboarding_without_token_returns_401(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "GET", "/api/onboarding")
+        status, _body, _ = _request(port, "GET", "/api/onboarding")
         assert status == 401
 
     def test_get_onboarding_empty_returns_null(self, http_server, tmp_path):
@@ -453,7 +453,7 @@ class TestOnboardingSave:
 
     def test_save_onboarding_without_token_returns_401(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "POST", "/api/onboarding", body={
+        status, _body, _ = _request(port, "POST", "/api/onboarding", body={
             "relationship": "亲属",
             "location": "北京",
             "death_date": "",
@@ -503,12 +503,12 @@ class TestOnboardingStep:
 
     def test_get_step_out_of_range_returns_400(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "GET", "/api/onboarding/step/99")
+        status, _body, _ = _request(port, "GET", "/api/onboarding/step/99")
         assert status == 400
 
     def test_get_step_non_integer_returns_400(self, http_server):
         port = http_server
-        status, body, _ = _request(port, "GET", "/api/onboarding/step/abc")
+        status, _body, _ = _request(port, "GET", "/api/onboarding/step/abc")
         assert status == 400
 
 

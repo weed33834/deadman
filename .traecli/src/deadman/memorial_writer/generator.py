@@ -169,7 +169,7 @@ class MemorialGenerator:
         ]
 
         # 字数约束 → max_tokens 粗略估算（中文 1 字≈1.5 token，英文 1 字≈1 token）
-        word_lo, word_hi = self._resolve_word_range(request)
+        _word_lo, word_hi = self._resolve_word_range(request)
         max_tokens = max(256, int(word_hi * 2.0))
 
         resp = await llm_client.chat(

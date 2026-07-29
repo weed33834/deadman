@@ -365,8 +365,8 @@ class FilesystemGuard:
     def __init__(
         self,
         allowed_paths: set[str],
-        readonly_paths: set[str] = None,
-        blocked_paths: set[str] = None,
+        readonly_paths: set[str] | None = None,
+        blocked_paths: set[str] | None = None,
     ) -> None:
         self.allowed = {os.path.realpath(p) for p in allowed_paths}
         self.readonly = {os.path.realpath(p) for p in (readonly_paths or set())}

@@ -522,7 +522,7 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
             })
             updates: dict[str, Any] = {
                 "current_agent": transfer.to_agent,
-                "agent_history": state.get("agent_history", []) + [transfer.to_agent],
+                "agent_history": [*state.get("agent_history", []), transfer.to_agent],
                 "transfer_history": transfer_history,
                 "pending_transfer": None,
                 "trace_spans": state.get("trace_spans", []),
@@ -677,7 +677,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     # 记录智能体历史
     agent_history = state.get("agent_history", [])
     if not agent_history or agent_history[-1] != current_agent:
-        agent_history = agent_history + [current_agent]
+        agent_history = [*agent_history, current_agent]
 
     # 加载 agent.md
     agent_file = settings.agents_dir / _agent_name_to_file(current_agent)

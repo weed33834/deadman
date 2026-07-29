@@ -128,7 +128,7 @@ class TestSendProactiveSanitizesContent:
         gw = _make_gateway(tmp_path, connector=connector, guard=guard)
 
         # 含禁用词 "死亡"（不含更长词 "死亡证明"），应被替换为 "待办事项"
-        ok, reason = asyncio.run(gw.send_proactive("u1", "提醒：今天该处理死亡这件事了", "mock"))
+        ok, _reason = asyncio.run(gw.send_proactive("u1", "提醒：今天该处理死亡这件事了", "mock"))
 
         assert ok is True
         # connector.send 应被调用一次

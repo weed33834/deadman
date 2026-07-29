@@ -279,7 +279,7 @@ class TestGetInstitutions:
 
         h = _CapturedHandler()
         h._handle_institutions({"type": ["cemetery"]}, store)
-        status, payload = h.calls[0]
+        _status, payload = h.calls[0]
         assert payload["count"] == 1
         assert payload["institutions"][0]["type"] == "cemetery"
 

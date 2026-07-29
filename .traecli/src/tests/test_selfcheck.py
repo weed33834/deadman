@@ -149,7 +149,7 @@ class TestCheckConsistency:
         # 30天 在所有采样中都出现 → 一致性 1.0
         assert result["overall_consistency"] == 1.0
         # 标签为"高"
-        days_claim = [c for c in result["claims"] if c["type"] == "days"][0]
+        days_claim = next(c for c in result["claims"] if c["type"] == "days")
         assert days_claim["label"] == "高"
         assert days_claim["consistency"] == 1.0
 
@@ -161,7 +161,7 @@ class TestCheckConsistency:
         samples = ["办理需要 15天", "约 7天", "45天左右"]
         result = await checker.check_consistency(original, samples)
 
-        days_claim = [c for c in result["claims"] if c["type"] == "days"][0]
+        days_claim = next(c for c in result["claims"] if c["type"] == "days")
         assert days_claim["consistency"] == 0.0
         assert days_claim["label"] == "未知"
 
@@ -172,7 +172,7 @@ class TestCheckConsistency:
         # 3 次采样中 1 次匹配 → 一致性 1/3
         samples = ["办理需要 30天", "约 15天", "45天"]
         result = await checker.check_consistency(original, samples)
-        days_claim = [c for c in result["claims"] if c["type"] == "days"][0]
+        days_claim = next(c for c in result["claims"] if c["type"] == "days")
         assert days_claim["consistency"] == pytest.approx(1.0 / 3.0)
 
     async def test_empty_samples_returns_zero(self):

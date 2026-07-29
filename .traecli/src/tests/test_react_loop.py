@@ -218,13 +218,13 @@ class TestToolRegistry:
         assert tools == sorted(tools)
 
     async def test_dispatch_unknown_tool(self):
-        ok, result, err = await _dispatch_tool("nonexistent", {}, set())
+        ok, _result, err = await _dispatch_tool("nonexistent", {}, set())
         assert ok is False
         assert "not registered" in err
 
     async def test_dispatch_failed_tool_skipped(self):
         failed = {"broken_tool"}
-        ok, result, err = await _dispatch_tool("broken_tool", {}, failed)
+        ok, _result, err = await _dispatch_tool("broken_tool", {}, failed)
         assert ok is False
         assert "already failed" in err
 
@@ -240,7 +240,7 @@ class TestToolRegistry:
     async def test_dispatch_exception_marks_failed(self):
         register_react_tool("bad_tool", _mock_tool_fail)
         failed: set[str] = set()
-        ok, result, err = await _dispatch_tool("bad_tool", {}, failed)
+        ok, _result, err = await _dispatch_tool("bad_tool", {}, failed)
         assert ok is False
         assert "bad_tool" in failed
         assert "RuntimeError" in err
@@ -248,7 +248,7 @@ class TestToolRegistry:
     async def test_dispatch_action_input_as_string(self):
         register_react_tool("good_tool", _mock_tool_ok)
         # action_input 是 str → 兜底成 {"query": str}
-        ok, result, err = await _dispatch_tool(
+        ok, result, _err = await _dispatch_tool(
             "good_tool", "raw query", set()
         )
         assert ok is True

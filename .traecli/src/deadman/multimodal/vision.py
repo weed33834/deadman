@@ -95,7 +95,7 @@ class GPT4VisionProvider(VisionProvider):
         if self._available is not None:
             return self._available
         try:
-            import openai  # type: ignore  # noqa: F401
+            import openai  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -145,7 +145,7 @@ class ClaudeVisionProvider(VisionProvider):
         if self._available is not None:
             return self._available
         try:
-            import anthropic  # type: ignore  # noqa: F401
+            import anthropic  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("anthropic not available: %s", e)
@@ -197,7 +197,7 @@ class QwenVLProvider(VisionProvider):
         if self._available is not None:
             return self._available
         try:
-            import dashscope  # type: ignore  # noqa: F401
+            import dashscope  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("dashscope not available: %s", e)

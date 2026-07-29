@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -28,6 +29,9 @@ from deadman.memorial_writer.models import (
     MemorialRequest,
     MemorialResult,
 )
+
+if TYPE_CHECKING:
+    from deadman.web.server import WebServer
 
 # =====================================================================
 # 辅助：mock LLM
@@ -388,7 +392,7 @@ class TestCLIRegistration:
 # =====================================================================
 
 
-def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:  # noqa: F821 - 函数内延迟 import 避免循环依赖,注解不求值
+def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:
     """构造一个用 tmp_path 作为 auth_data_dir 的 WebServer"""
     from deadman.config import settings
     from deadman.web.server import WebServer

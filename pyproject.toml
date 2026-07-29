@@ -107,6 +107,14 @@ ignore = [
     "RUF001",  # ambiguous-unicode-character-string
     "RUF002",  # ambiguous-unicode-character-docstring
     "RUF003",  # ambiguous-unicode-character-comment
+    # RUF022 unsorted-dunder-all：项目 __all__ 惯例按子模块分组排列（带注释），
+    # 字母序排序会破坏分组可读性，整体忽略。
+    "RUF022",
+    # RUF012 mutable-class-default：项目类常量（FABRICATION_PATTERNS /
+    # CRISIS_KEYWORDS / VOTER_WEIGHTS / FORBIDDEN_WORDS 等）按 UPPER_SNAKE_CASE
+    # 命名约定表达"只读常量"意图，运行时不修改；统一改 ClassVar 需 16+ 处改动
+    # 且引入额外 import，收益微小，整体忽略。
+    "RUF012",
     # E501 line-too-long 由 line-length=100 控制，长字符串/URL 单独豁免
     "E501",
 ]
@@ -114,6 +122,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # 测试文件允许宽松一些
 ".traecli/src/tests/*" = ["E501"]
+# multimodal 模块：asr/tts/vision/ocr/image_gen 大量使用
+#   try: import openai / pywhispercpp / diffusers / azure.cognitiveservices.speech ...
+# 模式探测可选依赖是否安装，import 本身即为副作用，变量未在文件内引用是预期行为。
+".traecli/src/deadman/multimodal/*" = ["F401"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -169,7 +169,7 @@ class TesseractOCRProvider(OCRProvider):
             return self._available
         try:
             import pytesseract  # type: ignore
-            from PIL import Image  # type: ignore  # noqa: F401
+            from PIL import Image  # type: ignore
 
             # 探测 tesseract 二进制
             pytesseract.get_tesseract_version()

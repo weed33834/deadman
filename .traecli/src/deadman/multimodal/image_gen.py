@@ -128,7 +128,7 @@ class DallEProvider(ImageGenProvider):
         if self._available is not None:
             return self._available
         try:
-            import openai  # type: ignore  # noqa: F401
+            import openai  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -170,7 +170,7 @@ class StableDiffusionProvider(ImageGenProvider):
         if self._available is not None:
             return self._available
         try:
-            import diffusers  # type: ignore  # noqa: F401
+            import diffusers  # type: ignore
             self._available = True
         except Exception as e:
             logger.debug("diffusers not available: %s", e)
@@ -211,7 +211,7 @@ class MidjourneyProvider(ImageGenProvider):
         if self._available is not None:
             return self._available
         try:
-            import midjourney  # type: ignore  # noqa: F401
+            import midjourney  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("midjourney not available: %s", e)

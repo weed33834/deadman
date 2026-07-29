@@ -137,7 +137,7 @@ class OpenAIWhisperProvider(ASRProvider):
         if self._available is not None:
             return self._available
         try:
-            import openai  # type: ignore  # noqa: F401
+            import openai  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai package not available: %s", e)
@@ -190,7 +190,7 @@ class WhisperCppProvider(ASRProvider):
         if self._available is not None:
             return self._available
         try:
-            import pywhispercpp  # type: ignore  # noqa: F401
+            import pywhispercpp  # type: ignore
             self._available = True
         except Exception as e:
             logger.debug("pywhispercpp not available: %s", e)

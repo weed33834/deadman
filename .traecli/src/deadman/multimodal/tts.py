@@ -131,7 +131,7 @@ class AzureTTSProvider(TTSProvider):
         if self._available is not None:
             return self._available
         try:
-            import azure.cognitiveservices.speech  # type: ignore  # noqa: F401
+            import azure.cognitiveservices.speech  # type: ignore
             self._available = bool(self.api_key and self.region)
         except Exception as e:
             logger.debug("azure-cognitiveservices-speech not available: %s", e)
@@ -175,7 +175,7 @@ class OpenAITTSProvider(TTSProvider):
         if self._available is not None:
             return self._available
         try:
-            import openai  # type: ignore  # noqa: F401
+            import openai  # type: ignore
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -220,7 +220,7 @@ class EdgeTTSProvider(TTSProvider):
         if self._available is not None:
             return self._available
         try:
-            import edge_tts  # type: ignore  # noqa: F401
+            import edge_tts  # type: ignore
             self._available = True
         except Exception as e:
             logger.debug("edge-tts not available: %s", e)

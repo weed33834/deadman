@@ -81,7 +81,7 @@ class TestRegexChecker:
             {"pattern": r"[invalid", "reason": "非法正则"},
             {"pattern": r"正常", "reason": "正常模式"},
         ]
-        passed, failures = await checker.check_regex_blacklist("正常文本", patterns)
+        _passed, failures = await checker.check_regex_blacklist("正常文本", patterns)
         # 非法正则被跳过，正常模式命中
         assert len(failures) == 1
         assert failures[0]["reason"] == "正常模式"
@@ -147,7 +147,7 @@ class TestKeywordChecker:
         groups = [
             {"keywords": ["A", "B"], "reason": "需1个", "min_hits": 1},
         ]
-        passed, failures = await checker.check_keyword_must_hit("包含 A 和 B", groups)
+        passed, _failures = await checker.check_keyword_must_hit("包含 A 和 B", groups)
         assert passed is True
 
 

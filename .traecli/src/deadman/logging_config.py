@@ -132,8 +132,8 @@ def setup_logging(level: str | None = None, fmt: str | None = None) -> None:
     # 1) structlog 原生配置：structlog.get_logger() 产出的日志也走 stdlib
     #    最后一个 processor wrap_for_formatter 把事件交给 stdlib handler
     structlog.configure(
-        processors=_SHARED_PROCESSORS
-        + [
+        processors=[
+            *_SHARED_PROCESSORS,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),

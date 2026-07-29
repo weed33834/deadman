@@ -1092,7 +1092,7 @@ class McpServer:
         callable_ref = params.get("callable_ref")
         if callable_ref and isinstance(callable_ref, str):
             try:
-                import deadman  # noqa: F401
+                import deadman  # noqa: F401  副作用 import：触发包加载以便 __import__ 找到子模块
 
                 # 支持 "module.path.func" 形式
                 parts = callable_ref.split(".")

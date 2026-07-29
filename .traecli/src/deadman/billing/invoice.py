@@ -405,7 +405,7 @@ th {{ background: #f5f5f5; text-align: left; }}
             invoice.payment_gateway = gateway
             invoice.payment_id = payment_id
             invoice.status = InvoiceStatus.OPEN
-            invoice.updated_at = time.time() if hasattr(invoice, "updated_at") else time.time()
+            invoice.updated_at = time.time()
             self._save()
 
         logger.info("Invoice %s sent to %s (payment_id=%s)", invoice_id, gateway, payment_id)

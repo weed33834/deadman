@@ -284,7 +284,7 @@ class TestMultiFactorVerification:
 
     def test_heir_confirms_missing(self, store: SwitchStore):
         record = _advance_to_verifying(store, "u-heir-conf")
-        result, msg = store.verify_heir(record.user_id, "heir-1", True)
+        result, _msg = store.verify_heir(record.user_id, "heir-1", True)
         assert result is not None
         assert result.heir_confirmations.get("heir-1") is True
         assert "heir-1" in result.heir_confirmed_at

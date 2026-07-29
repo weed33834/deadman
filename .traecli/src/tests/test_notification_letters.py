@@ -593,7 +593,7 @@ class TestWebEndpoints:
         """未认证访问 /api/letters/template 返回 401"""
         h = _CapturedHandler(auth_user=None)
         h._handle_letters_template({"type": ["household_cancellation"]})
-        status, payload = h.calls[0]
+        status, _payload = h.calls[0]
         assert status == 401
 
     def test_letters_template_200_with_auth(self):
@@ -621,7 +621,7 @@ class TestWebEndpoints:
         h._handle_letters_generate({
             "letter_type": "household_cancellation",
         })
-        status, payload = h.calls[0]
+        status, _payload = h.calls[0]
         assert status == 401
 
     def test_letters_generate_200_with_auth(self):

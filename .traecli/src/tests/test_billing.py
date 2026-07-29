@@ -540,7 +540,7 @@ class TestInvoice:
         return ig, sm, ms
 
     def test_generate_invoice(self, tmp_path):
-        ig, sm, ms = self._setup_with_sub(tmp_path, "pro")
+        ig, _sm, _ms = self._setup_with_sub(tmp_path, "pro")
         now = time.time()
         period_start = now - 30 * 86400
         period_end = now
@@ -553,7 +553,7 @@ class TestInvoice:
         assert len(invoice.line_items) >= 1
 
     def test_generate_free_plan_zero_total(self, tmp_path):
-        ig, sm, ms = self._setup_with_sub(tmp_path, "free")
+        ig, _sm, _ms = self._setup_with_sub(tmp_path, "free")
         now = time.time()
         invoice = ig.generate("user1", now - 30 * 86400, now)
         assert invoice is not None
@@ -561,7 +561,7 @@ class TestInvoice:
 
     def test_generate_with_overage(self, tmp_path):
         """超量计费。"""
-        ig, sm, ms = self._setup_with_sub(tmp_path, "pro")
+        ig, _sm, ms = self._setup_with_sub(tmp_path, "pro")
         # 模拟超量(超过 PRO plan 月度 token 限额 10_000_000)
         ms.record_llm_tokens("user1", 11_000_000, model="gpt-4o")
         now = time.time()

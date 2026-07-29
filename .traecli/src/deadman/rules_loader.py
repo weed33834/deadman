@@ -103,7 +103,7 @@ class RuleChecker:
 
     # L4 风险等级信号
     R2_SIGNALS = ["继承争议", "多继承人", "无遗嘱", "跨境", "跨国", "诉讼"]
-    R3_SIGNALS = CRISIS_KEYWORDS + ["自残", "轻生"]
+    R3_SIGNALS = [*CRISIS_KEYWORDS, "自残", "轻生"]
 
     def check(self, output_text: str, context: dict | None = None) -> RuleCheckResult:
         """执行 L0-L8 规则校验

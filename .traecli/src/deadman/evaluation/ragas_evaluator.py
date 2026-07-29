@@ -71,7 +71,9 @@ except Exception:  # pragma: no cover - 降级路径
 
 # 异步 evaluate 优先(0.4+ 支持),失败回退到同步
 try:  # pragma: no cover
-    from ragas import evaluate as _ragas_evaluate_async_module  # noqa: F401
+    from ragas import (
+        evaluate as _ragas_evaluate_async_module,  # noqa: F401  探测 ragas.evaluate 可用性
+    )
     try:
         from ragas import aevaluate as _ragas_aevaluate  # type: ignore
         _HAS_AEVALUATE = True
@@ -724,8 +726,11 @@ async def run_ragas_batch(
     degraded_count = 0
     evaluated_count = 0
 
+    # open() 包裹在三元中供 with 使用，ruff 静态识别不到，实际由 with 保证关闭
     out_fp_ctx = (
-        open(output_file, "w", encoding="utf-8") if output_file else nullcontext()
+        open(output_file, "w", encoding="utf-8")  # noqa: SIM115
+        if output_file
+        else nullcontext()
     )
 
     with out_fp_ctx as out_fp:

@@ -270,7 +270,7 @@ class DurableExecutionManager:
             self.cached_result: Any = None
             self.is_cached: bool = False
 
-        def __enter__(self) -> _ExecutionScope:  # noqa: F821 - 嵌套类自引用,from __future__.annotations 下注解不求值
+        def __enter__(self) -> _ExecutionScope:  # noqa: F821  嵌套 class 自引用
             if not is_enabled("durable_execution"):
                 # feature flag 关闭:不做任何事,直接执行
                 return self

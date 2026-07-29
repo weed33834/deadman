@@ -355,7 +355,7 @@ class TestMultimodalGuardrail:
             "text": "电话 13812345678",
             "metadata": {"user": "test", "note": "邮箱 test@example.com"},
         }
-        cleaned, decision = guard.post_process("asr", output)
+        cleaned, _decision = guard.post_process("asr", output)
         # 嵌套字段也应被脱敏
         assert "13812345678" not in cleaned["text"]
         assert "test@example.com" not in cleaned["metadata"]["note"]
@@ -369,7 +369,7 @@ class TestMultimodalGuardrail:
         guard = MultimodalGuardrail()
         # 简化:直接构造一个匹配 CSAM 模式的字符串
         output = "未成年裸露内容"
-        cleaned, decision = guard.post_process("vision", output)
+        _cleaned, decision = guard.post_process("vision", output)
         assert decision.action == GuardrailAction.BLOCK
         assert decision.content_safety_violation is True
         assert "csam" in decision.safety_categories
@@ -386,10 +386,10 @@ class _FakeVectorStore:
         self.collection_name = collection_name
         self._items: dict[str, dict] = {}
 
-    def add(self, id: str, text: str, metadata: dict = None) -> None:
+    def add(self, id: str, text: str, metadata: dict | None = None) -> None:
         self._items[id] = {"id": id, "text": text, "metadata": metadata or {}}
 
-    def query(self, text: str, top_k: int = 5, filter: dict = None) -> list[dict]:
+    def query(self, text: str, top_k: int = 5, filter: dict | None = None) -> list[dict]:
         results = list(self._items.values())
         if filter:
             results = [
@@ -1070,7 +1070,7 @@ class TestComplexityRouter:
             TaskComplexity,
         )
         classifier = ComplexityClassifier()
-        complexity, signals = classifier.classify("查电话")
+        complexity, _signals = classifier.classify("查电话")
         assert complexity == TaskComplexity.SIMPLE
 
     def test_lookup_signal_triggers_simple(self):
