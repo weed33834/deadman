@@ -224,7 +224,7 @@
 - [ ] 新增/修改内容遵守现有规则体系，不削弱既有优先级链
 - [ ] 未引入代办/代查/出法律医学诊断意见/编造不确定信息的能力
 - [ ] 新增内容附置信度标注与来源透传
-- [ ] `python -m pytest .traecli/src/tests/ -q` 全量通过（当前 918 passed + 1 skipped）
+- [ ] `pytest -q` 全量通过（当前 918 passed + 1 skipped）
 - [ ] `tests/golden-cases.md` 全部 20 case 通过
 - [ ] `tests/scenarios.md` 全部 8 场景通过
 - [ ] `agents/TEAM.md` 架构图与清单已更新（若涉及智能体变更）

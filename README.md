@@ -530,7 +530,7 @@ deadman --help
 ```bash
 # 全量回归（2586+ 测试）
 cd deadman
-python -m pytest .traecli/src/tests/ -q
+pytest -q
 
 # 联调场景（需手动按 scenarios.md 执行）
 # 见 .traecli/tests/scenarios.md
