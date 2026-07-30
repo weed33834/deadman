@@ -151,6 +151,18 @@ class Settings:
         os.getenv("DEADMAN_ONBOARDING_DATA_DIR", str(Path.home() / ".deadman" / "onboarding"))
     )
 
+    # === 主数据库（企业级扩展④：PostgreSQL + SQLAlchemy async）===
+    # 留空时所有现有文件存储原样工作（零侵入优雅降级）；
+    # 配置后 DB 层激活，支持 DB↔文件双写迁移过渡。
+    # 推荐格式：postgresql+asyncpg://user:pass@host:5432/deadman
+    database_url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
+    # 连接池大小（生产建议 10-20；单机开发 5 足够）
+    db_pool_size: int = int(os.getenv("DATABASE_POOL_SIZE", "5"))
+    # 连接池最大溢出
+    db_max_overflow: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "10"))
+    # 连接池回收秒数（避免长连接被数据库侧关闭）
+    db_pool_recycle: int = int(os.getenv("DATABASE_POOL_RECYCLE", "1800"))
+
     @property
     def rules_dir(self) -> Path:
         return self.project_root / "rules"

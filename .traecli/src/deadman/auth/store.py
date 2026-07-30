@@ -157,6 +157,15 @@ class UserStore:
             return None
         return self._public_view(record)
 
+    def get_user_raw(self, user_id: str) -> dict | None:
+        """获取用户完整记录（含 password_hash/salt/email_hmac）。
+
+        仅供 DB 同步层（deadman.db.repositories.UserRepository）使用，
+        业务代码应使用 get_user()（返回脱敏视图）。
+        """
+        data = self._load()
+        return data.get(user_id)
+
     def update_user(self, user_id: str, updates: dict) -> dict | None:
         """更新用户字段
 

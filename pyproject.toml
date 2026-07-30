@@ -87,8 +87,15 @@ doc-extract = [
     "pytesseract>=0.3.10",
     "Pillow>=10.0",
 ]
+# 企业级扩展④：主数据库迁移（PostgreSQL + SQLAlchemy 2.0 async ORM + Alembic 迁移）
+# DATABASE_URL 留空时所有现有文件存储原样工作（零侵入），配置后 DB 层激活并支持双写
+db = [
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,doc-extract]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,doc-extract,db]",
 ]
 
 [project.scripts]
