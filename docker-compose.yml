@@ -76,6 +76,10 @@ services:
       # === 日志与严格校验 ===
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       STRICT_ENV_CHECK: ${STRICT_ENV_CHECK:-false}
+      # === 主数据库（企业级扩展④，profile=db 时生效；留空则纯文件存储）===
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-10}
     volumes:
       # 数据持久化（记忆 / LightRAG 存储 / 运行时数据）
       - ./data:/app/data
@@ -98,6 +102,9 @@ services:
         condition: service_started
         required: false
       neo4j:
+        condition: service_healthy
+        required: false
+      deadman-db:
         condition: service_healthy
         required: false
 
@@ -340,6 +347,35 @@ services:
         condition: service_started
 
 # ============================================================
+# 主数据库：PostgreSQL（企业级扩展④）
+# 启用：docker compose --profile db up -d
+# 配置 DATABASE_URL 后 deadman 服务自动双写 DB + 文件存储
+# ============================================================
+  deadman-db:
+    image: postgres:16-alpine
+    container_name: deadman-db
+    restart: unless-stopped
+    profiles:
+      - db
+      - full
+    environment:
+      POSTGRES_USER: ${DEADMAN_DB_USER:-deadman}
+      POSTGRES_PASSWORD: ${DEADMAN_DB_PASSWORD:-deadman}
+      POSTGRES_DB: ${DEADMAN_DB_NAME:-deadman}
+    volumes:
+      - deadman-db-data:/var/lib/postgresql/data
+    ports:
+      - "${DEADMAN_DB_HOST_PORT:-5432}:5432"
+    networks:
+      - deadman-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEADMAN_DB_USER:-deadman} -d ${DEADMAN_DB_NAME:-deadman}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+# ============================================================
 # 卷定义
 # ============================================================
 volumes:
@@ -349,6 +385,8 @@ volumes:
     name: deadman-neo4j-logs
   langfuse-db-data:
     name: deadman-langfuse-db-data
+  deadman-db-data:
+    name: deadman-db-data
   prometheus-data:
     name: deadman-prometheus-data
   grafana-data:

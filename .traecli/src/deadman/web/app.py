@@ -214,7 +214,7 @@ class _WfileAdapter:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI lifespan：初始化 Sentry + 启动 Dead Man Switch 自动 tick 后台调度器"""
+    """FastAPI lifespan：初始化 Sentry + DB + 启动 Dead Man Switch 自动 tick 后台调度器"""
     # P1-2: Sentry 错误监控初始化（DSN 留空 / sdk 未装时 no-op，不阻塞启动）
     try:
         from ..observability.sentry_init import init_sentry
@@ -228,11 +228,29 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Sentry 初始化异常（已降级，不阻塞启动）: %s", exc)
 
+    # 企业级扩展④：主数据库初始化（DATABASE_URL 空时 no-op，不阻塞启动）
+    try:
+        from ..db.engine import db_enabled, dispose_engine, init_db
+
+        if db_enabled():
+            await init_db()
+            logger.info("主数据库已初始化（DATABASE_URL 已配置）")
+    except Exception as exc:
+        logger.warning("主数据库初始化异常（已降级，不阻塞启动）: %s", exc)
+
     auto_tick_thread = _maybe_start_switch_auto_ticker()
     try:
         yield
     finally:
         _stop_switch_auto_ticker(auto_tick_thread)
+        # 释放 DB 引擎连接池
+        try:
+            from ..db.engine import db_enabled
+
+            if db_enabled():
+                await dispose_engine()
+        except Exception:
+            pass
 
 
 # =====================================================================
@@ -321,6 +339,23 @@ async def readyz():
             ok = False
     except Exception as exc:
         checks["routes"] = f"fail: {exc}"
+        ok = False
+
+    # 企业级扩展④：主数据库连通性检查（仅 DATABASE_URL 配置时检查）
+    try:
+        from sqlalchemy import text as sa_text
+
+        from ..db.engine import db_enabled, get_async_session_factory
+
+        if db_enabled():
+            factory = get_async_session_factory()
+            async with factory() as session:
+                await session.execute(sa_text("SELECT 1"))
+            checks["database"] = "ok"
+        else:
+            checks["database"] = "disabled"
+    except Exception as exc:
+        checks["database"] = f"fail: {exc}"
         ok = False
 
     status_code = 200 if ok else 503
