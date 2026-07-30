@@ -78,9 +78,38 @@ log "运行模式: ${MODE}"
 
 check_env "$MODE" "$@"
 
+# ====================================================================
+# 企业级扩展④：数据库迁移（DATABASE_URL 配置时自动执行）
+# 在启动服务器前运行 alembic upgrade head，确保 schema 就绪
+# 迁移失败不阻塞启动（代码层 init_db 会兜底 create_all）
+# ====================================================================
+run_db_migration() {
+    if [[ -z "${DATABASE_URL:-}" ]]; then
+        log "DATABASE_URL 未配置，跳过数据库迁移"
+        return 0
+    fi
+    log "检测到 DATABASE_URL，执行数据库迁移 (alembic upgrade head)..."
+    if alembic upgrade head 2>&1 | while IFS= read -r line; do log "  [alembic] $line"; done; then
+        log "数据库迁移完成"
+    else
+        log "警告: 数据库迁移失败（不阻塞启动，代码层将兜底 create_all）"
+    fi
+}
+
 case "$MODE" in
+    # ---- 数据库迁移模式（手动执行 alembic 命令）----
+    db-migrate)
+        log "数据库迁移模式"
+        if [[ -z "${DATABASE_URL:-}" ]]; then
+            log "错误: DATABASE_URL 未配置，无法执行迁移"
+            exit 1
+        fi
+        exec alembic "$@"
+        ;;
+
     # ---- MCP Server 模式（默认）----
     mcp-server)
+        run_db_migration
         log "启动 MCP Server (transport=http, host=${MCP_SERVER_HOST:-0.0.0.0}, port=${MCP_SERVER_PORT:-8000})"
         exec deadman-mcp-server \
             --transport http \
@@ -91,6 +120,7 @@ case "$MODE" in
 
     # ---- Web Server 模式（AG-UI 对话界面 + 运维 API）----
     web-server)
+        run_db_migration
         log "启动 AG-UI Web Server (host=${MCP_SERVER_HOST:-0.0.0.0}, port=${WEB_SERVER_PORT:-8002})"
         exec deadman-web-server \
             --host "${MCP_SERVER_HOST:-0.0.0.0}" \
@@ -114,12 +144,13 @@ case "$MODE" in
     # ---- 未知模式 ----
     *)
         log "未知模式: ${MODE}"
-        log "支持的模式: mcp-server (默认) | web-server | eval | run"
+        log "支持的模式: mcp-server (默认) | web-server | eval | run | db-migrate"
         log "示例:"
         log "  docker run deadman mcp-server"
         log "  docker run deadman web-server"
         log "  docker run deadman eval"
         log "  docker run deadman run \"你的问题\""
+        log "  docker run -e DATABASE_URL=... deadman db-migrate upgrade head"
         exit 1
         ;;
 esac

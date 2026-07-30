@@ -3898,6 +3898,71 @@ def cmd_multimodal_test(args):
     print(f"\n  测试汇总: {ok_count}/{len(results)} 通过")
 
 
+def cmd_db(args):
+    """数据库管理（企业级扩展④）- 包装 Alembic 迁移命令
+
+    用法：
+        deadman db init          # 建表（create_all，开发/测试用）
+        deadman db migrate       # alembic upgrade head（生产推荐）
+        deadman db status        # 查看当前迁移版本
+        deadman db revision -m "描述"  # 生成新迁移脚本
+    """
+    from .config import settings
+
+    if not settings.database_url:
+        print("[db] DATABASE_URL 未配置，主数据库未启用。")
+        print("     配置 DATABASE_URL 环境变量后重试，或继续使用文件存储。")
+        return
+
+    action = args.db_action
+    print(f"[db] 操作: {action}")
+    print(f"[db] DATABASE_URL: {settings.database_url.split('@')[-1] if '@' in settings.database_url else '(已配置)'}")
+
+    if action == "init":
+        # 开发/测试：直接 create_all（不走 Alembic）
+        import asyncio
+
+        from .db.engine import dispose_engine, init_db
+
+        async def _init():
+            await init_db()
+            await dispose_engine()
+
+        asyncio.run(_init())
+        print("[db] 表结构已创建（create_all）。生产环境建议使用 `deadman db migrate`。")
+        return
+
+    if action == "migrate":
+        # 生产：alembic upgrade head
+        import subprocess
+
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(f"[db] 迁移失败（exit code {result.returncode}）")
+        else:
+            print("[db] 迁移完成（alembic upgrade head）")
+        return
+
+    if action == "status":
+        import subprocess
+
+        subprocess.run(["alembic", "current"], check=False)
+        return
+
+    if action == "revision":
+        import subprocess
+
+        msg = args.message or "auto"
+        subprocess.run(["alembic", "revision", "--autogenerate", "-m", msg], check=False)
+        return
+
+    print(f"[db] 未知操作: {action}")
+
+
 def main():
     """CLI 主入口"""
     # 结构化日志早期初始化（读取 DEADMAN_LOG_LEVEL/DEADMAN_LOG_FORMAT 环境变量）。
@@ -4249,6 +4314,15 @@ def main():
     # multimodal-test 子命令 - 测试多模态管道
     subparsers.add_parser("multimodal-test", help="测试 Multimodal 多模态管道(TTS 合成 + 能力验证)")
 
+    # === 企业级扩展④：数据库管理 ===
+    db_parser = subparsers.add_parser("db", help="数据库管理（迁移/建表/状态）")
+    db_parser.add_argument(
+        "db_action",
+        choices=["init", "migrate", "status", "revision"],
+        help="init=建表(create_all) | migrate=alembic upgrade head | status=当前版本 | revision=生成迁移",
+    )
+    db_parser.add_argument("-m", "--message", default=None, help="revision 模式的迁移描述")
+
     # === Phase 7+ 扩展模块子命令注册（自动加载）===
     # 各 Phase 通过 _cli_extensions/phaseN.py 提供 register_subparsers(subparsers)
     # 用 set_defaults(func=cmd_xxx) 设置分发函数
@@ -4411,6 +4485,8 @@ def main():
         cmd_multimodal_status(args)
     elif args.command == "multimodal-test":
         cmd_multimodal_test(args)
+    elif args.command == "db":
+        cmd_db(args)
     elif hasattr(args, "func") and callable(args.func):
         # Phase 7+ 扩展模块用 set_defaults(func=...) 自动分发
         args.func(args)

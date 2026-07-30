@@ -43,8 +43,9 @@ WORKDIR /build
 COPY pyproject.toml ./
 COPY .traecli/src/ ./.traecli/src/
 
-# 安装当前包（同时拉取全部 dependencies）
-RUN pip install --no-cache-dir .
+# 安装当前包 + 企业级扩展④ [db] extras（SQLAlchemy/asyncpg/alembic）
+# [db] extras 使镜像内置数据库迁移能力，DATABASE_URL 空时零开销降级
+RUN pip install --no-cache-dir ".[db]"
 
 # ============================================================
 # Runtime 阶段：最小化运行时镜像
@@ -122,6 +123,9 @@ COPY --chown=deadman:deadman .traecli/ /app/.traecli/
 # 复制入口脚本与健康检查脚本
 COPY --chown=deadman:deadman .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh
 COPY --chown=deadman:deadman .traecli/docker/healthcheck.py /app/docker/healthcheck.py
+# 企业级扩展④：复制 Alembic 迁移配置与脚本（支持容器内 alembic upgrade head）
+COPY --chown=deadman:deadman alembic.ini /app/alembic.ini
+COPY --chown=deadman:deadman migrations/ /app/migrations/
 RUN chmod +x /app/docker/entrypoint.sh /app/docker/healthcheck.py
 
 # 切换到非 root 用户
