@@ -182,6 +182,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
         # 让下游 handler 可读到 request_id
         request.state.request_id = request_id
+        # P1-2: 关联 Sentry scope，便于错误事件按 request_id 追踪
+        try:
+            from ..observability.sentry_init import add_request_tag
+            add_request_tag("request_id", request_id)
+        except Exception:
+            pass
 
         start = time.perf_counter()
         method = request.method
@@ -199,6 +205,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 request_id,
                 elapsed_ms,
             )
+            # P1-2: 中间件层捕获的异常也上报 Sentry（兜底 handler 会再上报一次，
+            # 但中间件层能捕获未走 handler 的异常，双上报由 Sentry 去重）
+            try:
+                from ..observability.sentry_init import capture_exception
+                capture_exception(
+                    request_id=request_id,
+                    path=path,
+                    method=method,
+                    elapsed_ms=round(elapsed_ms, 2),
+                )
+            except Exception:
+                pass
             raise
 
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -266,6 +284,18 @@ def register_exception_handlers(app: FastAPI) -> None:
             rid,
             exc,
         )
+        # P1-2: 上报未处理异常到 Sentry（含 request_id / path 关联标签）
+        # 未初始化时 capture_exception 为 no-op，零开销
+        try:
+            from ..observability.sentry_init import capture_exception
+            capture_exception(
+                exc,
+                request_id=rid,
+                path=request.url.path,
+                method=request.method,
+            )
+        except Exception:
+            pass  # Sentry 上报失败绝不影响错误响应
         return JSONResponse(
             status_code=500,
             content={

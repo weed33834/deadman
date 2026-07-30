@@ -198,7 +198,19 @@ class _WfileAdapter:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI lifespan：启动 Dead Man Switch 自动 tick 后台调度器"""
+    """FastAPI lifespan：初始化 Sentry + 启动 Dead Man Switch 自动 tick 后台调度器"""
+    # P1-2: Sentry 错误监控初始化（DSN 留空 / sdk 未装时 no-op，不阻塞启动）
+    try:
+        from ..observability.sentry_init import init_sentry
+        init_sentry(
+            dsn=settings.sentry_dsn,
+            environment=settings.sentry_environment,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            release=settings.sentry_release,
+        )
+    except Exception as exc:
+        logger.warning("Sentry 初始化异常（已降级，不阻塞启动）: %s", exc)
+
     auto_tick_thread = _maybe_start_switch_auto_ticker()
     try:
         yield

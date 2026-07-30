@@ -76,8 +76,10 @@ langfuse = ["langfuse>=4.0"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
 mcp = ["fastmcp>=3.0", "duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
+# P1-2: Sentry 错误监控（sentry-sdk[fastapi] 含 ASGI auto-instrumentation）
+sentry = ["sentry-sdk[fastapi]>=2.0"]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry]",
 ]
 
 [project.scripts]

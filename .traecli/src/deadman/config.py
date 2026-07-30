@@ -104,6 +104,15 @@ class Settings:
     graphiti_neo4j_user: str = os.getenv("GRAPHITI_NEO4J_USER", "neo4j")
     graphiti_neo4j_password: str = os.getenv("GRAPHITI_NEO4J_PASSWORD", "")
 
+    # === Sentry 错误监控（P1-2：企业级可观测性）===
+    # DSN 留空时 sentry_sdk.init 不执行，零开销降级（生产必配）
+    sentry_dsn: str = os.getenv("SENTRY_DSN", "")
+    sentry_environment: str = os.getenv("SENTRY_ENVIRONMENT", "production")
+    # 事务采样率（0=关闭性能监控，1=全量；生产建议 0.1~0.3 平衡配额与覆盖）
+    sentry_traces_sample_rate: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    # release 版本（默认从 git 推断；CI 可显式注入语义版本）
+    sentry_release: str = os.getenv("SENTRY_RELEASE", "")
+
     # === 消息平台 Gateway / 主动通知护栏（notification-guardrails.md L4）===
     # Telegram Bot API token，未配置时 TelegramConnector 优雅降级
     telegram_bot_token: str = os.getenv("DEADMAN_TELEGRAM_BOT_TOKEN", "")
