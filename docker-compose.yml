@@ -4,9 +4,12 @@
 # 服务拓扑：
 #   deadman          主服务（MCP Server HTTP，构建自 Dockerfile）
 #   neo4j           Graphiti 时态记忆后端（可选 profile: graphiti）
-#   langfuse        可观测性平台（可选 profile: observability）
+#   langfuse        LLM 可观测性平台（可选 profile: observability）
 #   langfuse-db     Langfuse 依赖的 Postgres（可选 profile: observability）
 #   otel-collector  OpenTelemetry 中转（可选 profile: observability）
+#   prometheus      指标采集 + 告警评估（可选 profile: observability）
+#   alertmanager    告警分组/通知（可选 profile: observability）
+#   grafana         指标可视化面板（可选 profile: observability，端口 3001）
 #
 # 用法：
 #   # 仅启动主服务（默认）
@@ -261,6 +264,81 @@ services:
       start_period: 10s
       retries: 5
 
+  # ============================================================
+  # Prometheus：指标采集与告警评估
+  # 启用：docker compose --profile observability up -d
+  # 抓取 deadman /metrics（HTTP RED 指标）+ OTel Collector 自身指标
+  # 告警规则见 .traecli/docker/observability/alert_rules.yml
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: deadman-prometheus
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    volumes:
+      - ./.traecli/docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./.traecli/docker/observability/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    networks:
+      - deadman-net
+
+  # ============================================================
+  # Alertmanager：告警分组/抑制/通知
+  # 接收 Prometheus 告警，按路由推送到 webhook（飞书/钉钉，生产替换 URL）
+  # ============================================================
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: deadman-alertmanager
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    volumes:
+      - ./.traecli/docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
+    networks:
+      - deadman-net
+
+  # ============================================================
+  # Grafana：指标可视化面板
+  # 启动时自动 provisioning Prometheus 数据源（见 grafana-datasource.yml）
+  # 首次登录 admin / admin（生产改 GF_SECURITY_ADMIN_PASSWORD）
+  # ============================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: deadman-grafana
+    restart: unless-stopped
+    profiles:
+      - observability
+      - full
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./.traecli/docker/observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"  # 避让 Langfuse(3000)，主机用 3001
+    networks:
+      - deadman-net
+    depends_on:
+      prometheus:
+        condition: service_started
+
 # ============================================================
 # 卷定义
 # ============================================================
@@ -271,6 +349,10 @@ volumes:
     name: deadman-neo4j-logs
   langfuse-db-data:
     name: deadman-langfuse-db-data
+  prometheus-data:
+    name: deadman-prometheus-data
+  grafana-data:
+    name: deadman-grafana-data
 
 # ============================================================
 # 网络隔离

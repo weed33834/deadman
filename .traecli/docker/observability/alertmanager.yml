@@ -1,0 +1,22 @@
+# Alertmanager 告警通知配置（企业级扩展②）
+# 告警分组 + 通知路由。webhook 预留飞书/钉钉接入点（生产替换 URL）。
+
+global:
+  resolve_timeout: 5m
+
+# 分组与抑制规则
+route:
+  group_by: ["alertname", "service"]
+  group_wait: 30s        # 首次告警等待 30s 聚合同组
+  group_interval: 5m     # 同组后续通知间隔
+  repeat_interval: 4h    # 未解决的告警重复通知间隔
+  receiver: "default"
+
+receivers:
+  - name: "default"
+    # 生产环境替换为飞书/钉钉/企业微信 webhook
+    # 飞书：https://open.feishu.cn/open-apis/bot/v2/hook/<token>
+    # 钉钉：https://oapi.dingtalk.com/robot/send?access_token=<token>
+    webhook_configs:
+      - url: "http://127.0.0.1:9093/alerts"
+        send_resolved: true
