@@ -22,13 +22,11 @@
 from __future__ import annotations
 
 import json
-import socket
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # =====================================================================
 # Fixtures：隔离的 TestClient + 认证 token
@@ -154,14 +152,10 @@ class TestConcurrency:
 
         # 全部不应 500
         for i, r in enumerate(results):
-            assert r.status_code != 500, (
-                f"checkin #{i} 返回 500: {r.text}"
-            )
+            assert r.status_code != 500, f"checkin #{i} 返回 500: {r.text}"
         # 至少有一个成功（200），状态机应保持 ACTIVE
         ok_results = [r for r in results if r.status_code == 200]
-        assert len(ok_results) >= 1, (
-            f"无成功 checkin: statuses={[r.status_code for r in results]}"
-        )
+        assert len(ok_results) >= 1, f"无成功 checkin: statuses={[r.status_code for r in results]}"
         # 验证最终状态一致
         r = client.get("/api/switch/status", headers=h)
         assert r.status_code == 200
@@ -189,17 +183,13 @@ class TestConcurrency:
 
         # 全部不应 500
         for i, r in enumerate(results):
-            assert r.status_code != 500, (
-                f"vault add #{i} 返回 500: {r.text}"
-            )
+            assert r.status_code != 500, f"vault add #{i} 返回 500: {r.text}"
         # 验证列表条目数（注意：若有竞态，可能少于 5）
         r = client.get("/api/vault/items", headers=h)
         assert r.status_code == 200
         items = r.json()["items"]
         # 至少有 1 条（严格期望 5，但若 store 有 RMW 竞态可能更少 → 标记 finding）
-        assert len(items) >= 1, (
-            f"并发添加后列表为空: statuses={[r.status_code for r in results]}"
-        )
+        assert len(items) >= 1, f"并发添加后列表为空: statuses={[r.status_code for r in results]}"
         # 若少于 5，记录但不 fail（可能是 read-modify-write 竞态）
         if len(items) < 5:
             pytest.skip(
@@ -226,14 +216,10 @@ class TestConcurrency:
 
         # 都不应 500
         for i, r in enumerate(results):
-            assert r.status_code != 500, (
-                f"register #{i} 返回 500: {r.text}"
-            )
+            assert r.status_code != 500, f"register #{i} 返回 500: {r.text}"
         # 至少一个 400（邮箱已注册），至少一个成功（200/201）
         statuses = sorted(r.status_code for r in results)
-        assert statuses[0] in (200, 201), (
-            f"无成功注册: statuses={statuses}"
-        )
+        assert statuses[0] in (200, 201), f"无成功注册: statuses={statuses}"
         # 第二次应 400（而非 500）—— 允许两个都 400 或 1×201+1×400
         assert 400 in statuses or 409 in statuses, (
             f"期望至少一个 400/409（重复注册被拒），实际 statuses={statuses}"
@@ -286,9 +272,7 @@ class TestDataCorruption:
         )
         assert r.status_code != 500, f"损坏 base64 返回 500: {r.text}"
         # 应 400（ValueError 被 except 捕获）或 422
-        assert r.status_code in (400, 422), (
-            f"期望 400/422，实际 {r.status_code}: {r.text}"
-        )
+        assert r.status_code in (400, 422), f"期望 400/422，实际 {r.status_code}: {r.text}"
 
     def test_chat_empty_whitespace_long_query(self, client: TestClient):
         """B6: chat query 传空字符串、纯空格、超长（10K 字），验证不 500"""
@@ -302,9 +286,7 @@ class TestDataCorruption:
         ]
         for label, query in cases:
             r = client.post("/api/chat", json={"query": query}, headers=h)
-            assert r.status_code != 500, (
-                f"chat [{label}] 返回 500: {r.text[:200]}"
-            )
+            assert r.status_code != 500, f"chat [{label}] 返回 500: {r.text[:200]}"
             # 空 query 返回 {"error": "query 不能为空"} 状态 200；
             # 非空 query 走 graph（mock LLM），应 200
             assert r.status_code == 200, (
@@ -323,9 +305,7 @@ class TestDataCorruption:
                 headers=h,
             )
             # 绝不 500
-            assert r.status_code != 500, (
-                f"frequency={freq} 返回 500: {r.text}"
-            )
+            assert r.status_code != 500, f"frequency={freq} 返回 500: {r.text}"
             # 任务期望 422 或合理 400（若返回 201 说明缺输入校验 → 标记 finding）
             assert r.status_code in (422, 400), (
                 f"frequency={freq} 期望 422/400，实际 {r.status_code}: {r.text[:200]}"
@@ -385,9 +365,7 @@ class TestSecurityBoundaries:
         r = client.get("/api/ending-note", headers=h)
         assert r.status_code == 200
         body_text = json.dumps(r.json(), ensure_ascii=False)
-        assert "DROP TABLE" in body_text, (
-            f"注入串未原样存储：{body_text[:300]}"
-        )
+        assert "DROP TABLE" in body_text, f"注入串未原样存储：{body_text[:300]}"
 
     def test_xss_payload_stored_as_string(self, client: TestClient):
         """C10: XSS payload 在 answer 中 —— 验证原样存储不执行"""
@@ -404,9 +382,7 @@ class TestSecurityBoundaries:
             headers=h,
         )
         assert r.status_code != 500, f"XSS payload 返回 500: {r.text[:200]}"
-        assert r.status_code == 200, (
-            f"期望 200，实际 {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 200, f"期望 200，实际 {r.status_code}: {r.text[:200]}"
 
         # 验证返回 JSON 中含原始 <script> 标签（JSON 字符串里 < 不会被转义，
         # 但 Content-Type 是 application/json → 浏览器不会执行）
@@ -445,9 +421,7 @@ class TestSecurityBoundaries:
         # Bob 用自己的 token 访问 Alice 的 item → 应 404
         r = client.get(f"/api/vault/items/{item_id}", headers=hb)
         assert r.status_code != 500
-        assert r.status_code == 404, (
-            f"越权访问应 404，实际 {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 404, f"越权访问应 404，实际 {r.status_code}: {r.text[:200]}"
 
     def test_idor_case_timeline_cross_user(self, client: TestClient):
         """C12: 越权 —— 用户 B 访问用户 A 的 case timeline，验证 404"""
@@ -468,9 +442,7 @@ class TestSecurityBoundaries:
         # Bob 试访问 Alice 的 timeline → 应 404
         r = client.get(f"/api/cases/{case_id}/timeline", headers=hb)
         assert r.status_code != 500, f"越权 timeline 返回 500: {r.text[:200]}"
-        assert r.status_code == 404, (
-            f"越权 timeline 应 404，实际 {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 404, f"越权 timeline 应 404，实际 {r.status_code}: {r.text[:200]}"
 
     def test_idor_support_ticket_status_cross_user(self, client: TestClient):
         """C13: IDOR —— 用户 B 尝试修改用户 A 的 ticket status，验证 404"""
@@ -501,9 +473,7 @@ class TestSecurityBoundaries:
             headers=hb,
         )
         assert r.status_code != 500, f"IDOR PUT status 返回 500: {r.text[:200]}"
-        assert r.status_code == 404, (
-            f"越权修改工单状态应 404，实际 {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 404, f"越权修改工单状态应 404，实际 {r.status_code}: {r.text[:200]}"
 
         # 也测试 DELETE 方法（任务书原文）—— 路由未注册 DELETE → 405
         r_del = client.delete(f"/api/support/tickets/{ticket_id}/status", headers=hb)
@@ -523,9 +493,7 @@ class TestSecurityBoundaries:
             json={"url": "http://169.254.169.254/latest/meta-data/"},
             headers=h,
         )
-        assert r.status_code == 400, (
-            f"SSRF 应返回 400 拦截，实际 {r.status_code}: {r.text[:300]}"
-        )
+        assert r.status_code == 400, f"SSRF 应返回 400 拦截，实际 {r.status_code}: {r.text[:300]}"
 
         # 回环地址也应拦截
         r2 = client.post(
@@ -533,9 +501,7 @@ class TestSecurityBoundaries:
             json={"url": "http://127.0.0.1:8002/api/health"},
             headers=h,
         )
-        assert r2.status_code == 400, (
-            f"回环地址应 400 拦截，实际 {r2.status_code}: {r2.text[:300]}"
-        )
+        assert r2.status_code == 400, f"回环地址应 400 拦截，实际 {r2.status_code}: {r2.text[:300]}"
 
         # 非 http/https scheme 应拦截
         r3 = client.post(
@@ -569,12 +535,8 @@ class TestAuthAndSession:
         mgr = JWTManager(secret=settings.jwt_secret, expiry_days=0)
         expired_token = mgr.issue(user)
 
-        r = client.get(
-            "/api/auth/me", headers=_auth_headers(expired_token)
-        )
-        assert r.status_code == 401, (
-            f"过期 token 应 401，实际 {r.status_code}: {r.text[:200]}"
-        )
+        r = client.get("/api/auth/me", headers=_auth_headers(expired_token))
+        assert r.status_code == 401, f"过期 token 应 401，实际 {r.status_code}: {r.text[:200]}"
 
     def test_tampered_token_returns_401(self, client: TestClient):
         """D16: 篡改 token payload 访问"""
@@ -589,12 +551,8 @@ class TestAuthAndSession:
         parts[1] = parts[1][:-1] + new_char
         tampered_token = ".".join(parts)
 
-        r = client.get(
-            "/api/auth/me", headers=_auth_headers(tampered_token)
-        )
-        assert r.status_code == 401, (
-            f"篡改 token 应 401，实际 {r.status_code}: {r.text[:200]}"
-        )
+        r = client.get("/api/auth/me", headers=_auth_headers(tampered_token))
+        assert r.status_code == 401, f"篡改 token 应 401，实际 {r.status_code}: {r.text[:200]}"
 
     def test_malformed_authorization_header(self, client: TestClient):
         """D17: Authorization 头格式错误"""
@@ -609,8 +567,7 @@ class TestAuthAndSession:
             headers = {"Authorization": header_val} if header_val else {}
             r = client.get("/api/auth/me", headers=headers)
             assert r.status_code == 401, (
-                f"[{label}] Authorization='{header_val}' 应 401，"
-                f"实际 {r.status_code}"
+                f"[{label}] Authorization='{header_val}' 应 401，实际 {r.status_code}"
             )
 
     def test_refresh_expired_token_returns_401(self, client: TestClient):
@@ -651,14 +608,10 @@ class TestRateLimitAndMiddleware:
         statuses = []
         for i in range(50):
             r = client.get("/api/agents")
-            assert r.status_code != 500, (
-                f"第 {i} 次 /api/agents 返回 500: {r.text[:200]}"
-            )
+            assert r.status_code != 500, f"第 {i} 次 /api/agents 返回 500: {r.text[:200]}"
             statuses.append(r.status_code)
         # 全部应 200
-        assert all(s == 200 for s in statuses), (
-            f"有不成功请求: {set(statuses)}"
-        )
+        assert all(s == 200 for s in statuses), f"有不成功请求: {set(statuses)}"
 
     def test_huge_authorization_header(self, client: TestClient):
         """E20: 请求头超长（10KB Authorization），验证不 500"""
@@ -667,13 +620,9 @@ class TestRateLimitAndMiddleware:
             "/api/auth/me",
             headers={"Authorization": f"Bearer {huge_token}"},
         )
-        assert r.status_code != 500, (
-            f"10KB Authorization 返回 500: {r.text[:200]}"
-        )
+        assert r.status_code != 500, f"10KB Authorization 返回 500: {r.text[:200]}"
         # 应 401（token 无效），不 500
-        assert r.status_code == 401, (
-            f"超长 token 应 401，实际 {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 401, f"超长 token 应 401，实际 {r.status_code}: {r.text[:200]}"
 
 
 # =====================================================================
@@ -690,11 +639,11 @@ class TestResponseConsistency:
         h = _auth_headers(token)
 
         error_cases = [
-            ("GET", "/api/vault/items/nonexistent-id", h),          # 404
-            ("GET", "/api/auth/me", {}),                              # 401
-            ("GET", "/api/letters/template", h),                      # 400 (缺 type)
-            ("POST", "/api/auth/register", {}),                       # 422 (缺字段)
-            ("GET", f"/api/cases/nonexistent/timeline", h),          # 200 empty or 404
+            ("GET", "/api/vault/items/nonexistent-id", h),  # 404
+            ("GET", "/api/auth/me", {}),  # 401
+            ("GET", "/api/letters/template", h),  # 400 (缺 type)
+            ("POST", "/api/auth/register", {}),  # 422 (缺字段)
+            ("GET", "/api/cases/nonexistent/timeline", h),  # 200 empty or 404
         ]
         for method, path, headers in error_cases:
             if method == "GET":
@@ -720,10 +669,6 @@ class TestResponseConsistency:
         ]
         for method, path in protected_paths:
             r = client.get(path)  # 不带 token
-            assert r.status_code == 401, (
-                f"{method} {path} 无 token 应 401，实际 {r.status_code}"
-            )
+            assert r.status_code == 401, f"{method} {path} 无 token 应 401，实际 {r.status_code}"
             www_auth = r.headers.get("www-authenticate", "")
-            assert "Bearer" in www_auth, (
-                f"{method} {path} 401 响应缺 WWW-Authenticate: Bearer 头"
-            )
+            assert "Bearer" in www_auth, f"{method} {path} 401 响应缺 WWW-Authenticate: Bearer 头"

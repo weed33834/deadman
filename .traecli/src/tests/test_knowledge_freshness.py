@@ -56,9 +56,7 @@ def _make_md(
         last_updated: "最后更新"日期字符串；None 表示缺失
         body_extra: 额外正文（用于触发政策领域命中）
     """
-    last_updated_line = (
-        f"- 最后更新: {last_updated}\n" if last_updated else ""
-    )
+    last_updated_line = f"- 最后更新: {last_updated}\n" if last_updated else ""
     return f"""# 中国 - {region} 身后事政策
 
 ## 元信息
@@ -265,13 +263,9 @@ def test_scan_regions_skips_schema_and_archived(tmp_path):
     # 正常文件
     _write_region(regions, "CN/beijing.md", today.isoformat())
     # _archived 下的文件应被跳过
-    _write_region(
-        regions, "_archived/CN/old.md", "2020-01-01"
-    )
+    _write_region(regions, "_archived/CN/old.md", "2020-01-01")
     # _quarantine 下的文件应被跳过
-    _write_region(
-        regions, "_quarantine/CN/suspicious.md", "2020-01-01"
-    )
+    _write_region(regions, "_quarantine/CN/suspicious.md", "2020-01-01")
 
     checker = KnowledgeFreshnessChecker(reference_date=today)
     reports = checker.scan_regions(regions)
@@ -306,8 +300,14 @@ def test_scan_regions_detects_policy_areas(tmp_path):
     r = reports[0]
     # 应命中所有出现的关键词
     for area in [
-        "社保", "银行", "医疗", "医保",
-        "公积金", "不动产", "车辆", "保险",
+        "社保",
+        "银行",
+        "医疗",
+        "医保",
+        "公积金",
+        "不动产",
+        "车辆",
+        "保险",
     ]:
         assert area in r.policy_areas
 
@@ -384,9 +384,7 @@ def test_propose_refresh_tasks_with_scheduler(tmp_path):
         }
     )
 
-    checker = KnowledgeFreshnessChecker(
-        reference_date=today, scheduler=mock_scheduler
-    )
+    checker = KnowledgeFreshnessChecker(reference_date=today, scheduler=mock_scheduler)
     reports = checker.scan_regions(regions)
     proposals = checker.propose_refresh_tasks(reports)
 
@@ -483,7 +481,9 @@ def test_run_full_check_end_to_end(tmp_path):
     stale_date = (today - timedelta(days=200)).isoformat()
     fresh_date = today.isoformat()
     _write_region(
-        regions, "CN/beijing.md", stale_date,
+        regions,
+        "CN/beijing.md",
+        stale_date,
         body_extra="社保 丧葬费约 5000 元 时限 30 天内",
     )
     _write_region(regions, "CN/shanghai.md", fresh_date, body_extra="医疗")
@@ -509,9 +509,7 @@ def test_run_full_check_end_to_end(tmp_path):
 
 def test_compute_status_boundary_conditions():
     """测试状态判定的边界条件"""
-    checker = KnowledgeFreshnessChecker(
-        reference_date=date(2026, 7, 21)
-    )
+    checker = KnowledgeFreshnessChecker(reference_date=date(2026, 7, 21))
 
     # 0 天 + 高频领域 → fresh
     assert checker._compute_status(0, ["社保"]) == "fresh"

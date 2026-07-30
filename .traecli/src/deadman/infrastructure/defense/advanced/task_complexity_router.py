@@ -70,23 +70,56 @@ class RoutingStrategy(str, Enum):
 # 复杂度信号(规则匹配)
 _COMPLEXITY_SIGNALS = {
     TaskComplexity.EXTREME: [
-        "继承纠纷", "跨国", "跨境", "多国", "争议", "诉讼", "仲裁",
-        "遗产税", "多继承人", "海外资产", "信托", "复杂股权",
+        "继承纠纷",
+        "跨国",
+        "跨境",
+        "多国",
+        "争议",
+        "诉讼",
+        "仲裁",
+        "遗产税",
+        "多继承人",
+        "海外资产",
+        "信托",
+        "复杂股权",
     ],
     TaskComplexity.COMPLEX: [
-        "继承", "税务", "债务", "房产过户", "股权", "保险理赔",
-        "辩论", "对比", "分析", "评估", "建议", "方案",
+        "继承",
+        "税务",
+        "债务",
+        "房产过户",
+        "股权",
+        "保险理赔",
+        "辩论",
+        "对比",
+        "分析",
+        "评估",
+        "建议",
+        "方案",
     ],
     TaskComplexity.MODERATE: [
-        "流程", "步骤", "怎么办理", "如何", "需要什么",
-        "材料", "证明", "申请",
+        "流程",
+        "步骤",
+        "怎么办理",
+        "如何",
+        "需要什么",
+        "材料",
+        "证明",
+        "申请",
     ],
 }
 
 # 直接查表信号(无需 LLM)
 _LOOKUP_SIGNALS = [
-    "电话", "热线", "地址", "网址", "官网", "营业时间",
-    "查询", "查一下", "查电话",
+    "电话",
+    "热线",
+    "地址",
+    "网址",
+    "官网",
+    "营业时间",
+    "查询",
+    "查一下",
+    "查电话",
 ]
 
 
@@ -192,7 +225,10 @@ class ComplexityClassifier:
                 return complexity, signals
 
         # 3. 退化到规则(关键词 / 长度)
-        if signals.keyword_count >= self.MIN_KEYWORDS_COMPLEX or signals.text_length > self.MIN_LENGTH_COMPLEX:
+        if (
+            signals.keyword_count >= self.MIN_KEYWORDS_COMPLEX
+            or signals.text_length > self.MIN_LENGTH_COMPLEX
+        ):
             return TaskComplexity.COMPLEX, signals
         elif signals.keyword_count >= 1 or signals.text_length > 30:
             return TaskComplexity.MODERATE, signals
@@ -399,7 +435,9 @@ class ComplexityRouter:
     ) -> RoutingDecision:
         """根据剩余 budget 降级。"""
         tier_order = ["flagship", "mid", "cheap", "nano"]
-        current_tier_idx = tier_order.index(decision.model_tier) if decision.model_tier in tier_order else 1
+        current_tier_idx = (
+            tier_order.index(decision.model_tier) if decision.model_tier in tier_order else 1
+        )
 
         # 按 budget 阈值降级
         if budget_remaining < self.BUDGET_DEGRADE_THRESHOLDS["cheap_to_nano"]:

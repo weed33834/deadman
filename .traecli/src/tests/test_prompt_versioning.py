@@ -12,6 +12,7 @@ from deadman.infrastructure.prompt_versioning import (
 def enable_prompt_versioning(monkeypatch):
     monkeypatch.setenv("DEADMAN_PROMPT_VERSIONING_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -169,7 +170,8 @@ class TestABExperiment:
             traffic_split={"control": 50, "variant_a": 50},
         )
         variant_a_hits = sum(
-            1 for i in range(1000)
+            1
+            for i in range(1000)
             if pm.resolve("death_aftercare", user_id=f"u{i}").variant_id == "variant_a"
         )
         # 期望 ~500,允许 ±100
@@ -186,7 +188,9 @@ class TestABExperiment:
             variants={"control": "1.0.0", "variant_a": "1.1.0"},
             traffic_split={"control": 50, "variant_a": 50},
         )
-        variant_ids = {pm.resolve("death_aftercare", user_id="u_test").variant_id for _ in range(10)}
+        variant_ids = {
+            pm.resolve("death_aftercare", user_id="u_test").variant_id for _ in range(10)
+        }
         assert len(variant_ids) == 1
 
     def test_stop_experiment(self, tmp_path):
@@ -230,6 +234,7 @@ class TestFeatureFlagDisabled:
     def test_disabled_returns_builtin(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_PROMPT_VERSIONING_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 

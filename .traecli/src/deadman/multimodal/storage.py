@@ -187,7 +187,10 @@ class MultimodalStorage:
 
         logger.info(
             "Multimodal file stored: file_id=%s type=%s size=%d user=%s",
-            file_id, file_type, len(data), source_user,
+            file_id,
+            file_type,
+            len(data),
+            source_user,
         )
         return meta
 

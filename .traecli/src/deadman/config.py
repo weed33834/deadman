@@ -48,9 +48,9 @@ class Settings:
 
     # === 评审模型（LLM-as-Judge） ===
     judge_models: list[str] = field(
-        default_factory=lambda: os.getenv(
-            "JUDGE_MODELS", "gpt-4o,claude-3-5-sonnet,glm-4.6"
-        ).split(",")
+        default_factory=lambda: os.getenv("JUDGE_MODELS", "gpt-4o,claude-3-5-sonnet,glm-4.6").split(
+            ","
+        )
     )
     judge_consensus_threshold: float = float(os.getenv("JUDGE_CONSENSUS_THRESHOLD", "0.67"))
 
@@ -77,9 +77,7 @@ class Settings:
 
     # === SelfCheckGPT ===
     selfcheck_sample_count: int = int(os.getenv("SELFCHECK_SAMPLE_COUNT", "5"))
-    selfcheck_temperatures: list[float] = field(
-        default_factory=lambda: [0.3, 0.5, 0.7, 0.4, 0.6]
-    )
+    selfcheck_temperatures: list[float] = field(default_factory=lambda: [0.3, 0.5, 0.7, 0.4, 0.6])
     selfcheck_consistency_threshold: float = float(
         os.getenv("SELFCHECK_CONSISTENCY_THRESHOLD", "0.5")
     )
@@ -106,12 +104,17 @@ class Settings:
 
     # === Sentry 错误监控（P1-2：企业级可观测性）===
     # DSN 留空时 sentry_sdk.init 不执行，零开销降级（生产必配）
-    sentry_dsn: str = os.getenv("SENTRY_DSN", "")
-    sentry_environment: str = os.getenv("SENTRY_ENVIRONMENT", "production")
+    # 用 default_factory 让每次 Settings() 都读最新 env var（便于测试隔离）
+    sentry_dsn: str = field(default_factory=lambda: os.getenv("SENTRY_DSN", ""))
+    sentry_environment: str = field(
+        default_factory=lambda: os.getenv("SENTRY_ENVIRONMENT", "production")
+    )
     # 事务采样率（0=关闭性能监控，1=全量；生产建议 0.1~0.3 平衡配额与覆盖）
-    sentry_traces_sample_rate: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    sentry_traces_sample_rate: float = field(
+        default_factory=lambda: float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    )
     # release 版本（默认从 git 推断；CI 可显式注入语义版本）
-    sentry_release: str = os.getenv("SENTRY_RELEASE", "")
+    sentry_release: str = field(default_factory=lambda: os.getenv("SENTRY_RELEASE", ""))
 
     # === 消息平台 Gateway / 主动通知护栏（notification-guardrails.md L4）===
     # Telegram Bot API token，未配置时 TelegramConnector 优雅降级

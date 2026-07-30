@@ -176,7 +176,9 @@ class Gateway:
                     user_id=user_id,
                     user_input=text,
                     assistant_response=response,
-                    agent=result.get("current_agent", "death-aftercare") if isinstance(result, dict) else "death-aftercare",
+                    agent=result.get("current_agent", "death-aftercare")
+                    if isinstance(result, dict)
+                    else "death-aftercare",
                 )
             except Exception as exc:
                 logger.warning("after_turn 更新记忆失败: %s", exc)

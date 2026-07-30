@@ -31,19 +31,18 @@ from typing import Any
 # 配置（feature flag，默认关闭）
 # =====================================================================
 
-TOOL_CACHE_ENABLED: bool = os.environ.get(
-    "DEADMAN_TOOL_CACHE_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+TOOL_CACHE_ENABLED: bool = os.environ.get("DEADMAN_TOOL_CACHE_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # LRU 最大条目数
-TOOL_CACHE_MAX_ENTRIES: int = int(
-    os.environ.get("DEADMAN_TOOL_CACHE_MAX_ENTRIES", "1000")
-)
+TOOL_CACHE_MAX_ENTRIES: int = int(os.environ.get("DEADMAN_TOOL_CACHE_MAX_ENTRIES", "1000"))
 
 # 默认 TTL（秒）
-TOOL_CACHE_DEFAULT_TTL: int = int(
-    os.environ.get("DEADMAN_TOOL_CACHE_DEFAULT_TTL", "3600")
-)
+TOOL_CACHE_DEFAULT_TTL: int = int(os.environ.get("DEADMAN_TOOL_CACHE_DEFAULT_TTL", "3600"))
 
 
 # =====================================================================

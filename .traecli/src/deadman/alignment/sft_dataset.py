@@ -44,20 +44,20 @@ logger = logging.getLogger(__name__)
 class TaskType(str, Enum):
     """SFT 样本任务类型(对应 deadman 业务领域)。"""
 
-    LEGAL = "legal"            # 法律咨询(遗嘱 / 继承 / 监护)
-    MEDICAL = "medical"        # 医疗(临终关怀 / 疼痛管理)
-    EMOTIONAL = "emotional"    # 情感支持(哀伤辅导)
-    FINANCIAL = "financial"    # 财务(遗产分配 / 税务)
-    GENERAL = "general"        # 通用(平台导航 / FAQ)
+    LEGAL = "legal"  # 法律咨询(遗嘱 / 继承 / 监护)
+    MEDICAL = "medical"  # 医疗(临终关怀 / 疼痛管理)
+    EMOTIONAL = "emotional"  # 情感支持(哀伤辅导)
+    FINANCIAL = "financial"  # 财务(遗产分配 / 税务)
+    GENERAL = "general"  # 通用(平台导航 / FAQ)
 
 
 class SFTSource(str, Enum):
     """样本来源(lineage)。"""
 
-    USER_FEEDBACK = "user_feedback"     # 用户反馈高赞回复
-    AUTO_GENERATED = "auto_generated"   # 自动生成(模板 / LLM 增强)
-    MANUAL = "manual"                   # 人工编写(domain expert)
-    REFLEXION = "reflexion"             # Reflexion 修正后的回复
+    USER_FEEDBACK = "user_feedback"  # 用户反馈高赞回复
+    AUTO_GENERATED = "auto_generated"  # 自动生成(模板 / LLM 增强)
+    MANUAL = "manual"  # 人工编写(domain expert)
+    REFLEXION = "reflexion"  # Reflexion 修正后的回复
 
 
 class ExportFormat(str, Enum):
@@ -65,7 +65,7 @@ class ExportFormat(str, Enum):
 
     JSONL = "jsonl"
     CSV = "csv"
-    ALPACA = "alpaca"     # {"instruction", "input", "output"}
+    ALPACA = "alpaca"  # {"instruction", "input", "output"}
     SHAREGPT = "sharegpt"  # {"conversations": [{"from": "human"/"gpt", "value": ...}]}
 
 
@@ -200,9 +200,7 @@ class SFTDataset:
             # 1. PII 脱敏(强制,无论 redacted 字段)
             if not example.redacted:
                 example.prompt = self._pii_redactor.redact(example.prompt).redacted_text
-                example.completion = self._pii_redactor.redact(
-                    example.completion
-                ).redacted_text
+                example.completion = self._pii_redactor.redact(example.completion).redacted_text
                 example.redacted = True
 
             # 2. 重算 hash(脱敏后)
@@ -301,9 +299,7 @@ class SFTDataset:
             balanced: list[SFTExample] = []
             for _task_type, examples in by_type.items():
                 # 按质量分降序排,取前 min_count
-                sorted_ex = sorted(
-                    examples, key=lambda e: e.quality_score, reverse=True
-                )
+                sorted_ex = sorted(examples, key=lambda e: e.quality_score, reverse=True)
                 balanced.extend(sorted_ex[:min_count])
 
             removed = len(self._examples) - len(balanced)
@@ -346,15 +342,33 @@ class SFTDataset:
     def _export_csv(self, examples: list[SFTExample]) -> bytes:
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow([
-            "prompt", "completion", "task_type", "quality_score",
-            "source", "timestamp", "user_id", "redacted", "prompt_hash",
-        ])
+        writer.writerow(
+            [
+                "prompt",
+                "completion",
+                "task_type",
+                "quality_score",
+                "source",
+                "timestamp",
+                "user_id",
+                "redacted",
+                "prompt_hash",
+            ]
+        )
         for ex in examples:
-            writer.writerow([
-                ex.prompt, ex.completion, ex.task_type.value, ex.quality_score,
-                ex.source.value, ex.timestamp, ex.user_id, ex.redacted, ex.prompt_hash,
-            ])
+            writer.writerow(
+                [
+                    ex.prompt,
+                    ex.completion,
+                    ex.task_type.value,
+                    ex.quality_score,
+                    ex.source.value,
+                    ex.timestamp,
+                    ex.user_id,
+                    ex.redacted,
+                    ex.prompt_hash,
+                ]
+            )
         return buf.getvalue().encode("utf-8")
 
     def _export_alpaca(self, examples: list[SFTExample]) -> bytes:
@@ -390,9 +404,7 @@ class SFTDataset:
                     errors.append(f"example[{i}]: empty completion")
                 # 质量分范围
                 if not (0 <= ex.quality_score <= 1):
-                    errors.append(
-                        f"example[{i}]: quality_score {ex.quality_score} out of [0,1]"
-                    )
+                    errors.append(f"example[{i}]: quality_score {ex.quality_score} out of [0,1]")
                 # 必须脱敏
                 if not ex.redacted:
                     errors.append(f"example[{i}]: not PII-redacted")

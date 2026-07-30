@@ -169,16 +169,12 @@ class TestRedteamRunAllGeneratesReport:
         report = asyncio.run(runner.run_all(_safe_target))
         # 安全目标应对所有 refuse / no_leak payload 通过
         # safe_response 默认 pass（除非含危险内容）
-        assert report.pass_rate > 0.5, (
-            f"安全目标 pass_rate 应 > 0.5，实际 {report.pass_rate}"
-        )
+        assert report.pass_rate > 0.5, f"安全目标 pass_rate 应 > 0.5，实际 {report.pass_rate}"
 
     def test_redteam_run_all_unsafe_target_low_pass_rate(self, runner):
         """不安全目标应有较低 pass_rate"""
         report = asyncio.run(runner.run_all(_unsafe_target))
-        assert report.pass_rate < 0.5, (
-            f"不安全目标 pass_rate 应 < 0.5，实际 {report.pass_rate}"
-        )
+        assert report.pass_rate < 0.5, f"不安全目标 pass_rate 应 < 0.5，实际 {report.pass_rate}"
 
     def test_redteam_run_all_results_have_all_fields(self, runner):
         """报告的每个 result 字段完整"""
@@ -212,7 +208,9 @@ class TestRedteamDisabledNoop:
         """feature flag 关闭：run_one 返回 passed=False 的结果"""
         monkeypatch.setattr(redteam_module, "REDTEAM_ENABLED", False)
         payload = RedteamPayload(
-            payload="test", category="test", expected_behavior="refuse",
+            payload="test",
+            category="test",
+            expected_behavior="refuse",
         )
         result = asyncio.run(runner.run_one(payload, _safe_target))
         assert result.passed is False
@@ -228,9 +226,7 @@ class TestRedteamPayloadCategories:
     def test_redteam_payload_categories_covered(self):
         """payload 分类覆盖至少 5 类"""
         categories = {p.category for p in REDTEAM_PAYLOAD_VAULT}
-        assert len(categories) >= 5, (
-            f"应至少 5 个分类，实际 {len(categories)}: {categories}"
-        )
+        assert len(categories) >= 5, f"应至少 5 个分类，实际 {len(categories)}: {categories}"
         # 应包含中文越狱 / 英文越狱 / PII 索取 / system prompt 泄漏
         assert "jailbreak_cn" in categories
         assert "jailbreak_en" in categories
@@ -239,8 +235,9 @@ class TestRedteamPayloadCategories:
 
     def test_payload_vault_has_chinese_and_english(self):
         """vault 同时包含中英文 payload"""
-        has_cn = any(any("\u4e00" <= ch <= "\u9fff" for ch in p.payload)
-                     for p in REDTEAM_PAYLOAD_VAULT)
+        has_cn = any(
+            any("\u4e00" <= ch <= "\u9fff" for ch in p.payload) for p in REDTEAM_PAYLOAD_VAULT
+        )
         has_en = any(p.category == "jailbreak_en" for p in REDTEAM_PAYLOAD_VAULT)
         assert has_cn, "vault 应包含中文 payload"
         assert has_en, "vault 应包含英文 payload"
@@ -254,11 +251,14 @@ class TestRedteamPayloadCategories:
 class TestRedteamTargetExceptionHandled:
     def test_redteam_target_exception_handled(self, runner):
         """target 抛异常时记录为 failure，不中断"""
+
         def bad_target(payload: str) -> str:
             raise RuntimeError("target crashed")
 
         payload = RedteamPayload(
-            payload="test", category="test", expected_behavior="refuse",
+            payload="test",
+            category="test",
+            expected_behavior="refuse",
         )
         result = asyncio.run(runner.run_one(payload, bad_target))
         assert result.passed is False
@@ -267,6 +267,7 @@ class TestRedteamTargetExceptionHandled:
     def test_redteam_run_all_with_failing_target_continues(self, runner):
         """run_all 中某个 target 异常不中断后续 payload"""
         call_count = [0]
+
         def flaky_target(payload: str) -> str:
             call_count[0] += 1
             if call_count[0] == 2:  # 第 2 次抛异常
@@ -288,6 +289,7 @@ class TestRedteamTargetExceptionHandled:
 class TestRedteamAsyncTarget:
     def test_redteam_async_target_supported(self, runner):
         """支持 async target_callable"""
+
         async def async_target(payload: str) -> str:
             return "抱歉，我不能执行这个请求。"
 
@@ -302,6 +304,7 @@ class TestRedteamAsyncTarget:
 
     def test_redteam_run_all_async_target(self, runner):
         """run_all 支持 async target"""
+
         async def async_target(payload: str) -> str:
             return "抱歉，我不能执行这个请求。"
 
@@ -340,11 +343,13 @@ class TestRedteamCustomVault:
         """RedteamRunner 支持自定义 payload vault"""
         custom_payloads = [
             RedteamPayload(
-                payload="custom test", category="custom",
+                payload="custom test",
+                category="custom",
                 expected_behavior="refuse",
             ),
             RedteamPayload(
-                payload="another test", category="custom",
+                payload="another test",
+                category="custom",
                 expected_behavior="safe_response",
             ),
         ]

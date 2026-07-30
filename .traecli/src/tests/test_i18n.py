@@ -22,6 +22,7 @@ import pytest
 # Fixtures
 # =====================================================================
 
+
 @pytest.fixture(autouse=True)
 def enable_i18n(monkeypatch, tmp_path):
     """每个测试启用 i18n(默认关闭)+ 用 tmp_path 避免污染。"""
@@ -30,10 +31,12 @@ def enable_i18n(monkeypatch, tmp_path):
     monkeypatch.setenv("DEADMAN_MULTI_TENANT_ENABLED", "0")
     # 重置 feature flag 缓存
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     # 重置全局单例
     import deadman.i18n as i18n_pkg
+
     i18n_pkg._translator_instance = None
     i18n_pkg.locale._locale_detector_instance = None
     i18n_pkg.messages._message_bundle_instance = None
@@ -60,9 +63,11 @@ def disable_i18n(monkeypatch):
     """显式关闭 i18n 的测试用。"""
     monkeypatch.setenv("DEADMAN_I18N_ENABLED", "0")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     import deadman.i18n as i18n_pkg
+
     i18n_pkg._translator_instance = None
     i18n_pkg.locale._locale_detector_instance = None
     i18n_pkg.messages._message_bundle_instance = None
@@ -76,9 +81,11 @@ def disable_i18n(monkeypatch):
 # 1. Locale
 # =====================================================================
 
+
 class TestLocale:
     def test_locale_enum_values(self):
         from deadman.i18n import Locale
+
         assert Locale.ZH_CN.value == "zh-CN"
         assert Locale.ZH_TW.value == "zh-TW"
         assert Locale.EN_US.value == "en-US"
@@ -88,12 +95,14 @@ class TestLocale:
 
     def test_locale_from_string_exact(self):
         from deadman.i18n import Locale
+
         assert Locale.from_string("zh-CN") == Locale.ZH_CN
         assert Locale.from_string("en-US") == Locale.EN_US
         assert Locale.from_string("ja-JP") == Locale.JA_JP
 
     def test_locale_from_string_loose(self):
         from deadman.i18n import Locale
+
         # 下划线 / 大小写 / 简写
         assert Locale.from_string("zh_cn") == Locale.ZH_CN
         assert Locale.from_string("EN-us") == Locale.EN_US
@@ -104,12 +113,14 @@ class TestLocale:
 
     def test_locale_from_string_unknown_fallback(self):
         from deadman.i18n import Locale
+
         assert Locale.from_string("xx-XX") == Locale.ZH_CN
         assert Locale.from_string("") == Locale.ZH_CN
         assert Locale.from_string(None) == Locale.ZH_CN
 
     def test_locale_properties(self):
         from deadman.i18n import Locale
+
         assert Locale.ZH_CN.language == "zh"
         assert Locale.ZH_CN.region == "CN"
         assert Locale.EN_US.language == "en"
@@ -120,15 +131,18 @@ class TestLocale:
 # 2. LocaleDetector
 # =====================================================================
 
+
 class TestLocaleDetector:
     def test_detect_from_request_accept_language(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         loc = det.detect_from_request(accept_language="en-US,en;q=0.9,zh-CN;q=0.8")
         assert loc == Locale.EN_US
 
     def test_detect_from_request_headers_dict(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 大小写不敏感
         loc = det.detect_from_request(headers={"ACCEPT-LANGUAGE": "ja-JP"})
@@ -136,6 +150,7 @@ class TestLocaleDetector:
 
     def test_detect_from_request_q_weighted(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # en q=0.1 应排到 zh q=0.9 后面
         loc = det.detect_from_request(accept_language="en;q=0.1,zh-CN;q=0.9")
@@ -143,22 +158,26 @@ class TestLocaleDetector:
 
     def test_detect_from_request_empty_falls_back(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         assert det.detect_from_request(accept_language=None, headers=None) == Locale.ZH_CN
 
     def test_detect_from_request_malformed(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 异常输入不抛异常,返回 ZH_CN
         assert det.detect_from_request(accept_language=";;;invalid;;;") == Locale.ZH_CN
 
     def test_detect_from_user_profile_no_pref(self, tmp_path):
         from deadman.i18n import LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         assert det.detect_from_user_profile("u1") is None
 
     def test_persist_preference_and_load(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         ok = det.persist_preference("u1", Locale.EN_US)
         assert ok is True
@@ -169,6 +188,7 @@ class TestLocaleDetector:
 
     def test_persist_preference_string_locale(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         det.persist_preference("u2", "ja-JP")
         det2 = LocaleDetector(store_path=tmp_path / "prefs.json")
@@ -176,6 +196,7 @@ class TestLocaleDetector:
 
     def test_clear_preference(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         det.persist_preference("u3", Locale.JA_JP)
         assert det.clear_preference("u3") is True
@@ -183,6 +204,7 @@ class TestLocaleDetector:
 
     def test_detect_from_ip_private(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 私有网段 → ZH_CN(测试默认)
         assert det.detect_from_ip("127.0.0.1") == Locale.ZH_CN
@@ -191,6 +213,7 @@ class TestLocaleDetector:
 
     def test_detect_from_ip_cn_prefix(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 中国大陆常见网段
         assert det.detect_from_ip("114.114.114.114") == Locale.ZH_CN
@@ -198,17 +221,20 @@ class TestLocaleDetector:
 
     def test_detect_from_ip_us_prefix(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 美国常见网段
         assert det.detect_from_ip("8.8.8.8") == Locale.EN_US
 
     def test_detect_from_ip_empty(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         assert det.detect_from_ip("") == Locale.ZH_CN
 
     def test_detect_comprehensive_priority(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 1. 持久化偏好优先
         det.persist_preference("u1", Locale.KO_KR)
@@ -217,6 +243,7 @@ class TestLocaleDetector:
 
     def test_detect_no_pref_falls_to_request(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         loc = det.detect(user_id="u2", accept_language="en-US")
         assert loc == Locale.EN_US
@@ -226,9 +253,11 @@ class TestLocaleDetector:
 # 3. MessageBundle
 # =====================================================================
 
+
 class TestMessageBundle:
     def test_default_messages_loaded(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         # 内置 5 个 key 都应有
         assert bundle.has("greeting", Locale.ZH_CN)
@@ -239,6 +268,7 @@ class TestMessageBundle:
 
     def test_get_with_vars(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         msg = bundle.get("greeting", Locale.ZH_CN, name="张三")
         assert "张三" in msg
@@ -246,6 +276,7 @@ class TestMessageBundle:
 
     def test_get_en_us(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         msg = bundle.get("greeting", Locale.EN_US, name="Alice")
         assert "Alice" in msg
@@ -253,6 +284,7 @@ class TestMessageBundle:
 
     def test_get_fallback_to_zh_cn(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         # 删除 EN_US 的翻译,触发兜底
         bundle._messages["greeting"].pop(Locale.EN_US.value, None)
@@ -262,17 +294,20 @@ class TestMessageBundle:
 
     def test_get_missing_key_returns_key(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         assert bundle.get("nonexistent_key_xyz", Locale.ZH_CN) == "nonexistent_key_xyz"
 
     def test_has_returns_false_for_missing(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         assert bundle.has("nonexistent", Locale.ZH_CN) is False
         assert bundle.has("greeting", Locale.JA_JP) is True
 
     def test_list_keys(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         keys = bundle.list_keys(Locale.ZH_CN)
         assert "greeting" in keys
@@ -281,6 +316,7 @@ class TestMessageBundle:
 
     def test_add_programmatic(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         bundle.add(Locale.EN_US, "custom.key", "Hello {name}!")
         assert bundle.has("custom.key", Locale.EN_US)
@@ -288,24 +324,32 @@ class TestMessageBundle:
 
     def test_add_string_locale(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         bundle.add("ja-JP", "custom.ja", "こんにちは")
         assert bundle.get("custom.ja", Locale.JA_JP) == "こんにちは"
 
     def test_load_file_json(self, tmp_path):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         path = tmp_path / "msgs.json"
-        path.write_text(json.dumps({
-            "custom.from.file": "File loaded {name}",
-            "another.key": "another",
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "custom.from.file": "File loaded {name}",
+                    "another.key": "another",
+                }
+            ),
+            encoding="utf-8",
+        )
         count = bundle.load_file(Locale.EN_US, path)
         assert count == 2
         assert bundle.get("custom.from.file", Locale.EN_US, name="X") == "File loaded X"
 
     def test_load_file_yaml(self, tmp_path):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         path = tmp_path / "msgs.yaml"
         path.write_text("custom.yaml.key: 'YAML loaded {name}'", encoding="utf-8")
@@ -315,12 +359,14 @@ class TestMessageBundle:
 
     def test_load_file_not_found(self, tmp_path):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         count = bundle.load_file(Locale.EN_US, tmp_path / "nonexistent.json")
         assert count == 0
 
     def test_format_missing_var_does_not_crash(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         # 缺少 name 变量应保留模板不抛异常
         msg = bundle.get("greeting", Locale.ZH_CN)
@@ -328,6 +374,7 @@ class TestMessageBundle:
 
     def test_list_locales_for_key(self):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         locs = bundle.list_locales("greeting")
         # 内置应有 6 个 locale
@@ -340,9 +387,11 @@ class TestMessageBundle:
 # 4. LawAdapter
 # =====================================================================
 
+
 class TestLawAdapter:
     def test_inheritance_law_cn_mainland(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         law = la.get_inheritance_law(Jurisdiction.CN_MAINLAND)
         assert "statute" in law
@@ -354,6 +403,7 @@ class TestLawAdapter:
 
     def test_inheritance_law_each_jurisdiction(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         for j in Jurisdiction:
             law = la.get_inheritance_law(j)
@@ -362,6 +412,7 @@ class TestLawAdapter:
 
     def test_data_protection_law_pipl(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         dp = la.get_data_protection_law(Jurisdiction.CN_MAINLAND)
         assert "PIPL" in dp["law"]
@@ -370,6 +421,7 @@ class TestLawAdapter:
 
     def test_data_protection_law_gdpr(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         dp = la.get_data_protection_law(Jurisdiction.EU)
         assert "GDPR" in dp["law"]
@@ -377,6 +429,7 @@ class TestLawAdapter:
 
     def test_data_protection_law_ccpa(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         dp = la.get_data_protection_law(Jurisdiction.US)
         assert "CCPA" in dp["law"]
@@ -385,6 +438,7 @@ class TestLawAdapter:
 
     def test_data_protection_each_jurisdiction(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         for j in Jurisdiction:
             dp = la.get_data_protection_law(j)
@@ -394,6 +448,7 @@ class TestLawAdapter:
 
     def test_get_required_consents_cn_cross_border(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         consents = la.get_required_consents(Jurisdiction.CN_MAINLAND, "cross_border_transfer")
         assert "cross_border_consent" in consents
@@ -401,18 +456,21 @@ class TestLawAdapter:
 
     def test_get_required_consents_eu_deletion(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         consents = la.get_required_consents(Jurisdiction.EU, "data_delete")
         assert "gdpr_erasure_request" in consents
 
     def test_get_required_consents_unknown_action(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         # 未知 action 应返回空列表
         assert la.get_required_consents(Jurisdiction.CN_MAINLAND, "unknown_action") == []
 
     def test_validate_cross_border_same_jurisdiction(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         result = la.validate_cross_border(Jurisdiction.CN_MAINLAND, Jurisdiction.CN_MAINLAND)
         assert result.allowed is True
@@ -420,16 +478,16 @@ class TestLawAdapter:
 
     def test_validate_cross_border_cn_to_us_blocked(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
-        result = la.validate_cross_border(
-            Jurisdiction.CN_MAINLAND, Jurisdiction.US, "user_profile"
-        )
+        result = la.validate_cross_border(Jurisdiction.CN_MAINLAND, Jurisdiction.US, "user_profile")
         assert result.allowed is False
         assert "cross_border_consent" in result.consents_required
         assert "PIPL" in result.legal_basis
 
     def test_validate_cross_border_us_to_cn_allowed(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         result = la.validate_cross_border(Jurisdiction.US, Jurisdiction.CN_MAINLAND)
         # 美国无联邦强制跨境同意
@@ -437,6 +495,7 @@ class TestLawAdapter:
 
     def test_validate_cross_border_eu_to_cn_blocked(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         result = la.validate_cross_border(Jurisdiction.EU, Jurisdiction.CN_MAINLAND)
         assert result.allowed is False
@@ -444,16 +503,16 @@ class TestLawAdapter:
 
     def test_validate_cross_border_financial_sensitive(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
-        result = la.validate_cross_border(
-            Jurisdiction.CN_MAINLAND, Jurisdiction.US, "financial"
-        )
+        result = la.validate_cross_border(Jurisdiction.CN_MAINLAND, Jurisdiction.US, "financial")
         assert result.allowed is False
         # financial 应触发 sensitive_data_consent
         assert "sensitive_data_consent" in result.consents_required
 
     def test_validate_cross_border_no_rule_default_precaution(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         # KR -> EU 没有专门规则,应走 precautionary default
         result = la.validate_cross_border(Jurisdiction.KR, Jurisdiction.EU)
@@ -463,6 +522,7 @@ class TestLawAdapter:
 
     def test_jurisdiction_from_locale(self):
         from deadman.i18n import Jurisdiction
+
         assert Jurisdiction.from_locale("zh-CN") == Jurisdiction.CN_MAINLAND
         assert Jurisdiction.from_locale("zh-TW") == Jurisdiction.CN_HONGKONG
         assert Jurisdiction.from_locale("en-US") == Jurisdiction.US
@@ -474,6 +534,7 @@ class TestLawAdapter:
 
     def test_load_config_json_override(self, tmp_path):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         config = {
             "inheritance_law": {
@@ -494,6 +555,7 @@ class TestLawAdapter:
 
     def test_list_jurisdictions(self):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         js = la.list_jurisdictions()
         assert Jurisdiction.CN_MAINLAND in js
@@ -504,9 +566,11 @@ class TestLawAdapter:
 # 5. CurrencyConverter
 # =====================================================================
 
+
 class TestCurrencyConverter:
     def test_currency_enum_values(self):
         from deadman.i18n import Currency
+
         assert Currency.CNY.value == "CNY"
         assert Currency.USD.value == "USD"
         assert Currency.EUR.value == "EUR"
@@ -517,6 +581,7 @@ class TestCurrencyConverter:
 
     def test_currency_symbol(self):
         from deadman.i18n import Currency
+
         assert Currency.CNY.symbol == "¥"
         assert Currency.USD.symbol == "$"
         assert Currency.EUR.symbol == "€"
@@ -526,17 +591,20 @@ class TestCurrencyConverter:
 
     def test_currency_zero_decimal(self):
         from deadman.i18n import Currency
+
         assert Currency.JPY.is_zero_decimal is True
         assert Currency.KRW.is_zero_decimal is True
         assert Currency.CNY.is_zero_decimal is False
 
     def test_get_rate_same_currency(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         assert cc.get_rate(Currency.USD, Currency.USD) == 1.0
 
     def test_get_rate_usd_to_cny(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         rate = cc.get_rate(Currency.USD, Currency.CNY)
         # 1 USD = 7.20 CNY(默认值)
@@ -544,6 +612,7 @@ class TestCurrencyConverter:
 
     def test_convert_usd_to_cny(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         result = cc.convert(100, Currency.USD, Currency.CNY)
         assert result.amount == pytest.approx(720.0, rel=0.01)
@@ -553,12 +622,14 @@ class TestCurrencyConverter:
 
     def test_convert_cny_to_usd(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         result = cc.convert(720, Currency.CNY, Currency.USD)
         assert result.amount == pytest.approx(100.0, rel=0.01)
 
     def test_convert_jpy_zero_decimal(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         # 100 JPY ≈ 4.8 CNY
         result = cc.convert(100, Currency.JPY, Currency.CNY)
@@ -566,6 +637,7 @@ class TestCurrencyConverter:
 
     def test_update_rates(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         count = cc.update_rates({"USD": 7.50, "EUR": 8.10})
         assert count == 2
@@ -573,6 +645,7 @@ class TestCurrencyConverter:
 
     def test_update_rates_invalid_skipped(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         # 0 或负数应跳过
         count = cc.update_rates({"USD": 0, "EUR": -1, "JPY": 0.05})
@@ -581,6 +654,7 @@ class TestCurrencyConverter:
 
     def test_rates_persisted_to_file(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         path = tmp_path / "rates.json"
         cc = CurrencyConverter(store_path=path)
         cc.update_rates({"USD": 7.55})
@@ -590,6 +664,7 @@ class TestCurrencyConverter:
 
     def test_format_cny_zh_cn(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter, Locale
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         formatted = cc.format(1234.5, Currency.CNY, Locale.ZH_CN)
         assert "¥" in formatted
@@ -597,6 +672,7 @@ class TestCurrencyConverter:
 
     def test_format_jpy_no_decimal(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter, Locale
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         formatted = cc.format(1500, Currency.JPY, Locale.JA_JP)
         # JPY 通常无小数
@@ -605,6 +681,7 @@ class TestCurrencyConverter:
 
     def test_format_no_symbol(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter, Locale
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         formatted = cc.format(100, Currency.USD, Locale.EN_US, include_symbol=False)
         assert "$" not in formatted
@@ -612,6 +689,7 @@ class TestCurrencyConverter:
 
     def test_get_all_rates(self, tmp_path):
         from deadman.i18n import CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         all_rates = cc.get_all_rates()
         assert "USD" in all_rates
@@ -620,12 +698,14 @@ class TestCurrencyConverter:
 
     def test_set_rate(self, tmp_path):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         assert cc.set_rate(Currency.EUR, 8.20) is True
         assert cc.get_rate(Currency.EUR, Currency.CNY) == pytest.approx(8.20)
 
     def test_currency_from_string_alias(self):
         from deadman.i18n import Currency
+
         assert Currency.from_string("$") == Currency.USD
         assert Currency.from_string("€") == Currency.EUR
         assert Currency.from_string("£") == Currency.GBP
@@ -637,20 +717,24 @@ class TestCurrencyConverter:
 # 6. TimezoneManager
 # =====================================================================
 
+
 class TestTimezoneManager:
     def test_detect_timezone_private_ip(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         assert tm.detect_timezone("127.0.0.1") == "Asia/Shanghai"
         assert tm.detect_timezone("192.168.1.1") == "Asia/Shanghai"
 
     def test_detect_timezone_empty(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         assert tm.detect_timezone("") == "UTC"
 
     def test_detect_timezone_from_locale(self):
         from deadman.i18n import Locale, TimezoneManager
+
         tm = TimezoneManager()
         assert tm.detect_timezone_from_locale(Locale.ZH_CN) == "Asia/Shanghai"
         assert tm.detect_timezone_from_locale(Locale.JA_JP) == "Asia/Tokyo"
@@ -660,6 +744,7 @@ class TestTimezoneManager:
 
     def test_now_in_shanghai(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         now = tm.now_in("Asia/Shanghai")
         # 应为 aware datetime
@@ -669,12 +754,14 @@ class TestTimezoneManager:
 
     def test_now_in_utc(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         now = tm.now_in("UTC")
         assert now.utcoffset().total_seconds() == 0
 
     def test_convert_shanghai_to_tokyo(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         # naive dt 视为 from_tz
         dt = datetime(2024, 1, 15, 12, 0, 0)
@@ -684,6 +771,7 @@ class TestTimezoneManager:
 
     def test_convert_aware_dt(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         # aware dt 直接用其 tzinfo
         dt = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone(timedelta(hours=8)))
@@ -693,6 +781,7 @@ class TestTimezoneManager:
 
     def test_convert_unknown_tz_falls_back_utc(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         dt = datetime(2024, 1, 15, 12, 0, 0)
         # 未知时区不抛异常,回退 UTC
@@ -701,6 +790,7 @@ class TestTimezoneManager:
 
     def test_format_zh_cn(self):
         from deadman.i18n import Locale, TimezoneManager
+
         tm = TimezoneManager()
         dt = datetime(2024, 1, 15, 12, 30, 45, tzinfo=timezone(timedelta(hours=8)))
         formatted = tm.format(dt, "Asia/Shanghai", Locale.ZH_CN)
@@ -709,6 +799,7 @@ class TestTimezoneManager:
 
     def test_format_ja_jp(self):
         from deadman.i18n import Locale, TimezoneManager
+
         tm = TimezoneManager()
         dt = datetime(2024, 1, 15, 12, 30, 45, tzinfo=timezone(timedelta(hours=9)))
         formatted = tm.format(dt, "Asia/Tokyo", Locale.JA_JP)
@@ -717,6 +808,7 @@ class TestTimezoneManager:
 
     def test_format_naive_dt(self):
         from deadman.i18n import Locale, TimezoneManager
+
         tm = TimezoneManager()
         dt = datetime(2024, 1, 15, 12, 0, 0)
         # naive dt 应自动加上 tz
@@ -725,6 +817,7 @@ class TestTimezoneManager:
 
     def test_business_hours_check_in_range(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         # 取当前北京时间,若在 0-23 之间,业务时间必包含某个区间
         tm.now_in("Asia/Shanghai")
@@ -734,6 +827,7 @@ class TestTimezoneManager:
 
     def test_business_hours_check_outside_range(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         now = tm.now_in("Asia/Shanghai")
         # hour_start > 当前 hour + 1 必不在范围内
@@ -745,6 +839,7 @@ class TestTimezoneManager:
 
     def test_business_hours_default_range(self):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         # 默认 9-18,可能 True 或 False,只验证不抛异常
         result = tm.business_hours_check("Asia/Shanghai")
@@ -754,6 +849,7 @@ class TestTimezoneManager:
 # =====================================================================
 # 7. Translator (end-to-end)
 # =====================================================================
+
 
 class TestTranslator:
     def test_set_and_get_locale(self, tmp_path):
@@ -766,6 +862,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -787,6 +884,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -809,6 +907,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -832,6 +931,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -856,6 +956,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -881,6 +982,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -904,6 +1006,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -929,6 +1032,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -952,6 +1056,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -977,6 +1082,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -987,7 +1093,8 @@ class TestTranslator:
         )
         t.set_locale("u1", Locale.ZH_CN)
         result = t.validate_action(
-            "cross_border_transfer", "u1",
+            "cross_border_transfer",
+            "u1",
             data_kind="user_profile",
             target_jurisdiction=Jurisdiction.US,
         )
@@ -1004,6 +1111,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -1026,6 +1134,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -1048,6 +1157,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -1070,6 +1180,7 @@ class TestTranslator:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -1079,7 +1190,9 @@ class TestTranslator:
             law_adapter=LawAdapter(),
         )
         loc = t.detect_locale(
-            user_id="u1", accept_language="en-US", persist=True,
+            user_id="u1",
+            accept_language="en-US",
+            persist=True,
         )
         assert loc == Locale.EN_US
         # 重置内存缓存验证持久化
@@ -1091,6 +1204,7 @@ class TestTranslator:
 # 8. Disabled state behavior
 # =====================================================================
 
+
 class TestDisabledState:
     def test_disabled_t_returns_raw_key(self, disable_i18n):
         from deadman.i18n import (
@@ -1101,6 +1215,7 @@ class TestDisabledState:
             TimezoneManager,
             Translator,
         )
+
         t = Translator(
             locale_detector=LocaleDetector(),
             message_bundle=MessageBundle(),
@@ -1121,6 +1236,7 @@ class TestDisabledState:
             TimezoneManager,
             Translator,
         )
+
         t = Translator(
             locale_detector=LocaleDetector(),
             message_bundle=MessageBundle(),
@@ -1133,6 +1249,7 @@ class TestDisabledState:
 
     def test_disabled_currency_rate_1(self, disable_i18n):
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter()
         # i18n 关闭:get_rate 返回 1.0
         assert cc.get_rate(Currency.USD, Currency.CNY) == 1.0
@@ -1143,6 +1260,7 @@ class TestDisabledState:
 
     def test_disabled_timezone_utc(self, disable_i18n):
         from deadman.i18n import TimezoneManager
+
         tm = TimezoneManager()
         # i18n 关闭:detect_timezone 返回 UTC
         assert tm.detect_timezone("8.8.8.8") == "UTC"
@@ -1160,6 +1278,7 @@ class TestDisabledState:
             TimezoneManager,
             Translator,
         )
+
         t = Translator(
             locale_detector=LocaleDetector(),
             message_bundle=MessageBundle(),
@@ -1182,6 +1301,7 @@ class TestDisabledState:
             TimezoneManager,
             Translator,
         )
+
         t = Translator(
             locale_detector=LocaleDetector(),
             message_bundle=MessageBundle(),
@@ -1189,18 +1309,22 @@ class TestDisabledState:
             timezone_manager=TimezoneManager(),
             law_adapter=LawAdapter(),
         )
-        result = t.validate_action("cross_border_transfer", "u1", target_jurisdiction=Jurisdiction.US)
+        result = t.validate_action(
+            "cross_border_transfer", "u1", target_jurisdiction=Jurisdiction.US
+        )
         # 关闭模式:校验跳过,直接 allowed
         assert result.allowed is True
 
     def test_disabled_message_bundle_returns_raw_key(self, disable_i18n):
         from deadman.i18n import Locale, MessageBundle
+
         bundle = MessageBundle()
         # i18n 关闭:get 返回原始 key(不查 messages)
         assert bundle.get("greeting", Locale.EN_US, name="X") == "greeting"
 
     def test_disabled_law_validate_passes(self, disable_i18n):
         from deadman.i18n import Jurisdiction, LawAdapter
+
         la = LawAdapter()
         result = la.validate_cross_border(Jurisdiction.CN_MAINLAND, Jurisdiction.US, "user_profile")
         # 关闭:直接通过
@@ -1209,6 +1333,7 @@ class TestDisabledState:
 
     def test_disabled_locale_detector_returns_zh_cn(self, disable_i18n, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         # 关闭:所有 detect 返回 ZH_CN
         assert det.detect_from_request(accept_language="en-US") == Locale.ZH_CN
@@ -1222,9 +1347,11 @@ class TestDisabledState:
 # 9. Locale persistence (atomic write)
 # =====================================================================
 
+
 class TestLocalePersistence:
     def test_persist_atomic_write(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         path = tmp_path / "prefs.json"
         det = LocaleDetector(store_path=path)
         det.persist_preference("u1", Locale.JA_JP)
@@ -1236,6 +1363,7 @@ class TestLocalePersistence:
 
     def test_persist_overwrite(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         det.persist_preference("u1", Locale.EN_US)
         det.persist_preference("u1", Locale.JA_JP)  # 覆盖
@@ -1244,6 +1372,7 @@ class TestLocalePersistence:
 
     def test_persist_multiple_users(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         det.persist_preference("u1", Locale.EN_US)
         det.persist_preference("u2", Locale.JA_JP)
@@ -1255,6 +1384,7 @@ class TestLocalePersistence:
 
     def test_persist_no_tmp_file_left(self, tmp_path):
         from deadman.i18n import Locale, LocaleDetector
+
         path = tmp_path / "prefs.json"
         det = LocaleDetector(store_path=path)
         det.persist_preference("u1", Locale.EN_US)
@@ -1263,6 +1393,7 @@ class TestLocalePersistence:
 
     def test_currency_rates_atomic_write(self, tmp_path):
         from deadman.i18n import CurrencyConverter
+
         path = tmp_path / "rates.json"
         cc = CurrencyConverter(store_path=path)
         cc.update_rates({"USD": 7.55})
@@ -1279,6 +1410,7 @@ class TestLocalePersistence:
 # 10. Thread safety (sanity)
 # =====================================================================
 
+
 class TestThreadSafety:
     def test_concurrent_locale_set(self, tmp_path):
         import threading
@@ -1292,6 +1424,7 @@ class TestThreadSafety:
             TimezoneManager,
             Translator,
         )
+
         det = LocaleDetector(store_path=tmp_path / "prefs.json")
         t = Translator(
             locale_detector=det,
@@ -1327,6 +1460,7 @@ class TestThreadSafety:
         import threading
 
         from deadman.i18n import Currency, CurrencyConverter
+
         cc = CurrencyConverter(store_path=tmp_path / "rates.json")
         errors = []
 
@@ -1351,16 +1485,25 @@ class TestThreadSafety:
 # 11. Module exports
 # =====================================================================
 
+
 class TestModuleExports:
     def test_all_exports_present(self):
         import deadman.i18n as i18n_pkg
+
         expected = [
-            "Locale", "LocaleDetector", "LocalePreference",
+            "Locale",
+            "LocaleDetector",
+            "LocalePreference",
             "MessageBundle",
-            "Jurisdiction", "LawAdapter", "ValidationResult",
-            "Currency", "ConvertedAmount", "CurrencyConverter",
+            "Jurisdiction",
+            "LawAdapter",
+            "ValidationResult",
+            "Currency",
+            "ConvertedAmount",
+            "CurrencyConverter",
             "TimezoneManager",
-            "Translator", "get_translator",
+            "Translator",
+            "get_translator",
             "I18nDisabledError",
         ]
         for name in expected:
@@ -1368,6 +1511,7 @@ class TestModuleExports:
 
     def test_i18n_disabled_error_is_exception(self):
         from deadman.i18n import I18nDisabledError
+
         assert issubclass(I18nDisabledError, Exception)
         # 可抛 / 可捕获
         with pytest.raises(I18nDisabledError):
@@ -1375,6 +1519,7 @@ class TestModuleExports:
 
     def test_validation_result_dataclass(self):
         from deadman.i18n import ValidationResult
+
         r = ValidationResult(
             allowed=True,
             jurisdiction_from="cn_mainland",
@@ -1390,6 +1535,7 @@ class TestModuleExports:
 
     def test_converted_amount_dataclass(self):
         from deadman.i18n import ConvertedAmount
+
         c = ConvertedAmount(
             amount=720.0,
             from_currency="USD",

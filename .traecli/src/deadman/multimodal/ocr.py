@@ -306,7 +306,9 @@ class OCRService:
                 result = provider.extract(image_path, doc_type)
                 logger.info(
                     "OCR extracted via %s (confidence=%.2f, doc_type=%s)",
-                    provider.name, result.confidence, doc_type.value,
+                    provider.name,
+                    result.confidence,
+                    doc_type.value,
                 )
                 return result
             except Exception as e:

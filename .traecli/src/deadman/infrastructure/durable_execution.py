@@ -315,7 +315,7 @@ class DurableExecutionManager:
         trace_id: str,
         node_name: str,
         args: dict,
-    ) -> "DurableExecutionManager._ExecutionScope":
+    ) -> DurableExecutionManager._ExecutionScope:
         """创建执行作用域(上下文管理器)。
 
         用法:

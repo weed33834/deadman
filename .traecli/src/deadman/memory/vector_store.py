@@ -30,9 +30,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # feature flag - 默认关闭
 # =====================================================================
-VECTOR_STORE_ENABLED: bool = os.environ.get(
-    "DEADMAN_VECTOR_STORE_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+VECTOR_STORE_ENABLED: bool = os.environ.get("DEADMAN_VECTOR_STORE_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # embedding 维度(hash 模拟用)
 _HASH_EMBEDDING_DIM: int = 256
@@ -42,6 +45,7 @@ _HASH_EMBEDDING_DIM: int = 256
 # =====================================================================
 try:  # pragma: no cover - 可选依赖
     import chromadb  # type: ignore
+
     _HAS_CHROMADB = True
 except Exception:  # pragma: no cover
     chromadb = None  # type: ignore
@@ -49,6 +53,7 @@ except Exception:  # pragma: no cover
 
 try:  # pragma: no cover - 可选依赖
     from sentence_transformers import SentenceTransformer  # type: ignore
+
     _HAS_ST = True
 except Exception:  # pragma: no cover
     SentenceTransformer = None  # type: ignore
@@ -99,6 +104,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 # Embedding 函数 - 优先 sentence-transformers,降级到 hash
 # =====================================================================
 
+
 class _EmbeddingFunc:
     """embedding 函数封装。优先 sentence-transformers;不可用降级到 hash。"""
 
@@ -112,9 +118,7 @@ class _EmbeddingFunc:
                 self._use_st = True
                 logger.info("sentence-transformers 加载成功: %s", model_name)
             except Exception as exc:  # pragma: no cover - 加载失败降级
-                logger.warning(
-                    "sentence-transformers 加载失败,降级到 hash embedding: %s", exc
-                )
+                logger.warning("sentence-transformers 加载失败,降级到 hash embedding: %s", exc)
                 self._model = None
                 self._use_st = False
 
@@ -137,6 +141,7 @@ class _EmbeddingFunc:
 # VectorStore 抽象基类
 # =====================================================================
 
+
 class VectorStore(ABC):
     """向量库抽象基类"""
 
@@ -145,9 +150,7 @@ class VectorStore(ABC):
         """添加一条向量。同 id 覆盖。"""
 
     @abstractmethod
-    def query(
-        self, text: str, top_k: int = 5
-    ) -> list[dict[str, Any]]:
+    def query(self, text: str, top_k: int = 5) -> list[dict[str, Any]]:
         """查询最相似的 top_k 条,返回 [{id, score, metadata}]"""
 
     @abstractmethod
@@ -162,6 +165,7 @@ class VectorStore(ABC):
 # =====================================================================
 # InMemoryVectorStore - 纯 Python dict + 余弦相似度(默认降级后端)
 # =====================================================================
+
 
 class InMemoryVectorStore(VectorStore):
     """纯 Python 实现的向量库 - 默认降级后端。
@@ -182,9 +186,7 @@ class InMemoryVectorStore(VectorStore):
             "metadata": dict(metadata) if metadata else {},
         }
 
-    def query(
-        self, text: str, top_k: int = 5
-    ) -> list[dict[str, Any]]:
+    def query(self, text: str, top_k: int = 5) -> list[dict[str, Any]]:
         if not self._store:
             return []
         qvec = self._embed.embed(text)
@@ -194,8 +196,7 @@ class InMemoryVectorStore(VectorStore):
             scored.append((score, eid, entry["metadata"]))
         scored.sort(key=lambda x: x[0], reverse=True)
         return [
-            {"id": eid, "score": score, "metadata": meta}
-            for score, eid, meta in scored[:top_k]
+            {"id": eid, "score": score, "metadata": meta} for score, eid, meta in scored[:top_k]
         ]
 
     def delete(self, id: str) -> None:
@@ -208,6 +209,7 @@ class InMemoryVectorStore(VectorStore):
 # =====================================================================
 # ChromaVectorStore - 包装 chromadb(可选依赖)
 # =====================================================================
+
 
 class ChromaVectorStore(VectorStore):
     """chromadb 包装 - 需 chromadb 已安装。
@@ -247,9 +249,7 @@ class ChromaVectorStore(VectorStore):
             metadatas=[safe_meta],
         )
 
-    def query(
-        self, text: str, top_k: int = 5
-    ) -> list[dict[str, Any]]:
+    def query(self, text: str, top_k: int = 5) -> list[dict[str, Any]]:
         if self.count() == 0:
             return []
         qvec = self._embedding_func.embed(text)
@@ -322,9 +322,7 @@ def get_vector_store(force_refresh: bool = False) -> VectorStore | None:
                 logger.info("VectorStore 启用: ChromaVectorStore")
                 return _vector_store_singleton
             except Exception as exc:
-                logger.warning(
-                    "ChromaVectorStore 初始化失败,降级到 InMemory: %s", exc
-                )
+                logger.warning("ChromaVectorStore 初始化失败,降级到 InMemory: %s", exc)
         _vector_store_singleton = InMemoryVectorStore()
         logger.info("VectorStore 启用: InMemoryVectorStore")
         return _vector_store_singleton

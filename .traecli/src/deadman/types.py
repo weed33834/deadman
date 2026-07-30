@@ -38,13 +38,15 @@ class TransferSummary:
 
     def is_complete(self) -> bool:
         """7 字段是否齐全"""
-        return all([
-            self.from_agent,
-            self.to_agent,
-            self.reason,
-            self.user_situation,
-            self.current_question is not None,
-        ])
+        return all(
+            [
+                self.from_agent,
+                self.to_agent,
+                self.reason,
+                self.user_situation,
+                self.current_question is not None,
+            ]
+        )
 
 
 @dataclass

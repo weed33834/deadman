@@ -32,9 +32,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-SCRATCHPAD_ENABLED: bool = os.environ.get(
-    "DEADMAN_SCRATCHPAD_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+SCRATCHPAD_ENABLED: bool = os.environ.get("DEADMAN_SCRATCHPAD_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 支持的模式
 VALID_MODES = ("independent", "shared")
@@ -59,15 +62,13 @@ class ScratchpadManager:
         state: dict[str, Any] | None = None,
     ):
         """Args:
-            mode: "independent"（默认）或 "shared"
-            state: 可选的 ConversationState；若提供则 scratchpads 读写都
-                   落到 state["scratchpads"]，便于 LangGraph 持久化；
-                   为 None 时内部维护独立 dict
+        mode: "independent"（默认）或 "shared"
+        state: 可选的 ConversationState；若提供则 scratchpads 读写都
+               落到 state["scratchpads"]，便于 LangGraph 持久化；
+               为 None 时内部维护独立 dict
         """
         if mode not in VALID_MODES:
-            logger.warning(
-                "未知 scratchpad mode=%s，回退到 %s", mode, DEFAULT_MODE
-            )
+            logger.warning("未知 scratchpad mode=%s，回退到 %s", mode, DEFAULT_MODE)
             mode = DEFAULT_MODE
         self.mode = mode
         self._state = state
@@ -146,9 +147,7 @@ class ScratchpadManager:
             store[key] = []
             logger.debug("scratchpad cleared [%s]", key)
 
-    def share_to(
-        self, target_agent: str, source_agent: str
-    ) -> None:
+    def share_to(self, target_agent: str, source_agent: str) -> None:
         """共享模式：复制源 agent 的 scratchpad 到目标 agent
 
         仅在 independent 模式下有意义（shared 模式所有 agent 已共享同一 scratchpad）。
@@ -175,7 +174,9 @@ class ScratchpadManager:
         store[target_agent] = target_notes
         logger.debug(
             "scratchpad shared: %s -> %s (%d notes)",
-            source_agent, target_agent, len(source_notes),
+            source_agent,
+            target_agent,
+            len(source_notes),
         )
 
     # ------------------------------------------------------------------

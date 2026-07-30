@@ -51,12 +51,20 @@ class TestPermissionRegistry:
         """注册表应覆盖全部 15 个工具"""
         # 15 个工具名（与 server.py 一致）
         expected = {
-            "query_knowledge", "web_search", "web_search_official",
-            "read_file", "write_file",
-            "invoke_subagent", "check_integrity", "check_rules",
-            "query_memory", "initiate_debate", "call_external_agent",
+            "query_knowledge",
+            "web_search",
+            "web_search_official",
+            "read_file",
+            "write_file",
+            "invoke_subagent",
+            "check_integrity",
+            "check_rules",
+            "query_memory",
+            "initiate_debate",
+            "call_external_agent",
             "execute_reflexion",
-            "init_transfer", "report_incident",
+            "init_transfer",
+            "report_incident",
             "execute_code",
         }
         assert set(PERMISSION_REGISTRY.keys()) == expected
@@ -72,8 +80,7 @@ class TestPermissionRegistry:
     def test_dangerous_only_reflexion(self):
         """仅 execute_reflexion 归为 DANGEROUS"""
         dangerous = [
-            name for name, perm in PERMISSION_REGISTRY.items()
-            if perm == ToolPermission.DANGEROUS
+            name for name, perm in PERMISSION_REGISTRY.items() if perm == ToolPermission.DANGEROUS
         ]
         assert dangerous == ["execute_reflexion"]
 
@@ -96,8 +103,13 @@ class TestReadOnlyTools:
     def test_read_only_tools_no_confirmation(self, perms_enabled):
         """read-only 工具不应需要二次确认"""
         for tool in [
-            "query_knowledge", "web_search", "web_search_official",
-            "read_file", "check_integrity", "check_rules", "query_memory",
+            "query_knowledge",
+            "web_search",
+            "web_search_official",
+            "read_file",
+            "check_integrity",
+            "check_rules",
+            "query_memory",
         ]:
             assert requires_confirmation(tool) is False, f"{tool} 不应需确认"
             assert is_read_only(tool) is True, f"{tool} 应为 read-only"

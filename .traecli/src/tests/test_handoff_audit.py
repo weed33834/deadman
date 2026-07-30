@@ -380,9 +380,7 @@ class TestDisabledNoChange:
         assert logr.verify_chain() is False
         assert logr.count() == 0
 
-    def test_disabled_does_not_load_existing_file(
-        self, monkeypatch, tmp_audit_path
-    ):
+    def test_disabled_does_not_load_existing_file(self, monkeypatch, tmp_audit_path):
         """feature flag 关闭时不加载已有文件"""
         # 先开启 flag 写入数据
         monkeypatch.setattr(audit_module, "HANDOFF_AUDIT_ENABLED", True)
@@ -433,6 +431,7 @@ class TestContextVariablesOnlyHashPersisted:
 
     def test_compute_context_hash_unserializable_falls_back(self):
         """不可序列化对象退化为空字符串（不抛异常）"""
+
         # set 不可 JSON 序列化，但 default=str 兜底
         # 真正不可序列化的对象需要构造特殊场景
         class Unserializable:
@@ -457,18 +456,22 @@ class TestCorruptLineSkipped:
         """get_chain 跳过损坏行"""
         # 手工写一个文件，第二行是损坏 JSON
         tmp_audit_path.parent.mkdir(parents=True, exist_ok=True)
-        valid_line = json.dumps({
-            "transfer_id": "tx-1", "from_agent": "a", "to_agent": "b",
-            "reason": "r", "compressed_message": "m",
-            "context_variables_hash": "",
-            "created_at": "2026-01-01T00:00:00",
-            "prev_hash": "0" * 64,
-            "curr_hash": "deadbeef" + "0" * 56,
-        }, ensure_ascii=False)
-        corrupt_line = "not a valid json {"
-        tmp_audit_path.write_text(
-            valid_line + "\n" + corrupt_line + "\n", encoding="utf-8"
+        valid_line = json.dumps(
+            {
+                "transfer_id": "tx-1",
+                "from_agent": "a",
+                "to_agent": "b",
+                "reason": "r",
+                "compressed_message": "m",
+                "context_variables_hash": "",
+                "created_at": "2026-01-01T00:00:00",
+                "prev_hash": "0" * 64,
+                "curr_hash": "deadbeef" + "0" * 56,
+            },
+            ensure_ascii=False,
         )
+        corrupt_line = "not a valid json {"
+        tmp_audit_path.write_text(valid_line + "\n" + corrupt_line + "\n", encoding="utf-8")
 
         logr = HandoffAuditLogger(persist_path=tmp_audit_path)
         chain = logr.get_chain()
@@ -479,9 +482,7 @@ class TestCorruptLineSkipped:
     def test_empty_lines_skipped(self, tmp_audit_path):
         """空行被跳过"""
         tmp_audit_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_audit_path.write_text(
-            "\n\n  \n", encoding="utf-8"
-        )
+        tmp_audit_path.write_text("\n\n  \n", encoding="utf-8")
         logr = HandoffAuditLogger(persist_path=tmp_audit_path)
         assert logr.get_chain() == []
         assert logr.count() == 0
@@ -501,9 +502,7 @@ class TestCorruptLineSkipped:
 
 
 class TestPersistenceFailureDegradation:
-    def test_persistence_failure_degrades_gracefully(
-        self, monkeypatch, tmp_audit_path
-    ):
+    def test_persistence_failure_degrades_gracefully(self, monkeypatch, tmp_audit_path):
         """文件写入失败时降级：仅内存更新 last_hash，不抛异常"""
         logr = HandoffAuditLogger(persist_path=tmp_audit_path)
 
@@ -519,9 +518,7 @@ class TestPersistenceFailureDegradation:
         entry2 = logr.log_handoff("tx-2", "b", "c", "r2", "m2")
         assert entry2.prev_hash == entry.curr_hash
 
-    def test_persistence_to_unwritable_path_does_not_raise(
-        self, monkeypatch, tmp_path
-    ):
+    def test_persistence_to_unwritable_path_does_not_raise(self, monkeypatch, tmp_path):
         """持久化到不可写路径不抛异常"""
         # 用一个不存在的嵌套路径（mkdir 失败时降级）
         # 由于 _append 内部捕获 OSError，这里直接构造一个会触发 OSError 的场景

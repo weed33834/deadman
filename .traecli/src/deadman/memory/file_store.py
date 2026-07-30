@@ -41,13 +41,17 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # P2.5 feature flag - 默认关闭
 # =====================================================================
-MEMORY_SNAPSHOT_ENABLED: bool = os.environ.get(
-    "DEADMAN_MEMORY_SNAPSHOT_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+MEMORY_SNAPSHOT_ENABLED: bool = os.environ.get("DEADMAN_MEMORY_SNAPSHOT_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 可选 AES-256-GCM 加密依赖
 try:  # pragma: no cover - 可选依赖
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore
+
     _HAS_CRYPTO = True
 except Exception:  # pragma: no cover
     AESGCM = None  # type: ignore
@@ -66,10 +70,10 @@ DEFAULT_MEMORY_DIR = Path.home() / ".deadman" / "memory"
 
 # MEMORY.md 章节固定顺序（与 deadman 4 层记忆结构对齐）
 MEMORY_SECTIONS: tuple[str, ...] = (
-    "用户事实",      # 用户基本事实（与 UserProfile 对齐）
-    "逝者信息",      # deceased_info
-    "流程进度",      # procedural 当前阶段与已完成阶段
-    "待澄清矛盾",    # semantic.pending_contradictions
+    "用户事实",  # 用户基本事实（与 UserProfile 对齐）
+    "逝者信息",  # deceased_info
+    "流程进度",  # procedural 当前阶段与已完成阶段
+    "待澄清矛盾",  # semantic.pending_contradictions
 )
 
 
@@ -372,7 +376,9 @@ class FileMemoryStore:
                             importance = float(token.split("=", 1)[1])
                     elif token.startswith("pinned="):
                         pinned = token.split("=", 1)[1].strip().lower() in (
-                            "true", "1", "yes",
+                            "true",
+                            "1",
+                            "yes",
                         )
             else:
                 session = rest.strip()
@@ -547,9 +553,7 @@ class FileMemoryStore:
 
             # 计算 success_rate
             adj["success_rate"] = (
-                adj["success_count"] / adj["total_count"]
-                if adj["total_count"] > 0
-                else 0.0
+                adj["success_count"] / adj["total_count"] if adj["total_count"] > 0 else 0.0
             )
             sa[failure_type] = adj
 
@@ -916,11 +920,7 @@ class FileMemoryStore:
         gz_bytes = gzip.compress(json_bytes)
 
         # 判断是否走加密
-        use_aes = (
-            aes_key is not None
-            and _HAS_CRYPTO
-            and len(aes_key) == 32
-        )
+        use_aes = aes_key is not None and _HAS_CRYPTO and len(aes_key) == 32
         if use_aes:
             try:
                 assert aes_key is not None  # narrowed by use_aes check
@@ -938,11 +938,7 @@ class FileMemoryStore:
                 logger.warning("AES-GCM 加密失败,降级明文 gzip: %s", exc)
                 use_aes = False
         # 明文 gzip
-        header = (
-            _SNAPSHOT_MAGIC
-            + bytes([_SNAPSHOT_VERSION])
-            + bytes([_SNAPSHOT_FLAG_PLAIN])
-        )
+        header = _SNAPSHOT_MAGIC + bytes([_SNAPSHOT_VERSION]) + bytes([_SNAPSHOT_FLAG_PLAIN])
         return header + gz_bytes
 
     def import_snapshot(

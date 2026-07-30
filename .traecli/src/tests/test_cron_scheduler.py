@@ -51,9 +51,7 @@ def _make_mock_guard(
     if sanitize_map is None:
         guard.sanitize_content.side_effect = lambda content: content
     else:
-        guard.sanitize_content.side_effect = lambda content: sanitize_map.get(
-            content, content
-        )
+        guard.sanitize_content.side_effect = lambda content: sanitize_map.get(content, content)
 
     guard.record_consent.return_value = None
     guard.record_send.return_value = None
@@ -108,9 +106,7 @@ class TestProposeConfirm:
     def test_confirm_activates_job(self, tmp_path):
         """confirm 后 pending_confirmation=False, enabled=True"""
         sched = _make_scheduler(tmp_path)
-        propose_result = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒办户籍事务")
-        )
+        propose_result = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒办户籍事务"))
         job_id = propose_result["job_id"]
 
         confirm_result = asyncio.run(sched.confirm_job("u1", job_id))
@@ -140,34 +136,26 @@ class TestJobLimits:
         """第 6 个任务被拒（上限 5 条/用户）"""
         sched = _make_scheduler(tmp_path)
         for i in range(5):
-            r = asyncio.run(
-                sched.propose_job("u1", "0 9 * * *", f"提醒事项 {i}")
-            )
+            r = asyncio.run(sched.propose_job("u1", "0 9 * * *", f"提醒事项 {i}"))
             asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         # 第 6 个：propose 能成功（propose 不校验上限，避免误占名额），
         # 但 confirm 应该被拒
-        r6 = asyncio.run(
-            sched.propose_job("u1", "0 10 * * *", "第 6 个提醒")
-        )
+        r6 = asyncio.run(sched.propose_job("u1", "0 10 * * *", "第 6 个提醒"))
         with pytest.raises(ValueError, match="超过上限"):
             asyncio.run(sched.confirm_job("u1", r6["job_id"]))
 
     def test_min_interval_rejected(self, tmp_path):
         """ "0 * * * *"（每小时，间隔 1h < 24h）confirm 时被拒"""
         sched = _make_scheduler(tmp_path)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 * * * *", "每小时提醒")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 * * * *", "每小时提醒"))
         with pytest.raises(ValueError, match="间隔"):
             asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
     def test_max_duration_expires(self, tmp_path):
         """31 天后任务自动失效（expires_at < now）"""
         sched = _make_scheduler(tmp_path)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒事项")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒事项"))
         asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         # confirm 后 expires_at 应 ≤ now + 30 天
@@ -194,9 +182,7 @@ class TestTick:
     def test_tick_skips_unconfirmed(self, tmp_path):
         """未确认任务不触发（pending_confirmation=True）"""
         sched = _make_scheduler(tmp_path)
-        asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒事项")
-        )
+        asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒事项"))
         # 不 confirm，直接 tick
         results = asyncio.run(sched.tick(now=datetime(2026, 7, 21, 9, 0)))
         assert len(results) == 1
@@ -207,9 +193,7 @@ class TestTick:
         """guard.can_send 返回 False 时任务不触发"""
         guard = _make_mock_guard(can_send=(False, "silent_hours"))
         sched = _make_scheduler(tmp_path, guard=guard)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒事项")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒事项"))
         asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         results = asyncio.run(sched.tick(now=datetime(2026, 7, 21, 9, 0)))
@@ -228,9 +212,7 @@ class TestTick:
             sanitize_map={"今天是忌日": ""},
         )
         sched = _make_scheduler(tmp_path, guard=guard)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "今天是忌日")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "今天是忌日"))
         asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         results = asyncio.run(sched.tick(now=datetime(2026, 7, 21, 9, 0)))
@@ -242,9 +224,7 @@ class TestTick:
         """全部通过的任务触发"""
         fire_handler = AsyncMock()
         sched = _make_scheduler(tmp_path, fire_handler=fire_handler)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒办户籍事务")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒办户籍事务"))
         asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         results = asyncio.run(sched.tick(now=datetime(2026, 7, 21, 9, 0)))
@@ -272,9 +252,7 @@ class TestTick:
         """
         fire_handler = AsyncMock(side_effect=RuntimeError("模拟推送失败"))
         sched = _make_scheduler(tmp_path, fire_handler=fire_handler)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒事项")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒事项"))
         asyncio.run(sched.confirm_job("u1", r["job_id"]))
 
         # 第一次 tick：触发失败
@@ -310,9 +288,7 @@ class TestCancel:
         """cancel 后任务不再触发"""
         fire_handler = AsyncMock()
         sched = _make_scheduler(tmp_path, fire_handler=fire_handler)
-        r = asyncio.run(
-            sched.propose_job("u1", "0 9 * * *", "提醒事项")
-        )
+        r = asyncio.run(sched.propose_job("u1", "0 9 * * *", "提醒事项"))
         job_id = r["job_id"]
         asyncio.run(sched.confirm_job("u1", job_id))
 

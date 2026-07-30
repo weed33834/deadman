@@ -28,10 +28,12 @@ def enable_defense(monkeypatch):
     monkeypatch.setenv("DEADMAN_CIRCUIT_BREAKER_ENABLED", "1")
     monkeypatch.setenv("DEADMAN_FEATURE_FLAG_SYSTEM_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     # 重置全局单例
     import deadman.infrastructure.defense as defense_pkg
+
     defense_pkg._bc_instance = None
     defense_pkg._pr_instance = None
     defense_pkg._cp_instance = None
@@ -39,9 +41,11 @@ def enable_defense(monkeypatch):
     defense_pkg._cg_instance = None
     # tenant_circuit_breaker 全局 registry 也重置
     from deadman.infrastructure.defense.tenant_circuit_breaker import _tcb_registry
+
     _tcb_registry._tenant_cbs.clear()
     # cb_registry 完全清空(避免上一个测试的 breaker 状态 / config 泄漏)
     from deadman.infrastructure.circuit_breaker import cb_registry
+
     cb_registry._breakers.clear()
     yield
     # 测试后重置
@@ -54,6 +58,7 @@ def enable_defense(monkeypatch):
 # D1 + D3: BudgetCoordinator
 # =====================================================================
 
+
 class TestBudgetCoordinator:
     def test_allocate_and_check(self, tmp_path):
         from deadman.infrastructure.defense.budget_coordinator import (
@@ -61,6 +66,7 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(store_path=tmp_path / "budget.json")
         alloc = bc.allocate(
             scope=BudgetScope.USER,
@@ -82,6 +88,7 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(store_path=tmp_path / "budget.json")
         alloc = bc.allocate(
             scope=BudgetScope.USER,
@@ -101,20 +108,27 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(
             store_path=tmp_path / "budget.json",
             user_limits={BudgetDimension.LLM_TOKENS: 100},
         )
         # 第一次分配 80(成功)
         alloc1 = bc.allocate(
-            BudgetScope.USER, "u1",
-            BudgetDimension.LLM_TOKENS, 80, "test",
+            BudgetScope.USER,
+            "u1",
+            BudgetDimension.LLM_TOKENS,
+            80,
+            "test",
         )
         assert alloc1 is not None
         # 第二次分配 30(80+30 > 100 → 返回 None 表示拒绝)
         alloc2 = bc.allocate(
-            BudgetScope.USER, "u1",
-            BudgetDimension.LLM_TOKENS, 30, "test",
+            BudgetScope.USER,
+            "u1",
+            BudgetDimension.LLM_TOKENS,
+            30,
+            "test",
         )
         assert alloc2 is None
 
@@ -125,6 +139,7 @@ class TestBudgetCoordinator:
             BudgetExceededError,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(
             store_path=tmp_path / "budget.json",
             user_limits={BudgetDimension.LLM_TOKENS: 100},
@@ -132,8 +147,11 @@ class TestBudgetCoordinator:
         bc.allocate(BudgetScope.USER, "u1", BudgetDimension.LLM_TOKENS, 80, "test")
         with pytest.raises(BudgetExceededError):
             bc.allocate(
-                BudgetScope.USER, "u1",
-                BudgetDimension.LLM_TOKENS, 30, "test",
+                BudgetScope.USER,
+                "u1",
+                BudgetDimension.LLM_TOKENS,
+                30,
+                "test",
                 strict=True,
             )
 
@@ -144,6 +162,7 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(
             store_path=tmp_path / "budget.json",
             global_limits={BudgetDimension.LLM_TOKENS: 1000},
@@ -152,8 +171,11 @@ class TestBudgetCoordinator:
         # user 上限 100,远低于 global 1000
         # 分配 80 成功(user 和 global 都扣 80)
         alloc = bc.allocate(
-            BudgetScope.USER, "u1",
-            BudgetDimension.LLM_TOKENS, 80, "test",
+            BudgetScope.USER,
+            "u1",
+            BudgetDimension.LLM_TOKENS,
+            80,
+            "test",
         )
         assert alloc is not None
         # 验证 global 也扣了 80
@@ -163,6 +185,7 @@ class TestBudgetCoordinator:
     def test_disabled_returns_virtual_alloc(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.budget_coordinator import (
@@ -170,14 +193,18 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         bc = BudgetCoordinator(
             store_path=tmp_path / "budget.json",
             user_limits={BudgetDimension.LLM_TOKENS: 1},  # 极小
         )
         # 关闭后即使超限也透传
         alloc = bc.allocate(
-            BudgetScope.USER, "u1",
-            BudgetDimension.LLM_TOKENS, 10000, "test",
+            BudgetScope.USER,
+            "u1",
+            BudgetDimension.LLM_TOKENS,
+            10000,
+            "test",
         )
         assert alloc is not None
         assert alloc.allocation_id == "disabled"
@@ -189,6 +216,7 @@ class TestBudgetCoordinator:
             BudgetDimension,
             BudgetScope,
         )
+
         store = tmp_path / "budget.json"
         bc1 = BudgetCoordinator(store_path=store)
         bc1.allocate(BudgetScope.USER, "u1", BudgetDimension.LLM_TOKENS, 50, "test1")
@@ -203,6 +231,7 @@ class TestBudgetCoordinator:
 # D2: TenantCircuitBreaker
 # =====================================================================
 
+
 class TestTenantCircuitBreaker:
     def test_different_tenants_independent(self, tmp_path):
         """关键:租户 A 熔断不影响租户 B。"""
@@ -214,6 +243,7 @@ class TestTenantCircuitBreaker:
         from deadman.infrastructure.defense.tenant_circuit_breaker import (
             TenantCircuitBreaker,
         )
+
         # 配置:1 次失败就熔断(便于测试)
         cfg = CircuitConfig(
             failure_rate_threshold=1.0,
@@ -243,6 +273,7 @@ class TestTenantCircuitBreaker:
         from deadman.infrastructure.defense.tenant_circuit_breaker import (
             TenantCircuitBreaker,
         )
+
         cfg = CircuitConfig(
             failure_rate_threshold=1.0,
             minimum_number_of_calls=1,
@@ -259,6 +290,7 @@ class TestTenantCircuitBreaker:
         assert tcb.get_state(tenant_id="tA") == CircuitState.CLOSED
         # tB 仍是 Open
         from deadman.infrastructure.circuit_breaker import CircuitBreakerOpenError
+
         with pytest.raises(CircuitBreakerOpenError):
             tcb.acquire(tenant_id="tB")
 
@@ -266,11 +298,13 @@ class TestTenantCircuitBreaker:
         """关闭 defense 后退回全局熔断器(向后兼容)。"""
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.tenant_circuit_breaker import (
             TenantCircuitBreaker,
         )
+
         tcb = TenantCircuitBreaker("test_global")
         # acquire 应直接走全局(不区分租户)
         token = tcb.acquire(tenant_id="tA")
@@ -281,6 +315,7 @@ class TestTenantCircuitBreaker:
         from deadman.infrastructure.defense.tenant_circuit_breaker import (
             TenantCircuitBreaker,
         )
+
         tcb = TenantCircuitBreaker("test_list")
         tcb.acquire(tenant_id="tA")
         tcb.release_success(tenant_id="tA")
@@ -298,12 +333,14 @@ class TestTenantCircuitBreaker:
 # D4: PIIGuard
 # =====================================================================
 
+
 class TestPIIGuard:
     def test_detect_china_id_card(self):
         from deadman.infrastructure.defense.pii_guard import (
             PIIRedactor,
             PIIType,
         )
+
         redactor = PIIRedactor()
         text = "我的身份证号是 110101199001011234"
         result = redactor.detect(text)
@@ -315,6 +352,7 @@ class TestPIIGuard:
             PIIRedactor,
             PIIType,
         )
+
         redactor = PIIRedactor()
         text = "联系电话 13812345678"
         result = redactor.detect(text)
@@ -325,6 +363,7 @@ class TestPIIGuard:
             PIIRedactor,
             PIIType,
         )
+
         redactor = PIIRedactor()
         text = "邮箱 user@example.com"
         result = redactor.detect(text)
@@ -336,6 +375,7 @@ class TestPIIGuard:
             PIIType,
             RedactStrategy,
         )
+
         redactor = PIIRedactor(
             strategies={PIIType.CHINA_PHONE: RedactStrategy.PARTIAL},
         )
@@ -354,6 +394,7 @@ class TestPIIGuard:
             PIIType,
             RedactStrategy,
         )
+
         redactor = PIIRedactor(
             strategies={PIIType.CHINA_ID_CARD: RedactStrategy.REDACT},
         )
@@ -364,6 +405,7 @@ class TestPIIGuard:
 
     def test_verify_summary_no_leak(self):
         from deadman.infrastructure.defense.pii_guard import PIIRedactor
+
         redactor = PIIRedactor()
         original = "电话 13812345678"
         # 摘要已脱敏 → 无泄漏
@@ -375,6 +417,7 @@ class TestPIIGuard:
     def test_verify_summary_detects_drift(self):
         """摘要中 PII 比原文还多 → 检测到漂移。"""
         from deadman.infrastructure.defense.pii_guard import PIIRedactor
+
         redactor = PIIRedactor()
         original = "联系电话"
         # 摘要中凭空出现 PII
@@ -387,6 +430,7 @@ class TestPIIGuard:
             PIIRedactor,
             PIIType,
         )
+
         redactor = PIIRedactor(whitelisted_pii={PIIType.EMAIL})
         text = "邮箱 user@example.com"
         result = redactor.redact(text)
@@ -396,9 +440,11 @@ class TestPIIGuard:
     def test_disabled_returns_text_unchanged(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.pii_guard import PIIRedactor
+
         redactor = PIIRedactor()
         text = "身份证 110101199001011234 电话 13812345678"
         result = redactor.redact(text)
@@ -409,11 +455,13 @@ class TestPIIGuard:
 # D5: CacheProtection
 # =====================================================================
 
+
 class TestCacheProtection:
     def test_get_or_load_basic(self):
         from deadman.infrastructure.defense.cache_protection import (
             CacheProtection,
         )
+
         cache = CacheProtection()
         call_count = [0]
 
@@ -435,6 +483,7 @@ class TestCacheProtection:
         from deadman.infrastructure.defense.cache_protection import (
             CacheProtection,
         )
+
         cache = CacheProtection()
         call_count = [0]
         lock = __import__("threading").Lock()
@@ -448,6 +497,7 @@ class TestCacheProtection:
 
         # 5 个线程同时请求同一 key
         import threading
+
         threads = []
         results = [None] * 5
 
@@ -472,6 +522,7 @@ class TestCacheProtection:
         from deadman.infrastructure.defense.cache_protection import (
             CacheProtection,
         )
+
         cache = CacheProtection()
         call_count = [0]
 
@@ -490,6 +541,7 @@ class TestCacheProtection:
 
     def test_invalidate(self):
         from deadman.infrastructure.defense.cache_protection import CacheProtection
+
         cache = CacheProtection()
         cache.set("k1", "v1", ttl=10)
         assert cache.get("k1") == "v1"
@@ -498,6 +550,7 @@ class TestCacheProtection:
 
     def test_stats(self):
         from deadman.infrastructure.defense.cache_protection import CacheProtection
+
         cache = CacheProtection()
         cache.get_or_load_sync("k1", lambda: "v1", ttl=10)
         cache.get_or_load_sync("k1", lambda: "v1", ttl=10)  # hit
@@ -510,9 +563,11 @@ class TestCacheProtection:
     def test_disabled_calls_loader_directly(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.cache_protection import CacheProtection
+
         cache = CacheProtection()
         call_count = [0]
 
@@ -528,6 +583,7 @@ class TestCacheProtection:
     def test_async_singleflight(self):
         """异步 singleflight 测试。"""
         from deadman.infrastructure.defense.cache_protection import CacheProtection
+
         cache = CacheProtection()
         call_count = [0]
 
@@ -552,6 +608,7 @@ class TestCacheProtection:
 # D6: DegradationGuard
 # =====================================================================
 
+
 class TestDegradationGuard:
     def test_can_degrade_soft_under_limit(self):
         from deadman.infrastructure.defense.degradation_guard import (
@@ -559,15 +616,18 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard(max_soft_per_scope=3)
         # 第一次 soft 降级允许
         assert guard.can_degrade("quota.downgrade_model", scope="tenant:t1")
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="quota.downgrade_model",
-            level=DegradationLevel.SOFT,
-            scope="tenant:t1",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="quota.downgrade_model",
+                level=DegradationLevel.SOFT,
+                scope="tenant:t1",
+            )
+        )
         # 第二次允许
         assert guard.can_degrade("quota.downgrade_model", scope="tenant:t1")
 
@@ -577,16 +637,19 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard(max_hard_per_scope=2)
         # 2 个 HARD(达到上限)
         for _ in range(2):
-            guard.record(DegradationEvent(
-                timestamp=time.time(),
-                mechanism="circuit_breaker.open",
-                level=DegradationLevel.HARD,
-                scope="tenant:t1",
-                reason="test",
-            ))
+            guard.record(
+                DegradationEvent(
+                    timestamp=time.time(),
+                    mechanism="circuit_breaker.open",
+                    level=DegradationLevel.HARD,
+                    scope="tenant:t1",
+                    reason="test",
+                )
+            )
         # 第 3 个 HARD 应被拒绝
         assert not guard.can_degrade("circuit_breaker.open", scope="tenant:t1")
 
@@ -596,14 +659,17 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard()
         # CRITICAL 降级
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="quota.reject",
-            level=DegradationLevel.CRITICAL,
-            scope="tenant:t1",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="quota.reject",
+                level=DegradationLevel.CRITICAL,
+                scope="tenant:t1",
+            )
+        )
         # 后续所有降级都拒绝
         assert not guard.can_degrade("quota.downgrade_model", scope="tenant:t1")
         assert not guard.can_degrade("react_loop.stuck", scope="tenant:t1")
@@ -614,13 +680,16 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard()
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="quota.downgrade_model",
-            level=DegradationLevel.SOFT,
-            scope="tenant:t1",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="quota.downgrade_model",
+                level=DegradationLevel.SOFT,
+                scope="tenant:t1",
+            )
+        )
         assert len(guard.get_active(scope="tenant:t1")) == 1
         # 恢复
         guard.recover("quota.downgrade_model", "tenant:t1")
@@ -632,21 +701,26 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard()
         assert guard.get_level("tenant:t1") == DegradationLevel.NONE
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="quota.downgrade_model",
-            level=DegradationLevel.SOFT,
-            scope="tenant:t1",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="quota.downgrade_model",
+                level=DegradationLevel.SOFT,
+                scope="tenant:t1",
+            )
+        )
         assert guard.get_level("tenant:t1") == DegradationLevel.SOFT
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="circuit_breaker.open",
-            level=DegradationLevel.HARD,
-            scope="tenant:t1",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="circuit_breaker.open",
+                level=DegradationLevel.HARD,
+                scope="tenant:t1",
+            )
+        )
         assert guard.get_level("tenant:t1") == DegradationLevel.HARD
 
     def test_stats(self):
@@ -655,19 +729,24 @@ class TestDegradationGuard:
             DegradationGuard,
             DegradationLevel,
         )
+
         guard = DegradationGuard()
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="m1",
-            level=DegradationLevel.SOFT,
-            scope="t1",
-        ))
-        guard.record(DegradationEvent(
-            timestamp=time.time(),
-            mechanism="m2",
-            level=DegradationLevel.HARD,
-            scope="t2",
-        ))
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="m1",
+                level=DegradationLevel.SOFT,
+                scope="t1",
+            )
+        )
+        guard.record(
+            DegradationEvent(
+                timestamp=time.time(),
+                mechanism="m2",
+                level=DegradationLevel.HARD,
+                scope="t2",
+            )
+        )
         stats = guard.stats()
         assert stats["total_active"] == 2
         assert stats["scopes_affected"] == 2
@@ -677,11 +756,13 @@ class TestDegradationGuard:
     def test_disabled_allows_all(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.degradation_guard import (
             DegradationGuard,
         )
+
         guard = DegradationGuard(max_hard_per_scope=1)
         # 关闭后即使已满也允许
         assert guard.can_degrade("any", scope="any")
@@ -690,6 +771,7 @@ class TestDegradationGuard:
 # =====================================================================
 # D8: ChainCircuitBreaker (降级链独立熔断)
 # =====================================================================
+
 
 class TestChainCircuitBreaker:
     """D8: 降级链独立熔断器测试。"""
@@ -700,15 +782,18 @@ class TestChainCircuitBreaker:
             _chain_lock,
             _chain_registry,
         )
+
         with _chain_lock:
             _chain_registry.clear()
         # 重置 cb_registry(避免状态泄漏)
         from deadman.infrastructure.circuit_breaker import cb_registry
+
         cb_registry._breakers.clear()
 
     def test_degradation_chain_inits_with_rule_level(self):
         """链自动追加 rule 级(若未指定)。"""
         from deadman.infrastructure.defense.chain_circuit_breaker import DegradationChain
+
         chain = DegradationChain("test1", ["gpt-4o", "gpt-4o-mini"])
         assert "rule" in chain.levels
         # rule 在末尾
@@ -850,6 +935,7 @@ class TestChainCircuitBreaker:
         """关闭 defense 时直接调顶级(透传)。"""
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.chain_circuit_breaker import (
@@ -895,6 +981,7 @@ class TestChainCircuitBreaker:
 # D9: TraceAnonymizer (跨 session trace 脱敏)
 # =====================================================================
 
+
 class TestTraceAnonymizer:
     """D9: 跨 session trace 脱敏测试。"""
 
@@ -903,6 +990,7 @@ class TestTraceAnonymizer:
             CrossSessionLinker,
             TraceLinkStrategy,
         )
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         # 未授予同意 → 不可关联
         assert not linker.can_link("user1")
@@ -918,6 +1006,7 @@ class TestTraceAnonymizer:
         import time
 
         from deadman.infrastructure.defense.trace_anonymizer import CrossSessionLinker
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1", expires_in_days=1)
         assert linker.can_link("user1")
@@ -927,6 +1016,7 @@ class TestTraceAnonymizer:
 
     def test_link_id_returns_none_without_consent(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import CrossSessionLinker
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         # 无同意 → None
         assert linker.link_id("session1", "user1") is None
@@ -936,6 +1026,7 @@ class TestTraceAnonymizer:
             CrossSessionLinker,
             TraceLinkStrategy,
         )
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1", strategy=TraceLinkStrategy.HASH)
         link_id = linker.link_id("session1", "user1")
@@ -949,6 +1040,7 @@ class TestTraceAnonymizer:
         from deadman.infrastructure.defense.trace_anonymizer import (
             CrossSessionLinker,
         )
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1")
         link1 = linker.link_id("session1", "user1")
@@ -958,6 +1050,7 @@ class TestTraceAnonymizer:
 
     def test_link_id_differs_for_different_users(self, tmp_path):
         from deadman.infrastructure.defense.trace_anonymizer import CrossSessionLinker
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("user1")
         linker.grant_consent("user2")
@@ -967,6 +1060,7 @@ class TestTraceAnonymizer:
 
     def test_anonymizer_redacts_sensitive_fields(self):
         from deadman.infrastructure.defense.trace_anonymizer import TraceAnonymizer
+
         anonymizer = TraceAnonymizer()
         record = {
             "span_type": "react.action",
@@ -990,6 +1084,7 @@ class TestTraceAnonymizer:
 
     def test_anonymizer_no_link_without_consent(self):
         from deadman.infrastructure.defense.trace_anonymizer import TraceAnonymizer
+
         anonymizer = TraceAnonymizer()
         record = {
             "span_type": "test",
@@ -1007,6 +1102,7 @@ class TestTraceAnonymizer:
             CrossSessionLinker,
             TraceAnonymizer,
         )
+
         linker = CrossSessionLinker(store_path=str(tmp_path / "links.json"))
         linker.grant_consent("u1")
         anonymizer = TraceAnonymizer(linker=linker)
@@ -1016,6 +1112,7 @@ class TestTraceAnonymizer:
 
     def test_behavior_aggregator_ldp_noise(self):
         from deadman.infrastructure.defense.trace_anonymizer import BehaviorAggregator
+
         agg = BehaviorAggregator(epsilon=2.0)  # 较高 epsilon = 较少噪声
         # 多次添加同模式
         for _ in range(20):
@@ -1029,6 +1126,7 @@ class TestTraceAnonymizer:
 
     def test_behavior_aggregator_filters_low_count(self):
         from deadman.infrastructure.defense.trace_anonymizer import BehaviorAggregator
+
         agg = BehaviorAggregator(epsilon=10.0)  # 高 epsilon 几乎无噪声
         for _ in range(10):
             agg.add_pattern("pattern_high")
@@ -1041,9 +1139,11 @@ class TestTraceAnonymizer:
     def test_disabled_anonymizer_passes_through(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.infrastructure.defense.trace_anonymizer import TraceAnonymizer
+
         anonymizer = TraceAnonymizer()
         record = {"user_id": "u123", "query": "如何写遗嘱"}
         sanitized = anonymizer.sanitize(record)
@@ -1056,6 +1156,7 @@ class TestTraceAnonymizer:
 # D10: MasterKeyBackup (主密钥 SSS 备份)
 # =====================================================================
 
+
 class TestShamirSecretSharing:
     """Shamir Secret Sharing 数学正确性测试。"""
 
@@ -1063,6 +1164,7 @@ class TestShamirSecretSharing:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         secret = os.urandom(32)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
         assert len(shares) == 5
@@ -1074,6 +1176,7 @@ class TestShamirSecretSharing:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         secret = os.urandom(64)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
         # 不同子集(任意 K 个)
@@ -1085,6 +1188,7 @@ class TestShamirSecretSharing:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         secret = os.urandom(16)
         shares = ShamirSecretSharing.split(secret, n=5, k=3)
         # 用 4 个分片也能重建
@@ -1094,23 +1198,27 @@ class TestShamirSecretSharing:
     def test_split_validates_k_le_n(self):
         import pytest
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         with pytest.raises(ValueError):
             ShamirSecretSharing.split(b"x" * 16, n=3, k=5)
 
     def test_split_validates_k_ge_2(self):
         import pytest
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         with pytest.raises(ValueError):
             ShamirSecretSharing.split(b"x" * 16, n=5, k=1)
 
     def test_split_validates_n_le_255(self):
         import pytest
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         with pytest.raises(ValueError):
             ShamirSecretSharing.split(b"x" * 16, n=300, k=3)
 
     def test_empty_secret(self):
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
+
         secret = b""
         shares = ShamirSecretSharing.split(secret, n=3, k=2)
         reconstructed = ShamirSecretSharing.reconstruct(shares[:2])
@@ -1127,6 +1235,7 @@ class TestMasterKeyBackup:
             BackupStatus,
             MasterKeyBackup,
         )
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
         shares = backup.create_backup(master_key, n=5, k=3)
@@ -1138,6 +1247,7 @@ class TestMasterKeyBackup:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
         shares = backup.create_backup(master_key, n=5, k=3)
@@ -1146,6 +1256,7 @@ class TestMasterKeyBackup:
         assert reconstructed == master_key
         # 状态变为 RECOVERED
         from deadman.infrastructure.defense.master_key_backup import BackupStatus
+
         assert backup.get_status() == BackupStatus.RECOVERED
 
     def test_reconstruct_with_wrong_shares_fails_fingerprint(self, tmp_path):
@@ -1153,6 +1264,7 @@ class TestMasterKeyBackup:
 
         import pytest
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         real_master_key = os.urandom(32)
         backup.create_backup(real_master_key, n=5, k=3)
@@ -1161,6 +1273,7 @@ class TestMasterKeyBackup:
         # 但用伪造的分片重建 → 指纹不匹配
         # 这里我们用错误的 share 值
         from deadman.infrastructure.defense.master_key_backup import KeyShare
+
         fake_shares = [
             KeyShare(
                 share_id=f"fake-{i}",
@@ -1180,6 +1293,7 @@ class TestMasterKeyBackup:
             BackupStatus,
             MasterKeyBackup,
         )
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
         backup.create_backup(master_key, n=5, k=3)
@@ -1193,6 +1307,7 @@ class TestMasterKeyBackup:
 
     def test_drill_no_shares(self, tmp_path):
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         # 未创建备份 → 演练失败
         drill = backup.drill()
@@ -1205,6 +1320,7 @@ class TestMasterKeyBackup:
         from deadman.infrastructure.defense.master_key_backup import (
             MasterKeyBackup,
         )
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         old_master_key = os.urandom(32)
         old_shares = backup.create_backup(old_master_key, n=5, k=3)
@@ -1222,9 +1338,12 @@ class TestMasterKeyBackup:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
-        backup.create_backup(master_key, n=5, k=3, recipients=["alice", "bob", "carol", "dave", "eve"])
+        backup.create_backup(
+            master_key, n=5, k=3, recipients=["alice", "bob", "carol", "dave", "eve"]
+        )
         shares_info = backup.list_shares()
         assert len(shares_info) == 5
         for s in shares_info:
@@ -1236,6 +1355,7 @@ class TestMasterKeyBackup:
         import os
 
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
         backup.create_backup(master_key, n=5, k=3)
@@ -1253,6 +1373,7 @@ class TestMasterKeyBackup:
             BackupStatus,
             MasterKeyBackup,
         )
+
         backup_path = tmp_path / "backup"
         # 第一个实例创建备份
         backup1 = MasterKeyBackup(store_path=backup_path)
@@ -1269,11 +1390,13 @@ class TestMasterKeyBackup:
     def test_disabled_skips_backup(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_DEFENSE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         import os
 
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
+
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
         master_key = os.urandom(32)
         # 关闭后 create_backup 返回空列表

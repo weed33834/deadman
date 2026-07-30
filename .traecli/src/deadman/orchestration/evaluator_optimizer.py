@@ -44,19 +44,18 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 
 # Evaluator-Optimizer 总开关：默认关闭
-EVAL_OPTIMIZER_ENABLED: bool = os.environ.get(
-    "DEADMAN_EVAL_OPTIMIZER_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+EVAL_OPTIMIZER_ENABLED: bool = os.environ.get("DEADMAN_EVAL_OPTIMIZER_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 优化阈值：score < 此值触发重新生成
-EVAL_OPTIMIZER_THRESHOLD: float = float(
-    os.environ.get("DEADMAN_EVAL_OPTIMIZER_THRESHOLD", "0.7")
-)
+EVAL_OPTIMIZER_THRESHOLD: float = float(os.environ.get("DEADMAN_EVAL_OPTIMIZER_THRESHOLD", "0.7"))
 
 # 默认最大轮次
-EVAL_OPTIMIZER_MAX_ROUNDS: int = int(
-    os.environ.get("DEADMAN_EVAL_OPTIMIZER_MAX_ROUNDS", "3")
-)
+EVAL_OPTIMIZER_MAX_ROUNDS: int = int(os.environ.get("DEADMAN_EVAL_OPTIMIZER_MAX_ROUNDS", "3"))
 
 
 # =====================================================================

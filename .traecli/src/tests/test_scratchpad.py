@@ -42,9 +42,7 @@ class TestScratchpadAddGet:
         assert notes == ["用户提到有海外资产", "需要查跨境政策"]
         # get 返回副本，外部修改不影响内部
         notes.append("外部修改")
-        assert mgr.get("legal_advisor") == [
-            "用户提到有海外资产", "需要查跨境政策"
-        ]
+        assert mgr.get("legal_advisor") == ["用户提到有海外资产", "需要查跨境政策"]
 
     def test_add_to_different_agents_isolated(self):
         """不同 agent 的 scratchpad 互相隔离（independent 模式）"""

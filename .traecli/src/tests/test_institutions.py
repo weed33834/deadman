@@ -103,18 +103,33 @@ class TestSearchByProvince:
 
     def test_search_by_province(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="A 殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
-        store.add(make_institution(
-            name="B 殡仪馆", type="funeral_home",
-            province="上海", city="上海", source="测试",
-        ))
-        store.add(make_institution(
-            name="C 殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="A 殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="B 殡仪馆",
+                type="funeral_home",
+                province="上海",
+                city="上海",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="C 殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
 
         beijing = store.search(province="北京")
         assert len(beijing) == 2
@@ -135,18 +150,33 @@ class TestSearchByType:
 
     def test_search_by_type(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="殡仪馆A", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
-        store.add(make_institution(
-            name="公墓B", type="cemetery",
-            province="北京", city="北京", source="测试",
-        ))
-        store.add(make_institution(
-            name="火化场C", type="crematorium",
-            province="北京", city="北京", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="殡仪馆A",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="公墓B",
+                type="cemetery",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="火化场C",
+                type="crematorium",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
 
         funeral_homes = store.search(type="funeral_home")
         assert len(funeral_homes) == 1
@@ -168,14 +198,24 @@ class TestSearchByKeyword:
 
     def test_search_by_keyword_in_name(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="八宝山殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
-        store.add(make_institution(
-            name="东郊殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="八宝山殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="东郊殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
 
         results = store.search(keyword="八宝山")
         assert len(results) == 1
@@ -183,32 +223,46 @@ class TestSearchByKeyword:
 
     def test_search_by_keyword_in_address(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="某殡仪馆", type="funeral_home",
-            province="北京", city="北京", address="石景山路9号",
-            source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="某殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                address="石景山路9号",
+                source="测试",
+            )
+        )
         results = store.search(keyword="石景山")
         assert len(results) == 1
 
     def test_search_by_keyword_in_services(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="某殡仪馆", type="funeral_home",
-            province="北京", city="北京",
-            services=["遗体接运", "火化", "骨灰寄存"],
-            source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="某殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                services=["遗体接运", "火化", "骨灰寄存"],
+                source="测试",
+            )
+        )
         results = store.search(keyword="骨灰寄存")
         assert len(results) == 1
 
     def test_search_by_keyword_case_insensitive(self, tmp_path: Path) -> None:
         # 大小写不敏感（中文不区分，主要测试 ASCII）
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
-        store.add(make_institution(
-            name="Test 殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="Test 殡仪馆",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
         results = store.search(keyword="test")
         assert len(results) == 1
 
@@ -301,9 +355,7 @@ class TestImportFromSeed:
         store = InstitutionStore(auto_load_seed=False, data_dir=data_dir)
         assert store.count() == 0
 
-        added = store.import_from_official_source(
-            "江苏省民政厅 2026", seed_data["institutions"]
-        )
+        added = store.import_from_official_source("江苏省民政厅 2026", seed_data["institutions"])
         assert added == 2
         assert store.count() == 2
 
@@ -392,8 +444,11 @@ class TestUpdateDelete:
     def test_update_changes_fields(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
         inst = make_institution(
-            name="更新前", type="funeral_home",
-            province="北京", city="北京", source="测试",
+            name="更新前",
+            type="funeral_home",
+            province="北京",
+            city="北京",
+            source="测试",
         )
         store.add(inst)
         updated = store.update(inst.institution_id, {"name": "更新后", "phone": "111"})
@@ -408,8 +463,11 @@ class TestUpdateDelete:
     def test_delete(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path)
         inst = make_institution(
-            name="待删除", type="funeral_home",
-            province="北京", city="北京", source="测试",
+            name="待删除",
+            type="funeral_home",
+            province="北京",
+            city="北京",
+            source="测试",
         )
         store.add(inst)
         assert store.delete(inst.institution_id) is True

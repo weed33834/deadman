@@ -68,13 +68,20 @@ async def _docker_exec(command: list[str]) -> dict[str, Any]:
     返回 {"exit_code": int, "stdout": str, "stderr": str}
     """
     docker_cmd = [
-        "docker", "run", "--rm",
-        "-m", "256m",  # 内存限制
-        "--cpus", "0.5",  # CPU 限制
-        "--network", "none",  # 禁止网络
+        "docker",
+        "run",
+        "--rm",
+        "-m",
+        "256m",  # 内存限制
+        "--cpus",
+        "0.5",  # CPU 限制
+        "--network",
+        "none",  # 禁止网络
         "--read-only",  # 只读根文件系统
-        "--tmpfs", "/tmp:size=64m",  # 临时目录
-        "-w", settings.sandbox_work_dir,
+        "--tmpfs",
+        "/tmp:size=64m",  # 临时目录
+        "-w",
+        settings.sandbox_work_dir,
         settings.sandbox_image,
         *command,
     ]
@@ -98,9 +105,7 @@ async def _docker_exec(command: list[str]) -> dict[str, Any]:
         return {"exit_code": -1, "stdout": "", "stderr": str(exc)}
 
 
-async def sandbox_write_file(
-    path: str, content: str, encoding: str = "utf-8"
-) -> dict[str, Any]:
+async def sandbox_write_file(path: str, content: str, encoding: str = "utf-8") -> dict[str, Any]:
     """沙箱化文件写入
 
     Docker 可用时在容器内写入；否则降级为本地写入。
@@ -119,13 +124,24 @@ async def sandbox_write_file(
         f"print(len(data))"
     )
     docker_cmd = [
-        "docker", "run", "--rm", "-i",
-        "-m", "256m", "--cpus", "0.5",
-        "--network", "none",
-        "--tmpfs", f"{work_dir}:size=64m",
-        "-w", work_dir,
+        "docker",
+        "run",
+        "--rm",
+        "-i",
+        "-m",
+        "256m",
+        "--cpus",
+        "0.5",
+        "--network",
+        "none",
+        "--tmpfs",
+        f"{work_dir}:size=64m",
+        "-w",
+        work_dir,
         settings.sandbox_image,
-        "python", "-c", script,
+        "python",
+        "-c",
+        script,
     ]
     try:
         proc = await asyncio.create_subprocess_exec(

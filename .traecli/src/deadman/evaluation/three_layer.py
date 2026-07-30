@@ -394,9 +394,7 @@ class ThreeLayerEvaluator:
             failures = []
             for j in llm_result.get("judgments", []):
                 for f in j.get("failures", []):
-                    failures.append(
-                        {"judge_model": j.get("judge_model"), "reason": f}
-                    )
+                    failures.append({"judge_model": j.get("judge_model"), "reason": f})
         else:
             # 需人工复核 → 标记为未通过，提示人工介入
             passed = False

@@ -17,6 +17,7 @@ from deadman.infrastructure.quota import (
 def enable_quota(monkeypatch):
     monkeypatch.setenv("DEADMAN_QUOTA_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -172,6 +173,7 @@ class TestFeatureFlagDisabled:
     def test_disabled_returns_infinite_quota(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_QUOTA_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 

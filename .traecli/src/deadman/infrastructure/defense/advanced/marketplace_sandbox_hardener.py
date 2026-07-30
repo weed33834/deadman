@@ -49,20 +49,40 @@ logger = logging.getLogger(__name__)
 
 # 危险函数(执行任意代码)
 _DANGEROUS_BUILTINS = {
-    "eval", "exec", "compile", "globals", "locals",
-    "vars", "dir", "getattr", "setattr", "delattr",
-    "__import__", "exit", "quit",
+    "eval",
+    "exec",
+    "compile",
+    "globals",
+    "locals",
+    "vars",
+    "dir",
+    "getattr",
+    "setattr",
+    "delattr",
+    "__import__",
+    "exit",
+    "quit",
     "memoryview",  # 可绕过保护
 }
 
 # 危险模块(可执行任意代码 / 访问系统)
 _DANGEROUS_MODULES = {
-    "subprocess", "os.system", "os.popen", "os.exec", "os.spawn",
-    "ctypes", "cffi",
+    "subprocess",
+    "os.system",
+    "os.popen",
+    "os.exec",
+    "os.spawn",
+    "ctypes",
+    "cffi",
     "multiprocessing",
-    "pickle", "marshal",
-    "shutil", "tempfile",
-    "socket", "http", "urllib", "requests",  # 网络访问应走代理
+    "pickle",
+    "marshal",
+    "shutil",
+    "tempfile",
+    "socket",
+    "http",
+    "urllib",
+    "requests",  # 网络访问应走代理
     "sys",  # 可访问 sys.modules 等
     "importlib",
 }
@@ -145,23 +165,27 @@ class SandboxHardener:
         # 1. 文本扫描(快速检测危险字符串)
         for dangerous in _DANGEROUS_BUILTINS:
             if self._contains_call(code, dangerous):
-                result.violations.append(StaticCheckViolation(
-                    severity="block",
-                    rule="dangerous_builtin",
-                    location="text",
-                    description=f"Use of dangerous builtin: {dangerous}",
-                ))
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="block",
+                        rule="dangerous_builtin",
+                        location="text",
+                        description=f"Use of dangerous builtin: {dangerous}",
+                    )
+                )
                 result.error_count += 1
 
         for dangerous in _DANGEROUS_MODULES:
             # 检查 import / from ... import
             if self._contains_import(code, dangerous):
-                result.violations.append(StaticCheckViolation(
-                    severity="block",
-                    rule="dangerous_module",
-                    location="import",
-                    description=f"Import of dangerous module: {dangerous}",
-                ))
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="block",
+                        rule="dangerous_module",
+                        location="import",
+                        description=f"Import of dangerous module: {dangerous}",
+                    )
+                )
                 result.error_count += 1
 
         # 2. AST 解析(更精确)
@@ -170,12 +194,14 @@ class SandboxHardener:
             for node in ast.walk(tree):
                 self._check_ast_node(node, result)
         except SyntaxError as e:
-            result.violations.append(StaticCheckViolation(
-                severity="block",
-                rule="syntax_error",
-                location=f"line {e.lineno}",
-                description=f"Syntax error: {e.msg}",
-            ))
+            result.violations.append(
+                StaticCheckViolation(
+                    severity="block",
+                    rule="syntax_error",
+                    location=f"line {e.lineno}",
+                    description=f"Syntax error: {e.msg}",
+                )
+            )
             result.error_count += 1
 
         result.passed = result.error_count == 0
@@ -270,6 +296,7 @@ class SandboxHardener:
         """检测代码中是否调用了某个 builtin(简单文本匹配 + AST)。"""
         # 简单文本匹配:word boundary
         import re
+
         pattern = re.compile(rf"\b{re.escape(name)}\s*\(")
         return bool(pattern.search(code))
 
@@ -277,6 +304,7 @@ class SandboxHardener:
     def _contains_import(code: str, module: str) -> bool:
         """检测代码中是否 import 了某个模块。"""
         import re
+
         # 模式:import module / from module import ...
         escaped = re.escape(module)
         patterns = [
@@ -292,12 +320,14 @@ class SandboxHardener:
         if isinstance(node, ast.Call):
             func = node.func
             if isinstance(func, ast.Name) and func.id in _DANGEROUS_BUILTINS:
-                result.violations.append(StaticCheckViolation(
-                    severity="block",
-                    rule="dangerous_call",
-                    location=f"line {getattr(node, 'lineno', '?')}",
-                    description=f"Call to dangerous function: {func.id}",
-                ))
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="block",
+                        rule="dangerous_call",
+                        location=f"line {getattr(node, 'lineno', '?')}",
+                        description=f"Call to dangerous function: {func.id}",
+                    )
+                )
                 result.error_count += 1
 
         # 检查访问 _ 私有属性
@@ -305,21 +335,25 @@ class SandboxHardener:
             attr_name = node.attr
             if attr_name.startswith("_") and not attr_name.startswith("__"):
                 # 仅警告 _ 私有,__ 双下划线通常 OK(__init__ 等)
-                result.violations.append(StaticCheckViolation(
-                    severity="warn",
-                    rule="private_attribute_access",
-                    location=f"line {getattr(node, 'lineno', '?')}",
-                    description=f"Access to private attribute: {attr_name}",
-                ))
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="warn",
+                        rule="private_attribute_access",
+                        location=f"line {getattr(node, 'lineno', '?')}",
+                        description=f"Access to private attribute: {attr_name}",
+                    )
+                )
                 result.warning_count += 1
             elif attr_name in ("__code__", "__globals__", "__builtins__", "__class__"):
                 # 危险 dunder
-                result.violations.append(StaticCheckViolation(
-                    severity="block",
-                    rule="introspection",
-                    location=f"line {getattr(node, 'lineno', '?')}",
-                    description=f"Access to introspection attribute: {attr_name}",
-                ))
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="block",
+                        rule="introspection",
+                        location=f"line {getattr(node, 'lineno', '?')}",
+                        description=f"Access to introspection attribute: {attr_name}",
+                    )
+                )
                 result.error_count += 1
 
         # 检查 import
@@ -328,23 +362,28 @@ class SandboxHardener:
                 if alias.name in _DANGEROUS_MODULES or any(
                     alias.name.startswith(m + ".") for m in _DANGEROUS_MODULES
                 ):
-                    result.violations.append(StaticCheckViolation(
-                        severity="block",
-                        rule="dangerous_import",
-                        location=f"line {node.lineno}",
-                        description=f"Import of dangerous module: {alias.name}",
-                    ))
+                    result.violations.append(
+                        StaticCheckViolation(
+                            severity="block",
+                            rule="dangerous_import",
+                            location=f"line {node.lineno}",
+                            description=f"Import of dangerous module: {alias.name}",
+                        )
+                    )
                     result.error_count += 1
         elif isinstance(node, ast.ImportFrom):
-            if node.module and (node.module in _DANGEROUS_MODULES or any(
-                node.module.startswith(m + ".") for m in _DANGEROUS_MODULES
-            )):
-                result.violations.append(StaticCheckViolation(
-                    severity="block",
-                    rule="dangerous_import_from",
-                    location=f"line {node.lineno}",
-                    description=f"Import from dangerous module: {node.module}",
-                ))
+            if node.module and (
+                node.module in _DANGEROUS_MODULES
+                or any(node.module.startswith(m + ".") for m in _DANGEROUS_MODULES)
+            ):
+                result.violations.append(
+                    StaticCheckViolation(
+                        severity="block",
+                        rule="dangerous_import_from",
+                        location=f"line {node.lineno}",
+                        description=f"Import from dangerous module: {node.module}",
+                    )
+                )
                 result.error_count += 1
 
 

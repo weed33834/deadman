@@ -40,6 +40,7 @@ def _make_episode(
 # 1. 近期 episode 高分
 # =====================================================================
 
+
 class TestForgettingScoreRecentHigh:
     def test_forgetting_score_recent_high(self, monkeypatch):
         # FORGETTING_CURVE_ENABLED=True,近期 episode 应有高分(接近 importance)
@@ -58,6 +59,7 @@ class TestForgettingScoreRecentHigh:
 # =====================================================================
 # 2. 老 episode 低分
 # =====================================================================
+
 
 class TestForgettingScoreOldLow:
     def test_forgetting_score_old_low(self, monkeypatch):
@@ -85,7 +87,8 @@ class TestForgettingScoreOldLow:
         now = datetime.now(timezone.utc)
         ep_recent = _make_episode(now, importance=0.5, last_accessed_at=now)
         ep_old = _make_episode(
-            now - timedelta(days=90), importance=0.5,
+            now - timedelta(days=90),
+            importance=0.5,
             last_accessed_at=now - timedelta(days=90),
         )
         assert em.forgetting_score(ep_recent) > em.forgetting_score(ep_old)
@@ -94,6 +97,7 @@ class TestForgettingScoreOldLow:
 # =====================================================================
 # 3. 重要性加权
 # =====================================================================
+
 
 class TestForgettingScoreImportanceWeighted:
     def test_forgetting_score_importance_weighted(self, monkeypatch):
@@ -134,6 +138,7 @@ class TestForgettingScoreImportanceWeighted:
 # 4. feature flag 关闭
 # =====================================================================
 
+
 class TestForgettingDisabled:
     def test_forgetting_disabled_no_change(self, monkeypatch):
         # FORGETTING_CURVE_ENABLED=False → 返回 importance,不受时间影响
@@ -145,7 +150,8 @@ class TestForgettingDisabled:
         now = datetime.now(timezone.utc)
         ep_recent = _make_episode(now, importance=0.7, last_accessed_at=now)
         ep_old = _make_episode(
-            now - timedelta(days=365), importance=0.7,
+            now - timedelta(days=365),
+            importance=0.7,
             last_accessed_at=now - timedelta(days=365),
         )
         # 关闭时两者得分相同(都 = importance = 0.7)
@@ -163,12 +169,15 @@ class TestForgettingDisabled:
         em = EpisodicMemory()
         now = datetime.now(timezone.utc)
         ep_old_high = _make_episode(
-            now - timedelta(days=90), importance=0.9,
+            now - timedelta(days=90),
+            importance=0.9,
             last_accessed_at=now - timedelta(days=90),
             episode_id="e1",
         )
         ep_recent_low = _make_episode(
-            now, importance=0.2, last_accessed_at=now,
+            now,
+            importance=0.2,
+            last_accessed_at=now,
             episode_id="e2",
         )
         # 都用同关键词,保证 overlap 相同

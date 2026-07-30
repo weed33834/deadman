@@ -121,6 +121,7 @@ deadman/
 | langgraph | 编排底座 | `pip install langgraph` |
 | opentelemetry | 分布式追踪 | `pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp` |
 | langfuse | 可观测性平台 | `pip install langfuse` |
+| sentry-sdk | 错误监控（FastAPI ASGI 自动埋点） | `pip install sentry-sdk[fastapi]` |
 | lightrag-hku | 知识图谱 | `pip install lightrag-hku` |
 | graphiti-core | 时态记忆 | `pip install graphiti-core` |
 

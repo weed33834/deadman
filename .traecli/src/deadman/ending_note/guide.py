@@ -131,10 +131,7 @@ class EndingNoteGuide:
         (
             "emergency_contacts",
             "第八章：重要联系人",
-            (
-                "如果家人需要帮助，应该联系谁？律师、公证处、医生、殡仪馆？"
-                "请提供姓名和联系方式。"
-            ),
+            ("如果家人需要帮助，应该联系谁？律师、公证处、医生、殡仪馆？请提供姓名和联系方式。"),
         ),
         (
             "will_intent",
@@ -189,9 +186,7 @@ class EndingNoteGuide:
             "你的终活笔记已全部填写完成。需要查看、修改或共享给家人，随时告诉我。",
         )
 
-    def save_answer(
-        self, note: EndingNote, section: str, answer: dict
-    ) -> EndingNote:
+    def save_answer(self, note: EndingNote, section: str, answer: dict) -> EndingNote:
         """保存用户回答到笔记对应章节
 
         - 自动 PII 脱敏（调 _mask_pii）
@@ -208,9 +203,7 @@ class EndingNoteGuide:
             修改后的 note（同一对象）
         """
         if section not in SECTION_KEYS:
-            raise ValueError(
-                f"未知章节: {section}，支持的章节: {SECTION_KEYS}"
-            )
+            raise ValueError(f"未知章节: {section}，支持的章节: {SECTION_KEYS}")
 
         # 把整章 answer 序列化为文本，扫描自杀风险信号
         text_for_check = _dict_to_text(answer)
@@ -234,8 +227,7 @@ class EndingNoteGuide:
             flags["needs_professional_review"] = True
             flags["last_reviewed_at"] = datetime.now().isoformat()
             logger.warning(
-                "EndingNoteGuide.save_answer 检测到自杀风险信号 "
-                "section=%s severity=%s",
+                "EndingNoteGuide.save_answer 检测到自杀风险信号 section=%s severity=%s",
                 section,
                 safety["severity"],
             )
@@ -282,7 +274,6 @@ class EndingNoteGuide:
             return _mask_digital_legacy(data)
         # 其他章节：递归扫描常见 PII 字段名
         return _mask_generic_dict(data)
-
 
     # ------------------------------------------------------------------
     # 安全信号检测
@@ -331,8 +322,7 @@ class EndingNoteGuide:
                     "contains_signal": True,
                     "severity": "medium",
                     "suggested_action": (
-                        "温和询问'你现在身边有其他人吗'；"
-                        "继续观察后续输入是否升级为 high 信号。"
+                        "温和询问'你现在身边有其他人吗'；继续观察后续输入是否升级为 high 信号。"
                     ),
                 }
 
@@ -630,9 +620,7 @@ def _mask_generic_dict(data: dict) -> dict:
         elif isinstance(v, dict):
             out[k] = _mask_generic_dict(v)
         elif isinstance(v, list):
-            out[k] = [
-                _mask_generic_dict(x) if isinstance(x, dict) else x for x in v
-            ]
+            out[k] = [_mask_generic_dict(x) if isinstance(x, dict) else x for x in v]
         else:
             out[k] = v
     return out

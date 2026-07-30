@@ -46,8 +46,7 @@ class DisclaimerBuilder:
 
     # === 4. 数据准确性免责（retrieval-guardrails: 中可信加注；transparency: 不确定性告知）===
     DATA_ACCURACY_DISCLAIMER = (
-        "本平台提供的电话/费用/时限信息基于公开资料整理，可能已变更。"
-        "办理前请拨打官方热线核实。"
+        "本平台提供的电话/费用/时限信息基于公开资料整理，可能已变更。办理前请拨打官方热线核实。"
     )
 
     # === 场景 -> 简短提醒映射 ===
@@ -66,12 +65,14 @@ class DisclaimerBuilder:
         - 首次交互：AI 身份告知 + 免责声明简要版 + 数据使用简要说明
         本方法合并 4 类告知，作为首次会话开场。
         """
-        return "\n\n".join([
-            cls.PLATFORM_IDENTITY,
-            cls.LEGAL_DISCLAIMER,
-            cls.NO_AGENT_DISCLAIMER,
-            cls.DATA_ACCURACY_DISCLAIMER,
-        ])
+        return "\n\n".join(
+            [
+                cls.PLATFORM_IDENTITY,
+                cls.LEGAL_DISCLAIMER,
+                cls.NO_AGENT_DISCLAIMER,
+                cls.DATA_ACCURACY_DISCLAIMER,
+            ]
+        )
 
     @classmethod
     def short_reminder(cls, scenario: str) -> str:

@@ -24,10 +24,7 @@ from typing import Any
 
 from ..plan_score.scorer import PlanScorer
 
-_DISCLAIMER = (
-    "【边界告知】评分仅反映信息完整度，不代表法律效力；"
-    "建议结合律师/公证处专业意见。"
-)
+_DISCLAIMER = "【边界告知】评分仅反映信息完整度，不代表法律效力；建议结合律师/公证处专业意见。"
 
 
 # ====================================================================
@@ -162,12 +159,8 @@ def register_subparsers(subparsers: Any) -> None:
         help="计算身后事规划完整度评分（Phase 15）",
         description="综合 5 维度评分 + 缺失项清单 + top-3 智能建议",
     )
-    score_parser.add_argument(
-        "--user-id", default=None, help="用户 ID（与 --token 二选一）"
-    )
-    score_parser.add_argument(
-        "--token", default=None, help="JWT token（与 --user-id 二选一）"
-    )
+    score_parser.add_argument("--user-id", default=None, help="用户 ID（与 --token 二选一）")
+    score_parser.add_argument("--token", default=None, help="JWT token（与 --user-id 二选一）")
     score_parser.set_defaults(func=cmd_plan_score)
 
     # plan-score-detail
@@ -176,12 +169,8 @@ def register_subparsers(subparsers: Any) -> None:
         help="显示规划完整度评分详细分解（Phase 15）",
         description="每个类别的详细分数 + 已完成项 + 缺失项 + 建议",
     )
-    detail_parser.add_argument(
-        "--user-id", default=None, help="用户 ID（与 --token 二选一）"
-    )
-    detail_parser.add_argument(
-        "--token", default=None, help="JWT token（与 --user-id 二选一）"
-    )
+    detail_parser.add_argument("--user-id", default=None, help="用户 ID（与 --token 二选一）")
+    detail_parser.add_argument("--token", default=None, help="JWT token（与 --user-id 二选一）")
     detail_parser.set_defaults(func=cmd_plan_score_detail)
 
 

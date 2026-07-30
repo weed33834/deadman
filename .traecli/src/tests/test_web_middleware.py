@@ -23,6 +23,7 @@ def enable_web_middleware(monkeypatch):
     """启用 web_middleware feature flag。"""
     monkeypatch.setenv("DEADMAN_WEB_MIDDLEWARE_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -31,6 +32,7 @@ def enable_web_middleware(monkeypatch):
 # =====================================================================
 # TokenBucket
 # =====================================================================
+
 
 class TestTokenBucket:
     def test_initial_full_capacity(self):
@@ -64,6 +66,7 @@ class TestTokenBucket:
 # =====================================================================
 # RateLimiter
 # =====================================================================
+
 
 class TestRateLimiter:
     def test_different_keys_independent(self):
@@ -113,6 +116,7 @@ class TestRateLimiter:
 # RateLimitMiddleware
 # =====================================================================
 
+
 class TestRateLimitMiddleware:
     def test_exempt_paths_bypass(self):
         mw = RateLimitMiddleware(
@@ -144,6 +148,7 @@ class TestRateLimitMiddleware:
 # SecurityHeadersMiddleware
 # =====================================================================
 
+
 class TestSecurityHeadersMiddleware:
     def test_inject_csp_header(self):
         mw = SecurityHeadersMiddleware()
@@ -171,6 +176,7 @@ class TestSecurityHeadersMiddleware:
 # =====================================================================
 # CORSMiddleware
 # =====================================================================
+
 
 class TestCORSMiddleware:
     def test_options_preflight_returns_204(self):
@@ -208,6 +214,7 @@ class TestCORSMiddleware:
 # RequestSizeLimitMiddleware
 # =====================================================================
 
+
 class TestRequestSizeLimitMiddleware:
     def test_small_body_passes(self):
         mw = RequestSizeLimitMiddleware(max_body_bytes=1024)
@@ -229,6 +236,7 @@ class TestRequestSizeLimitMiddleware:
 # =====================================================================
 # MiddlewareChain
 # =====================================================================
+
 
 class TestMiddlewareChain:
     def test_chain_passes_when_all_pass(self):
@@ -267,6 +275,7 @@ class TestMiddlewareChain:
         """feature flag 关闭时中间件链透传。"""
         monkeypatch.setenv("DEADMAN_WEB_MIDDLEWARE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -280,6 +289,7 @@ class TestMiddlewareChain:
 # =====================================================================
 # build_default_middleware_chain
 # =====================================================================
+
 
 class TestDefaultChain:
     def test_returns_chain_and_injectors(self):

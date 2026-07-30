@@ -52,9 +52,12 @@ logger = logging.getLogger(__name__)
 # Feature flag - 默认开启（P1-1：handoff 审计链是企业合规必需，随 handoff 一起启用）
 # 测试套件通过 conftest.py 的 _disable_handoff_by_default autouse fixture 关闭。
 # =====================================================================
-HANDOFF_AUDIT_ENABLED: bool = os.environ.get(
-    "DEADMAN_HANDOFF_AUDIT_ENABLED", "1"
-).lower() in ("1", "true", "yes", "on")
+HANDOFF_AUDIT_ENABLED: bool = os.environ.get("DEADMAN_HANDOFF_AUDIT_ENABLED", "1").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 持久化文件路径（相对 project_root）
 DEFAULT_AUDIT_PATH = "data/handoff_audit.jsonl"
@@ -203,7 +206,7 @@ class HandoffAuditLogger:
 
     def __init__(self, persist_path: str | Path | None = None):
         """Args:
-            persist_path: 持久化文件路径；None 用默认 data/handoff_audit.jsonl
+        persist_path: 持久化文件路径；None 用默认 data/handoff_audit.jsonl
         """
         if persist_path is None:
             self._path = settings.project_root / DEFAULT_AUDIT_PATH
@@ -297,9 +300,7 @@ class HandoffAuditLogger:
         3. 文件追加失败 → 仅内存更新 _last_hash，不抛异常
         """
         if not HANDOFF_AUDIT_ENABLED:
-            logger.debug(
-                "handoff audit disabled (DEADMAN_HANDOFF_AUDIT_ENABLED=0), skip"
-            )
+            logger.debug("handoff audit disabled (DEADMAN_HANDOFF_AUDIT_ENABLED=0), skip")
             return None
 
         # 计算上下文 hash（不存原始 context_variables，避免 PII 落盘）
@@ -326,7 +327,10 @@ class HandoffAuditLogger:
 
         logger.info(
             "handoff audit logged: %s -> %s (transfer_id=%s, curr_hash=%s...)",
-            from_agent, to_agent, entry.transfer_id, entry.curr_hash[:8],
+            from_agent,
+            to_agent,
+            entry.transfer_id,
+            entry.curr_hash[:8],
         )
         return entry
 
@@ -358,7 +362,9 @@ class HandoffAuditLogger:
                 logger.warning(
                     "handoff audit chain broken at index %d: prev_hash mismatch "
                     "(expected %s..., got %s...)",
-                    i, prev_hash[:8], entry.prev_hash[:8],
+                    i,
+                    prev_hash[:8],
+                    entry.prev_hash[:8],
                 )
                 return False
             # 2. curr_hash 重算校验
@@ -367,7 +373,9 @@ class HandoffAuditLogger:
                 logger.warning(
                     "handoff audit chain broken at index %d: curr_hash mismatch "
                     "(expected %s..., got %s...)",
-                    i, recomputed[:8], entry.curr_hash[:8],
+                    i,
+                    recomputed[:8],
+                    entry.curr_hash[:8],
                 )
                 return False
             prev_hash = entry.curr_hash
@@ -430,7 +438,8 @@ class HandoffAuditLogger:
         if not HANDOFF_AUDIT_ENABLED:
             return []
         return [
-            e for e in self._load_all_entries()
+            e
+            for e in self._load_all_entries()
             if e.from_agent == agent_name or e.to_agent == agent_name
         ]
 

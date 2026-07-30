@@ -13,6 +13,7 @@ from deadman.infrastructure.durable_execution import (
 def enable_durable_execution(monkeypatch):
     monkeypatch.setenv("DEADMAN_DURABLE_EXECUTION_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -38,22 +39,14 @@ class TestIdempotencyKey:
         assert key1 != key2
 
     def test_different_node_different_key(self):
-        key1 = DurableExecutionManager.generate_idempotency_key(
-            "write_file", {"path": "/tmp/a"}
-        )
-        key2 = DurableExecutionManager.generate_idempotency_key(
-            "init_transfer", {"path": "/tmp/a"}
-        )
+        key1 = DurableExecutionManager.generate_idempotency_key("write_file", {"path": "/tmp/a"})
+        key2 = DurableExecutionManager.generate_idempotency_key("init_transfer", {"path": "/tmp/a"})
         assert key1 != key2
 
     def test_args_order_independent(self):
         """dict 字段顺序不同应生成相同 key(json sort_keys=True)。"""
-        key1 = DurableExecutionManager.generate_idempotency_key(
-            "write_file", {"a": 1, "b": 2}
-        )
-        key2 = DurableExecutionManager.generate_idempotency_key(
-            "write_file", {"b": 2, "a": 1}
-        )
+        key1 = DurableExecutionManager.generate_idempotency_key("write_file", {"a": 1, "b": 2})
+        key2 = DurableExecutionManager.generate_idempotency_key("write_file", {"b": 2, "a": 1})
         assert key1 == key2
 
     def test_salt_changes_key(self):
@@ -246,6 +239,7 @@ class TestFeatureFlagDisabled:
     def test_disabled_lookup_returns_none(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_DURABLE_EXECUTION_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -255,6 +249,7 @@ class TestFeatureFlagDisabled:
     def test_disabled_scope_does_not_record(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_DURABLE_EXECUTION_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 

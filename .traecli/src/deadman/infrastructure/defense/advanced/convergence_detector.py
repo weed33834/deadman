@@ -70,6 +70,7 @@ logger = logging.getLogger(__name__)
 # 数据类
 # =====================================================================
 
+
 class AlertSeverity(str, Enum):
     """告警严重度。"""
 
@@ -381,27 +382,33 @@ class ConvergenceDetector:
 
         # 8. 记录辩论历史
         with self._lock:
-            self._debate_history.append({
-                "timestamp": time.time(),
-                "session_id": session_id,
-                "agent_count": len(agent_outputs),
-                "winner": winner or "",
-                "avg_similarity": metrics.avg_similarity,
-                "diversity_score": metrics.diversity_score,
-                "consensus_ratio": metrics.consensus_ratio,
-            })
+            self._debate_history.append(
+                {
+                    "timestamp": time.time(),
+                    "session_id": session_id,
+                    "agent_count": len(agent_outputs),
+                    "winner": winner or "",
+                    "avg_similarity": metrics.avg_similarity,
+                    "diversity_score": metrics.diversity_score,
+                    "consensus_ratio": metrics.consensus_ratio,
+                }
+            )
 
         # 9. 检测仲裁偏好(若有足够历史)
         bias = self.check_arbiter_bias(session_id=session_id)
         if bias.arbiter_bias_detected:
             result.arbiter_bias_detected = True
-            result.add_alert(bias.alerts[0] if bias.alerts else ConvergenceAlert(
-                session_id=session_id,
-                severity=AlertSeverity.WARNING,
-                pattern=AntiPattern.ARBITER_BIAS,
-                message="Arbiter bias detected",
-                countermeasure="rotate_arbiter",
-            ))
+            result.add_alert(
+                bias.alerts[0]
+                if bias.alerts
+                else ConvergenceAlert(
+                    session_id=session_id,
+                    severity=AlertSeverity.WARNING,
+                    pattern=AntiPattern.ARBITER_BIAS,
+                    message="Arbiter bias detected",
+                    countermeasure="rotate_arbiter",
+                )
+            )
             with self._lock:
                 self._stats["arbiter_bias"] += 1
 
@@ -599,13 +606,10 @@ class ConvergenceDetector:
         # votes 是 {voter: voted_for_idx},但 winner 是 agent_name
         # 简化:计算有多少 agent 的输出与 winner 相同(hash)
         if winner:
-            winner_output = next(
-                (o for o in agent_outputs if o.agent_name == winner), None
-            )
+            winner_output = next((o for o in agent_outputs if o.agent_name == winner), None)
             if winner_output:
                 same_count = sum(
-                    1 for o in agent_outputs
-                    if o.output_hash == winner_output.output_hash
+                    1 for o in agent_outputs if o.output_hash == winner_output.output_hash
                 )
                 metrics.consensus_ratio = same_count / n
                 # 是否有反对意见(至少一个 agent 输出与 winner 不同)
@@ -638,14 +642,16 @@ class ConvergenceCheckResult:
 
     @property
     def has_issues(self) -> bool:
-        return any([
-            self.echo_chamber_detected,
-            self.convergence_collapse_detected,
-            self.arbiter_bias_detected,
-            self.cascade_failure_detected,
-            self.reflexion_pollution_detected,
-            self.low_diversity_detected,
-        ])
+        return any(
+            [
+                self.echo_chamber_detected,
+                self.convergence_collapse_detected,
+                self.arbiter_bias_detected,
+                self.cascade_failure_detected,
+                self.reflexion_pollution_detected,
+                self.low_diversity_detected,
+            ]
+        )
 
     @property
     def highest_severity(self) -> AlertSeverity:
@@ -682,6 +688,7 @@ class ConvergenceCheckResult:
 # =====================================================================
 # 反制策略(可选,供调用方使用)
 # =====================================================================
+
 
 class CountermeasureStrategy:
     """反制策略(静态方法,供调用方按需使用)。

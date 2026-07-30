@@ -40,27 +40,88 @@ class ExpertSpecialization(str, Enum):
 # 领域关键词(用于 query 分类)
 _SPECIALIZATION_KEYWORDS: dict[ExpertSpecialization, list[str]] = {
     ExpertSpecialization.LEGAL: [
-        "法律", "遗嘱", "继承", "监护", "诉讼", "合同", "律师", "法规", "条款",
-        "legal", "will", "inheritance", "guardian", "lawsuit", "contract",
+        "法律",
+        "遗嘱",
+        "继承",
+        "监护",
+        "诉讼",
+        "合同",
+        "律师",
+        "法规",
+        "条款",
+        "legal",
+        "will",
+        "inheritance",
+        "guardian",
+        "lawsuit",
+        "contract",
     ],
     ExpertSpecialization.MEDICAL: [
-        "医疗", "病情", "诊断", "治疗", "疼痛", "临终", "安宁疗护", "医生",
-        "medical", "diagnosis", "treatment", "hospice", "pain",
+        "医疗",
+        "病情",
+        "诊断",
+        "治疗",
+        "疼痛",
+        "临终",
+        "安宁疗护",
+        "医生",
+        "medical",
+        "diagnosis",
+        "treatment",
+        "hospice",
+        "pain",
     ],
     ExpertSpecialization.EMOTIONAL: [
-        "情感", "哀伤", "悲痛", "心理", "辅导", "情绪", "抑郁", "焦虑",
-        "emotional", "grief", "bereavement", "counseling", "depression",
+        "情感",
+        "哀伤",
+        "悲痛",
+        "心理",
+        "辅导",
+        "情绪",
+        "抑郁",
+        "焦虑",
+        "emotional",
+        "grief",
+        "bereavement",
+        "counseling",
+        "depression",
     ],
     ExpertSpecialization.FINANCIAL: [
-        "财务", "遗产", "税务", "投资", "资产", "分配", "信托", "银行",
-        "financial", "estate", "tax", "investment", "trust",
+        "财务",
+        "遗产",
+        "税务",
+        "投资",
+        "资产",
+        "分配",
+        "信托",
+        "银行",
+        "financial",
+        "estate",
+        "tax",
+        "investment",
+        "trust",
     ],
     ExpertSpecialization.CODE: [
-        "代码", "编程", "函数", "bug", "调试", "python", "javascript",
-        "code", "programming", "function", "debug",
+        "代码",
+        "编程",
+        "函数",
+        "bug",
+        "调试",
+        "python",
+        "javascript",
+        "code",
+        "programming",
+        "function",
+        "debug",
     ],
     ExpertSpecialization.GENERAL: [
-        "通用", "帮助", "导航", "faq", "general", "help", "guide",
+        "通用",
+        "帮助",
+        "导航",
+        "faq",
+        "general",
+        "help",
+        "guide",
     ],
 }
 
@@ -162,10 +223,7 @@ class MoERouter:
     def register_expert(self, expert: Expert) -> bool:
         """注册专家。重名覆盖。"""
         with self._lock:
-            if (
-                expert.name not in self._experts
-                and len(self._experts) >= self.config.max_experts
-            ):
+            if expert.name not in self._experts and len(self._experts) >= self.config.max_experts:
                 logger.warning(
                     "MoE expert register rejected: max_experts=%d reached",
                     self.config.max_experts,
@@ -174,7 +232,8 @@ class MoERouter:
             self._experts[expert.name] = expert
             logger.info(
                 "MoE expert registered: %s (%s)",
-                expert.name, expert.specialization.value,
+                expert.name,
+                expert.specialization.value,
             )
             return True
 
@@ -243,9 +302,7 @@ class MoERouter:
                 # 还是没有 → 返回任意一个
                 if self._experts:
                     any_expert = next(iter(self._experts.values()))
-                    logger.warning(
-                        "MoE no default expert, fallback to: %s", any_expert.name
-                    )
+                    logger.warning("MoE no default expert, fallback to: %s", any_expert.name)
                     return any_expert
 
             # 彻底没有专家 → 返回一个临时 default Expert(避免 None)
@@ -310,9 +367,7 @@ class MoERouter:
     # ------------------------------------------------------------------
     # 内部
     # ------------------------------------------------------------------
-    def _classify_query(
-        self, query: str, context: dict[str, Any]
-    ) -> ExpertSpecialization:
+    def _classify_query(self, query: str, context: dict[str, Any]) -> ExpertSpecialization:
         """基于关键词匹配对 query 分类。
 
         Args:

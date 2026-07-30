@@ -32,6 +32,7 @@ def enabled_store(tmp_path: Path, monkeypatch):
 # 1. PII 脱敏
 # =====================================================================
 
+
 class TestAddAnonymizesPII:
     def test_add_anonymizes_pii(self, enabled_store):
         # user_id 作为 name 字段传入 sanitize_before_store,会被掩码
@@ -67,6 +68,7 @@ class TestAddAnonymizesPII:
 # 2. 无 consent 拒绝
 # =====================================================================
 
+
 class TestAddWithoutConsent:
     def test_add_without_consent_rejected(self, enabled_store):
         result = enabled_store.add(
@@ -93,6 +95,7 @@ class TestAddWithoutConsent:
 # 3. 按 topic 检索
 # =====================================================================
 
+
 class TestQueryByTopic:
     def test_query_by_topic(self, enabled_store):
         enabled_store.add("u1", "北京户口注销", "步骤1:派出所", user_consent=True)
@@ -118,6 +121,7 @@ class TestQueryByTopic:
 # =====================================================================
 # 4. 合并同主题
 # =====================================================================
+
 
 class TestMergeEntries:
     def test_merge_entries(self, enabled_store):
@@ -147,6 +151,7 @@ class TestMergeEntries:
 # 5. source_user_count 累加
 # =====================================================================
 
+
 class TestSourceUserCountIncremented:
     def test_source_user_count_incremented(self, enabled_store):
         # 不同用户贡献同主题 → count 累加
@@ -175,6 +180,7 @@ class TestSourceUserCountIncremented:
 # =====================================================================
 # 6. feature flag 关闭
 # =====================================================================
+
 
 class TestFeatureFlagDisabled:
     def test_disabled_returns_none(self, tmp_path, monkeypatch):

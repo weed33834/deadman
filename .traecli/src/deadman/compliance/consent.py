@@ -311,7 +311,10 @@ class ConsentManager:
             self._save()
         logger.info(
             "Consent version updated: %s %s→%s (affected=%d users)",
-            consent_type.value, old_version, new_version, affected,
+            consent_type.value,
+            old_version,
+            new_version,
+            affected,
         )
         return affected
 
@@ -402,12 +405,16 @@ class ConsentManager:
             data = {
                 "versions": {ctype.value: v for ctype, v in self.consent_versions.items()},
                 "records": {
-                    uid: {ctype.value: [r.to_dict() for r in records]
-                          for ctype, records in type_records.items()}
+                    uid: {
+                        ctype.value: [r.to_dict() for r in records]
+                        for ctype, records in type_records.items()
+                    }
                     for uid, type_records in self._records.items()
                 },
             }
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Save consents failed: %s", e)

@@ -32,9 +32,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-REPLAY_ENABLED: bool = os.environ.get(
-    "DEADMAN_REPLAY_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+REPLAY_ENABLED: bool = os.environ.get("DEADMAN_REPLAY_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 # =====================================================================
@@ -121,23 +124,17 @@ class ReplayDebugger:
                 "replay disabled (DEADMAN_REPLAY_ENABLED=0), skip trace_id=%s",
                 request.trace_id,
             )
-            return ReplayResult(
-                metadata={"reason": "replay_disabled"}
-            )
+            return ReplayResult(metadata={"reason": "replay_disabled"})
 
         # 2. 加载 trace
         try:
             spans = self.tracer.get_trace(request.trace_id) if self.tracer else []
         except Exception as e:
             logger.warning("加载 trace %s 失败: %s", request.trace_id, e)
-            return ReplayResult(
-                metadata={"reason": f"trace_load_error: {e}"}
-            )
+            return ReplayResult(metadata={"reason": f"trace_load_error: {e}"})
 
         if not spans:
-            return ReplayResult(
-                metadata={"reason": "trace_not_found"}
-            )
+            return ReplayResult(metadata={"reason": "trace_not_found"})
 
         # 3. 提取原始 user_input + system_prompt + 原始响应
         original_user_input, original_system_prompt, original_response = (
@@ -181,9 +178,7 @@ class ReplayDebugger:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_original_context(
-        spans: list[dict[str, Any]]
-    ) -> tuple[str, str, str]:
+    def _extract_original_context(spans: list[dict[str, Any]]) -> tuple[str, str, str]:
         """从 trace span 树提取原始 user_input / system_prompt / response
 
         优先级：
@@ -256,17 +251,11 @@ class ReplayDebugger:
         if original_system_prompt:
             messages.append({"role": "system", "content": original_system_prompt})
         # new_prompt 优先，否则用原 user_input
-        user_content = (
-            request.new_prompt if request.new_prompt else original_user_input
-        )
+        user_content = request.new_prompt if request.new_prompt else original_user_input
         messages.append({"role": "user", "content": user_content})
 
         # temperature
-        temperature = (
-            request.new_temperature
-            if request.new_temperature is not None
-            else 0.3
-        )
+        temperature = request.new_temperature if request.new_temperature is not None else 0.3
 
         # 构造 kwargs（new_model 时尝试覆盖 model）
         kwargs: dict[str, Any] = {}
@@ -277,16 +266,12 @@ class ReplayDebugger:
 
         try:
             # 调用 LLM
-            response = await self.llm_client.chat(
-                messages, temperature=temperature, **kwargs
-            )
+            response = await self.llm_client.chat(messages, temperature=temperature, **kwargs)
             return str(response), ""
         except TypeError:
             # kwargs 不被接受（如 model 参数）→ 去掉 kwargs 重试
             try:
-                response = await self.llm_client.chat(
-                    messages, temperature=temperature
-                )
+                response = await self.llm_client.chat(messages, temperature=temperature)
                 return str(response), ""
             except Exception as e:
                 logger.warning("重放 LLM 调用失败 (no kwargs): %s", e)
@@ -323,9 +308,7 @@ class ReplayDebugger:
         return "\n".join(diff_lines)
 
     @staticmethod
-    def _is_improved(
-        original: str, replayed: str, error: str
-    ) -> bool:
+    def _is_improved(original: str, replayed: str, error: str) -> bool:
         """判断重放是否"改进"
 
         简化判定：

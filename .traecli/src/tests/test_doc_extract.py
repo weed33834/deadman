@@ -39,7 +39,9 @@ def _make_extractor(tmp_path: Path) -> DocumentExtractor:
     return DocumentExtractor(vault=vault)
 
 
-def _make_mock_llm(resp_text: str = '{"summary":"遗嘱摘要","key_fields":{"testator":"张三"},"confidence":0.85}'):
+def _make_mock_llm(
+    resp_text: str = '{"summary":"遗嘱摘要","key_fields":{"testator":"张三"},"confidence":0.85}',
+):
     """构造一个 mock llm_client，chat 是 AsyncMock"""
     client = MagicMock()
     client.api_key = "test-key-not-real"
@@ -57,6 +59,7 @@ def test_extract_txt_file(tmp_path: Path):
 
     # 注入 mock LLM
     import deadman.llm as llm_module
+
     mock_llm = _make_mock_llm()
     old_client = llm_module.llm_client
     llm_module.llm_client = mock_llm
@@ -95,9 +98,8 @@ def test_extract_pdf_unsupported_graceful(tmp_path: Path):
 
     # LLM mock 返回带低 confidence 的 JSON
     import deadman.llm as llm_module
-    mock_llm = _make_mock_llm(
-        '{"summary":"PDF 格式不支持","key_fields":{},"confidence":0.3}'
-    )
+
+    mock_llm = _make_mock_llm('{"summary":"PDF 格式不支持","key_fields":{},"confidence":0.3}')
     old_client = llm_module.llm_client
     llm_module.llm_client = mock_llm
     try:
@@ -114,7 +116,9 @@ def test_extract_pdf_unsupported_graceful(tmp_path: Path):
 
     assert doc.file_type == "pdf"
     # 应该是 unsupported 标记
-    assert "unsupported_pdf_format" in doc.source_text_masked or "needs_ocr" in doc.source_text_masked
+    assert (
+        "unsupported_pdf_format" in doc.source_text_masked or "needs_ocr" in doc.source_text_masked
+    )
     # confidence 应较低
     assert doc.confidence <= 0.5
 
@@ -128,7 +132,7 @@ def test_mask_pii_id_card():
     masked = extractor._mask_pii_in_text(text)
     assert "110101199001011234" not in masked
     assert "110101" in masked  # 前 6 位保留
-    assert "1234" in masked    # 后 4 位保留
+    assert "1234" in masked  # 后 4 位保留
     assert "********" in masked
 
 
@@ -180,6 +184,7 @@ def test_llm_extract_without_key_returns_low_confidence(tmp_path: Path):
 
     # 注入无 api_key 的 mock LLM
     import deadman.llm as llm_module
+
     mock_llm = MagicMock()
     mock_llm.api_key = ""  # 空 key
     old_client = llm_module.llm_client
@@ -201,6 +206,7 @@ def test_list_my_documents(tmp_path: Path):
     extractor = _make_extractor(tmp_path)
 
     import deadman.llm as llm_module
+
     mock_llm = _make_mock_llm()
     old_client = llm_module.llm_client
     llm_module.llm_client = mock_llm
@@ -224,6 +230,7 @@ def test_get_document_unauthorized(tmp_path: Path):
     extractor = _make_extractor(tmp_path)
 
     import deadman.llm as llm_module
+
     mock_llm = _make_mock_llm()
     old_client = llm_module.llm_client
     llm_module.llm_client = mock_llm

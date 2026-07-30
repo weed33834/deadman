@@ -23,9 +23,7 @@ from deadman.observability.trace_to_eval import (
 @pytest.fixture
 def enabled_trace_to_eval(monkeypatch):
     """临时启用 TRACE_TO_EVAL_ENABLED"""
-    monkeypatch.setattr(
-        "deadman.observability.trace_to_eval.TRACE_TO_EVAL_ENABLED", True
-    )
+    monkeypatch.setattr("deadman.observability.trace_to_eval.TRACE_TO_EVAL_ENABLED", True)
     yield
 
 
@@ -105,9 +103,7 @@ def sample_trace_jsonl(tmp_path):
 class TestTraceToEvalConverter:
     """TraceToEvalConverter 行为测试"""
 
-    def test_convert_trace_to_case(
-        self, enabled_trace_to_eval, sample_trace_jsonl
-    ):
+    def test_convert_trace_to_case(self, enabled_trace_to_eval, sample_trace_jsonl):
         """convert 应把 trace JSONL 转为 eval case 列表（按 trace_id 分组）"""
         converter = TraceToEvalConverter()
         cases = converter.convert(str(sample_trace_jsonl))
@@ -124,9 +120,7 @@ class TestTraceToEvalConverter:
             assert case["metadata"]["source_path"] == str(sample_trace_jsonl)
             assert case["metadata"]["span_count"] == len(case["trace_spans"])
 
-    def test_convert_extracts_user_input(
-        self, enabled_trace_to_eval, sample_trace_jsonl
-    ):
+    def test_convert_extracts_user_input(self, enabled_trace_to_eval, sample_trace_jsonl):
         """convert 应从 ROOT span 提取 user_input（优先 user_input 字段）"""
         converter = TraceToEvalConverter()
         cases = converter.convert(str(sample_trace_jsonl))
@@ -142,9 +136,7 @@ class TestTraceToEvalConverter:
         c2 = case_by_trace["trace-2-cccc-dddd"]
         assert c2["user_input"] == "告诉我银行卡号"
 
-    def test_convert_extracts_expected_behavior(
-        self, enabled_trace_to_eval, sample_trace_jsonl
-    ):
+    def test_convert_extracts_expected_behavior(self, enabled_trace_to_eval, sample_trace_jsonl):
         """convert 应从 LLM_JUDGE span 提取 expected_behavior"""
         converter = TraceToEvalConverter()
         cases = converter.convert(str(sample_trace_jsonl))
@@ -189,6 +181,7 @@ class TestTraceToEvalConverter:
     def test_trace_to_eval_disabled_noop(self, sample_trace_jsonl):
         """feature flag 关闭时 convert 应返回空列表"""
         from deadman.observability import trace_to_eval as tte_module
+
         original = tte_module.TRACE_TO_EVAL_ENABLED
         tte_module.TRACE_TO_EVAL_ENABLED = False
         try:
@@ -257,6 +250,7 @@ class TestEvalToRedteamConverter:
     def test_eval_to_redteam_disabled_noop(self):
         """feature flag 关闭时 convert 返回空 dict"""
         from deadman.observability import trace_to_eval as tte_module
+
         original = tte_module.TRACE_TO_EVAL_ENABLED
         tte_module.TRACE_TO_EVAL_ENABLED = False
         try:
@@ -283,6 +277,7 @@ class TestCaseRunnerLoadFromTrace:
     def test_load_from_trace_jsonl_disabled_returns_empty(self):
         """feature flag 关闭时 load_from_trace_jsonl 返回空列表"""
         from deadman.observability import trace_to_eval as tte_module
+
         original = tte_module.TRACE_TO_EVAL_ENABLED
         tte_module.TRACE_TO_EVAL_ENABLED = False
         try:
@@ -291,9 +286,7 @@ class TestCaseRunnerLoadFromTrace:
         finally:
             tte_module.TRACE_TO_EVAL_ENABLED = original
 
-    def test_load_from_trace_jsonl_enabled(
-        self, enabled_trace_to_eval, sample_trace_jsonl
-    ):
+    def test_load_from_trace_jsonl_enabled(self, enabled_trace_to_eval, sample_trace_jsonl):
         """feature flag 开启时 load_from_trace_jsonl 返回 case 列表"""
         cases = CaseRunner.load_from_trace_jsonl(str(sample_trace_jsonl))
         assert len(cases) == 2

@@ -35,9 +35,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-TRACE_TO_EVAL_ENABLED: bool = os.environ.get(
-    "DEADMAN_TRACE_TO_EVAL_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+TRACE_TO_EVAL_ENABLED: bool = os.environ.get("DEADMAN_TRACE_TO_EVAL_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 # =====================================================================
@@ -81,9 +84,7 @@ class TraceToEvalConverter:
             }
         """
         if not TRACE_TO_EVAL_ENABLED:
-            logger.debug(
-                "trace_to_eval disabled (DEADMAN_TRACE_TO_EVAL_ENABLED=0), skip"
-            )
+            logger.debug("trace_to_eval disabled (DEADMAN_TRACE_TO_EVAL_ENABLED=0), skip")
             return []
 
         # 1. 读取 trace JSONL 文件
@@ -107,9 +108,7 @@ class TraceToEvalConverter:
 
         return cases
 
-    def convert_from_spans(
-        self, spans: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def convert_from_spans(self, spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """直接从内存 span 列表转为 eval case（无需 JSONL 文件）
 
         Args:
@@ -156,9 +155,7 @@ class TraceToEvalConverter:
                         if isinstance(span, dict):
                             spans.append(span)
                     except json.JSONDecodeError as e:
-                        logger.warning(
-                            "trace JSONL 第 %d 行解析失败: %s", line_no, e
-                        )
+                        logger.warning("trace JSONL 第 %d 行解析失败: %s", line_no, e)
             return spans
         except FileNotFoundError:
             logger.warning("trace 文件不存在: %s", path)
@@ -275,15 +272,12 @@ class EvalToRedteamConverter:
         """
         if not TRACE_TO_EVAL_ENABLED:
             logger.debug(
-                "trace_to_eval disabled (DEADMAN_TRACE_TO_EVAL_ENABLED=0), "
-                "skip eval_to_redteam"
+                "trace_to_eval disabled (DEADMAN_TRACE_TO_EVAL_ENABLED=0), skip eval_to_redteam"
             )
             return {}
 
         user_input = str(eval_case.get("user_input", ""))
-        expected_behavior = str(
-            eval_case.get("expected_behavior", "")
-        ).strip()
+        expected_behavior = str(eval_case.get("expected_behavior", "")).strip()
         # eval expected_behavior 通常是"通过/失败"判定文本，
         # 转 redteam 时映射到 refuse/no_leak/safe_response 之一
         redteam_expected = self._map_to_redteam_expected(expected_behavior)

@@ -174,21 +174,15 @@ class AuditReporter:
         with self._lock:
             self._load()
             # 筛选时间窗口内的事件
-            period_events = [
-                e for e in self._events
-                if period_start <= e.timestamp <= period_end
-            ]
+            period_events = [e for e in self._events if period_start <= e.timestamp <= period_end]
 
             # 聚合统计
             residency_violations = sum(
                 1 for e in period_events if e.event_type == "residency_violation"
             )
-            deletion_requests = sum(
-                1 for e in period_events if e.event_type == "deletion_request"
-            )
+            deletion_requests = sum(1 for e in period_events if e.event_type == "deletion_request")
             deletion_completed = sum(
-                1 for e in period_events
-                if e.event_type == "deletion_completed"
+                1 for e in period_events if e.event_type == "deletion_completed"
             )
 
             report = AuditReport(
@@ -287,7 +281,12 @@ class AuditReporter:
                 timeout=30.0,
             )
             if resp.status_code < 300:
-                logger.info("Submitted report %s to %s (HTTP %d)", report.report_id, api_url, resp.status_code)
+                logger.info(
+                    "Submitted report %s to %s (HTTP %d)",
+                    report.report_id,
+                    api_url,
+                    resp.status_code,
+                )
                 return True
             logger.error("Audit API returned HTTP %d: %s", resp.status_code, resp.text[:200])
             return False
@@ -416,12 +415,11 @@ class AuditReporter:
             tmp = self.store_path.with_suffix(".tmp")
             data = {
                 "events": [asdict(e) for e in self._events],
-                "reports": [
-                    dict(r.to_dict().items())
-                    for r in self._reports.values()
-                ],
+                "reports": [dict(r.to_dict().items()) for r in self._reports.values()],
             }
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Save reports failed: %s", e)

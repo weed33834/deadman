@@ -84,6 +84,7 @@ logger = logging.getLogger(__name__)
 # 枚举
 # =====================================================================
 
+
 class ModelProvider(str, Enum):
     """provider 标识(可扩展)。"""
 
@@ -135,6 +136,7 @@ class Countermeasure(str, Enum):
 # =====================================================================
 # 数据类
 # =====================================================================
+
 
 @dataclass
 class ProviderOutput:
@@ -278,6 +280,7 @@ DETECTOR_DEFAULTS = {
 # Cross-Model Collusion Detector
 # =====================================================================
 
+
 class CrossModelCollusionDetector:
     """跨模型共谋检测器。
 
@@ -303,9 +306,13 @@ class CrossModelCollusionDetector:
         self.config = {**DETECTOR_DEFAULTS, **(config or {})}
         self._lock = threading.RLock()
         # 历史:用于 arbiter 偏好 / 越狱扩散
-        self._winner_history: deque[tuple[str, str]] = deque(maxlen=self.config["history_retention"])
+        self._winner_history: deque[tuple[str, str]] = deque(
+            maxlen=self.config["history_retention"]
+        )
         # provider 输出历史:用于越狱扩散(跨 session)
-        self._output_history: deque[tuple[str, str, str]] = deque(maxlen=self.config["history_retention"])
+        self._output_history: deque[tuple[str, str, str]] = deque(
+            maxlen=self.config["history_retention"]
+        )
         # 告警历史
         self._alerts: deque[CollusionAlert] = deque(maxlen=self.config["history_retention"])
         # 统计
@@ -352,17 +359,19 @@ class CrossModelCollusionDetector:
 
         # 2. 检测同 provider 偏向
         if metrics.same_provider_ratio > self.config["same_provider_ratio_threshold"]:
-            result.add_alert(CollusionAlert(
-                session_id=session_id,
-                severity=AlertSeverity.WARNING,
-                pattern=CollusionPattern.SAME_PROVIDER_BIAS,
-                message=(
-                    f"Same provider bias: ratio={metrics.same_provider_ratio:.3f} "
-                    f"(threshold={self.config['same_provider_ratio_threshold']})"
-                ),
-                metrics=metrics.to_dict(),
-                countermeasure=Countermeasure.FORCE_PROVIDER_DIVERSITY.value,
-            ))
+            result.add_alert(
+                CollusionAlert(
+                    session_id=session_id,
+                    severity=AlertSeverity.WARNING,
+                    pattern=CollusionPattern.SAME_PROVIDER_BIAS,
+                    message=(
+                        f"Same provider bias: ratio={metrics.same_provider_ratio:.3f} "
+                        f"(threshold={self.config['same_provider_ratio_threshold']})"
+                    ),
+                    metrics=metrics.to_dict(),
+                    countermeasure=Countermeasure.FORCE_PROVIDER_DIVERSITY.value,
+                )
+            )
             with self._lock:
                 self._stats["same_provider_bias"] += 1
 
@@ -373,18 +382,20 @@ class CrossModelCollusionDetector:
                 if metrics.cross_provider_similarity > 0.95
                 else AlertSeverity.WARNING
             )
-            result.add_alert(CollusionAlert(
-                session_id=session_id,
-                severity=severity,
-                pattern=CollusionPattern.OUTPUT_CONVERGENCE,
-                message=(
-                    f"Output convergence across providers: "
-                    f"similarity={metrics.cross_provider_similarity:.3f} "
-                    f"(threshold={self.config['cross_provider_similarity_threshold']})"
-                ),
-                metrics=metrics.to_dict(),
-                countermeasure=Countermeasure.ADD_INDEPENDENT_AGENT.value,
-            ))
+            result.add_alert(
+                CollusionAlert(
+                    session_id=session_id,
+                    severity=severity,
+                    pattern=CollusionPattern.OUTPUT_CONVERGENCE,
+                    message=(
+                        f"Output convergence across providers: "
+                        f"similarity={metrics.cross_provider_similarity:.3f} "
+                        f"(threshold={self.config['cross_provider_similarity_threshold']})"
+                    ),
+                    metrics=metrics.to_dict(),
+                    countermeasure=Countermeasure.ADD_INDEPENDENT_AGENT.value,
+                )
+            )
             with self._lock:
                 self._stats["output_convergence"] += 1
 
@@ -393,33 +404,37 @@ class CrossModelCollusionDetector:
             metrics.failure_ratio > self.config["shared_blindspot_failure_threshold"]
             and len(outputs) >= self.config["min_provider_samples"]
         ):
-            result.add_alert(CollusionAlert(
-                session_id=session_id,
-                severity=AlertSeverity.CRITICAL,
-                pattern=CollusionPattern.SHARED_BLINDSPOT,
-                message=(
-                    f"Shared blindspot: {metrics.failure_ratio:.1%} providers failed "
-                    f"on same input (threshold={self.config['shared_blindspot_failure_threshold']})"
-                ),
-                metrics=metrics.to_dict(),
-                countermeasure=Countermeasure.REVIEW_WITH_SRE.value,
-            ))
+            result.add_alert(
+                CollusionAlert(
+                    session_id=session_id,
+                    severity=AlertSeverity.CRITICAL,
+                    pattern=CollusionPattern.SHARED_BLINDSPOT,
+                    message=(
+                        f"Shared blindspot: {metrics.failure_ratio:.1%} providers failed "
+                        f"on same input (threshold={self.config['shared_blindspot_failure_threshold']})"
+                    ),
+                    metrics=metrics.to_dict(),
+                    countermeasure=Countermeasure.REVIEW_WITH_SRE.value,
+                )
+            )
             with self._lock:
                 self._stats["shared_blindspot"] += 1
 
         # 5. 检测互相背书
         if metrics.cross_endorsement_rate > self.config["cross_endorsement_rate_threshold"]:
-            result.add_alert(CollusionAlert(
-                session_id=session_id,
-                severity=AlertSeverity.WARNING,
-                pattern=CollusionPattern.CROSS_ENDORSEMENT,
-                message=(
-                    f"Cross endorsement: rate={metrics.cross_endorsement_rate:.3f} "
-                    f"(threshold={self.config['cross_endorsement_rate_threshold']})"
-                ),
-                metrics=metrics.to_dict(),
-                countermeasure=Countermeasure.ADD_INDEPENDENT_AGENT.value,
-            ))
+            result.add_alert(
+                CollusionAlert(
+                    session_id=session_id,
+                    severity=AlertSeverity.WARNING,
+                    pattern=CollusionPattern.CROSS_ENDORSEMENT,
+                    message=(
+                        f"Cross endorsement: rate={metrics.cross_endorsement_rate:.3f} "
+                        f"(threshold={self.config['cross_endorsement_rate_threshold']})"
+                    ),
+                    metrics=metrics.to_dict(),
+                    countermeasure=Countermeasure.ADD_INDEPENDENT_AGENT.value,
+                )
+            )
             with self._lock:
                 self._stats["cross_endorsement"] += 1
 
@@ -429,17 +444,19 @@ class CrossModelCollusionDetector:
             and metrics.provider_entropy < self.config["min_provider_entropy"]
             and len(self._winner_history) >= 5
         ):
-            result.add_alert(CollusionAlert(
-                session_id=session_id,
-                severity=AlertSeverity.WARNING,
-                pattern=CollusionPattern.PROVIDER_BIAS,
-                message=(
-                    f"Arbiter provider bias: prefers {metrics.arbiter_bias_provider} "
-                    f"(entropy={metrics.provider_entropy:.3f})"
-                ),
-                metrics=metrics.to_dict(),
-                countermeasure=Countermeasure.ROTATE_ARBITER_PROVIDER.value,
-            ))
+            result.add_alert(
+                CollusionAlert(
+                    session_id=session_id,
+                    severity=AlertSeverity.WARNING,
+                    pattern=CollusionPattern.PROVIDER_BIAS,
+                    message=(
+                        f"Arbiter provider bias: prefers {metrics.arbiter_bias_provider} "
+                        f"(entropy={metrics.provider_entropy:.3f})"
+                    ),
+                    metrics=metrics.to_dict(),
+                    countermeasure=Countermeasure.ROTATE_ARBITER_PROVIDER.value,
+                )
+            )
             with self._lock:
                 self._stats["provider_bias"] += 1
 
@@ -531,8 +548,11 @@ class CrossModelCollusionDetector:
         # arbiter 偏好
         if winner_provider:
             with self._lock:
-                recent_winners = [w for _, w in list(self._winner_history)[-self.config["arbiter_bias_window"]:]
-                                  if w]
+                recent_winners = [
+                    w
+                    for _, w in list(self._winner_history)[-self.config["arbiter_bias_window"] :]
+                    if w
+                ]
                 recent_winners.append(winner_provider)
             if recent_winners:
                 winner_counter = Counter(recent_winners)

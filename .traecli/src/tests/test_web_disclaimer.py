@@ -45,7 +45,9 @@ def _make_handler(tmp_path: Path) -> tuple[MagicMock, list]:
     return handler, calls
 
 
-def _handle_via_real_handler(tmp_path: Path, method: str, path: str, query: dict | None = None) -> tuple[int, object]:
+def _handle_via_real_handler(
+    tmp_path: Path, method: str, path: str, query: dict | None = None
+) -> tuple[int, object]:
     """通过真实 Handler 类处理一个请求，返回 (status, payload)
 
     逻辑：动态获取 WebServer.run 中定义的 Handler 类是不可能的（它定义在函数内部）。
@@ -77,10 +79,12 @@ class _CapturedHandler:
     @staticmethod
     def _disclaimer_footer() -> str:
         from deadman.disclaimer.text import DisclaimerBuilder
+
         return DisclaimerBuilder.for_web_footer()
 
     def _handle_disclaimer(self, query: dict) -> None:
         from deadman.disclaimer.text import DisclaimerBuilder
+
         scenario = query.get("scenario", [None])[0] if query else None
         fmt = query.get("format", [None])[0] if query else None
         try:
@@ -96,24 +100,31 @@ class _CapturedHandler:
         except ValueError as exc:
             self._send_json(400, {"error": str(exc)})
             return
-        self._send_json(200, {
-            "text": text,
-            "kind": kind,
-            "disclaimer": self._disclaimer_footer(),
-        })
+        self._send_json(
+            200,
+            {
+                "text": text,
+                "kind": kind,
+                "disclaimer": self._disclaimer_footer(),
+            },
+        )
 
     def _handle_hotlines(self, query: dict) -> None:
         from deadman.hotlines.lookup import HotlineLookup
+
         province = query.get("province", [None])[0] if query else None
         function = query.get("function", [None])[0] if query else None
         lookup = HotlineLookup()
         results = lookup.lookup(province, function)
-        self._send_json(200, {
-            "hotlines": results,
-            "count": len(results),
-            "query": {"province": province, "function": function},
-            "disclaimer": self._disclaimer_footer(),
-        })
+        self._send_json(
+            200,
+            {
+                "hotlines": results,
+                "count": len(results),
+                "query": {"province": province, "function": function},
+                "disclaimer": self._disclaimer_footer(),
+            },
+        )
 
     def _handle_institutions(self, query: dict, store: InstitutionStore) -> None:
         province = query.get("province", [None])[0] if query else None
@@ -121,24 +132,32 @@ class _CapturedHandler:
         inst_type = query.get("type", [None])[0] if query else None
         keyword = query.get("keyword", [None])[0] if query else None
         results = store.search(province, city, inst_type, keyword)
-        self._send_json(200, {
-            "institutions": [i.to_dict() for i in results],
-            "count": len(results),
-            "query": {
-                "province": province, "city": city,
-                "type": inst_type, "keyword": keyword,
+        self._send_json(
+            200,
+            {
+                "institutions": [i.to_dict() for i in results],
+                "count": len(results),
+                "query": {
+                    "province": province,
+                    "city": city,
+                    "type": inst_type,
+                    "keyword": keyword,
+                },
+                "disclaimer": self._disclaimer_footer(),
             },
-            "disclaimer": self._disclaimer_footer(),
-        })
+        )
 
     def _handle_institution_by_id(self, institution_id: str, store: InstitutionStore) -> None:
         inst = store.get(institution_id)
         if inst is None:
-            self._send_json(404, {
-                "error": "机构不存在",
-                "institution_id": institution_id,
-                "disclaimer": self._disclaimer_footer(),
-            })
+            self._send_json(
+                404,
+                {
+                    "error": "机构不存在",
+                    "institution_id": institution_id,
+                    "disclaimer": self._disclaimer_footer(),
+                },
+            )
             return
         payload = inst.to_dict()
         payload["needs_verification_warning"] = inst.needs_verification_warning()
@@ -249,14 +268,24 @@ class TestGetInstitutions:
     def test_get_institutions_by_province(self, tmp_path: Path) -> None:
         # 用独立 data_dir，先加 2 条
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path / "inst1")
-        store.add(make_institution(
-            name="Web 测试殡仪馆A", type="funeral_home",
-            province="Web省", city="Web市", source="测试",
-        ))
-        store.add(make_institution(
-            name="Web 测试殡仪馆B", type="funeral_home",
-            province="其他省", city="其他市", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="Web 测试殡仪馆A",
+                type="funeral_home",
+                province="Web省",
+                city="Web市",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="Web 测试殡仪馆B",
+                type="funeral_home",
+                province="其他省",
+                city="其他市",
+                source="测试",
+            )
+        )
 
         h = _CapturedHandler()
         h._handle_institutions({"province": ["Web省"]}, store)
@@ -268,14 +297,24 @@ class TestGetInstitutions:
 
     def test_get_institutions_by_type(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path / "inst2")
-        store.add(make_institution(
-            name="殡仪馆X", type="funeral_home",
-            province="北京", city="北京", source="测试",
-        ))
-        store.add(make_institution(
-            name="公墓Y", type="cemetery",
-            province="北京", city="北京", source="测试",
-        ))
+        store.add(
+            make_institution(
+                name="殡仪馆X",
+                type="funeral_home",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
+        store.add(
+            make_institution(
+                name="公墓Y",
+                type="cemetery",
+                province="北京",
+                city="北京",
+                source="测试",
+            )
+        )
 
         h = _CapturedHandler()
         h._handle_institutions({"type": ["cemetery"]}, store)
@@ -295,8 +334,11 @@ class TestGetInstitutionById:
     def test_get_institution_by_id_found(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path / "inst3")
         inst = make_institution(
-            name="详情测试殡仪馆", type="funeral_home",
-            province="北京", city="北京", source="测试",
+            name="详情测试殡仪馆",
+            type="funeral_home",
+            province="北京",
+            city="北京",
+            source="测试",
         )
         store.add(inst)
 
@@ -352,8 +394,11 @@ class TestResponseIncludesDisclaimer:
     def test_institution_by_id_response_includes_disclaimer(self, tmp_path: Path) -> None:
         store = InstitutionStore(auto_load_seed=False, data_dir=tmp_path / "inst6")
         inst = make_institution(
-            name="X", type="funeral_home",
-            province="北京", city="北京", source="测试",
+            name="X",
+            type="funeral_home",
+            province="北京",
+            city="北京",
+            source="测试",
         )
         store.add(inst)
         h = _CapturedHandler()

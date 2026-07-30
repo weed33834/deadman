@@ -38,21 +38,24 @@ logger = logging.getLogger(__name__)
 # 默认 CSP / 安全头配置(可被 env 覆盖)
 # =====================================================================
 
+
 def _default_csp() -> str:
     """默认 CSP:严格 default-src 'self',按需放行内联 + img。"""
     return os.environ.get(
         "DEADMAN_CSP",
-        "; ".join([
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",  # 原生 JS SPA 需要 inline event handlers
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https:",
-            "font-src 'self' data:",
-            "connect-src 'self'",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-        ]),
+        "; ".join(
+            [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline'",  # 原生 JS SPA 需要 inline event handlers
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: https:",
+                "font-src 'self' data:",
+                "connect-src 'self'",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+            ]
+        ),
     )
 
 
@@ -67,6 +70,7 @@ def _default_cors_origins() -> list[str]:
 # =====================================================================
 # 中间件基类
 # =====================================================================
+
 
 @dataclass
 class MiddlewareResponse:
@@ -143,6 +147,7 @@ class MiddlewareChain:
 # =====================================================================
 # 具体中间件
 # =====================================================================
+
 
 class RateLimitMiddleware:
     """按 IP/user_id 限流中间件。
@@ -373,6 +378,7 @@ class AuditLogMiddleware:
 # 工厂:构建默认中间件链
 # =====================================================================
 
+
 def build_default_middleware_chain(
     rate_limit_config: RateLimitConfig | None = None,
     cors_origins: list[str] | None = None,
@@ -399,6 +405,7 @@ def build_default_middleware_chain(
 # 装饰器:便于在已有 handler 上挂中间件
 # =====================================================================
 
+
 def with_middleware(chain: MiddlewareChain, security_headers: SecurityHeadersMiddleware):
     """装饰器:把中间件链挂到 handler 方法上。
 
@@ -409,6 +416,7 @@ def with_middleware(chain: MiddlewareChain, security_headers: SecurityHeadersMid
             def do_GET(self):
                 ...
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):

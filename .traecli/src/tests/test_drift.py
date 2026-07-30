@@ -19,9 +19,7 @@ from deadman.observability.drift import (
 @pytest.fixture
 def enabled_drift(monkeypatch):
     """临时启用 DRIFT_DETECTION_ENABLED"""
-    monkeypatch.setattr(
-        "deadman.observability.drift.DRIFT_DETECTION_ENABLED", True
-    )
+    monkeypatch.setattr("deadman.observability.drift.DRIFT_DETECTION_ENABLED", True)
     yield
 
 
@@ -128,9 +126,7 @@ class TestDistributionDrift:
     def test_distribution_drift_empty(self, enabled_drift):
         """分布为空时返回 drifted=False"""
         detector = DriftDetector()
-        report = detector.detect_distribution_drift(
-            "category_dist", {}, {"A": 1}
-        )
+        report = detector.detect_distribution_drift("category_dist", {}, {"A": 1})
         assert report.drifted is False
         assert report.details["reason"] == "dist_empty"
 
@@ -186,9 +182,7 @@ class TestTextDrift:
     def test_text_drift_empty(self, enabled_drift):
         """文本为空时返回 drifted=False"""
         detector = DriftDetector()
-        report = detector.detect_text_drift(
-            "user_query", [], ["hello world"]
-        )
+        report = detector.detect_text_drift("user_query", [], ["hello world"])
         assert report.drifted is False
         assert report.details["reason"] == "texts_empty"
 
@@ -204,6 +198,7 @@ class TestDriftDisabled:
     def test_drift_disabled_noop(self):
         """feature flag 关闭时所有 detect_* 返回 drifted=False 空报告"""
         from deadman.observability import drift as drift_module
+
         original = drift_module.DRIFT_DETECTION_ENABLED
         drift_module.DRIFT_DETECTION_ENABLED = False
         try:
@@ -220,16 +215,12 @@ class TestDriftDisabled:
             assert r1.details["reason"] == "drift_detection_disabled"
 
             # 分布漂移
-            r2 = detector.detect_distribution_drift(
-                "dist", {"A": 100}, {"B": 100}
-            )
+            r2 = detector.detect_distribution_drift("dist", {"A": 100}, {"B": 100})
             assert r2.drifted is False
             assert r2.method == "disabled"
 
             # 文本漂移
-            r3 = detector.detect_text_drift(
-                "text", ["a b c"], ["x y z"]
-            )
+            r3 = detector.detect_text_drift("text", ["a b c"], ["x y z"])
             assert r3.drifted is False
             assert r3.method == "disabled"
         finally:

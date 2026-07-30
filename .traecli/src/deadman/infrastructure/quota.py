@@ -94,6 +94,7 @@ class QuotaExceededError(Exception):
 # 滑动窗口计数器
 # =====================================================================
 
+
 class SlidingWindowCounter:
     """滑动窗口计数器(基于时间分桶)。
 
@@ -105,8 +106,8 @@ class SlidingWindowCounter:
 
     def __init__(self, window_seconds: int, bucket_count: int = 12) -> None:
         """Args:
-            window_seconds: 窗口总时长(秒)
-            bucket_count: 分桶数(默认 12,即每桶 1/12 窗口时长)
+        window_seconds: 窗口总时长(秒)
+        bucket_count: 分桶数(默认 12,即每桶 1/12 窗口时长)
         """
         self.window_seconds = window_seconds
         self.bucket_count = bucket_count
@@ -192,7 +193,12 @@ class QuotaManager:
                 name="llm_tokens",
                 period=QuotaPeriod.PER_DAY,
                 limit=100_000,
-                actions=[QuotaAction.WARN, QuotaAction.DOWNGRADE_MODEL, QuotaAction.RATE_LIMIT, QuotaAction.REJECT],
+                actions=[
+                    QuotaAction.WARN,
+                    QuotaAction.DOWNGRADE_MODEL,
+                    QuotaAction.RATE_LIMIT,
+                    QuotaAction.REJECT,
+                ],
                 thresholds={"warn": 0.8, "downgrade_model": 0.9, "rate_limit": 0.95, "reject": 1.0},
             ),
             "tool_calls": QuotaLimit(
@@ -445,10 +451,18 @@ class QuotaManager:
             tenant_limits_data: dict[str, dict[str, dict]] = data["tenant_limits"]  # type: ignore[assignment]
             for _tid, limits in tenant_limits_data.items():
                 for _qname, limit in limits.items():
-                    limit["period"] = limit["period"].value if hasattr(limit["period"], "value") else limit["period"]
-                    limit["actions"] = [a.value if hasattr(a, "value") else a for a in limit["actions"]]
+                    limit["period"] = (
+                        limit["period"].value
+                        if hasattr(limit["period"], "value")
+                        else limit["period"]
+                    )
+                    limit["actions"] = [
+                        a.value if hasattr(a, "value") else a for a in limit["actions"]
+                    ]
             tmp = self.store_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Quota store save failed: %s", e)

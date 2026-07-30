@@ -51,8 +51,7 @@ class TestRegisterSubparsers:
         parser = make_parser()
         # 通过 --help 解析时各 subparser 注册到 choices
         subparsers_action = next(
-            a for a in parser._actions
-            if isinstance(a, argparse._SubParsersAction)
+            a for a in parser._actions if isinstance(a, argparse._SubParsersAction)
         )
         registered = set(subparsers_action.choices.keys())
         for cmd in phase16.COMMANDS:
@@ -68,54 +67,84 @@ class TestRegisterSubparsers:
 class TestTicketCreate:
     def test_required_args_missing_user_id_exits(self):
         with pytest.raises(SystemExit):
-            parse([
-                "ticket-create",
-                "--category", "咨询",
-                "--subject", "测试",
-                "--description", "测试描述",
-            ])
+            parse(
+                [
+                    "ticket-create",
+                    "--category",
+                    "咨询",
+                    "--subject",
+                    "测试",
+                    "--description",
+                    "测试描述",
+                ]
+            )
 
     def test_required_args_missing_category_exits(self):
         with pytest.raises(SystemExit):
-            parse([
-                "ticket-create",
-                "--user-id", "u1",
-                "--subject", "测试",
-                "--description", "测试描述",
-            ])
+            parse(
+                [
+                    "ticket-create",
+                    "--user-id",
+                    "u1",
+                    "--subject",
+                    "测试",
+                    "--description",
+                    "测试描述",
+                ]
+            )
 
     def test_invalid_category_rejected_by_choices(self):
         """英文 category 名应被 argparse choices 拒绝（与底层 Chinese 校验对齐）"""
         with pytest.raises(SystemExit):
-            parse([
-                "ticket-create",
-                "--user-id", "u1",
-                "--category", "complaint",  # 应为「投诉」
-                "--subject", "测试",
-                "--description", "测试描述",
-            ])
+            parse(
+                [
+                    "ticket-create",
+                    "--user-id",
+                    "u1",
+                    "--category",
+                    "complaint",  # 应为「投诉」
+                    "--subject",
+                    "测试",
+                    "--description",
+                    "测试描述",
+                ]
+            )
 
     def test_priority_default_is_normal(self):
         """默认 priority 应为「普通」"""
-        args = parse([
-            "ticket-create",
-            "--user-id", "u1",
-            "--category", "咨询",
-            "--subject", "测试",
-            "--description", "测试描述",
-        ])
+        args = parse(
+            [
+                "ticket-create",
+                "--user-id",
+                "u1",
+                "--category",
+                "咨询",
+                "--subject",
+                "测试",
+                "--description",
+                "测试描述",
+            ]
+        )
         assert args.priority == "普通"
 
     def test_create_success_prints_ticket_id(self, tmp_path: Path, capsys):
-        args = parse([
-            "ticket-create",
-            "--user-id", "u1",
-            "--category", "咨询",
-            "--priority", "紧急",
-            "--subject", "如何办理户口注销？",
-            "--description", "请问需要哪些材料？",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-create",
+                "--user-id",
+                "u1",
+                "--category",
+                "咨询",
+                "--priority",
+                "紧急",
+                "--subject",
+                "如何办理户口注销？",
+                "--description",
+                "请问需要哪些材料？",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         assert callable(args.func)
         args.func(args)
         out = capsys.readouterr().out
@@ -147,9 +176,15 @@ class TestTicketCreate:
 
 class TestTicketList:
     def test_list_empty_prints_hint(self, tmp_path: Path, capsys):
-        args = parse([
-            "ticket-list", "--user-id", "u1", "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-list",
+                "--user-id",
+                "u1",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "暂无工单" in out
@@ -157,13 +192,20 @@ class TestTicketList:
     def test_list_with_status_filter(self, tmp_path: Path, capsys):
         # 先创建一个工单
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         store.create_ticket("u1", "咨询", "普通", "主题1", "描述1")
-        args = parse([
-            "ticket-list", "--user-id", "u1",
-            "--status", "open",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-list",
+                "--user-id",
+                "u1",
+                "--status",
+                "open",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         assert args.status == "open"
         args.func(args)
         out = capsys.readouterr().out
@@ -179,14 +221,20 @@ class TestTicketList:
 class TestTicketGet:
     def test_get_success_prints_json(self, tmp_path: Path, capsys):
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("alice", "咨询", "普通", "主题A", "描述A")
-        args = parse([
-            "ticket-get",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "alice",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-get",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "alice",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         # JSON 输出包含 ticket_id
@@ -196,14 +244,20 @@ class TestTicketGet:
     def test_get_other_user_denied_prints_hint(self, tmp_path: Path, capsys):
         """越权访问应返回 None 并打印友好提示"""
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("alice", "咨询", "普通", "私密主题", "私密描述")
-        args = parse([
-            "ticket-get",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "bob",  # bob 不是 owner
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-get",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "bob",  # bob 不是 owner
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "无权访问" in out or "不存在" in out
@@ -212,12 +266,17 @@ class TestTicketGet:
         assert "私密描述" not in out
 
     def test_get_nonexistent_prints_hint(self, tmp_path: Path, capsys):
-        args = parse([
-            "ticket-get",
-            "--ticket-id", "tkt-nonexistent",
-            "--user-id", "u1",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-get",
+                "--ticket-id",
+                "tkt-nonexistent",
+                "--user-id",
+                "u1",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "不存在" in out or "无权访问" in out
@@ -231,15 +290,22 @@ class TestTicketGet:
 class TestTicketReplyClose:
     def test_reply_success_prints_reply_id(self, tmp_path: Path, capsys):
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("u1", "咨询", "普通", "主题", "描述")
-        args = parse([
-            "ticket-reply",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "u1",
-            "--content", "这是我的回复",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-reply",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "u1",
+                "--content",
+                "这是我的回复",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "已追加回复" in out
@@ -247,29 +313,42 @@ class TestTicketReplyClose:
 
     def test_reply_other_user_denied(self, tmp_path: Path, capsys):
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("alice", "咨询", "普通", "主题", "描述")
-        args = parse([
-            "ticket-reply",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "bob",
-            "--content", "我试图追加",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-reply",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "bob",
+                "--content",
+                "我试图追加",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "无法追加回复" in out
 
     def test_close_success(self, tmp_path: Path, capsys):
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("u1", "咨询", "普通", "主题", "描述")
-        args = parse([
-            "ticket-close",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "u1",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-close",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "u1",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "已关闭工单" in out
@@ -280,14 +359,20 @@ class TestTicketReplyClose:
 
     def test_close_other_user_denied(self, tmp_path: Path, capsys):
         from deadman.support.store import TicketStore
+
         store = TicketStore(data_dir=tmp_path)
         t = store.create_ticket("alice", "咨询", "普通", "主题", "描述")
-        args = parse([
-            "ticket-close",
-            "--ticket-id", t.ticket_id,
-            "--user-id", "bob",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "ticket-close",
+                "--ticket-id",
+                t.ticket_id,
+                "--user-id",
+                "bob",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "关闭失败" in out
@@ -304,24 +389,38 @@ class TestTicketReplyClose:
 
 class TestOnboarding:
     def test_show_no_profile_prints_hint(self, tmp_path: Path, capsys):
-        args = parse([
-            "onboarding-show", "--user-id", "u1", "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "onboarding-show",
+                "--user-id",
+                "u1",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "暂无 onboarding profile" in out
 
     def test_save_success_prints_summary(self, tmp_path: Path, capsys):
-        args = parse([
-            "onboarding-save",
-            "--user-id", "u1",
-            "--relationship", "亲属",
-            "--location", "北京",
-            "--death-date", "2024-01-01",
-            "--current-stage", "死亡证明,户口注销",
-            "--consent-disclaimer",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "onboarding-save",
+                "--user-id",
+                "u1",
+                "--relationship",
+                "亲属",
+                "--location",
+                "北京",
+                "--death-date",
+                "2024-01-01",
+                "--current-stage",
+                "死亡证明,户口注销",
+                "--consent-disclaimer",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "已保存 onboarding profile" in out
@@ -329,6 +428,7 @@ class TestOnboarding:
         assert "北京" in out
         # 验证确实落盘
         from deadman.onboarding.store import OnboardingStore
+
         loaded = OnboardingStore(data_dir=tmp_path).load("u1")
         assert loaded is not None
         assert loaded.relationship == "亲属"
@@ -339,13 +439,19 @@ class TestOnboarding:
 
     def test_save_missing_consent_fails_friendly(self, tmp_path: Path, capsys):
         """未勾选 --consent-disclaimer 应被 wizard 校验拒绝"""
-        args = parse([
-            "onboarding-save",
-            "--user-id", "u1",
-            "--relationship", "亲属",
-            "--location", "北京",
-            "--data-dir", str(tmp_path),
-        ])
+        args = parse(
+            [
+                "onboarding-save",
+                "--user-id",
+                "u1",
+                "--relationship",
+                "亲属",
+                "--location",
+                "北京",
+                "--data-dir",
+                str(tmp_path),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "[错误]" in out
@@ -353,12 +459,17 @@ class TestOnboarding:
 
     def test_save_invalid_relationship_rejected(self):
         with pytest.raises(SystemExit):
-            parse([
-                "onboarding-save",
-                "--user-id", "u1",
-                "--relationship", "cousin",  # 应为中文
-                "--location", "北京",
-            ])
+            parse(
+                [
+                    "onboarding-save",
+                    "--user-id",
+                    "u1",
+                    "--relationship",
+                    "cousin",  # 应为中文
+                    "--location",
+                    "北京",
+                ]
+            )
 
     def test_steps_lists_5_steps(self, capsys):
         args = parse(["onboarding-steps"])
@@ -380,10 +491,13 @@ class TestOnboarding:
 class TestKnowledgeFreshness:
     def test_scan_nonexistent_dir_prints_empty(self, tmp_path: Path, capsys):
         nonexistent = tmp_path / "no-such-dir"
-        args = parse([
-            "knowledge-freshness-scan",
-            "--regions-dir", str(nonexistent),
-        ])
+        args = parse(
+            [
+                "knowledge-freshness-scan",
+                "--regions-dir",
+                str(nonexistent),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "未扫描到" in out
@@ -399,13 +513,14 @@ class TestKnowledgeFreshness:
             "# 北京指南\n## 元信息\n最后更新: 2020-01-01\n\n包含社保信息\n",
             encoding="utf-8",
         )
-        (regions / "unknown.md").write_text(
-            "# 北京指南（无日期）\n", encoding="utf-8"
+        (regions / "unknown.md").write_text("# 北京指南（无日期）\n", encoding="utf-8")
+        args = parse(
+            [
+                "knowledge-freshness-scan",
+                "--regions-dir",
+                str(tmp_path / "regions"),
+            ]
         )
-        args = parse([
-            "knowledge-freshness-scan",
-            "--regions-dir", str(tmp_path / "regions"),
-        ])
         args.func(args)
         out = capsys.readouterr().out
         assert "共 3 个文件" in out
@@ -415,10 +530,13 @@ class TestKnowledgeFreshness:
 
     def test_check_nonexistent_file_prints_hint(self, tmp_path: Path, capsys):
         nonexistent = tmp_path / "no-such.md"
-        args = parse([
-            "knowledge-freshness-check",
-            "--file-path", str(nonexistent),
-        ])
+        args = parse(
+            [
+                "knowledge-freshness-check",
+                "--file-path",
+                str(nonexistent),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "文件不存在" in out
@@ -434,10 +552,13 @@ class TestKnowledgeFreshness:
             "- 抚恤金标准约 50000 元\n",
             encoding="utf-8",
         )
-        args = parse([
-            "knowledge-freshness-check",
-            "--file-path", str(md),
-        ])
+        args = parse(
+            [
+                "knowledge-freshness-check",
+                "--file-path",
+                str(md),
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "命中的政策领域" in out or "命中政策领域" in out
@@ -453,9 +574,7 @@ class TestKnowledgeFreshness:
 
 class TestCNSearch:
     @patch("deadman.tools.web_search.BaiduSearchProvider")
-    def test_search_baidu_calls_provider_and_prints(
-        self, MockProvider, capsys
-    ):
+    def test_search_baidu_calls_provider_and_prints(self, MockProvider, capsys):
         from deadman.tools.web_search import SearchResult
 
         mock_instance = MockProvider.return_value
@@ -480,9 +599,7 @@ class TestCNSearch:
         assert "北京市公安局" in out
         assert "official" in out
         # 验证 provider.search 被调用且参数正确
-        mock_instance.search.assert_awaited_once_with(
-            "北京户籍办理", max_results=3
-        )
+        mock_instance.search.assert_awaited_once_with("北京户籍办理", max_results=3)
 
     @patch("deadman.tools.web_search.BaiduSearchProvider")
     def test_search_baidu_empty_results_prints_hint(self, MockProvider, capsys):
@@ -540,25 +657,37 @@ class TestWeChatWebhookTest:
         timestamp = "1700000000"
         nonce = "abc123nonce"
         signature = _compute_wechat_signature(token, timestamp, nonce)
-        args = parse([
-            "wechat-webhook-test",
-            "--token", token,
-            "--timestamp", timestamp,
-            "--nonce", nonce,
-            "--signature", signature,
-        ])
+        args = parse(
+            [
+                "wechat-webhook-test",
+                "--token",
+                token,
+                "--timestamp",
+                timestamp,
+                "--nonce",
+                nonce,
+                "--signature",
+                signature,
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "校验通过" in out
 
     def test_invalid_signature_prints_fail(self, capsys):
-        args = parse([
-            "wechat-webhook-test",
-            "--token", "my-token",
-            "--timestamp", "1700000000",
-            "--nonce", "abc123",
-            "--signature", "deadbeef-not-matching",
-        ])
+        args = parse(
+            [
+                "wechat-webhook-test",
+                "--token",
+                "my-token",
+                "--timestamp",
+                "1700000000",
+                "--nonce",
+                "abc123",
+                "--signature",
+                "deadbeef-not-matching",
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "校验失败" in out
@@ -569,14 +698,21 @@ class TestWeChatWebhookTest:
         timestamp = "1700000001"
         nonce = "nonce-xyz"
         signature = _compute_wechat_signature(token, timestamp, nonce)
-        args = parse([
-            "wechat-webhook-test",
-            "--token", token,
-            "--timestamp", timestamp,
-            "--nonce", nonce,
-            "--signature", signature,
-            "--echostr", "random-echo-string-12345",
-        ])
+        args = parse(
+            [
+                "wechat-webhook-test",
+                "--token",
+                token,
+                "--timestamp",
+                timestamp,
+                "--nonce",
+                nonce,
+                "--signature",
+                signature,
+                "--echostr",
+                "random-echo-string-12345",
+            ]
+        )
         args.func(args)
         out = capsys.readouterr().out
         assert "校验通过" in out
@@ -593,33 +729,66 @@ class TestCommandDispatch:
     def test_each_command_has_callable_func(self):
         """每个子命令解析后 args.func 应是 phase16 中的 cmd_xxx 函数"""
         cases = [
-            (["ticket-create", "--user-id", "u1", "--category", "咨询",
-              "--subject", "s", "--description", "d"],
-             phase16.cmd_ticket_create),
+            (
+                [
+                    "ticket-create",
+                    "--user-id",
+                    "u1",
+                    "--category",
+                    "咨询",
+                    "--subject",
+                    "s",
+                    "--description",
+                    "d",
+                ],
+                phase16.cmd_ticket_create,
+            ),
             (["ticket-list", "--user-id", "u1"], phase16.cmd_ticket_list),
-            (["ticket-get", "--ticket-id", "t1", "--user-id", "u1"],
-             phase16.cmd_ticket_get),
-            (["ticket-reply", "--ticket-id", "t1", "--user-id", "u1",
-              "--content", "c"], phase16.cmd_ticket_reply),
-            (["ticket-close", "--ticket-id", "t1", "--user-id", "u1"],
-             phase16.cmd_ticket_close),
+            (["ticket-get", "--ticket-id", "t1", "--user-id", "u1"], phase16.cmd_ticket_get),
+            (
+                ["ticket-reply", "--ticket-id", "t1", "--user-id", "u1", "--content", "c"],
+                phase16.cmd_ticket_reply,
+            ),
+            (["ticket-close", "--ticket-id", "t1", "--user-id", "u1"], phase16.cmd_ticket_close),
             (["onboarding-show", "--user-id", "u1"], phase16.cmd_onboarding_show),
-            (["onboarding-save", "--user-id", "u1", "--relationship", "亲属",
-              "--location", "北京", "--consent-disclaimer"],
-             phase16.cmd_onboarding_save),
+            (
+                [
+                    "onboarding-save",
+                    "--user-id",
+                    "u1",
+                    "--relationship",
+                    "亲属",
+                    "--location",
+                    "北京",
+                    "--consent-disclaimer",
+                ],
+                phase16.cmd_onboarding_save,
+            ),
             (["onboarding-steps"], phase16.cmd_onboarding_steps),
             (["knowledge-freshness-scan"], phase16.cmd_knowledge_freshness_scan),
-            (["knowledge-freshness-check", "--file-path", "/tmp/x.md"],
-             phase16.cmd_knowledge_freshness_check),
+            (
+                ["knowledge-freshness-check", "--file-path", "/tmp/x.md"],
+                phase16.cmd_knowledge_freshness_check,
+            ),
             (["search-baidu", "--query", "q"], phase16.cmd_search_baidu),
             (["search-bing-cn", "--query", "q"], phase16.cmd_search_bing_cn),
-            (["wechat-webhook-test", "--token", "t", "--timestamp", "1",
-              "--nonce", "n", "--signature", "s"],
-             phase16.cmd_wechat_webhook_test),
+            (
+                [
+                    "wechat-webhook-test",
+                    "--token",
+                    "t",
+                    "--timestamp",
+                    "1",
+                    "--nonce",
+                    "n",
+                    "--signature",
+                    "s",
+                ],
+                phase16.cmd_wechat_webhook_test,
+            ),
         ]
         for argv, expected_func in cases:
             args = parse(argv)
             assert args.func is expected_func, (
-                f"命令 {argv[0]} 的 func 应为 {expected_func.__name__}, "
-                f"实际 {args.func.__name__}"
+                f"命令 {argv[0]} 的 func 应为 {expected_func.__name__}, 实际 {args.func.__name__}"
             )

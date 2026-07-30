@@ -240,20 +240,15 @@ class SwitchActionExecutor:
             from ..ending_note.store import EndingNoteStore
 
             ending_store = EndingNoteStore()
-            result = ending_store.trigger_delivery(
-                record.user_id, "death_confirmation"
-            )
+            result = ending_store.trigger_delivery(record.user_id, "death_confirmation")
         except Exception as exc:
             # 系统级失败 → 可重试
-            raise _ActionRetryableError(
-                f"ending_note trigger_delivery failed: {exc}"
-            ) from exc
+            raise _ActionRetryableError(f"ending_note trigger_delivery failed: {exc}") from exc
 
         # 若所有收件人被 NotificationGuardrail 拒绝 → 可重试
         if not allowed_recipients and all_recipients:
             raise _ActionRetryableError(
-                "all recipients blocked by NotificationGuardrail; "
-                f"blocked={blocked_recipients}"
+                f"all recipients blocked by NotificationGuardrail; blocked={blocked_recipients}"
             )
 
         # 记录 sent_log（仅对允许的收件人）
@@ -267,9 +262,7 @@ class SwitchActionExecutor:
             "success": True,
             "delivered_recipients": allowed_recipients,
             "blocked_recipients": blocked_recipients,
-            "ending_note_result": {
-                k: v for k, v in result.items() if k != "content"
-            },
+            "ending_note_result": {k: v for k, v in result.items() if k != "content"},
         }
 
     def _do_trigger_vault_on_death(self, record: SwitchRecord) -> dict[str, Any]:
@@ -289,9 +282,7 @@ class SwitchActionExecutor:
                 if item_meta.get("delivery_trigger") != TRIGGER_ON_DEATH:
                     continue
                 item_id = item_meta.get("item_id", "")
-                result = vault_store.trigger_delivery(
-                    item_id, TRIGGER_ON_DEATH, record.user_id
-                )
+                result = vault_store.trigger_delivery(item_id, TRIGGER_ON_DEATH, record.user_id)
                 triggered.append(
                     {
                         "item_id": item_id,
@@ -306,9 +297,7 @@ class SwitchActionExecutor:
                 "items": triggered,
             }
         except Exception as exc:
-            raise _ActionRetryableError(
-                f"vault trigger_delivery failed: {exc}"
-            ) from exc
+            raise _ActionRetryableError(f"vault trigger_delivery failed: {exc}") from exc
 
     def _do_notify_lawyer(self, record: SwitchRecord) -> dict[str, Any]:
         """通知律师 - 通过 EmailSender 发送邮件（SMTP 未配置时降级为待办）
@@ -455,9 +444,7 @@ class SwitchActionExecutor:
                 )
                 notified.append(hid)
             else:
-                send_failed.append(
-                    f"{hid}:{result.get('error') or result.get('reason')}"
-                )
+                send_failed.append(f"{hid}:{result.get('error') or result.get('reason')}")
 
         # 汇总结果
         # - 至少有一个继承人成功通知（含降级待办）→ success=True
@@ -523,14 +510,13 @@ class SwitchActionExecutor:
             email = user.get("email")
             return email or None
         except Exception as exc:
-            logger.warning(
-                "查询用户邮箱失败 identifier=%s: %s", identifier, exc
-            )
+            logger.warning("查询用户邮箱失败 identifier=%s: %s", identifier, exc)
             return None
 
 
 class _ActionRetryableError(Exception):
     """可重试动作失败 - 动作保留在 pending_actions 等待下次执行"""
+
     pass
 
 
@@ -565,9 +551,7 @@ def _build_lawyer_notification(record: SwitchRecord) -> tuple[str, str]:
     律师通知在 EXECUTED 阶段发送（冷静期 + 继承人确认之后），
     内容聚焦"当事人失联已确认，需律师介入处理后事"。
     """
-    confirmed_at = (
-        record.confirmed_at.isoformat() if record.confirmed_at else "未知"
-    )
+    confirmed_at = record.confirmed_at.isoformat() if record.confirmed_at else "未知"
     subject = f"[Dead Man Switch] 律师介入通知 - 当事人 {record.user_id}"
     body = (
         f"尊敬的律师：\n\n"
@@ -592,9 +576,7 @@ def _build_heir_notification(record: SwitchRecord) -> tuple[str, str]:
     继承人通知在 EXECUTED 阶段发送，内容聚焦"当事人失联确认完成，
     请继承人查收身后信件 / 保险库等遗产"。
     """
-    confirmed_at = (
-        record.confirmed_at.isoformat() if record.confirmed_at else "未知"
-    )
+    confirmed_at = record.confirmed_at.isoformat() if record.confirmed_at else "未知"
     subject = f"[Dead Man Switch] 继承人通知 - 当事人 {record.user_id} 失联确认完成"
     body = (
         f"尊敬的继承人：\n\n"

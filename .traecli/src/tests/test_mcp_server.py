@@ -36,12 +36,20 @@ class TestMcpServerRegistration:
         tools = mcp.list_tools()
         names = {t["name"] for t in tools}
         expected = {
-            "query_knowledge", "web_search", "web_search_official",
-            "read_file", "write_file",
-            "invoke_subagent", "check_integrity", "check_rules",
-            "query_memory", "initiate_debate", "call_external_agent",
+            "query_knowledge",
+            "web_search",
+            "web_search_official",
+            "read_file",
+            "write_file",
+            "invoke_subagent",
+            "check_integrity",
+            "check_rules",
+            "query_memory",
+            "initiate_debate",
+            "call_external_agent",
             "execute_reflexion",
-            "init_transfer", "report_incident",
+            "init_transfer",
+            "report_incident",
             "execute_code",
         }
         assert names == expected
@@ -84,48 +92,63 @@ class TestCallToolQueryKnowledge:
 
     async def test_query_knowledge_country_not_found(self):
         # 国家目录不存在 → found=False, needs_research=True
-        result = await mcp.call_tool("query_knowledge", {
-            "country": "XX",  # 不存在的国家代码
-            "topic": "death_certificate",
-        })
+        result = await mcp.call_tool(
+            "query_knowledge",
+            {
+                "country": "XX",  # 不存在的国家代码
+                "topic": "death_certificate",
+            },
+        )
         assert result["found"] is False
         assert result.get("needs_research") in (True, None)
 
     async def test_query_knowledge_returns_dict(self):
         # 返回应是 dict
-        result = await mcp.call_tool("query_knowledge", {
-            "country": "CN",
-            "topic": "test",
-        })
+        result = await mcp.call_tool(
+            "query_knowledge",
+            {
+                "country": "CN",
+                "topic": "test",
+            },
+        )
         assert isinstance(result, dict)
 
     async def test_query_knowledge_with_region(self):
         # 带 region 参数
-        result = await mcp.call_tool("query_knowledge", {
-            "country": "CN",
-            "topic": "test",
-            "region": "beijing",
-        })
+        result = await mcp.call_tool(
+            "query_knowledge",
+            {
+                "country": "CN",
+                "topic": "test",
+                "region": "beijing",
+            },
+        )
         assert isinstance(result, dict)
 
     async def test_query_knowledge_fallback_to_search_false(self):
         # fallback_to_search=False → needs_research=False
-        result = await mcp.call_tool("query_knowledge", {
-            "country": "XX",
-            "topic": "x",
-            "fallback_to_search": False,
-        })
+        result = await mcp.call_tool(
+            "query_knowledge",
+            {
+                "country": "XX",
+                "topic": "x",
+                "fallback_to_search": False,
+            },
+        )
         assert result["found"] is False
         # fallback_to_search=False 时 needs_research 应为 False
         assert result.get("needs_research") is False
 
     async def test_query_knowledge_query_mode(self):
         # query_mode 参数透传
-        result = await mcp.call_tool("query_knowledge", {
-            "country": "CN",
-            "topic": "x",
-            "query_mode": "hybrid",
-        })
+        result = await mcp.call_tool(
+            "query_knowledge",
+            {
+                "country": "CN",
+                "topic": "x",
+                "query_mode": "hybrid",
+            },
+        )
         # hybrid 模式但 LightRAG 未启用 → degraded=True
         assert isinstance(result, dict)
 
@@ -140,10 +163,13 @@ class TestCallToolCheckRules:
 
     async def test_check_rules_clean_text_passes(self):
         # 干净文本 → passed=True
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "death_aftercare",
-            "output_text": "建议咨询当地医保部门。",
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "death_aftercare",
+                "output_text": "建议咨询当地医保部门。",
+            },
+        )
         assert result["passed"] is True
         assert result["violations"] == []
         assert result["safety_triggered"] is False
@@ -152,48 +178,63 @@ class TestCallToolCheckRules:
 
     async def test_check_rules_detects_fabrication(self):
         # 编造检测 → passed=False
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "medical-guide",
-            "output_text": "大概7天就能办下来。",
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "medical-guide",
+                "output_text": "大概7天就能办下来。",
+            },
+        )
         assert result["passed"] is False
         assert len(result["integrity_violations"]) >= 1
 
     async def test_check_rules_detects_crisis(self):
         # 心理危机检测 → safety_triggered=True, risk_tier=R3
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "death_aftercare",
-            "output_text": "我最近不想活了。",
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "death_aftercare",
+                "output_text": "我最近不想活了。",
+            },
+        )
         assert result["safety_triggered"] is True
         assert result["risk_tier"] == "R3"
         assert result["passed"] is False
 
     async def test_check_rules_detects_r2_signal(self):
         # R2 信号检测 → risk_tier=R2
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "legal_advisor",
-            "output_text": "这涉及继承争议。",
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "legal_advisor",
+                "output_text": "这涉及继承争议。",
+            },
+        )
         assert result["risk_tier"] == "R2"
         assert result["passed"] is False
 
     async def test_check_rules_with_context(self):
         # 传 context 参数
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "death_aftercare",
-            "output_text": "普通文本。",
-            "context": {"user_input": "用户问题", "risk_tier": "R0"},
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "death_aftercare",
+                "output_text": "普通文本。",
+                "context": {"user_input": "用户问题", "risk_tier": "R0"},
+            },
+        )
         assert isinstance(result, dict)
         assert result["passed"] is True
 
     async def test_check_rules_returns_required_fields(self):
         # 返回应含 passed/violations/risk_tier/safety_triggered
-        result = await mcp.call_tool("check_rules", {
-            "agent_name": "x",
-            "output_text": "x",
-        })
+        result = await mcp.call_tool(
+            "check_rules",
+            {
+                "agent_name": "x",
+                "output_text": "x",
+            },
+        )
         for key in ["passed", "violations", "risk_tier", "safety_triggered"]:
             assert key in result, f"缺少字段 {key}"
 
@@ -228,22 +269,28 @@ class TestCallToolOthers:
 
     async def test_call_query_memory_available(self):
         # query_memory 调用应返回 dict（memory 模块可用）
-        result = await mcp.call_tool("query_memory", {
-            "action": "recall",
-            "user_id": "u1",
-        })
+        result = await mcp.call_tool(
+            "query_memory",
+            {
+                "action": "recall",
+                "user_id": "u1",
+            },
+        )
         assert isinstance(result, dict)
         # action 字段应被回显
         assert result.get("action") == "recall"
 
     async def test_call_execute_reflexion(self):
         # execute_reflexion 调用应返回 dict
-        result = await mcp.call_tool("execute_reflexion", {
-            "operation_type": "tool",
-            "operation_name": "test_op",
-            "failure_reason": "test failure",
-            "original_input": {},
-        })
+        result = await mcp.call_tool(
+            "execute_reflexion",
+            {
+                "operation_type": "tool",
+                "operation_name": "test_op",
+                "failure_reason": "test failure",
+                "original_input": {},
+            },
+        )
         assert isinstance(result, dict)
 
 

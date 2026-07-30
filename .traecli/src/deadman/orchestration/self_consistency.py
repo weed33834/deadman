@@ -49,14 +49,10 @@ SELF_CONSISTENCY_ENABLED: bool = os.environ.get(
 ).lower() in ("1", "true", "yes", "on")
 
 # 默认采样数
-SELF_CONSISTENCY_DEFAULT_N: int = int(
-    os.environ.get("DEADMAN_SELF_CONSISTENCY_N", "3")
-)
+SELF_CONSISTENCY_DEFAULT_N: int = int(os.environ.get("DEADMAN_SELF_CONSISTENCY_N", "3"))
 
 # 默认采样温度
-SELF_CONSISTENCY_DEFAULT_TEMP: float = float(
-    os.environ.get("DEADMAN_SELF_CONSISTENCY_TEMP", "0.7")
-)
+SELF_CONSISTENCY_DEFAULT_TEMP: float = float(os.environ.get("DEADMAN_SELF_CONSISTENCY_TEMP", "0.7"))
 
 
 # =====================================================================

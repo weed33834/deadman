@@ -51,9 +51,7 @@ class TestDegradation:
         # 强制设为不可用
         monkeypatch.setattr(evaluator, "available", False)
 
-        result = await evaluator.evaluate(
-            question="q", answer="a", contexts=["c1"]
-        )
+        result = await evaluator.evaluate(question="q", answer="a", contexts=["c1"])
         assert result["available"] is False
         assert result["degraded"] is True
         assert "未安装" in result["note"]
@@ -67,9 +65,7 @@ class TestDegradation:
         mock_llm.api_key = None  # 无 key
         evaluator._ragas_llm = DeadmanRagasLLM(mock_llm)
 
-        result = await evaluator.evaluate(
-            question="q", answer="a", contexts=["c1"]
-        )
+        result = await evaluator.evaluate(question="q", answer="a", contexts=["c1"])
         assert result["available"] is True
         assert result["degraded"] is True
         assert "api_key" in result["note"]
@@ -82,11 +78,10 @@ class TestDegradation:
         # 替换 _get_ragas_llm 让其抛异常
         def raise_exc():
             raise RuntimeError("LLM 模块缺失")
+
         monkeypatch.setattr(evaluator, "_get_ragas_llm", raise_exc)
 
-        result = await evaluator.evaluate(
-            question="q", answer="a", contexts=["c1"]
-        )
+        result = await evaluator.evaluate(question="q", answer="a", contexts=["c1"])
         assert result["degraded"] is True
         assert any("LLM" in err for err in result["errors"])
 
@@ -168,25 +163,19 @@ class TestExtensionMetrics:
     def test_completeness_all_hits(self):
         """全部关键词命中 → 1.0"""
         evaluator = RAGASEvaluator()
-        score = evaluator._compute_completeness(
-            "建议咨询当地医保部门", ["医保", "部门"]
-        )
+        score = evaluator._compute_completeness("建议咨询当地医保部门", ["医保", "部门"])
         assert score == 1.0
 
     def test_completeness_partial_hits(self):
         """部分关键词命中 → 比例"""
         evaluator = RAGASEvaluator()
-        score = evaluator._compute_completeness(
-            "建议咨询医保", ["医保", "社保", "商保"]
-        )
+        score = evaluator._compute_completeness("建议咨询医保", ["医保", "社保", "商保"])
         assert score == pytest.approx(1 / 3)
 
     def test_completeness_case_insensitive(self):
         """关键词匹配应大小写不敏感"""
         evaluator = RAGASEvaluator()
-        score = evaluator._compute_completeness(
-            "Please contact Medicare", ["medicare", "Medicaid"]
-        )
+        score = evaluator._compute_completeness("Please contact Medicare", ["medicare", "Medicaid"])
         assert score == 0.5
 
     def test_safety_no_rule_check(self):
@@ -285,8 +274,15 @@ class TestMetricNames:
 
     def test_all_metric_names_include_key(self):
         """关键维度都在"""
-        for name in ["faithfulness", "answer_relevancy", "context_precision",
-                     "context_recall", "answer_correctness", "completeness", "safety"]:
+        for name in [
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
+            "context_recall",
+            "answer_correctness",
+            "completeness",
+            "safety",
+        ]:
             assert name in ALL_METRIC_NAMES
 
     def test_quick_metric_names_count(self):
@@ -343,7 +339,10 @@ class TestCaseLoading:
         """加载真实 case 文件"""
         case_path = (
             Path(__file__).resolve().parent.parent.parent
-            / "tests" / "automated" / "cases" / "case-01-no-fabrication.yaml"
+            / "tests"
+            / "automated"
+            / "cases"
+            / "case-01-no-fabrication.yaml"
         )
         if not case_path.exists():
             pytest.skip(f"case 文件不存在: {case_path}")

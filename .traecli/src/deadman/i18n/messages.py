@@ -276,8 +276,7 @@ class MessageBundle:
             try:
                 return template.format(**vars)
             except (KeyError, IndexError, ValueError) as e:
-                logger.warning("Message format failed for key=%s locale=%s: %s",
-                               key, loc_str, e)
+                logger.warning("Message format failed for key=%s locale=%s: %s", key, loc_str, e)
                 return template
         return template
 

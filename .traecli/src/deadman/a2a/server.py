@@ -168,8 +168,7 @@ class A2AServer:
                         "id": req_id,
                         "error": {
                             "code": -32601,
-                            "message": "Method not found (A2A v1.2 disabled): "
-                                       f"{method}",
+                            "message": f"Method not found (A2A v1.2 disabled): {method}",
                         },
                     }
                 return await self._tasks_send_subscribe(req_id, params)
@@ -180,8 +179,7 @@ class A2AServer:
                         "id": req_id,
                         "error": {
                             "code": -32601,
-                            "message": "Method not found (A2A v1.2 disabled): "
-                                       f"{method}",
+                            "message": f"Method not found (A2A v1.2 disabled): {method}",
                         },
                     }
                 return await self._tasks_send_push(req_id, params)
@@ -265,9 +263,8 @@ class A2AServer:
                     result_state = await graph.ainvoke(
                         state, config={"configurable": {"thread_id": task_id}}
                     )
-                    response = (
-                        result_state.get("final_response")
-                        or result_state.get("draft_response", "")
+                    response = result_state.get("final_response") or result_state.get(
+                        "draft_response", ""
                     )
                     if response:
                         task.result = {
@@ -335,9 +332,7 @@ class A2AServer:
     # P4.4 v1.2 方法（feature flag DEADMAN_A2A_V12_ENABLED=1 启用）
     # ==================================================================
 
-    async def _tasks_send_subscribe(
-        self, req_id: Any, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tasks_send_subscribe(self, req_id: Any, params: dict[str, Any]) -> dict[str, Any]:
         """处理 tasks/sendSubscribe - SSE 流式任务更新
 
         与 tasks/send 类似接收任务，但返回值包含一系列 SSE 事件，
@@ -369,34 +364,42 @@ class A2AServer:
 
         # 构造 SSE 事件序列：working → completed/failed
         events: list[dict[str, Any]] = []
-        events.append({
-            "event": "working",
-            "data": {"task_id": task_id, "state": "working"},
-        })
+        events.append(
+            {
+                "event": "working",
+                "data": {"task_id": task_id, "state": "working"},
+            }
+        )
         if task is not None:
             if task.state == TaskState.COMPLETED:
-                events.append({
-                    "event": "completed",
-                    "data": {
-                        "task_id": task_id,
-                        "state": "completed",
-                        "result": task.result,
-                    },
-                })
+                events.append(
+                    {
+                        "event": "completed",
+                        "data": {
+                            "task_id": task_id,
+                            "state": "completed",
+                            "result": task.result,
+                        },
+                    }
+                )
             elif task.state == TaskState.FAILED:
-                events.append({
-                    "event": "failed",
-                    "data": {
-                        "task_id": task_id,
-                        "state": "failed",
-                        "error": task.error,
-                    },
-                })
+                events.append(
+                    {
+                        "event": "failed",
+                        "data": {
+                            "task_id": task_id,
+                            "state": "failed",
+                            "error": task.error,
+                        },
+                    }
+                )
             else:
-                events.append({
-                    "event": "update",
-                    "data": {"task_id": task_id, "state": task.state.value},
-                })
+                events.append(
+                    {
+                        "event": "update",
+                        "data": {"task_id": task_id, "state": task.state.value},
+                    }
+                )
 
         return {
             "jsonrpc": "2.0",
@@ -405,9 +408,7 @@ class A2AServer:
             "_streaming": True,  # HTTP handler 据此切 SSE wire 格式
         }
 
-    async def _tasks_send_push(
-        self, req_id: Any, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _tasks_send_push(self, req_id: Any, params: dict[str, Any]) -> dict[str, Any]:
         """处理 tasks/sendPush - Webhook 推送
 
         接收 {task_id, webhook_url, event_type}，用 httpx POST 到 webhook_url，
@@ -497,9 +498,7 @@ class A2AServer:
     # P4.4 v1.2 AgentCard 签名认证（cryptography 可选）
     # ==================================================================
 
-    def sign_agent_card(
-        self, private_key_pem: str | None = None
-    ) -> str | None:
+    def sign_agent_card(self, private_key_pem: str | None = None) -> str | None:
         """对当前 AgentCard 做 SHA-256 签名
 
         Args:
@@ -524,9 +523,7 @@ class A2AServer:
                     private_key_pem.encode("utf-8"), password=None
                 )
             else:
-                private_key = rsa.generate_private_key(
-                    public_exponent=65537, key_size=2048
-                )
+                private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
             # 对 AgentCard 的 canonical JSON 做 SHA-256 with RSA 签名
             # load_pem_private_key 返回联合类型,这里仅支持 RSA 签名
             from cryptography.hazmat.primitives.asymmetric.rsa import (
@@ -536,9 +533,9 @@ class A2AServer:
             if not isinstance(private_key, RSAPrivateKey):
                 logger.warning("AgentCard 签名仅支持 RSA 私钥")
                 return None
-            card_bytes = json.dumps(
-                self.card.to_dict(), sort_keys=True, ensure_ascii=False
-            ).encode("utf-8")
+            card_bytes = json.dumps(self.card.to_dict(), sort_keys=True, ensure_ascii=False).encode(
+                "utf-8"
+            )
             signature = private_key.sign(
                 card_bytes,
                 padding.PSS(
@@ -574,13 +571,9 @@ class A2AServer:
             logger.warning("cryptography 不可用，AgentCard 签名校验返回 False")
             return False
         try:
-            public_key = serialization.load_pem_public_key(
-                public_key_pem.encode("utf-8")
-            )
+            public_key = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
             card_data = card_dict if card_dict is not None else self.card.to_dict()
-            card_bytes = json.dumps(
-                card_data, sort_keys=True, ensure_ascii=False
-            ).encode("utf-8")
+            card_bytes = json.dumps(card_data, sort_keys=True, ensure_ascii=False).encode("utf-8")
             signature = bytes.fromhex(signature_hex)
             # load_pem_public_key 返回联合类型,这里仅支持 RSA 验签
             from cryptography.hazmat.primitives.asymmetric.rsa import (
@@ -615,6 +608,7 @@ class A2AServer:
 def _now_iso() -> str:
     """当前时间 ISO 字符串"""
     from datetime import datetime
+
     return datetime.now().isoformat()
 
 
@@ -701,9 +695,7 @@ def _a2a_server_run(self: A2AServer, host: str | None = None, port: int | None =
                 self._send_json(200, resp)
 
     httpd = ThreadingHTTPServer((host, port), Handler)
-    logger.info(
-        "A2A Server listening on http://%s:%d/.well-known/agent.json", host, port
-    )
+    logger.info("A2A Server listening on http://%s:%d/.well-known/agent.json", host, port)
     print(f"A2A Server listening on http://{host}:{port}/.well-known/agent.json")
     try:
         httpd.serve_forever()

@@ -82,6 +82,7 @@ class TestToTGeneratePaths:
 
     async def test_tot_generate_paths_partial_failure(self):
         """部分生成失败：失败的 thought 为空，但其他成功"""
+
         # 第 2 次调用抛异常
         class PartialFailLLM(MockLLMClient):
             async def chat(self, messages, temperature=0.3, **kwargs):
@@ -89,6 +90,7 @@ class TestToTGeneratePaths:
                 if self.chat_count == 2:
                     raise RuntimeError("fail on 2nd")
                 return f"路径{self.chat_count}"
+
         llm = PartialFailLLM()
         tot = TreeOfThought(llm=llm)
         nodes = await tot.generate_paths("问题", n=3)
@@ -135,6 +137,7 @@ class TestToTFactCheckPrune:
         class FailingLLM(MockLLMClient):
             async def chat_json(self, messages, temperature=0.3, **kwargs):
                 raise RuntimeError("eval error")
+
         llm = FailingLLM()
         tot = TreeOfThought(llm=llm)
         node = ThoughtNode(node_id="n1", thought="推理")
@@ -195,6 +198,7 @@ class TestToTEvaluate:
         class FailingLLM(MockLLMClient):
             async def chat_json(self, messages, temperature=0.3, **kwargs):
                 raise RuntimeError("eval error")
+
         llm = FailingLLM()
         tot = TreeOfThought(llm=llm)
         node = ThoughtNode(node_id="n1", thought="推理")
@@ -250,6 +254,7 @@ class TestToTLLMUnavailableDegraded:
 class TestToTSolveReturnsBest:
     async def test_tot_solve_returns_best(self):
         """完整 solve：生成 → 评估 → fact_check → 选最优"""
+
         # 3 个 thought，eval score 分别 0.6/0.9/0.4，全 fact_check 通过
         class SolveLLM(MockLLMClient):
             def __init__(self):
@@ -306,6 +311,7 @@ class TestToTSolveReturnsBest:
     async def test_tot_solve_to_dict_serializable(self):
         """ToTResult.to_dict 可序列化"""
         import json
+
         result = ToTResult(
             best_thought="答案",
             best_score=0.8,

@@ -173,7 +173,9 @@ class AppealsManager:
             self._save()
             logger.info(
                 "Appeal filed: %s (user=%s decision=%s)",
-                appeal_id, user_id, decision_id,
+                appeal_id,
+                user_id,
+                decision_id,
             )
             return appeal
 
@@ -202,7 +204,9 @@ class AppealsManager:
             self._save()
             logger.info(
                 "Appeal reviewed: %s decision=%s reviewer=%s",
-                appeal_id, decision.value, reviewer_id,
+                appeal_id,
+                decision.value,
+                reviewer_id,
             )
             return appeal
 
@@ -219,7 +223,8 @@ class AppealsManager:
             # 先做 SLA 升级检查
             self._check_sla_escalations()
             return [
-                a for a in self._cache.values()
+                a
+                for a in self._cache.values()
                 if a.status in (AppealStatus.FILED, AppealStatus.UNDER_REVIEW)
             ]
 
@@ -272,7 +277,9 @@ class AppealsManager:
                 escalated_count += 1
                 logger.warning(
                     "Appeal %s SLA escalated (filed=%d, deadline=%d)",
-                    appeal.appeal_id, int(appeal.filed_at), int(appeal.sla_deadline),
+                    appeal.appeal_id,
+                    int(appeal.filed_at),
+                    int(appeal.sla_deadline),
                 )
         if escalated_count > 0:
             self._save()

@@ -221,7 +221,10 @@ class CascadingGuard:
                     self._set_state(node, DependencyState.FAILED)
                     logger.warning(
                         "Node %s FAILED (failures=%d, error=%s, propagated_to=%s)",
-                        name, node.failure_count, error, event.propagated_to,
+                        name,
+                        node.failure_count,
+                        error,
+                        event.propagated_to,
                     )
 
     def isolate(self, name: str, reason: str = "") -> None:
@@ -311,7 +314,8 @@ class CascadingGuard:
                 propagated.append(downstream_name)
                 logger.info(
                     "Node %s DEGRADED due to upstream %s failure",
-                    downstream_name, failed_node,
+                    downstream_name,
+                    failed_node,
                 )
         return propagated
 

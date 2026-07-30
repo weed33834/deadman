@@ -122,12 +122,8 @@ class TestRecordAgentAdjustment:
     def test_history_appended(self, tmp_path):
         """历史记录应追加到 history 列表"""
         store = FileMemoryStore(memory_dir=tmp_path)
-        store.record_agent_adjustment(
-            "agent_z", "rate_limit", "等待重试", success=True
-        )
-        store.record_agent_adjustment(
-            "agent_z", "rate_limit", "等待重试", success=False
-        )
+        store.record_agent_adjustment("agent_z", "rate_limit", "等待重试", success=True)
+        store.record_agent_adjustment("agent_z", "rate_limit", "等待重试", success=False)
         memory = store.get_agent_reflexion("agent_z")
         history = memory["successful_adjustments"]["rate_limit"]["history"]
         assert len(history) == 2
@@ -140,9 +136,7 @@ class TestRecordAgentAdjustment:
         store.REFLEXION_HISTORY_LIMIT = 5  # 测试用小值
 
         for i in range(10):
-            store.record_agent_adjustment(
-                "agent_lru", "timeout", f"策略{i}", success=True
-            )
+            store.record_agent_adjustment("agent_lru", "timeout", f"策略{i}", success=True)
         memory = store.get_agent_reflexion("agent_lru")
         history = memory["successful_adjustments"]["timeout"]["history"]
         assert len(history) == 5
@@ -188,7 +182,9 @@ class TestSharedPatterns:
 
         memory = store.get_agent_reflexion("agent_a")
         # best_strategy 字段应被填充
-        assert "best_strategy" in memory or memory["shared_patterns"]["timeout"].get("best_strategy")
+        assert "best_strategy" in memory or memory["shared_patterns"]["timeout"].get(
+            "best_strategy"
+        )
 
 
 class TestTTLFilter:
@@ -333,9 +329,7 @@ class TestMemoryManagerReflexion:
     async def test_record_failed_adjustment(self, tmp_path):
         """记录失败调整(success=False)"""
         manager = self._make_manager_with_tmp_store(tmp_path)
-        await manager.record_successful_adjustment(
-            "agent", "api_error", "降级", success=False
-        )
+        await manager.record_successful_adjustment("agent", "api_error", "降级", success=False)
 
         memory = await manager.get_reflexion_memory("agent")
         assert memory["successful_adjustments"]["api_error"]["success_count"] == 0
@@ -348,9 +342,7 @@ class TestMemoryManagerReflexion:
 
         # 5 次成功调整 → 触发固化
         for _ in range(5):
-            await manager.record_successful_adjustment(
-                "agent_x", "timeout", "策略A", success=True
-            )
+            await manager.record_successful_adjustment("agent_x", "timeout", "策略A", success=True)
 
         # MEMORY.md 应有"经验固化"章节
         mem_text = manager.file_store.memory_file.read_text(encoding="utf-8")
@@ -362,13 +354,15 @@ class TestMemoryManagerReflexion:
         manager = self._make_manager_with_tmp_store(tmp_path)
         # 3 成功 + 2 失败 = 0.6 < 0.8
         for success in [True, True, True, False, False]:
-            await manager.record_successful_adjustment(
-                "agent", "timeout", "策略", success=success
-            )
+            await manager.record_successful_adjustment("agent", "timeout", "策略", success=success)
 
         # 不应固化(因 success_rate=0.6 < 0.8)
         # 但 total=5 >= 5,所以需要检查 success_rate
-        mem_text = manager.file_store.memory_file.read_text(encoding="utf-8") if manager.file_store.memory_file.exists() else ""
+        mem_text = (
+            manager.file_store.memory_file.read_text(encoding="utf-8")
+            if manager.file_store.memory_file.exists()
+            else ""
+        )
         # 经验固化应不出现(或仅在更高 success_rate 时)
         # 由于 success_rate=0.6,不应固化
         # (允许文件不存在或不含"经验固化")
@@ -392,9 +386,7 @@ class TestMemoryManagerReflexion:
     async def test_get_reflexion_summary(self, tmp_path):
         """MemoryManager.get_reflexion_summary 委托给 file_store"""
         manager = self._make_manager_with_tmp_store(tmp_path)
-        await manager.record_successful_adjustment(
-            "agent", "timeout", "策略", success=True
-        )
+        await manager.record_successful_adjustment("agent", "timeout", "策略", success=True)
         summary = manager.get_reflexion_summary()
         assert summary["total_agents"] == 1
         assert summary["total_patterns"] == 1
@@ -434,12 +426,14 @@ class TestReflexionEngineWithMemoryStore:
                 return {"execution_mode": "fallback", "fallback_reason": "api_error"}
             return {"execution_mode": "success"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "api_error",
-            "failure_reason": "API error",
-            "adjustment_strategy": "降级",
-            "adjusted_params": {},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "api_error",
+                "failure_reason": "API error",
+                "adjustment_strategy": "降级",
+                "adjusted_params": {},
+            }
+        )
 
         engine = ReflexionEngine(agent_name="test-agent", memory_store=store)
         await engine.execute_with_reflexion(
@@ -460,12 +454,14 @@ class TestReflexionEngineWithMemoryStore:
         async def operation(**kwargs):
             return {"execution_mode": "fallback", "fallback_reason": "rate_limit"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "rate_limit",
-            "failure_reason": "限流",
-            "adjustment_strategy": "等待重试",
-            "adjusted_params": {},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "rate_limit",
+                "failure_reason": "限流",
+                "adjustment_strategy": "等待重试",
+                "adjusted_params": {},
+            }
+        )
 
         engine = ReflexionEngine(agent_name="fail-agent", memory_store=store)
         await engine.execute_with_reflexion(
@@ -504,6 +500,7 @@ class TestReflexionEngineWithMemoryStore:
                 "adjustment_strategy": "策略",
                 "adjusted_params": {},
             }
+
         patch_llm.chat_json = AsyncMock(side_effect=fake_chat_json)
 
         async def operation(**kwargs):
@@ -558,9 +555,7 @@ class TestEdgeCasesAndFallbacks:
         manager._file_store_degraded_logged = True
 
         # 不应抛异常
-        await manager.record_successful_adjustment(
-            "agent", "timeout", "策略", success=True
-        )
+        await manager.record_successful_adjustment("agent", "timeout", "策略", success=True)
 
     async def test_engine_with_old_memory_store_signature(self, patch_llm):
         """旧版 memory_store 不支持 success 参数 → 降级只记成功"""
@@ -575,12 +570,14 @@ class TestEdgeCasesAndFallbacks:
         async def operation(**kwargs):
             return {"execution_mode": "fallback", "fallback_reason": "api_error"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "api_error",
-            "failure_reason": "fail",
-            "adjustment_strategy": "降级",
-            "adjusted_params": {},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "api_error",
+                "failure_reason": "fail",
+                "adjustment_strategy": "降级",
+                "adjusted_params": {},
+            }
+        )
 
         engine = ReflexionEngine(
             agent_name="old-store-agent",

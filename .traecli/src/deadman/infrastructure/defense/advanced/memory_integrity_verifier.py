@@ -89,6 +89,7 @@ logger = logging.getLogger(__name__)
 # 枚举
 # =====================================================================
 
+
 class MemorySource(str, Enum):
     """记忆来源(决定基线信任度)。"""
 
@@ -133,6 +134,7 @@ class AlertSeverity(str, Enum):
 # =====================================================================
 # 数据类
 # =====================================================================
+
 
 @dataclass
 class MemoryRecord:
@@ -272,6 +274,7 @@ def _text_similarity(text_a: str, text_b: str) -> float:
 # Memory Integrity Verifier
 # =====================================================================
 
+
 class MemoryIntegrityVerifier:
     """记忆完整性验证器。
 
@@ -381,7 +384,10 @@ class MemoryIntegrityVerifier:
             if record.prev_hash != expected_prev:
                 logger.warning(
                     "Memory record prev_hash mismatch: expected %s, got %s (user=%s, record=%s)",
-                    expected_prev, record.prev_hash, record.user_id, record.record_id,
+                    expected_prev,
+                    record.prev_hash,
+                    record.user_id,
+                    record.record_id,
                 )
                 # 强制重算 prev_hash + own_hash(保持链完整性)
                 record.prev_hash = expected_prev
@@ -392,9 +398,7 @@ class MemoryIntegrityVerifier:
             self._content_index[record.content_hash].append(
                 (record.user_id, record.session_id, record.timestamp)
             )
-            self._write_history[record.user_id].append(
-                (record.timestamp, record.session_id)
-            )
+            self._write_history[record.user_id].append((record.timestamp, record.session_id))
             self._stats["appended"] += 1
             self._save()
 
@@ -412,7 +416,8 @@ class MemoryIntegrityVerifier:
                     self._save()
                     logger.info(
                         "Deleted memory record %s (user=%s), tombstone added",
-                        record_id, user_id,
+                        record_id,
+                        user_id,
                     )
                     return True
             return False
@@ -439,15 +444,17 @@ class MemoryIntegrityVerifier:
 
         # 1. 来源信任度
         if record.trust_level == TrustLevel.UNTRUSTED:
-            violations.append(IntegrityViolation(
-                user_id=record.user_id,
-                session_id=record.session_id,
-                record_id=record.record_id,
-                severity=AlertSeverity.CRITICAL,
-                violation_type=ViolationType.POISONING,
-                message=f"Untrusted source: {record.source.value}",
-                evidence={"source": record.source.value, "trust": record.trust_level.value},
-            ))
+            violations.append(
+                IntegrityViolation(
+                    user_id=record.user_id,
+                    session_id=record.session_id,
+                    record_id=record.record_id,
+                    severity=AlertSeverity.CRITICAL,
+                    violation_type=ViolationType.POISONING,
+                    message=f"Untrusted source: {record.source.value}",
+                    evidence={"source": record.source.value, "trust": record.trust_level.value},
+                )
+            )
             self._stats["poisoning_blocked"] += 1
 
         # 2. 频率异常
@@ -520,8 +527,7 @@ class MemoryIntegrityVerifier:
         with self._lock:
             occurrences = self._content_index.get(record.content_hash, [])
             recent_sessions = {
-                sid for uid, sid, ts in occurrences
-                if ts >= cutoff and uid == record.user_id
+                sid for uid, sid, ts in occurrences if ts >= cutoff and uid == record.user_id
             }
 
         # 当前 session 也算一个
@@ -681,42 +687,48 @@ class MemoryIntegrityVerifier:
             if not r.verify_own_hash():
                 result.is_valid = False
                 result.broken_at = r.record_id
-                result.violations.append(IntegrityViolation(
-                    user_id=user_id,
-                    record_id=r.record_id,
-                    severity=AlertSeverity.CRITICAL,
-                    violation_type=ViolationType.TAMPERING,
-                    message=f"own_hash mismatch at record {r.record_id}",
-                    evidence={"expected": r._compute_own_hash(), "actual": r.own_hash},
-                ))
+                result.violations.append(
+                    IntegrityViolation(
+                        user_id=user_id,
+                        record_id=r.record_id,
+                        severity=AlertSeverity.CRITICAL,
+                        violation_type=ViolationType.TAMPERING,
+                        message=f"own_hash mismatch at record {r.record_id}",
+                        evidence={"expected": r._compute_own_hash(), "actual": r.own_hash},
+                    )
+                )
                 break
 
             # 2. content_hash 校验
             if not r.verify_content_hash():
                 result.is_valid = False
                 result.broken_at = r.record_id
-                result.violations.append(IntegrityViolation(
-                    user_id=user_id,
-                    record_id=r.record_id,
-                    severity=AlertSeverity.CRITICAL,
-                    violation_type=ViolationType.TAMPERING,
-                    message=f"content_hash mismatch at record {r.record_id}",
-                    evidence={"expected": r._compute_content_hash(), "actual": r.content_hash},
-                ))
+                result.violations.append(
+                    IntegrityViolation(
+                        user_id=user_id,
+                        record_id=r.record_id,
+                        severity=AlertSeverity.CRITICAL,
+                        violation_type=ViolationType.TAMPERING,
+                        message=f"content_hash mismatch at record {r.record_id}",
+                        evidence={"expected": r._compute_content_hash(), "actual": r.content_hash},
+                    )
+                )
                 break
 
             # 3. prev_hash 接续校验
             if r.prev_hash != prev_hash:
                 result.is_valid = False
                 result.broken_at = r.record_id
-                result.violations.append(IntegrityViolation(
-                    user_id=user_id,
-                    record_id=r.record_id,
-                    severity=AlertSeverity.CRITICAL,
-                    violation_type=ViolationType.TAMPERING,
-                    message=f"prev_hash broken at record {r.record_id}: expected {prev_hash}, got {r.prev_hash}",
-                    evidence={"expected_prev": prev_hash, "actual_prev": r.prev_hash},
-                ))
+                result.violations.append(
+                    IntegrityViolation(
+                        user_id=user_id,
+                        record_id=r.record_id,
+                        severity=AlertSeverity.CRITICAL,
+                        violation_type=ViolationType.TAMPERING,
+                        message=f"prev_hash broken at record {r.record_id}: expected {prev_hash}, got {r.prev_hash}",
+                        evidence={"expected_prev": prev_hash, "actual_prev": r.prev_hash},
+                    )
+                )
                 break
 
             prev_hash = r.own_hash
@@ -817,12 +829,9 @@ class MemoryIntegrityVerifier:
             with self._lock:
                 data = {
                     "chains": {
-                        uid: [r.to_dict() for r in chain]
-                        for uid, chain in self._chains.items()
+                        uid: [r.to_dict() for r in chain] for uid, chain in self._chains.items()
                     },
-                    "tombstones": {
-                        uid: list(ts) for uid, ts in self._tombstones.items()
-                    },
+                    "tombstones": {uid: list(ts) for uid, ts in self._tombstones.items()},
                 }
             with open(self.store_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

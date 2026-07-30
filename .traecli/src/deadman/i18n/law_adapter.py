@@ -69,8 +69,9 @@ class Jurisdiction(str, Enum):
         if norm.startswith("ko"):
             return cls.KR
         # 欧盟主要语言
-        if norm.startswith(("de", "fr", "it", "es", "nl", "sv", "da", "fi",
-                            "el", "pt", "cs", "pl", "ro", "hu")):
+        if norm.startswith(
+            ("de", "fr", "it", "es", "nl", "sv", "da", "fi", "el", "pt", "cs", "pl", "ro", "hu")
+        ):
             return cls.EU
         return cls.OTHER
 
@@ -480,72 +481,116 @@ _ACTION_CONSENTS: dict[Jurisdiction, dict[str, list[str]]] = {
 _CROSS_BORDER_RULES: dict[Jurisdiction, dict[Jurisdiction, dict[str, dict[str, Any]]]] = {
     Jurisdiction.CN_MAINLAND: {
         Jurisdiction.US: {
-            "default": {"allowed": False, "consents_required": ["cross_border_consent"],
-                        "legal_basis": "PIPL 第 38-43 条", "warnings": ["数据出境需安全评估"]},
-            "user_profile": {"allowed": False, "consents_required": ["cross_border_consent"],
-                              "legal_basis": "PIPL 第 38 条", "warnings": ["个人信息出境需单独同意"]},
-            "financial": {"allowed": False, "consents_required": ["cross_border_consent",
-                                                                    "sensitive_data_consent"],
-                           "legal_basis": "PIPL 第 28-29 条 + 第 38 条",
-                           "warnings": ["财务信息为敏感个人信息,需双重同意 + 安全评估"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent"],
+                "legal_basis": "PIPL 第 38-43 条",
+                "warnings": ["数据出境需安全评估"],
+            },
+            "user_profile": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent"],
+                "legal_basis": "PIPL 第 38 条",
+                "warnings": ["个人信息出境需单独同意"],
+            },
+            "financial": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent", "sensitive_data_consent"],
+                "legal_basis": "PIPL 第 28-29 条 + 第 38 条",
+                "warnings": ["财务信息为敏感个人信息,需双重同意 + 安全评估"],
+            },
         },
         Jurisdiction.EU: {
-            "default": {"allowed": False, "consents_required": ["cross_border_consent"],
-                        "legal_basis": "PIPL 第 38-43 条 / GDPR 第 44 条",
-                        "warnings": ["中欧双向均需同意"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent"],
+                "legal_basis": "PIPL 第 38-43 条 / GDPR 第 44 条",
+                "warnings": ["中欧双向均需同意"],
+            },
         },
         Jurisdiction.CN_HONGKONG: {
-            "default": {"allowed": False, "consents_required": ["cross_border_consent"],
-                        "legal_basis": "PIPL 第 38 条", "warnings": ["陆港视为跨境"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent"],
+                "legal_basis": "PIPL 第 38 条",
+                "warnings": ["陆港视为跨境"],
+            },
         },
     },
     Jurisdiction.EU: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": False, "consents_required": ["scc_agreement"],
-                        "legal_basis": "GDPR 第 44-50 条",
-                        "warnings": ["中国未通过欧盟充分性认定"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["scc_agreement"],
+                "legal_basis": "GDPR 第 44-50 条",
+                "warnings": ["中国未通过欧盟充分性认定"],
+            },
         },
         Jurisdiction.US: {
-            "default": {"allowed": False, "consents_required": ["scc_agreement"],
-                        "legal_basis": "GDPR 第 44-50 条",
-                        "warnings": ["美国未通过欧盟充分性认定(隐私盾失效)"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["scc_agreement"],
+                "legal_basis": "GDPR 第 44-50 条",
+                "warnings": ["美国未通过欧盟充分性认定(隐私盾失效)"],
+            },
         },
     },
     Jurisdiction.US: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": True, "consents_required": [],
-                        "legal_basis": "无联邦强制", "warnings": ["中国接收方需符合 PIPL"]},
+            "default": {
+                "allowed": True,
+                "consents_required": [],
+                "legal_basis": "无联邦强制",
+                "warnings": ["中国接收方需符合 PIPL"],
+            },
         },
         Jurisdiction.EU: {
-            "default": {"allowed": True, "consents_required": [],
-                        "legal_basis": "无联邦强制", "warnings": ["接收方需符合 GDPR"]},
+            "default": {
+                "allowed": True,
+                "consents_required": [],
+                "legal_basis": "无联邦强制",
+                "warnings": ["接收方需符合 GDPR"],
+            },
         },
     },
     Jurisdiction.CN_HONGKONG: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": True, "consents_required": ["cross_border_notice"],
-                        "legal_basis": "PDPO 第 33 条(尚未生效)",
-                        "warnings": ["建议通知数据主体"]},
+            "default": {
+                "allowed": True,
+                "consents_required": ["cross_border_notice"],
+                "legal_basis": "PDPO 第 33 条(尚未生效)",
+                "warnings": ["建议通知数据主体"],
+            },
         },
     },
     Jurisdiction.JP: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": False, "consents_required": ["cross_border_consent"],
-                        "legal_basis": "APPI 第 28 条",
-                        "warnings": ["中国不在 PPC 充分性白名单"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent"],
+                "legal_basis": "APPI 第 28 条",
+                "warnings": ["中国不在 PPC 充分性白名单"],
+            },
         },
     },
     Jurisdiction.KR: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": False, "consents_required": ["cross_border_consent",
-                                                                  "pipa_transfer_consent"],
-                        "legal_basis": "PIPA 第 28 条", "warnings": ["需评估接收方国家保护水平"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["cross_border_consent", "pipa_transfer_consent"],
+                "legal_basis": "PIPA 第 28 条",
+                "warnings": ["需评估接收方国家保护水平"],
+            },
         },
     },
     Jurisdiction.UK: {
         Jurisdiction.CN_MAINLAND: {
-            "default": {"allowed": False, "consents_required": ["idta_agreement"],
-                        "legal_basis": "UK GDPR 第 44 条", "warnings": ["需 IDTA 协议"]},
+            "default": {
+                "allowed": False,
+                "consents_required": ["idta_agreement"],
+                "legal_basis": "UK GDPR 第 44 条",
+                "warnings": ["需 IDTA 协议"],
+            },
         },
     },
 }
@@ -650,10 +695,16 @@ class LawAdapter:
                 - allowed=True: 可执行
                 - allowed=False: 需先取得 consents_required
         """
-        uj = user_jurisdiction if isinstance(user_jurisdiction, Jurisdiction) else \
-            Jurisdiction(user_jurisdiction)
-        tj = target_jurisdiction if isinstance(target_jurisdiction, Jurisdiction) else \
-            Jurisdiction(target_jurisdiction)
+        uj = (
+            user_jurisdiction
+            if isinstance(user_jurisdiction, Jurisdiction)
+            else Jurisdiction(user_jurisdiction)
+        )
+        tj = (
+            target_jurisdiction
+            if isinstance(target_jurisdiction, Jurisdiction)
+            else Jurisdiction(target_jurisdiction)
+        )
 
         # feature flag 关闭:直接允许(向后兼容)
         if not is_enabled("i18n"):
@@ -690,10 +741,14 @@ class LawAdapter:
                 jurisdiction_from=uj.value,
                 jurisdiction_to=tj.value,
                 data_kind=data_kind,
-                consents_required=["cross_border_consent"] if dp.get("cross_border_consent_required") else [],
+                consents_required=["cross_border_consent"]
+                if dp.get("cross_border_consent_required")
+                else [],
                 legal_basis="default_precautionary",
-                warnings=[f"No specific rule for {uj.value}→{tj.value} ({data_kind}); "
-                          f"using precautionary default. Consult lawyer."],
+                warnings=[
+                    f"No specific rule for {uj.value}→{tj.value} ({data_kind}); "
+                    f"using precautionary default. Consult lawyer."
+                ],
             )
 
         return ValidationResult(

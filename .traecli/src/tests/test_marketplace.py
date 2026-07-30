@@ -25,9 +25,11 @@ from deadman.marketplace import MarketplaceError
 # 公共 fixture
 # =====================================================================
 
+
 def _reset_marketplace_singletons() -> None:
     """清空 marketplace 模块所有单例(避免测试间状态污染)。"""
     import deadman.marketplace as mp
+
     mp._registry_instance = None
     mp._reviewer_instance = None  # type: ignore[attr-defined]
     mp._rating_instance = None  # type: ignore[attr-defined]
@@ -49,6 +51,7 @@ def _reset_marketplace_singletons() -> None:
     from deadman.marketplace import (
         sandbox as sbx_mod,
     )
+
     reg_mod._registry_instance = None
     rev_mod._reviewer_instance = None
     rat_mod._rating_instance = None
@@ -59,6 +62,7 @@ def _reset_marketplace_singletons() -> None:
 def _reset_flags_cache() -> None:
     """清空 feature_flags 缓存,强制重新读 env var。"""
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
 
@@ -86,36 +90,42 @@ def enable_marketplace(monkeypatch, tmp_path):
 def registry(tmp_path):
     """构造一个用 tmp_path 持久化的 MarketplaceRegistry。"""
     from deadman.marketplace.registry import MarketplaceRegistry
+
     return MarketplaceRegistry(store_path=tmp_path / "registry.json")
 
 
 @pytest.fixture
 def reviewer():
     from deadman.marketplace.reviewer import AgentReviewer
+
     return AgentReviewer()
 
 
 @pytest.fixture
 def rating_system(tmp_path):
     from deadman.marketplace.rating import RatingSystem
+
     return RatingSystem(store_path=tmp_path / "ratings.json")
 
 
 @pytest.fixture
 def revenue(tmp_path, registry):
     from deadman.marketplace.revenue import RevenueShare
+
     return RevenueShare(store_path=tmp_path / "revenue.json", registry=registry)
 
 
 @pytest.fixture
 def sandbox():
     from deadman.marketplace.sandbox import MarketplaceSandbox
+
     return MarketplaceSandbox()
 
 
 # =====================================================================
 # 公共辅助
 # =====================================================================
+
 
 def _good_card(agent_id: str = "agent_x") -> dict:
     """构造一个通过审核的 agent_card(A2A 兼容 + 无危险模式)。"""
@@ -151,6 +161,7 @@ def _make_listing(
     agent_card: dict | None = None,
 ):
     from deadman.marketplace.registry import AgentListing
+
     return AgentListing(
         agent_id=agent_id,
         name=name,
@@ -167,6 +178,7 @@ def _make_listing(
 # =====================================================================
 # Registry 测试
 # =====================================================================
+
 
 class TestRegistry:
     def test_submit_returns_listing_id(self, registry):
@@ -245,11 +257,14 @@ class TestRegistry:
         assert [listing.agent_id for listing in asc] == ["a2", "a1", "a3"]
 
     def test_search_matches_name_description_tags(self, registry):
-        registry.submit(_make_listing(
-            agent_id="a1", name="Legal Helper",
-            description="helps with legal documents",
-            tags=["legal", "law"],
-        ))
+        registry.submit(
+            _make_listing(
+                agent_id="a1",
+                name="Legal Helper",
+                description="helps with legal documents",
+                tags=["legal", "law"],
+            )
+        )
         registry.approve("a1")
         # name match
         assert len(registry.search("legal helper")) == 1
@@ -283,6 +298,7 @@ class TestRegistry:
     def test_persistence_round_trip(self, registry, tmp_path):
         """submit 后重新构造实例(同一 store)能加载到数据。"""
         from deadman.marketplace.registry import MarketplaceRegistry
+
         registry.submit(_make_listing(agent_id="a1"))
         registry.approve("a1")
         # 新实例,同一 store_path
@@ -298,6 +314,7 @@ class TestRegistry:
 # =====================================================================
 # Reviewer 测试
 # =====================================================================
+
 
 class TestReviewer:
     def test_security_scan_clean_card(self, reviewer):
@@ -353,9 +370,7 @@ class TestReviewer:
         assert not any(i.check == "pii_leak_check" for i in issues)
 
     def test_pii_leak_detects_id_card(self, reviewer):
-        listing = _make_listing(
-            description="测试身份证 110101199003073847 应该被检测到"
-        )
+        listing = _make_listing(description="测试身份证 110101199003073847 应该被检测到")
         issues, score = reviewer.pii_leak_check(listing)
         # 应检测到 china_id_card(critical)
         critical = [i for i in issues if i.severity == "critical"]
@@ -363,9 +378,7 @@ class TestReviewer:
         assert score == 0
 
     def test_pii_leak_detects_email(self, reviewer):
-        listing = _make_listing(
-            description="Contact me at user@example.com for details."
-        )
+        listing = _make_listing(description="Contact me at user@example.com for details.")
         issues, _score = reviewer.pii_leak_check(listing)
         # email 是 warning(非 critical)
         pii_issues = [i for i in issues if i.check == "pii_leak_check"]
@@ -436,6 +449,7 @@ class TestReviewer:
 # Rating 测试
 # =====================================================================
 
+
 class TestRating:
     def test_rate_returns_rating(self, rating_system):
         r = rating_system.rate("a1", "u1", 5, "great")
@@ -503,6 +517,7 @@ class TestRating:
 
     def test_rating_persistence_round_trip(self, rating_system, tmp_path):
         from deadman.marketplace.rating import RatingSystem
+
         rating_system.rate("a1", "u1", 5, "great")
         rating_system.helpful_vote("a1:u1", "u2")
         # 新实例
@@ -516,6 +531,7 @@ class TestRating:
 # =====================================================================
 # Revenue 测试
 # =====================================================================
+
 
 class TestRevenue:
     def test_record_usage_returns_record(self, revenue):
@@ -557,7 +573,9 @@ class TestRevenue:
         revenue.record_usage("a1", "u1", call_count=100, tokens=1000)
         now = time.time()
         split = revenue.calculate_revenue(
-            "a1", period_start=0, period_end=now + 1,
+            "a1",
+            period_start=0,
+            period_end=now + 1,
         )
         # total = 1.0 × 100 = 100
         assert split.total_revenue == pytest.approx(100.0)
@@ -574,7 +592,10 @@ class TestRevenue:
         revenue.record_usage("a1", "u1", call_count=100, tokens=1000)
         now = time.time()
         split = revenue.calculate_revenue(
-            "a1", period_start=0, period_end=now + 1, plan="pro",
+            "a1",
+            period_start=0,
+            period_end=now + 1,
+            plan="pro",
         )
         # pro: platform 20%, author 80%
         assert split.platform_share == pytest.approx(20.0)
@@ -619,9 +640,11 @@ class TestRevenue:
 # Sandbox 测试
 # =====================================================================
 
+
 class TestSandbox:
     def test_execute_no_handler(self, sandbox):
         from deadman.marketplace.sandbox import SandboxConfig
+
         result = sandbox.execute("no_such_agent", {"x": 1}, SandboxConfig())
         assert result.success is False
         assert "No handler" in result.error
@@ -718,7 +741,9 @@ class TestSandbox:
         sandbox.register_handler("a1", handler)
         # input 含中国手机号(PII)
         result = sandbox.execute(
-            "a1", {"phone": "13912345678"}, SandboxConfig(),
+            "a1",
+            {"phone": "13912345678"},
+            SandboxConfig(),
         )
         assert result.success is True
         assert result.pii_redacted_input is True
@@ -784,6 +809,7 @@ class TestSandbox:
 # Disabled state 测试
 # =====================================================================
 
+
 class TestDisabledState:
     """marketplace flag 关闭时所有 API 抛 MarketplaceError。"""
 
@@ -791,6 +817,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.registry import MarketplaceError, MarketplaceRegistry
+
         reg = MarketplaceRegistry(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             reg.submit(_make_listing())
@@ -799,6 +826,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.registry import MarketplaceError, MarketplaceRegistry
+
         reg = MarketplaceRegistry(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             reg.list()
@@ -807,6 +835,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.reviewer import AgentReviewer, MarketplaceError
+
         reviewer = AgentReviewer()
         with pytest.raises(MarketplaceError):
             reviewer.review(_make_listing())
@@ -815,6 +844,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.rating import MarketplaceError, RatingSystem
+
         rs = RatingSystem(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             rs.rate("a1", "u1", 5)
@@ -823,6 +853,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.revenue import MarketplaceError, RevenueShare
+
         rev = RevenueShare(store_path=tmp_path / "r.json")
         with pytest.raises(MarketplaceError):
             rev.record_usage("a1", "u1", 1, 100)
@@ -831,6 +862,7 @@ class TestDisabledState:
         monkeypatch.setenv("DEADMAN_MARKETPLACE_ENABLED", "0")
         _reset_flags_cache()
         from deadman.marketplace.sandbox import MarketplaceError, MarketplaceSandbox
+
         sbx = MarketplaceSandbox()
         with pytest.raises(MarketplaceError):
             sbx.execute("a1", {}, None)
@@ -839,6 +871,7 @@ class TestDisabledState:
 # =====================================================================
 # 多租户隔离测试
 # =====================================================================
+
 
 class TestTenantIsolation:
     """multi_tenant 启用时,不同租户的 registry 数据相互隔离。"""
@@ -859,6 +892,7 @@ class TestTenantIsolation:
             TenantInfo,
         )
         from deadman.marketplace.registry import MarketplaceRegistry
+
         original_root = mt.TENANTS_ROOT
         mt.TENANTS_ROOT = tmp_path / "tenants"
 
@@ -894,6 +928,7 @@ class TestTenantIsolation:
             TenantInfo,
         )
         from deadman.marketplace.rating import RatingSystem
+
         original_root = mt.TENANTS_ROOT
         mt.TENANTS_ROOT = tmp_path / "tenants"
 
@@ -926,14 +961,17 @@ class TestTenantIsolation:
 # get_marketplace 单例入口测试
 # =====================================================================
 
+
 class TestSingleton:
     def test_get_marketplace_returns_registry(self):
         from deadman.marketplace import MarketplaceRegistry, get_marketplace
+
         mp = get_marketplace()
         assert isinstance(mp, MarketplaceRegistry)
 
     def test_get_marketplace_singleton(self):
         from deadman.marketplace import get_marketplace
+
         a = get_marketplace()
         b = get_marketplace()
         assert a is b

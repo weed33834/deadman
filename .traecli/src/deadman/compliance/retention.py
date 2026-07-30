@@ -44,20 +44,20 @@ logger = logging.getLogger(__name__)
 
 # 默认保留期(天)
 DEFAULT_RETENTION_DAYS = {
-    "user_profile": 2555,        # 7 年
-    "chat_history": 365,          # 1 年
-    "memory_episodes": 365 * 3,   # 3 年
-    "memory_semantic": 365 * 7,   # 7 年(用户已确认的知识)
-    "memory_procedural": 365 * 7, # 7 年
-    "audit_log": 365 * 7,         # 7 年(法规强制)
+    "user_profile": 2555,  # 7 年
+    "chat_history": 365,  # 1 年
+    "memory_episodes": 365 * 3,  # 3 年
+    "memory_semantic": 365 * 7,  # 7 年(用户已确认的知识)
+    "memory_procedural": 365 * 7,  # 7 年
+    "audit_log": 365 * 7,  # 7 年(法规强制)
     "billing_record": 365 * 10,  # 10 年(税务要求)
-    "deletion_request": 365 * 7, # 7 年(证明已删)
-    "consent_record": 365 * 7,   # 7 年(同意管理凭证)
-    "reflexion_memory": 365,     # 1 年
-    "vector_embedding": 365,     # 1 年
-    "ai_output": 90,             # 90 天(模型输出日志)
-    "training_log": 180,         # 6 个月(法规要求)
-    "temp_data": 7,              # 7 天(临时数据)
+    "deletion_request": 365 * 7,  # 7 年(证明已删)
+    "consent_record": 365 * 7,  # 7 年(同意管理凭证)
+    "reflexion_memory": 365,  # 1 年
+    "vector_embedding": 365,  # 1 年
+    "ai_output": 90,  # 90 天(模型输出日志)
+    "training_log": 180,  # 6 个月(法规要求)
+    "temp_data": 7,  # 7 天(临时数据)
 }
 
 
@@ -83,10 +83,10 @@ class DataCategory(str, Enum):
 class DisposalAction(str, Enum):
     """到期处置动作。"""
 
-    DELETE = "delete"          # 彻底删除
-    ANONYMIZE = "anonymize"    # 去标识化(保留聚合)
-    ARCHIVE = "archive"        # 归档冷存储
-    KEEP = "keep"              # 强制保留(如审计日志)
+    DELETE = "delete"  # 彻底删除
+    ANONYMIZE = "anonymize"  # 去标识化(保留聚合)
+    ARCHIVE = "archive"  # 归档冷存储
+    KEEP = "keep"  # 强制保留(如审计日志)
 
 
 @dataclass
@@ -201,7 +201,10 @@ class RetentionManager:
                     return tenant_policies[category]
             return self._policies.get(
                 category,
-                RetentionPolicy(category=category, retention_days=DEFAULT_RETENTION_DAYS.get(category.value, 365)),
+                RetentionPolicy(
+                    category=category,
+                    retention_days=DEFAULT_RETENTION_DAYS.get(category.value, 365),
+                ),
             )
 
     def record(
@@ -289,15 +292,17 @@ class RetentionManager:
                 with self._lock:
                     if record in self._records.get(record.category, []):
                         self._records[record.category].remove(record)
-                    self._disposal_log.append({
-                        "category": record.category.value,
-                        "user_id": record.user_id,
-                        "data_id": record.data_id,
-                        "disposal_action": policy.disposal_action.value,
-                        "disposed_at": now,
-                        "created_at": record.created_at,
-                        "retained_days": (now - record.created_at) / 86400,
-                    })
+                    self._disposal_log.append(
+                        {
+                            "category": record.category.value,
+                            "user_id": record.user_id,
+                            "data_id": record.data_id,
+                            "disposal_action": policy.disposal_action.value,
+                            "disposed_at": now,
+                            "created_at": record.created_at,
+                            "retained_days": (now - record.created_at) / 86400,
+                        }
+                    )
                     self._save()
 
         if stats:
@@ -347,7 +352,8 @@ class RetentionManager:
                     return cleaner(record.user_id, record.data_id)
                 logger.warning(
                     "No anonymizer registered for %s/%s, disposal skipped",
-                    record.category.value, record.data_id,
+                    record.category.value,
+                    record.data_id,
                 )
                 return False
             elif policy.disposal_action == DisposalAction.ARCHIVE:
@@ -355,7 +361,8 @@ class RetentionManager:
                     return cleaner(record.user_id, record.data_id)
                 logger.warning(
                     "No archiver registered for %s/%s, disposal skipped",
-                    record.category.value, record.data_id,
+                    record.category.value,
+                    record.data_id,
                 )
                 return False
             elif policy.disposal_action == DisposalAction.KEEP:
@@ -363,7 +370,9 @@ class RetentionManager:
         except Exception as e:
             logger.error(
                 "Dispose %s/%s failed: %s",
-                record.category.value, record.data_id, e,
+                record.category.value,
+                record.data_id,
+                e,
             )
             return False
         return False
@@ -501,7 +510,9 @@ class RetentionManager:
                 },
                 "disposal_log": self._disposal_log[-1000:],  # 只保留最近 1000 条
             }
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Save retention store failed: %s", e)

@@ -45,8 +45,7 @@ class AlignmentDisabledError(RuntimeError):
 
     def __init__(self, msg: str | None = None) -> None:
         super().__init__(
-            msg
-            or "Alignment module disabled. Set DEADMAN_ALIGNMENT_ENABLED=1 to enable."
+            msg or "Alignment module disabled. Set DEADMAN_ALIGNMENT_ENABLED=1 to enable."
         )
 
 
@@ -131,9 +130,7 @@ class AlignmentManager:
         ]
         for name, spec in defaults:
             if self.moe_router.get_expert(name) is None:
-                self.moe_router.register_expert(
-                    Expert(name=name, specialization=spec, capacity=20)
-                )
+                self.moe_router.register_expert(Expert(name=name, specialization=spec, capacity=20))
 
     # ------------------------------------------------------------------
     # 端到端反馈处理
@@ -193,6 +190,7 @@ class AlignmentManager:
             raise AlignmentDisabledError()
 
         import time as _time
+
         start = _time.time()
         report = PipelineReport()
 
@@ -209,9 +207,7 @@ class AlignmentManager:
             validation = self.sft_dataset.validate()
             report.sft_validation = validation
             if not validation["valid"]:
-                logger.warning(
-                    "SFT validation failed: %s", validation["errors"][:3]
-                )
+                logger.warning("SFT validation failed: %s", validation["errors"][:3])
 
             # 3. DPO: 提取所有偏好对
             pairs = self.continuous_learner.extract_all_preference_pairs()
@@ -237,9 +233,7 @@ class AlignmentManager:
     # ------------------------------------------------------------------
     # 查询路由
     # ------------------------------------------------------------------
-    def route_query(
-        self, query: str, context: dict[str, Any] | None = None
-    ) -> tuple[str, Expert]:
+    def route_query(self, query: str, context: dict[str, Any] | None = None) -> tuple[str, Expert]:
         """路由查询到最佳 expert + 对应模型名。
 
         Returns:

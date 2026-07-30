@@ -134,9 +134,7 @@ class ChainCircuitBreaker:
         self._breakers: dict[str, CircuitBreaker] = {}
         for level in chain.levels:
             cb_name = f"{chain.name}:{level}"
-            self._breakers[level] = cb_registry.get_or_create(
-                cb_name, chain.level_config(level)
-            )
+            self._breakers[level] = cb_registry.get_or_create(cb_name, chain.level_config(level))
         # 统计
         self._stats: dict[str, Any] = {
             "total_calls": 0,
@@ -201,7 +199,8 @@ class ChainCircuitBreaker:
                 skipped.append(level)
                 logger.info(
                     "Chain %s level %s CB open, skip",
-                    self.chain.name, level,
+                    self.chain.name,
+                    level,
                 )
                 continue
 
@@ -232,7 +231,9 @@ class ChainCircuitBreaker:
                 skipped.append(level)
                 logger.warning(
                     "Chain %s level %s failed: %s, fallback to next",
-                    self.chain.name, level, e,
+                    self.chain.name,
+                    level,
+                    e,
                 )
                 continue
 
@@ -241,7 +242,8 @@ class ChainCircuitBreaker:
             self._stats["full_chain_failure"] += 1
         logger.critical(
             "Chain %s FULL FAILURE - all levels failed (skipped=%s)",
-            self.chain.name, skipped,
+            self.chain.name,
+            skipped,
         )
         return ChainCallResult(
             success=False,

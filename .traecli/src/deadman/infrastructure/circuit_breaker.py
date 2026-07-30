@@ -153,16 +153,15 @@ class CircuitBreaker:
             if self._state == CircuitState.OPEN:
                 # 计算剩余冷却时间
                 elapsed = time.time() - self._opened_at
-                wait_total = self.config.wait_duration_in_open_state_seconds * self._backoff_multiplier
+                wait_total = (
+                    self.config.wait_duration_in_open_state_seconds * self._backoff_multiplier
+                )
                 retry_after = max(0.0, wait_total - elapsed)
                 raise CircuitBreakerOpenError(self.name, retry_after)
 
             if self._state == CircuitState.HALF_OPEN:
                 # Half-Open 状态:试探请求并发数限制
-                if (
-                    self._half_open_trials
-                    >= self.config.permitted_number_of_calls_in_half_open
-                ):
+                if self._half_open_trials >= self.config.permitted_number_of_calls_in_half_open:
                     # 试探名额已满,拒绝新请求(等待已有试探完成)
                     raise CircuitBreakerOpenError(self.name, 1.0)
                 self._half_open_trials += 1
@@ -231,7 +230,8 @@ class CircuitBreaker:
                 }
             failures = sum(1 for r in self._sliding_window if not r.success)
             slow_calls = sum(
-                1 for r in self._sliding_window
+                1
+                for r in self._sliding_window
                 if r.duration > self.config.slow_call_duration_threshold_seconds
             )
             return {
@@ -278,7 +278,8 @@ class CircuitBreaker:
         failures = sum(1 for r in self._sliding_window if not r.success)
         failure_rate = failures / total
         slow_calls = sum(
-            1 for r in self._sliding_window
+            1
+            for r in self._sliding_window
             if r.duration > self.config.slow_call_duration_threshold_seconds
         )
         slow_rate = slow_calls / total

@@ -25,9 +25,7 @@ from deadman.observability.tracer import SpanType, Tracer
 @pytest.fixture
 def enabled_root_cause(monkeypatch):
     """临时启用 ROOT_CAUSE_ENABLED"""
-    monkeypatch.setattr(
-        "deadman.observability.root_cause.ROOT_CAUSE_ENABLED", True
-    )
+    monkeypatch.setattr("deadman.observability.root_cause.ROOT_CAUSE_ENABLED", True)
     yield
 
 
@@ -81,9 +79,7 @@ class TestRootCauseAnalyze:
     """RootCauseAnalyzer.analyze 行为测试"""
 
     @pytest.mark.asyncio
-    async def test_analyze_finds_error_span(
-        self, enabled_root_cause, mock_llm, failing_tracer
-    ):
+    async def test_analyze_finds_error_span(self, enabled_root_cause, mock_llm, failing_tracer):
         """analyze 应找到首个 ERROR span 并填入报告"""
         analyzer = RootCauseAnalyzer(failing_tracer, mock_llm)
         # 取 tracer 中的某个 trace_id
@@ -118,9 +114,7 @@ class TestRootCauseAnalyze:
         mock_llm.chat_json.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_analyze_llm_unavailable_falls_back(
-        self, enabled_root_cause, failing_tracer
-    ):
+    async def test_analyze_llm_unavailable_falls_back(self, enabled_root_cause, failing_tracer):
         """LLM 调用失败时应降级为 rule-based 根因"""
         bad_llm = MagicMock()
         bad_llm.chat_json = AsyncMock(side_effect=RuntimeError("LLM down"))
@@ -143,9 +137,7 @@ class TestRootCauseAnalyze:
         assert report.contributing_factors == []
 
     @pytest.mark.asyncio
-    async def test_analyze_no_error_returns_empty_report(
-        self, enabled_root_cause, mock_llm
-    ):
+    async def test_analyze_no_error_returns_empty_report(self, enabled_root_cause, mock_llm):
         """trace 中无 ERROR span 时应返回空报告（error_span_id 为空）"""
         t = Tracer()
         root_id = t.start_span(SpanType.ROOT, "ok_request")
@@ -175,9 +167,7 @@ class TestRootCauseAnalyze:
             }
         )
 
-        analyzer = RootCauseAnalyzer(
-            failing_tracer, mock_llm, reflexion_memory_store=memory_store
-        )
+        analyzer = RootCauseAnalyzer(failing_tracer, mock_llm, reflexion_memory_store=memory_store)
         spans = failing_tracer.get_spans()
         trace_id = spans[0]["trace_id"]
 
@@ -202,9 +192,7 @@ class TestRootCauseAnalyze:
             }
         )
 
-        analyzer = RootCauseAnalyzer(
-            failing_tracer, mock_llm, reflexion_memory_store=memory_store
-        )
+        analyzer = RootCauseAnalyzer(failing_tracer, mock_llm, reflexion_memory_store=memory_store)
         spans = failing_tracer.get_spans()
         trace_id = spans[0]["trace_id"]
 
@@ -212,9 +200,7 @@ class TestRootCauseAnalyze:
         assert len(report.similar_history) == 1
 
     @pytest.mark.asyncio
-    async def test_analyze_trace_not_found_returns_empty(
-        self, enabled_root_cause, mock_llm
-    ):
+    async def test_analyze_trace_not_found_returns_empty(self, enabled_root_cause, mock_llm):
         """trace_id 不存在时返回空报告"""
         t = Tracer()
         analyzer = RootCauseAnalyzer(t, mock_llm)
@@ -222,9 +208,7 @@ class TestRootCauseAnalyze:
         assert report.error_span_id == ""
         assert report.root_cause == ""
 
-    def test_format_report_human_readable(
-        self, enabled_root_cause, mock_llm, failing_tracer
-    ):
+    def test_format_report_human_readable(self, enabled_root_cause, mock_llm, failing_tracer):
         """format_report 应输出人类可读的多行文本"""
         report = RootCauseReport(
             trace_id="trace-123",
@@ -267,6 +251,7 @@ class TestRootCauseAnalyze:
         # 注意：不调用 enabled_root_cause fixture，使用模块默认值
         # 由于 ROOT_CAUSE_ENABLED 在模块加载时确定，需要确保为 False
         from deadman.observability import root_cause as rc_module
+
         # 保留原值后强制设为 False
         original = rc_module.ROOT_CAUSE_ENABLED
         rc_module.ROOT_CAUSE_ENABLED = False

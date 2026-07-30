@@ -80,10 +80,18 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 - **对话维度看板**：`/api/dashboard` 端点 + 前端 4 张柱状图 + 最近 trace span 表，进程内聚合统计（重启清零，不持久化不跨会话）
 - **MCP 工具 schema 自动化**：13 个工具迁移到 `@mcp.tool_auto`，靠 type hints + Google-style docstring 自动生成 JSON Schema，参数与函数签名单一来源
 
+### 企业级落地（v5.1）
+
+- **Handoff 默认开启**：智能体转交作为一等公民机制生产默认启用（`HANDOFF_ENABLED=1`），跨智能体上下文压缩与传递无需显式配置；审计链同步开启（`HANDOFF_AUDIT_ENABLED=1`）。显式 `DEADMAN_HANDOFF_ENABLED=0` 仍可关闭
+- **Sentry 错误监控**：FastAPI lifespan 启动时初始化 Sentry SDK，兜底异常处理器与请求日志中间件自动上报未处理异常并关联 `request_id`。DSN 留空或 SDK 未装时零开销降级（no-op，不阻塞主流程）；`send_default_pii=False` 满足 PIPL 合规
+- **密码重置**：完整流程 `request`（生成令牌）→ 邮件下发（SMTP 配置时）→ `confirm`（消费令牌重置密码）。256 bit 令牌 + 30 分钟 TTL + 单次使用 + 防枚举响应，符合 OWASP 最佳实践
+- **Dead Man Switch 通知通道接通**：`_do_notify_lawyer` / `_do_notify_heirs` 通过 `EmailSender.send_sync()`（stdlib smtplib，无新依赖）真正发送邮件；SMTP 未配置时降级为 `manual_todo`（不阻塞状态机），发送失败时 `retryable`
+- **CI 质量门禁**：test（pytest）+ lint（ruff check + ruff format）+ security（pip-audit CVE 扫描）三 job 并行，任一失败阻断合并
+
 ### 加密与隐私
 
 - 用户密码：PBKDF2-HMAC-SHA256（100k 迭代）+ 16 字节随机 salt + 防枚举
-- JWT：自实现 HS256 + `hmac.compare_digest` 防时序攻击（无 pyjwt 依赖）
+- JWT：PyJWT 2.8+ 实现 HS256 签发/验证/刷新，过期与篡改由 SDK 校验
 - 终活笔记 / 保险库：per-user passphrase 派生（PBKDF2 + AES-256-GCM AEAD 加密 v3，utils/crypto.py 共享模块）
 - PII 脱敏：姓名 / 身份证 / 电话 / 账号 / 地址 / 出生日期 落盘前掩码
 - 文件级原子写入 + fsync + 0o600 权限
@@ -221,9 +229,10 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 | Prompt Injection 绕过规则链 | L2 input-guardrails + L0 safety 双层防御 |
 | 自杀风险信号触发代办 | L0 即时拦截，输出 12320 / 988 热线，绝不代办 |
 | 主动通知扰民 | L4 notification-guardrails 默认静默 + 7 天等待期 + 退订机制 |
-| 时序攻击 JWT | `hmac.compare_digest` 恒定时间比较 |
-| 邮箱枚举 | 登录失败统一返回"邮箱或密码错误" |
+| 伪造/篡改 JWT | PyJWT HS256 签名校验，过期/签名错误统一拒绝 |
+| 邮箱枚举 | 登录失败统一返回"邮箱或密码错误"；密码重置无论邮箱是否存在统一返回成功 |
 | 密码爆破 | PBKDF2 100k 迭代 + 16B salt |
+| 密码重置令牌重放 | 256 bit 令牌 + 30 分钟 TTL + 单次消费（consume 即删） |
 
 ## 常见问题 FAQ
 
@@ -327,6 +336,12 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 - [x] Web API 加固（速率限制 + CORS + Pydantic 校验 + 安全头）
 - [x] 结构化日志升级（structlog 集成）
 - [x] 场景 2 & 8 完整测试覆盖
+- [x] 编排韧性（可组合终止条件 + 对话维度看板 + MCP tool_auto schema 自动化）
+- [x] Handoff 默认开启（跨智能体上下文压缩与传递无需显式配置）
+- [x] Sentry 错误监控集成（可选依赖，零开销降级）
+- [x] 密码重置流程（令牌 + TTL + 防枚举）
+- [x] Dead Man Switch 通知邮件通道接通（EmailSender.send_sync）
+- [x] CI 质量门禁（ruff lint + format + pip-audit 安全扫描）
 
 近期（v5.x）进行中：
 

@@ -45,9 +45,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-HONEYPOT_ENABLED: bool = os.environ.get(
-    "DEADMAN_HONEYPOT_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+HONEYPOT_ENABLED: bool = os.environ.get("DEADMAN_HONEYPOT_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # =====================================================================
 # 假工具定义
@@ -73,29 +76,31 @@ def _build_honeypot_tool_definitions() -> list[dict[str, Any]]:
     """
     definitions: list[dict[str, Any]] = []
     for tool_name in HONEYPOT_TOOLS:
-        definitions.append({
-            "name": tool_name,
-            "description": (
-                f"[HONEYPOT] {tool_name} - 此工具是蜜罐，正常流程不应调用。"
-                f"被调用即触发安全告警。"
-            ),
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "target": {"type": "string", "description": "操作目标"},
-                    "reason": {"type": "string", "description": "调用原因"},
+        definitions.append(
+            {
+                "name": tool_name,
+                "description": (
+                    f"[HONEYPOT] {tool_name} - 此工具是蜜罐，正常流程不应调用。"
+                    f"被调用即触发安全告警。"
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string", "description": "操作目标"},
+                        "reason": {"type": "string", "description": "调用原因"},
+                    },
+                    "required": [],
                 },
-                "required": [],
-            },
-            "output_schema": {
-                "type": "object",
-                "properties": {
-                    "ok": {"type": "boolean"},
-                    "blocked": {"type": "boolean"},
-                    "alert_id": {"type": "string"},
+                "output_schema": {
+                    "type": "object",
+                    "properties": {
+                        "ok": {"type": "boolean"},
+                        "blocked": {"type": "boolean"},
+                        "alert_id": {"type": "string"},
+                    },
                 },
-            },
-        })
+            }
+        )
     return definitions
 
 
@@ -153,19 +158,23 @@ class HoneypotManager:
         logger.warning(
             "HONEYPOT TRIGGERED: tool=%s caller=%s — 此工具是蜜罐，"
             "正常流程不应调用，可能存在 prompt injection 或 agent 决策异常",
-            tool_name, caller or "(unknown)",
+            tool_name,
+            caller or "(unknown)",
         )
 
         # 记录到内存（测试用）
-        self._triggered.append({
-            "tool_name": tool_name,
-            "caller": caller,
-        })
+        self._triggered.append(
+            {
+                "tool_name": tool_name,
+                "caller": caller,
+            }
+        )
 
         # 记录到审计链（feature flag 控制）
         # 审计链本身也是 feature flag 控制，关闭时 get_audit_chain().append 返回 None
         try:
             from .audit import get_audit_chain
+
             get_audit_chain().append(
                 event_type="security_alert",
                 actor=caller or "(unknown)",
@@ -199,9 +208,7 @@ class HoneypotManager:
             return 0
 
         if mcp_server is None or not hasattr(mcp_server, "register_tool"):
-            logger.warning(
-                "mcp_server 无 register_tool 方法，无法注册蜜罐工具"
-            )
+            logger.warning("mcp_server 无 register_tool 方法，无法注册蜜罐工具")
             return 0
 
         registered = 0
@@ -219,14 +226,10 @@ class HoneypotManager:
                 )
                 registered += 1
             except Exception as e:
-                logger.warning(
-                    "注册蜜罐工具 %s 失败: %s", defn.get("name"), e
-                )
+                logger.warning("注册蜜罐工具 %s 失败: %s", defn.get("name"), e)
                 continue
 
-        logger.info(
-            "HONEYPOT: 已注册 %d 个蜜罐工具到 MCP server", registered
-        )
+        logger.info("HONEYPOT: 已注册 %d 个蜜罐工具到 MCP server", registered)
         return registered
 
     # ------------------------------------------------------------------
@@ -250,10 +253,7 @@ class HoneypotManager:
                 "ok": False,
                 "blocked": True,
                 "alert_id": f"honeypot-{tool_name}",
-                "message": (
-                    f"工具 {tool_name} 是蜜罐，已被阻断。"
-                    "此调用已触发安全告警。"
-                ),
+                "message": (f"工具 {tool_name} 是蜜罐，已被阻断。此调用已触发安全告警。"),
             }
 
         return _honeypot_handler

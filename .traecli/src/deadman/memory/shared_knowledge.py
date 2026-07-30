@@ -33,9 +33,7 @@ SHARED_KNOWLEDGE_ENABLED: bool = os.environ.get(
 ).lower() in ("1", "true", "yes", "on")
 
 # 默认存储路径:~/.deadman/memory/SHARED_KNOWLEDGE.json
-DEFAULT_SHARED_KNOWLEDGE_FILE: Path = (
-    Path.home() / ".deadman" / "memory" / "SHARED_KNOWLEDGE.json"
-)
+DEFAULT_SHARED_KNOWLEDGE_FILE: Path = Path.home() / ".deadman" / "memory" / "SHARED_KNOWLEDGE.json"
 
 
 @dataclass
@@ -80,9 +78,7 @@ class SharedKnowledgeStore:
     """
 
     def __init__(self, file_path: Path | None = None) -> None:
-        self.file_path: Path = (
-            file_path if file_path is not None else DEFAULT_SHARED_KNOWLEDGE_FILE
-        )
+        self.file_path: Path = file_path if file_path is not None else DEFAULT_SHARED_KNOWLEDGE_FILE
         # 内存缓存:entry_id -> SharedKnowledgeEntry
         self._cache: dict[str, SharedKnowledgeEntry] = {}
         self._loaded: bool = False
@@ -242,7 +238,11 @@ class SharedKnowledgeStore:
         topic_lower = topic.lower()
         matched: list[SharedKnowledgeEntry] = []
         for entry in self._cache.values():
-            if entry.topic.lower() == topic_lower or topic_lower in entry.topic.lower() or entry.topic.lower() in topic_lower:
+            if (
+                entry.topic.lower() == topic_lower
+                or topic_lower in entry.topic.lower()
+                or entry.topic.lower() in topic_lower
+            ):
                 matched.append(entry)
         # 优先精确匹配,其次按 source_user_count 降序
         matched.sort(

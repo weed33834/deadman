@@ -35,9 +35,12 @@ from typing import Any
 # 配置（feature flag，默认关闭）
 # =====================================================================
 
-GATEWAY_ENABLED: bool = os.environ.get(
-    "DEADMAN_MCP_GATEWAY_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+GATEWAY_ENABLED: bool = os.environ.get("DEADMAN_MCP_GATEWAY_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 语义门子开关（默认关闭，避免无 LLM 时误拦截）
 GATEWAY_SEMANTIC_ENABLED: bool = os.environ.get(
@@ -45,14 +48,10 @@ GATEWAY_SEMANTIC_ENABLED: bool = os.environ.get(
 ).lower() in ("1", "true", "yes", "on")
 
 # 信任评分阈值（低于此值拦截）
-GATEWAY_TRUST_THRESHOLD: float = float(
-    os.environ.get("DEADMAN_MCP_GATEWAY_TRUST_THRESHOLD", "0.3")
-)
+GATEWAY_TRUST_THRESHOLD: float = float(os.environ.get("DEADMAN_MCP_GATEWAY_TRUST_THRESHOLD", "0.3"))
 
 # 限流：默认 100 QPM（每分钟 100 次）
-GATEWAY_RATE_LIMIT_QPM: int = int(
-    os.environ.get("DEADMAN_MCP_GATEWAY_RATE_LIMIT_QPM", "100")
-)
+GATEWAY_RATE_LIMIT_QPM: int = int(os.environ.get("DEADMAN_MCP_GATEWAY_RATE_LIMIT_QPM", "100"))
 
 # 令牌桶容量（默认 = QPM，允许 1 分钟的突发）
 GATEWAY_RATE_LIMIT_BURST: int = int(
@@ -169,9 +168,7 @@ class ToolGateway:
         self._semantic_judge: Callable[..., Any] | None = None
         # 自定义 policy 规则（list[(check_fn, layer_reason)]）
         # check_fn 签名：(tool_name, args) -> (allowed: bool, reason: str)
-        self._policy_rules: list[
-            tuple[Callable[[str, dict[str, Any]], tuple[bool, str]], str]
-        ] = []
+        self._policy_rules: list[tuple[Callable[[str, dict[str, Any]], tuple[bool, str]], str]] = []
         # 注册默认 policy 规则
         self._register_default_policies()
 
@@ -217,9 +214,7 @@ class ToolGateway:
 
     # ---------- 6 层实现 ----------
 
-    def schema_validate(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[bool, str, float]:
+    def schema_validate(self, tool_name: str, args: dict[str, Any]) -> tuple[bool, str, float]:
         """第 1 层：参数类型 / 必填校验"""
         schema = self._schemas.get(tool_name)
         if not schema:
@@ -266,9 +261,7 @@ class ToolGateway:
             # 校验逻辑自身出错：fail-open
             return True, f"schema_validate 内部异常: {exc}", 1.0
 
-    def trust_score(
-        self, tool_name: str, caller: str
-    ) -> tuple[bool, str, float]:
+    def trust_score(self, tool_name: str, caller: str) -> tuple[bool, str, float]:
         """第 2 层：信任评分"""
         with self._lock:
             score = self._trust_scores.get((tool_name, caller), 1.0)
@@ -308,9 +301,7 @@ class ToolGateway:
                 )
         return True, "", 1.0
 
-    async def semantic_gate(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[bool, str, float]:
+    async def semantic_gate(self, tool_name: str, args: dict[str, Any]) -> tuple[bool, str, float]:
         """第 5 层：可选 LLM 判断调用意图"""
         if not GATEWAY_SEMANTIC_ENABLED:
             return True, "", 1.0
@@ -333,9 +324,7 @@ class ToolGateway:
             # LLM 调用失败：fail-open
             return True, f"semantic_gate 跳过: {exc}", 1.0
 
-    def policy_match(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[bool, str, float]:
+    def policy_match(self, tool_name: str, args: dict[str, Any]) -> tuple[bool, str, float]:
         """第 6 层：规则匹配"""
         for check_fn, layer_reason in self._policy_rules:
             try:

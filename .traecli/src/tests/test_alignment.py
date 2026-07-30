@@ -38,11 +38,13 @@ def enable_alignment(monkeypatch, tmp_path):
 
     # 清 flag 缓存,确保新 env 生效
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
 
     # 重置 AlignmentManager 单例
     from deadman.alignment.manager import reset_alignment_manager
+
     reset_alignment_manager()
 
     yield
@@ -59,6 +61,7 @@ def enable_alignment(monkeypatch, tmp_path):
 class TestDPOTrainer:
     def test_add_preference_and_count(self):
         from deadman.alignment.dpo_trainer import DPOTrainer, PreferenceExample
+
         trainer = DPOTrainer()
         ex = PreferenceExample(
             prompt="如何立遗嘱?",
@@ -71,6 +74,7 @@ class TestDPOTrainer:
     def test_add_preference_pii_redaction(self):
         """包含 PII 的偏好对应被脱敏(prompt/chosen/rejected 三段)。"""
         from deadman.alignment.dpo_trainer import DPOTrainer, PreferenceExample
+
         trainer = DPOTrainer()
         ex = PreferenceExample(
             prompt="我的手机号是 13812345678,如何联系律师?",
@@ -91,14 +95,17 @@ class TestDPOTrainer:
             DPOTrainer,
             PreferenceExample,
         )
+
         trainer = DPOTrainer()
         for i in range(5):
-            trainer.add_preference(PreferenceExample(
-                prompt=f"prompt-{i}",
-                chosen_response=f"good answer {i} " * 10,
-                rejected_response=f"bad answer {i}",
-                user_id="u1",
-            ))
+            trainer.add_preference(
+                PreferenceExample(
+                    prompt=f"prompt-{i}",
+                    chosen_response=f"good answer {i} " * 10,
+                    rejected_response=f"bad answer {i}",
+                    user_id="u1",
+                )
+            )
         config = DPOConfig(max_steps=20, save_steps=5, min_trust_score=0.0)
         report = trainer.train(config)
         assert report.completed is True
@@ -112,6 +119,7 @@ class TestDPOTrainer:
 
     def test_train_no_samples_returns_error(self):
         from deadman.alignment.dpo_trainer import DPOConfig, DPOTrainer
+
         trainer = DPOTrainer()
         report = trainer.train(DPOConfig(max_steps=10))
         assert report.completed is False
@@ -123,14 +131,17 @@ class TestDPOTrainer:
             DPOTrainer,
             PreferenceExample,
         )
+
         trainer = DPOTrainer()
         for i in range(3):
-            trainer.add_preference(PreferenceExample(
-                prompt=f"prompt-{i}",
-                chosen_response=f"chosen-{i}",
-                rejected_response=f"rejected-{i}",
-                user_id="u1",
-            ))
+            trainer.add_preference(
+                PreferenceExample(
+                    prompt=f"prompt-{i}",
+                    chosen_response=f"chosen-{i}",
+                    rejected_response=f"rejected-{i}",
+                    user_id="u1",
+                )
+            )
         trainer.train(DPOConfig(max_steps=5, save_steps=5, min_trust_score=0.0))
 
         ckpt = tmp_path / "dpo_checkpoint.json"
@@ -148,6 +159,7 @@ class TestDPOTrainer:
 
     def test_evaluate_returns_metrics(self):
         from deadman.alignment.dpo_trainer import DPOTrainer, PreferenceExample
+
         trainer = DPOTrainer()
         eval_set = [
             PreferenceExample(
@@ -171,6 +183,7 @@ class TestDPOTrainer:
     def test_trust_score_filter_low_quality(self):
         """trust_score 低于 0.1 的样本被拒收。"""
         from deadman.alignment.dpo_trainer import DPOTrainer, PreferenceExample, PreferenceSource
+
         trainer = DPOTrainer()
         # SYNTHETIC + 无 user_id → trust = 0.4 * 0.2 = 0.08 < 0.1,拒收
         low = PreferenceExample(
@@ -188,6 +201,7 @@ class TestDPOTrainer:
 
     def test_load_nonexistent_checkpoint_returns_false(self, tmp_path):
         from deadman.alignment.dpo_trainer import DPOTrainer
+
         trainer = DPOTrainer()
         assert trainer.load_checkpoint(tmp_path / "nope.json") is False
 
@@ -198,24 +212,30 @@ class TestDPOTrainer:
 class TestSFTDataset:
     def test_add_and_count(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
-        ds.add(SFTExample(
-            prompt="如何立遗嘱?",
-            completion="立遗嘱需要...",
-            task_type=TaskType.LEGAL,
-            quality_score=0.9,
-        ))
+        ds.add(
+            SFTExample(
+                prompt="如何立遗嘱?",
+                completion="立遗嘱需要...",
+                task_type=TaskType.LEGAL,
+                quality_score=0.9,
+            )
+        )
         assert ds.count() == 1
 
     def test_add_pii_redaction(self):
         """添加时强制 PII 脱敏(prompt + completion)。"""
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
-        ds.add(SFTExample(
-            prompt="我的手机 13812345678 想咨询遗嘱",
-            completion="请拨打 13812345678",
-            task_type=TaskType.LEGAL,
-        ))
+        ds.add(
+            SFTExample(
+                prompt="我的手机 13812345678 想咨询遗嘱",
+                completion="请拨打 13812345678",
+                task_type=TaskType.LEGAL,
+            )
+        )
         ex = ds.examples()[0]
         assert ex.redacted is True
         assert "13812345678" not in ex.prompt
@@ -223,6 +243,7 @@ class TestSFTDataset:
 
     def test_filter_by_quality(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1", quality_score=0.3))
         ds.add(SFTExample(prompt="q2", completion="c2", quality_score=0.7))
@@ -234,6 +255,7 @@ class TestSFTDataset:
 
     def test_filter_by_task_type(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1", task_type=TaskType.LEGAL))
         ds.add(SFTExample(prompt="q2", completion="c2", task_type=TaskType.MEDICAL))
@@ -243,6 +265,7 @@ class TestSFTDataset:
 
     def test_deduplicate(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="same prompt", completion="c1"))
         ds.add(SFTExample(prompt="same prompt", completion="c2"))
@@ -253,17 +276,26 @@ class TestSFTDataset:
 
     def test_balance_classes(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
         # 3 LEGAL + 1 MEDICAL → 均衡后各 1
         for i in range(3):
-            ds.add(SFTExample(
-                prompt=f"legal-{i}", completion=f"c-{i}",
-                task_type=TaskType.LEGAL, quality_score=0.5 + i * 0.1,
-            ))
-        ds.add(SFTExample(
-            prompt="med-0", completion="cm-0",
-            task_type=TaskType.MEDICAL, quality_score=0.9,
-        ))
+            ds.add(
+                SFTExample(
+                    prompt=f"legal-{i}",
+                    completion=f"c-{i}",
+                    task_type=TaskType.LEGAL,
+                    quality_score=0.5 + i * 0.1,
+                )
+            )
+        ds.add(
+            SFTExample(
+                prompt="med-0",
+                completion="cm-0",
+                task_type=TaskType.MEDICAL,
+                quality_score=0.9,
+            )
+        )
         removed = ds.balance_classes()
         assert removed == 2  # 移除 2 个 LEGAL
         assert ds.count() == 2
@@ -276,6 +308,7 @@ class TestSFTDataset:
 
     def test_export_jsonl(self):
         from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1"))
         ds.add(SFTExample(prompt="q2", completion="c2"))
@@ -289,6 +322,7 @@ class TestSFTDataset:
 
     def test_export_csv(self):
         from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="q1", completion="c1"))
         data = ds.export(ExportFormat.CSV)
@@ -301,6 +335,7 @@ class TestSFTDataset:
 
     def test_export_alpaca_format(self):
         from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="instruction\ntext", completion="output"))
         data = ds.export(ExportFormat.ALPACA)
@@ -312,6 +347,7 @@ class TestSFTDataset:
 
     def test_export_sharegpt_format(self):
         from deadman.alignment.sft_dataset import ExportFormat, SFTDataset, SFTExample
+
         ds = SFTDataset()
         ds.add(SFTExample(prompt="hi", completion="hello"))
         data = ds.export(ExportFormat.SHAREGPT)
@@ -324,11 +360,16 @@ class TestSFTDataset:
 
     def test_validate_correct_dataset(self):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
-        ds.add(SFTExample(
-            prompt="q1", completion="c1",
-            task_type=TaskType.LEGAL, quality_score=0.8,
-        ))
+        ds.add(
+            SFTExample(
+                prompt="q1",
+                completion="c1",
+                task_type=TaskType.LEGAL,
+                quality_score=0.8,
+            )
+        )
         result = ds.validate()
         assert result["valid"] is True
         assert result["stats"]["total"] == 1
@@ -337,6 +378,7 @@ class TestSFTDataset:
     def test_validate_detects_unredacted(self):
         """手动构造未脱敏样本 → validate 报错。"""
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample
+
         ds = SFTDataset()
         # 直接 append,跳过 add 的脱敏
         ex = SFTExample(prompt="q", completion="c", redacted=False)
@@ -347,11 +389,16 @@ class TestSFTDataset:
 
     def test_save_and_load_roundtrip(self, tmp_path):
         from deadman.alignment.sft_dataset import SFTDataset, SFTExample, TaskType
+
         ds = SFTDataset()
-        ds.add(SFTExample(
-            prompt="q1", completion="c1",
-            task_type=TaskType.LEGAL, quality_score=0.9,
-        ))
+        ds.add(
+            SFTExample(
+                prompt="q1",
+                completion="c1",
+                task_type=TaskType.LEGAL,
+                quality_score=0.9,
+            )
+        )
         # save 到 tenant 路径
         ds.save("alignment/test_sft.jsonl")
         # 新 dataset 加载
@@ -369,6 +416,7 @@ class TestSFTDataset:
 class TestLocalLLMClient:
     def test_config_defaults(self):
         from deadman.alignment.local_llm import LocalLLMConfig, LocalLLMProvider
+
         config = LocalLLMConfig(
             provider=LocalLLMProvider.OLLAMA,
             model_path="llama3",
@@ -386,15 +434,18 @@ class TestLocalLLMClient:
             LocalLLMConfig,
             LocalLLMProvider,
         )
+
         config = LocalLLMConfig(
             provider=LocalLLMProvider.OLLAMA,
             model_path="llama3",
             mock_mode=True,
         )
         client = LocalLLMClient(config)
-        reply = client.chat([
-            {"role": "user", "content": "你好"},
-        ])
+        reply = client.chat(
+            [
+                {"role": "user", "content": "你好"},
+            ]
+        )
         assert "mock-ollama" in reply
         assert "你好" in reply
 
@@ -404,6 +455,7 @@ class TestLocalLLMClient:
             LocalLLMConfig,
             LocalLLMProvider,
         )
+
         config = LocalLLMConfig(
             provider=LocalLLMProvider.VLLM,
             mock_mode=True,
@@ -418,6 +470,7 @@ class TestLocalLLMClient:
             LocalLLMConfig,
             LocalLLMProvider,
         )
+
         # 用一个不存在的端口,确保 health_check 失败
         config = LocalLLMConfig(
             provider=LocalLLMProvider.CUSTOM,
@@ -438,6 +491,7 @@ class TestLocalLLMClient:
             LocalLLMConfig,
             LocalLLMProvider,
         )
+
         config = LocalLLMConfig(
             provider=LocalLLMProvider.VLLM,
             model_path="Qwen/Qwen2.5-7B-Instruct",
@@ -461,6 +515,7 @@ class TestLocalLLMClient:
             LocalLLMConfig,
             LocalLLMProvider,
         )
+
         config = LocalLLMConfig(
             provider=LocalLLMProvider.OLLAMA,
             mock_mode=True,
@@ -475,6 +530,7 @@ class TestLocalLLMClient:
 
     def test_provider_enum_values(self):
         from deadman.alignment.local_llm import LocalLLMProvider
+
         assert LocalLLMProvider.QWEN.value == "qwen"
         assert LocalLLMProvider.DEEPSEEK.value == "deepseek"
         assert LocalLLMProvider.LLAMA.value == "llama"
@@ -493,10 +549,17 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        assert router.register_expert(Expert(
-            name="legal-1", specialization=ExpertSpecialization.LEGAL,
-        )) is True
+        assert (
+            router.register_expert(
+                Expert(
+                    name="legal-1",
+                    specialization=ExpertSpecialization.LEGAL,
+                )
+            )
+            is True
+        )
         assert len(router.list_experts()) == 1
 
     def test_route_selects_matching_specialization(self):
@@ -505,13 +568,22 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        router.register_expert(Expert(
-            name="legal-1", specialization=ExpertSpecialization.LEGAL, capacity=10,
-        ))
-        router.register_expert(Expert(
-            name="general-1", specialization=ExpertSpecialization.GENERAL, capacity=10,
-        ))
+        router.register_expert(
+            Expert(
+                name="legal-1",
+                specialization=ExpertSpecialization.LEGAL,
+                capacity=10,
+            )
+        )
+        router.register_expert(
+            Expert(
+                name="general-1",
+                specialization=ExpertSpecialization.GENERAL,
+                capacity=10,
+            )
+        )
         expert = router.route("如何立遗嘱?")
         assert expert.specialization == ExpertSpecialization.LEGAL
 
@@ -521,13 +593,22 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        router.register_expert(Expert(
-            name="med-1", specialization=ExpertSpecialization.MEDICAL, capacity=10,
-        ))
-        router.register_expert(Expert(
-            name="general-1", specialization=ExpertSpecialization.GENERAL, capacity=10,
-        ))
+        router.register_expert(
+            Expert(
+                name="med-1",
+                specialization=ExpertSpecialization.MEDICAL,
+                capacity=10,
+            )
+        )
+        router.register_expert(
+            Expert(
+                name="general-1",
+                specialization=ExpertSpecialization.GENERAL,
+                capacity=10,
+            )
+        )
         # context 显式指定 medical
         expert = router.route("hello", context={"task_type": "medical"})
         assert expert.specialization == ExpertSpecialization.MEDICAL
@@ -538,10 +619,15 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        router.register_expert(Expert(
-            name="e1", specialization=ExpertSpecialization.GENERAL, capacity=10,
-        ))
+        router.register_expert(
+            Expert(
+                name="e1",
+                specialization=ExpertSpecialization.GENERAL,
+                capacity=10,
+            )
+        )
         assert router.update_load("e1", +3) is True
         assert router.get_expert("e1").current_load == 3
         assert router.update_load("e1", -1) is True
@@ -555,11 +641,15 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        router.register_expert(Expert(
-            name="e1", specialization=ExpertSpecialization.GENERAL,
-            success_rate=1.0,
-        ))
+        router.register_expert(
+            Expert(
+                name="e1",
+                specialization=ExpertSpecialization.GENERAL,
+                success_rate=1.0,
+            )
+        )
         # 默认 alpha=0.1,失败一次 → 0.9
         router.record_result("e1", success=False)
         assert router.get_expert("e1").success_rate == pytest.approx(0.9, abs=0.01)
@@ -575,17 +665,23 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
-        router.register_expert(Expert(
-            name="legal-1",
-            specialization=ExpertSpecialization.LEGAL,
-            capacity=2, current_load=2,  # 已满
-        ))
-        router.register_expert(Expert(
-            name="general-1",
-            specialization=ExpertSpecialization.GENERAL,
-            capacity=10,
-        ))
+        router.register_expert(
+            Expert(
+                name="legal-1",
+                specialization=ExpertSpecialization.LEGAL,
+                capacity=2,
+                current_load=2,  # 已满
+            )
+        )
+        router.register_expert(
+            Expert(
+                name="general-1",
+                specialization=ExpertSpecialization.GENERAL,
+                capacity=10,
+            )
+        )
         # legal-1 已满,应路由到 general(回退策略)
         expert = router.route("如何立遗嘱?")
         assert expert.name == "general-1"
@@ -596,6 +692,7 @@ class TestMoERouter:
             ExpertSpecialization,
             MoERouter,
         )
+
         router = MoERouter()
         router.register_expert(Expert(name="e1", specialization=ExpertSpecialization.LEGAL))
         stats = router.get_stats()
@@ -610,15 +707,20 @@ class TestMoERouter:
 class TestContinuousLearner:
     def test_record_feedback(self):
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
         event = FeedbackEvent(
-            user_id="u1", query="q1", response="r1", rating=5,
+            user_id="u1",
+            query="q1",
+            response="r1",
+            rating=5,
         )
         learner.record_feedback(event)
         assert learner.event_count() == 1
 
     def test_record_feedback_pii_redaction(self):
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
         event = FeedbackEvent(
             user_id="u1",
@@ -635,9 +737,13 @@ class TestContinuousLearner:
         """rating ≥ 4 → chosen pair。"""
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
         from deadman.alignment.dpo_trainer import PreferenceSource
+
         learner = ContinuousLearner()
         event = FeedbackEvent(
-            user_id="u1", query="q1", response="good answer", rating=5,
+            user_id="u1",
+            query="q1",
+            response="good answer",
+            rating=5,
         )
         pair = learner.extract_preference_pair(event)
         assert pair is not None
@@ -647,9 +753,13 @@ class TestContinuousLearner:
     def test_extract_preference_pair_rejected(self):
         """rating < 3 → rejected pair。"""
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
         event = FeedbackEvent(
-            user_id="u1", query="q1", response="bad answer", rating=1,
+            user_id="u1",
+            query="q1",
+            response="bad answer",
+            rating=1,
         )
         pair = learner.extract_preference_pair(event)
         assert pair is not None
@@ -658,21 +768,31 @@ class TestContinuousLearner:
     def test_extract_preference_pair_neutral(self):
         """rating = 3 → 中性,返回 None。"""
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
         event = FeedbackEvent(
-            user_id="u1", query="q1", response="ok", rating=3,
+            user_id="u1",
+            query="q1",
+            response="ok",
+            rating=3,
         )
         pair = learner.extract_preference_pair(event)
         assert pair is None
 
     def test_weekly_review(self):
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
         for r in [1, 2, 3, 4, 5]:
-            learner.record_feedback(FeedbackEvent(
-                user_id=f"u{r}", query=f"q{r}", response=f"r{r}", rating=r,
-                comment="差" if r <= 2 else "",
-            ))
+            learner.record_feedback(
+                FeedbackEvent(
+                    user_id=f"u{r}",
+                    query=f"q{r}",
+                    response=f"r{r}",
+                    rating=r,
+                    comment="差" if r <= 2 else "",
+                )
+            )
         report = learner.weekly_review(days=7)
         assert report.total_feedback == 5
         assert report.avg_rating == 3.0
@@ -684,29 +804,51 @@ class TestContinuousLearner:
     def test_auto_promote_to_sft(self):
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
         from deadman.alignment.sft_dataset import SFTDataset
+
         learner = ContinuousLearner()
         ds = SFTDataset()
         # rating=5 → quality = 1.0 + 0(无评论) = 1.0 ≥ 0.8 → 晋升
-        learner.record_feedback(FeedbackEvent(
-            user_id="u1", query="q1", response="r1", rating=5,
-        ))
+        learner.record_feedback(
+            FeedbackEvent(
+                user_id="u1",
+                query="q1",
+                response="r1",
+                rating=5,
+            )
+        )
         # rating=3 → 不满足 min_rating=4 → 跳过
-        learner.record_feedback(FeedbackEvent(
-            user_id="u2", query="q2", response="r2", rating=3,
-        ))
+        learner.record_feedback(
+            FeedbackEvent(
+                user_id="u2",
+                query="q2",
+                response="r2",
+                rating=3,
+            )
+        )
         promoted = learner.auto_promote_to_sft(ds, min_quality_score=0.8, min_rating=4)
         assert promoted == 1
         assert ds.count() == 1
 
     def test_forget_user(self):
         from deadman.alignment.continuous_learn import ContinuousLearner, FeedbackEvent
+
         learner = ContinuousLearner()
-        learner.record_feedback(FeedbackEvent(
-            user_id="u1", query="q1", response="r1", rating=5,
-        ))
-        learner.record_feedback(FeedbackEvent(
-            user_id="u2", query="q2", response="r2", rating=4,
-        ))
+        learner.record_feedback(
+            FeedbackEvent(
+                user_id="u1",
+                query="q1",
+                response="r1",
+                rating=5,
+            )
+        )
+        learner.record_feedback(
+            FeedbackEvent(
+                user_id="u2",
+                query="q2",
+                response="r2",
+                rating=4,
+            )
+        )
         removed = learner.forget_user("u1")
         assert removed == 1
         assert learner.event_count() == 1
@@ -715,6 +857,7 @@ class TestContinuousLearner:
 
     def test_feedback_event_rating_validation(self):
         from deadman.alignment.continuous_learn import FeedbackEvent
+
         with pytest.raises(ValueError):
             FeedbackEvent(user_id="u", query="q", response="r", rating=0)
         with pytest.raises(ValueError):
@@ -730,25 +873,30 @@ class TestAlignmentManager:
         # 关闭 flag
         monkeypatch.setenv("DEADMAN_ALIGNMENT_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
         from deadman.alignment import AlignmentDisabledError, get_alignment_manager
+
         with pytest.raises(AlignmentDisabledError):
             get_alignment_manager()
 
     def test_init_raises_when_disabled(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_ALIGNMENT_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
         from deadman.alignment import AlignmentDisabledError, AlignmentManager
+
         with pytest.raises(AlignmentDisabledError):
             AlignmentManager()
 
     def test_get_manager_singleton(self):
         from deadman.alignment import AlignmentManager, get_alignment_manager
+
         m1 = get_alignment_manager()
         m2 = get_alignment_manager()
         assert m1 is m2
@@ -757,9 +905,13 @@ class TestAlignmentManager:
     def test_submit_feedback_end_to_end(self):
         from deadman.alignment import get_alignment_manager
         from deadman.alignment.continuous_learn import FeedbackEvent
+
         manager = get_alignment_manager()
         event = FeedbackEvent(
-            user_id="u1", query="如何立遗嘱?", response="建议咨询律师...", rating=5,
+            user_id="u1",
+            query="如何立遗嘱?",
+            response="建议咨询律师...",
+            rating=5,
         )
         result = manager.submit_feedback(event)
         assert result["recorded"] is True
@@ -768,13 +920,18 @@ class TestAlignmentManager:
     def test_run_training_pipeline(self):
         from deadman.alignment import get_alignment_manager
         from deadman.alignment.continuous_learn import FeedbackEvent
+
         manager = get_alignment_manager()
         # 收集多条反馈
         for i in range(5):
-            manager.submit_feedback(FeedbackEvent(
-                user_id=f"u{i}", query=f"q{i}", response=f"good answer {i}" * 5,
-                rating=5,
-            ))
+            manager.submit_feedback(
+                FeedbackEvent(
+                    user_id=f"u{i}",
+                    query=f"q{i}",
+                    response=f"good answer {i}" * 5,
+                    rating=5,
+                )
+            )
         report = manager.run_training_pipeline()
         assert report.completed is True
         # 至少有一些 SFT 样本被晋升
@@ -783,6 +940,7 @@ class TestAlignmentManager:
     def test_route_query(self):
         from deadman.alignment import get_alignment_manager
         from deadman.alignment.moe_router import Expert
+
         manager = get_alignment_manager()
         model_name, expert = manager.route_query("如何立遗嘱?")
         assert isinstance(expert, Expert)
@@ -792,15 +950,22 @@ class TestAlignmentManager:
     def test_forget_user_end_to_end(self):
         from deadman.alignment import get_alignment_manager
         from deadman.alignment.continuous_learn import FeedbackEvent
+
         manager = get_alignment_manager()
-        manager.submit_feedback(FeedbackEvent(
-            user_id="u1", query="q1", response="r1", rating=5,
-        ))
+        manager.submit_feedback(
+            FeedbackEvent(
+                user_id="u1",
+                query="q1",
+                response="r1",
+                rating=5,
+            )
+        )
         result = manager.forget_user("u1")
         assert result["feedback_removed"] == 1
 
     def test_stats_aggregation(self):
         from deadman.alignment import get_alignment_manager
+
         manager = get_alignment_manager()
         stats = manager.stats()
         assert "dpo" in stats
@@ -810,6 +975,7 @@ class TestAlignmentManager:
 
     def test_chat_without_llm_returns_mock(self):
         from deadman.alignment import get_alignment_manager
+
         manager = get_alignment_manager()
         # 未 attach local_llm → 返回 no-llm-attached 标记
         reply = manager.chat("hello")
@@ -823,16 +989,19 @@ class TestConcurrency:
     def test_dpo_trainer_thread_safe(self):
         """多线程并发 add_preference 不丢数据。"""
         from deadman.alignment.dpo_trainer import DPOTrainer, PreferenceExample
+
         trainer = DPOTrainer()
 
         def add_n(start: int, n: int) -> None:
             for i in range(start, start + n):
-                trainer.add_preference(PreferenceExample(
-                    prompt=f"q-{i}",
-                    chosen_response=f"c-{i}",
-                    rejected_response=f"r-{i}",
-                    user_id="u1",
-                ))
+                trainer.add_preference(
+                    PreferenceExample(
+                        prompt=f"q-{i}",
+                        chosen_response=f"c-{i}",
+                        rejected_response=f"r-{i}",
+                        user_id="u1",
+                    )
+                )
 
         threads = [threading.Thread(target=add_n, args=(i * 100, 100)) for i in range(4)]
         for t in threads:

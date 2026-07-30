@@ -233,9 +233,7 @@ class TestShare:
         # owner 共享给 target
         owner_note = EndingNote.new("owner-3")
         owner_note.personal_info = {"full_name_masked": "张**", "occupation": "工程师"}
-        owner_note.family_relations = [
-            {"relation": "配偶", "name_masked": "李**"}
-        ]
+        owner_note.family_relations = [{"relation": "配偶", "name_masked": "李**"}]
         store.save(owner_note)
         store.share_with("owner-3", "target-3")
 
@@ -267,7 +265,7 @@ class TestShare:
         note = shared_notes[0]
         assert note.personal_info is not None  # 共享了
         assert note.family_relations is None  # 未共享 → None
-        assert note.assets is None            # 未共享 → None
+        assert note.assets is None  # 未共享 → None
 
 
 # ====================================================================
@@ -290,9 +288,7 @@ class TestTriggerDelivery:
         assert "deliver_at" in result
         assert "7 天" in result["message"]
 
-    def test_trigger_death_confirmation_within_wait_period(
-        self, store: EndingNoteStore
-    ):
+    def test_trigger_death_confirmation_within_wait_period(self, store: EndingNoteStore):
         """7 天内再次调用应返回剩余等待天数（不为 0）"""
         owner_note = EndingNote.new("owner-D2")
         store.save(owner_note)
@@ -370,7 +366,7 @@ class TestEncryptionAtRest:
         assert b'"nonce"' in raw
         assert b'"ct"' in raw
         assert b'"alg"' in raw
-        assert b'aes-256-gcm' in raw
+        assert b"aes-256-gcm" in raw
         assert b'"version"' in raw
 
     def test_tampered_file_decrypt_fails(self, store: EndingNoteStore):

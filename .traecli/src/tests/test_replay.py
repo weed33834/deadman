@@ -32,9 +32,7 @@ from deadman.observability.tracer import SpanType, Tracer
 @pytest.fixture
 def enabled_replay(monkeypatch):
     """临时启用 REPLAY_ENABLED"""
-    monkeypatch.setattr(
-        "deadman.observability.replay.REPLAY_ENABLED", True
-    )
+    monkeypatch.setattr("deadman.observability.replay.REPLAY_ENABLED", True)
     yield
 
 
@@ -111,15 +109,11 @@ class TestReplayTraceLoading:
     """trace 加载与 span 提取测试"""
 
     @pytest.mark.asyncio
-    async def test_replay_trace_not_found(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_trace_not_found(self, enabled_replay, mock_llm):
         """trace_id 不存在时返回空结果"""
         t = Tracer()  # 空 tracer
         debugger = ReplayDebugger(t, mock_llm)
-        result = await debugger.replay(
-            ReplayRequest(trace_id="non-existent-trace-id")
-        )
+        result = await debugger.replay(ReplayRequest(trace_id="non-existent-trace-id"))
 
         assert result.replayed_response == ""
         assert result.improved is False
@@ -127,15 +121,11 @@ class TestReplayTraceLoading:
         mock_llm.chat.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_replay_no_root_span(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_no_root_span(self, enabled_replay, mock_llm):
         """trace 中无 ROOT span 时返回空结果（无 user_input）"""
         t = Tracer()
         # 只创建一个 TOOL span（非 ROOT）
-        tool_id = t.start_span(
-            SpanType.TOOL, "tool.web_search", {"query": "test"}
-        )
+        tool_id = t.start_span(SpanType.TOOL, "tool.web_search", {"query": "test"})
         t.end_span(tool_id, status="OK")
         spans = t.get_spans()
         trace_id = spans[0]["trace_id"]
@@ -149,14 +139,10 @@ class TestReplayTraceLoading:
         mock_llm.chat.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_replay_tracer_exception(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_tracer_exception(self, enabled_replay, mock_llm):
         """tracer.get_trace 抛异常时应返回 trace_load_error，不抛出"""
         bad_tracer = MagicMock()
-        bad_tracer.get_trace = MagicMock(
-            side_effect=RuntimeError("db connection lost")
-        )
+        bad_tracer.get_trace = MagicMock(side_effect=RuntimeError("db connection lost"))
 
         debugger = ReplayDebugger(bad_tracer, mock_llm)
         result = await debugger.replay(ReplayRequest(trace_id="any"))
@@ -193,9 +179,7 @@ class TestExtractOriginalContext:
                 },
             }
         ]
-        user_input, system_prompt, response = (
-            ReplayDebugger._extract_original_context(spans)
-        )
+        user_input, system_prompt, response = ReplayDebugger._extract_original_context(spans)
         assert user_input == "你好"
         assert system_prompt == "你是助手"
         assert response == "你好，有什么可以帮你？"
@@ -212,9 +196,7 @@ class TestExtractOriginalContext:
                 },
             }
         ]
-        user_input, system_prompt, response = (
-            ReplayDebugger._extract_original_context(spans)
-        )
+        user_input, system_prompt, response = ReplayDebugger._extract_original_context(spans)
         assert user_input == "test query"
         assert system_prompt == "sys"
         assert response == "test result"
@@ -232,23 +214,17 @@ class TestExtractOriginalContext:
             },
             {
                 "span_type": "LLM_JUDGE",
-                "attributes": {
-                    "input": "这是 LLM_JUDGE 的 input（即原始响应）"
-                },
+                "attributes": {"input": "这是 LLM_JUDGE 的 input（即原始响应）"},
             },
         ]
-        user_input, system_prompt, response = (
-            ReplayDebugger._extract_original_context(spans)
-        )
+        user_input, system_prompt, response = ReplayDebugger._extract_original_context(spans)
         assert user_input == "你好"
         assert system_prompt == "你是助手"
         assert response == "这是 LLM_JUDGE 的 input（即原始响应）"
 
     def test_extract_empty_spans(self):
         """空 span 列表应返回三个空字符串"""
-        user_input, system_prompt, response = (
-            ReplayDebugger._extract_original_context([])
-        )
+        user_input, system_prompt, response = ReplayDebugger._extract_original_context([])
         assert user_input == ""
         assert system_prompt == ""
         assert response == ""
@@ -263,9 +239,7 @@ class TestReplayFlow:
     """replay 主流程测试"""
 
     @pytest.mark.asyncio
-    async def test_replay_success_generates_diff(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_success_generates_diff(self, enabled_replay, mock_llm):
         """成功重放应生成 diff，记录原始/重放响应"""
         tracer, trace_id = _build_trace_with_root(
             user_input="你好",
@@ -288,16 +262,12 @@ class TestReplayFlow:
         mock_llm.chat.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_replay_llm_failure(
-        self, enabled_replay
-    ):
+    async def test_replay_llm_failure(self, enabled_replay):
         """LLM 调用失败时 replayed_response 为空、error 非空、improved=False"""
         bad_llm = MagicMock()
         bad_llm.chat = AsyncMock(side_effect=RuntimeError("LLM down"))
 
-        tracer, trace_id = _build_trace_with_root(
-            original_response="原始响应"
-        )
+        tracer, trace_id = _build_trace_with_root(original_response="原始响应")
         debugger = ReplayDebugger(tracer, bad_llm)
         result = await debugger.replay(ReplayRequest(trace_id=trace_id))
 
@@ -309,69 +279,45 @@ class TestReplayFlow:
         # 不强制断言 diff 内容，仅断言 improved=False
 
     @pytest.mark.asyncio
-    async def test_replay_with_new_prompt(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_with_new_prompt(self, enabled_replay, mock_llm):
         """new_prompt 应作为 user 消息内容传给 LLM"""
         tracer, trace_id = _build_trace_with_root(
             user_input="原始输入", original_response="原始响应"
         )
         debugger = ReplayDebugger(tracer, mock_llm)
-        await debugger.replay(
-            ReplayRequest(
-                trace_id=trace_id, new_prompt="这是新的 prompt"
-            )
-        )
+        await debugger.replay(ReplayRequest(trace_id=trace_id, new_prompt="这是新的 prompt"))
 
         # 检查最后调用参数中 user 消息内容为新 prompt
         call_args = mock_llm.chat.call_args
         messages = call_args.args[0]
-        user_msg = next(
-            (m for m in messages if m["role"] == "user"), None
-        )
+        user_msg = next((m for m in messages if m["role"] == "user"), None)
         assert user_msg is not None
         assert user_msg["content"] == "这是新的 prompt"
 
     @pytest.mark.asyncio
-    async def test_replay_with_new_temperature(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_with_new_temperature(self, enabled_replay, mock_llm):
         """new_temperature 应传给 LLM chat 的 temperature 参数"""
-        tracer, trace_id = _build_trace_with_root(
-            original_response="原始响应"
-        )
+        tracer, trace_id = _build_trace_with_root(original_response="原始响应")
         debugger = ReplayDebugger(tracer, mock_llm)
-        await debugger.replay(
-            ReplayRequest(trace_id=trace_id, new_temperature=0.9)
-        )
+        await debugger.replay(ReplayRequest(trace_id=trace_id, new_temperature=0.9))
 
         call_kwargs = mock_llm.chat.call_args.kwargs
         assert call_kwargs.get("temperature") == 0.9
 
     @pytest.mark.asyncio
-    async def test_replay_with_new_model_kwargs(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_with_new_model_kwargs(self, enabled_replay, mock_llm):
         """new_model 应通过 kwargs 传给 LLM chat"""
-        tracer, trace_id = _build_trace_with_root(
-            original_response="原始响应"
-        )
+        tracer, trace_id = _build_trace_with_root(original_response="原始响应")
         debugger = ReplayDebugger(tracer, mock_llm)
-        await debugger.replay(
-            ReplayRequest(trace_id=trace_id, new_model="gpt-4o")
-        )
+        await debugger.replay(ReplayRequest(trace_id=trace_id, new_model="gpt-4o"))
 
         call_kwargs = mock_llm.chat.call_args.kwargs
         assert call_kwargs.get("model") == "gpt-4o"
 
     @pytest.mark.asyncio
-    async def test_replay_metadata_records_request_params(
-        self, enabled_replay, mock_llm
-    ):
+    async def test_replay_metadata_records_request_params(self, enabled_replay, mock_llm):
         """metadata 应记录请求参数（new_prompt/new_model/new_temperature）"""
-        tracer, trace_id = _build_trace_with_root(
-            original_response="原始响应"
-        )
+        tracer, trace_id = _build_trace_with_root(original_response="原始响应")
         debugger = ReplayDebugger(tracer, mock_llm)
         result = await debugger.replay(
             ReplayRequest(
@@ -422,10 +368,7 @@ class TestIsImproved:
 
     def test_improved_with_error(self):
         """有 error 时返回 False"""
-        assert (
-            ReplayDebugger._is_improved("短", "很长很长很长很长", "error")
-            is False
-        )
+        assert ReplayDebugger._is_improved("短", "很长很长很长很长", "error") is False
 
     def test_improved_empty_replayed(self):
         """replayed 为空时返回 False"""

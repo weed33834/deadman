@@ -85,18 +85,14 @@ class TestAppendEpisodeWithMetadata:
 
     def test_append_importance_only(self, tmp_path: Path):
         store = FileMemoryStore(memory_dir=tmp_path)
-        store.append_episode(
-            "s", "summary", datetime(2024, 1, 1), importance=0.5
-        )
+        store.append_episode("s", "summary", datetime(2024, 1, 1), importance=0.5)
         ep = store.load_episodes()[0]
         assert ep["importance"] == 0.5
         assert ep["pinned"] is False
 
     def test_append_pinned_only(self, tmp_path: Path):
         store = FileMemoryStore(memory_dir=tmp_path)
-        store.append_episode(
-            "s", "summary", datetime(2024, 1, 1), pinned=True
-        )
+        store.append_episode("s", "summary", datetime(2024, 1, 1), pinned=True)
         ep = store.load_episodes()[0]
         assert ep["importance"] is None
         assert ep["pinned"] is True
@@ -151,8 +147,11 @@ class TestParseEpisodeBackwardCompat:
         """session 含短横线不应被误解析"""
         store = FileMemoryStore(memory_dir=tmp_path)
         store.append_episode(
-            "default-session", "x", datetime(2024, 1, 1),
-            importance=0.5, pinned=True,
+            "default-session",
+            "x",
+            datetime(2024, 1, 1),
+            importance=0.5,
+            pinned=True,
         )
         ep = store.load_episodes()[0]
         assert ep["session"] == "default-session"
@@ -295,25 +294,26 @@ class TestIsTraumaEpisode:
         assert self.mm._is_trauma_episode("咨询户口", "建议到派出所", None, "R0") is False
 
     def test_distress_keyword_in_user_input(self):
-        assert self.mm._is_trauma_episode(
-            "我撑不下去了想自杀", "建议拨打心理热线", None, "R0"
-        ) is True
+        assert (
+            self.mm._is_trauma_episode("我撑不下去了想自杀", "建议拨打心理热线", None, "R0") is True
+        )
 
     def test_distress_keyword_in_assistant(self):
         # 智能体提到"自杀"干预也算
-        assert self.mm._is_trauma_episode(
-            "我很难过", "如果您有自杀念头,请拨打...", None, "R0"
-        ) is True
+        assert (
+            self.mm._is_trauma_episode("我很难过", "如果您有自杀念头,请拨打...", None, "R0") is True
+        )
 
     def test_legal_keyword(self):
-        assert self.mm._is_trauma_episode(
-            "我家有继承纠纷", "建议咨询律师", None, "R0"
-        ) is True
+        assert self.mm._is_trauma_episode("我家有继承纠纷", "建议咨询律师", None, "R0") is True
 
     def test_normal_conversation_not_trauma(self):
-        assert self.mm._is_trauma_episode(
-            "请问户口注销需要什么材料", "需要身份证和死亡证明", None, "R0"
-        ) is False
+        assert (
+            self.mm._is_trauma_episode(
+                "请问户口注销需要什么材料", "需要身份证和死亡证明", None, "R0"
+            )
+            is False
+        )
 
 
 # =====================================================================
@@ -411,9 +411,7 @@ class TestAfterTurnCompression:
         mm.graphiti = None
         mm.lightrag = None
 
-        mock_llm = MockLLMClient(
-            raise_on_chat=True, raise_on_json=True, api_key="mock-key"
-        )
+        mock_llm = MockLLMClient(raise_on_chat=True, raise_on_json=True, api_key="mock-key")
         monkeypatch.setattr(mm_module, "llm_client", mock_llm)
 
         await mm.after_turn(

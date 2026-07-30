@@ -36,9 +36,7 @@ class TestRegexChecker:
             {"pattern": r"大概\s*\d+", "reason": "编造数字"},
             {"pattern": r"应该\s*\d+", "reason": "编造数字"},
         ]
-        passed, failures = await checker.check_regex_blacklist(
-            "建议咨询当地医保部门。", patterns
-        )
+        passed, failures = await checker.check_regex_blacklist("建议咨询当地医保部门。", patterns)
         assert passed is True
         assert failures == []
 
@@ -46,9 +44,7 @@ class TestRegexChecker:
         # 命中黑名单 → 不通过
         checker = RegexChecker()
         patterns = [{"pattern": r"大概\s*\d+", "reason": "编造数字"}]
-        passed, failures = await checker.check_regex_blacklist(
-            "大概7天就能办下来", patterns
-        )
+        passed, failures = await checker.check_regex_blacklist("大概7天就能办下来", patterns)
         assert passed is False
         assert len(failures) == 1
         assert failures[0]["reason"] == "编造数字"
@@ -61,9 +57,7 @@ class TestRegexChecker:
             {"pattern": r"大概\s*\d+", "reason": "大概"},
             {"pattern": r"应该\s*\d+", "reason": "应该"},
         ]
-        passed, failures = await checker.check_regex_blacklist(
-            "大概7天，应该15天", patterns
-        )
+        passed, failures = await checker.check_regex_blacklist("大概7天，应该15天", patterns)
         assert passed is False
         assert len(failures) == 2
 
@@ -116,7 +110,8 @@ class TestKeywordChecker:
             {"keywords": ["医保局"], "reason": "引导官方", "min_hits": 1},
         ]
         passed, failures = await checker.check_keyword_must_hit(
-            "我们不能编造数字。", groups  # 缺 "医保局"
+            "我们不能编造数字。",
+            groups,  # 缺 "医保局"
         )
         assert passed is False
         assert len(failures) == 1
@@ -128,9 +123,7 @@ class TestKeywordChecker:
         groups = [
             {"keywords": ["A", "B", "C"], "reason": "需命中2个", "min_hits": 2},
         ]
-        passed, failures = await checker.check_keyword_must_hit(
-            "只含 A", groups
-        )
+        passed, failures = await checker.check_keyword_must_hit("只含 A", groups)
         assert passed is False
         assert failures[0]["hits"] == 1
         assert failures[0]["required"] == 2
@@ -193,36 +186,43 @@ class TestArgValidator:
 
     def test_contains_string(self):
         # contains：字符串包含子串
-        assert self.validator.validate(
-            "medical_insurance_topic", {"type": "contains", "value": "medical_insurance"}
-        ) is True
-        assert self.validator.validate(
-            "legal_topic", {"type": "contains", "value": "medical_insurance"}
-        ) is False
+        assert (
+            self.validator.validate(
+                "medical_insurance_topic", {"type": "contains", "value": "medical_insurance"}
+            )
+            is True
+        )
+        assert (
+            self.validator.validate(
+                "legal_topic", {"type": "contains", "value": "medical_insurance"}
+            )
+            is False
+        )
 
     def test_contains_list(self):
         # contains：列表中某项包含子串
-        assert self.validator.validate(
-            ["a", "medical_insurance_x"], {"type": "contains", "value": "medical_insurance"}
-        ) is True
-        assert self.validator.validate(
-            ["a", "b"], {"type": "contains", "value": "medical_insurance"}
-        ) is False
+        assert (
+            self.validator.validate(
+                ["a", "medical_insurance_x"], {"type": "contains", "value": "medical_insurance"}
+            )
+            is True
+        )
+        assert (
+            self.validator.validate(["a", "b"], {"type": "contains", "value": "medical_insurance"})
+            is False
+        )
 
     def test_regex_match(self):
         # regex：正则匹配
-        assert self.validator.validate(
-            "13800138000", {"type": "regex", "value": r"1[3-9]\d{9}"}
-        ) is True
-        assert self.validator.validate(
-            "abc", {"type": "regex", "value": r"1[3-9]\d{9}"}
-        ) is False
+        assert (
+            self.validator.validate("13800138000", {"type": "regex", "value": r"1[3-9]\d{9}"})
+            is True
+        )
+        assert self.validator.validate("abc", {"type": "regex", "value": r"1[3-9]\d{9}"}) is False
 
     def test_regex_invalid_pattern(self):
         # 非法正则 → 不通过
-        assert self.validator.validate(
-            "x", {"type": "regex", "value": r"[invalid"}
-        ) is False
+        assert self.validator.validate("x", {"type": "regex", "value": r"[invalid"}) is False
 
     def test_none_spec_passes(self):
         # None spec → 视为无校验要求
@@ -269,24 +269,23 @@ class TestSubsequenceAndMatch:
 
     def test_match_result_or_alternatives(self):
         # "|" 分隔的多个可选值
-        assert _match_result(
-            {"execution_mode": "success"}, {"execution_mode": "success|fallback"}
-        ) is True
-        assert _match_result(
-            {"execution_mode": "fallback"}, {"execution_mode": "success|fallback"}
-        ) is True
-        assert _match_result(
-            {"execution_mode": "failed"}, {"execution_mode": "success|fallback"}
-        ) is False
+        assert (
+            _match_result({"execution_mode": "success"}, {"execution_mode": "success|fallback"})
+            is True
+        )
+        assert (
+            _match_result({"execution_mode": "fallback"}, {"execution_mode": "success|fallback"})
+            is True
+        )
+        assert (
+            _match_result({"execution_mode": "failed"}, {"execution_mode": "success|fallback"})
+            is False
+        )
 
     def test_match_result_gte_suffix(self):
         # _gte 后缀：>= 比较
-        assert _match_result(
-            {"violations_count": 5}, {"violations_count_gte": 1}
-        ) is True
-        assert _match_result(
-            {"violations_count": 0}, {"violations_count_gte": 1}
-        ) is False
+        assert _match_result({"violations_count": 5}, {"violations_count_gte": 1}) is True
+        assert _match_result({"violations_count": 0}, {"violations_count_gte": 1}) is False
 
     def test_match_result_non_dict_actual(self):
         # 实际结果非 dict → False
@@ -304,13 +303,21 @@ class TestValidateToolCalls:
     async def test_all_required_tools_called_passes(self):
         # 所有必须工具都调用 → selection_accuracy=1.0
         actual = [
-            {"tool": "query_knowledge", "args": {"country": "CN", "topic": "x"}, "result": {"found": False}},
+            {
+                "tool": "query_knowledge",
+                "args": {"country": "CN", "topic": "x"},
+                "result": {"found": False},
+            },
             {"tool": "check_rules", "args": {"agent_name": "a"}, "result": {"passed": True}},
         ]
         expected = [
-            {"step": 1, "tool": "query_knowledge", "required": True,
-             "args_validation": {"country": {"type": "exact", "value": "CN"}},
-             "expected_result": {"found": False}},
+            {
+                "step": 1,
+                "tool": "query_knowledge",
+                "required": True,
+                "args_validation": {"country": {"type": "exact", "value": "CN"}},
+                "expected_result": {"found": False},
+            },
             {"step": 2, "tool": "check_rules", "required": True},
         ]
         result = await validate_tool_calls(actual, expected)
@@ -352,11 +359,15 @@ class TestValidateToolCalls:
             {"tool": "query_knowledge", "args": {"country": "CN"}, "result": {}},
         ]
         expected = [
-            {"step": 1, "tool": "query_knowledge", "required": True,
-             "args_validation": {
-                 "country": {"type": "exact", "value": "CN"},  # 通过
-                 "topic": {"type": "non_empty"},  # 缺失 → 不通过
-             }},
+            {
+                "step": 1,
+                "tool": "query_knowledge",
+                "required": True,
+                "args_validation": {
+                    "country": {"type": "exact", "value": "CN"},  # 通过
+                    "topic": {"type": "non_empty"},  # 缺失 → 不通过
+                },
+            },
         ]
         result = await validate_tool_calls(actual, expected)
         # 1 个通过 1 个不通过 → argument_accuracy=0.5
@@ -394,8 +405,12 @@ class TestValidateToolCalls:
             {"tool": "query_knowledge", "args": {}, "result": {"found": False}},
         ]
         expected = [
-            {"step": 1, "tool": "query_knowledge", "required": True,
-             "expected_result": {"found": False}},
+            {
+                "step": 1,
+                "tool": "query_knowledge",
+                "required": True,
+                "expected_result": {"found": False},
+            },
         ]
         result = await validate_tool_calls(actual, expected)
         assert result["result_match_rate"] == 1.0
@@ -412,8 +427,13 @@ class TestValidateToolCalls:
         expected = []
         result = await validate_tool_calls(actual, expected)
         for key in [
-            "tool_selection_accuracy", "argument_accuracy", "order_match",
-            "unnecessary_calls", "result_match_rate", "passed", "details",
+            "tool_selection_accuracy",
+            "argument_accuracy",
+            "order_match",
+            "unnecessary_calls",
+            "result_match_rate",
+            "passed",
+            "details",
         ]:
             assert key in result, f"缺少字段 {key}"
 

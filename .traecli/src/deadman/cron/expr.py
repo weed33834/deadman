@@ -39,9 +39,7 @@ class CronExpr:
 
         parts = text.split()
         if len(parts) != 5:
-            raise ValueError(
-                f"cron 表达式必须为 5 个字段 (min hour dom mon dow): {expr!r}"
-            )
+            raise ValueError(f"cron 表达式必须为 5 个字段 (min hour dom mon dow): {expr!r}")
 
         # croniter 校验合法性
         if not croniter.is_valid(text):
@@ -81,9 +79,7 @@ class CronExpr:
             result = cron.get_next(datetime)
             return result.replace(second=0, microsecond=0)
         except (ValueError, KeyError) as e:
-            raise ValueError(
-                f"cron 表达式 {self._expr!r} 无法计算下次触发时间: {e}"
-            ) from e
+            raise ValueError(f"cron 表达式 {self._expr!r} 无法计算下次触发时间: {e}") from e
 
     def min_interval_hours(self) -> float:
         """估算最小触发间隔（小时）。
@@ -104,10 +100,7 @@ class CronExpr:
         if len(fires) < 2:
             return float("inf")
 
-        gaps = [
-            (fires[i + 1] - fires[i]).total_seconds() / 3600.0
-            for i in range(len(fires) - 1)
-        ]
+        gaps = [(fires[i + 1] - fires[i]).total_seconds() / 3600.0 for i in range(len(fires) - 1)]
         return min(gaps)
 
     def __repr__(self) -> str:

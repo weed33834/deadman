@@ -185,6 +185,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # P1-2: 关联 Sentry scope，便于错误事件按 request_id 追踪
         try:
             from ..observability.sentry_init import add_request_tag
+
             add_request_tag("request_id", request_id)
         except Exception:
             pass
@@ -209,6 +210,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # 但中间件层能捕获未走 handler 的异常，双上报由 Sentry 去重）
             try:
                 from ..observability.sentry_init import capture_exception
+
                 capture_exception(
                     request_id=request_id,
                     path=path,
@@ -222,9 +224,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         elapsed_ms = (time.perf_counter() - start) * 1000
         response.headers["X-Request-ID"] = request_id
 
-        log_msg = (
-            "access method=%s path=%s status=%d ip=%s rid=%s elapsed_ms=%.1f"
-        )
+        log_msg = "access method=%s path=%s status=%d ip=%s rid=%s elapsed_ms=%.1f"
         log_args = (
             method,
             path,
@@ -274,9 +274,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def _unhandled_error_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
         rid = getattr(request.state, "request_id", "-")
         logger.exception(
             "unhandled_exception path=%s rid=%s: %s",
@@ -288,6 +286,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         # 未初始化时 capture_exception 为 no-op，零开销
         try:
             from ..observability.sentry_init import capture_exception
+
             capture_exception(
                 exc,
                 request_id=rid,
@@ -382,9 +381,9 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
         except Exception:
             status = "500"
             http_requests_total.labels(method=method, path=route_tpl, status=status).inc()
-            http_request_duration_seconds.labels(
-                method=method, path=route_tpl
-            ).observe(time.perf_counter() - start)
+            http_request_duration_seconds.labels(method=method, path=route_tpl).observe(
+                time.perf_counter() - start
+            )
             raise
 
         elapsed = time.perf_counter() - start

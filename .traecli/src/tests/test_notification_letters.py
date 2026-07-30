@@ -37,6 +37,7 @@ from deadman.notification_letters.generator import LetterGenerator as Gen
 # 辅助：构造通用 LetterRequest（每个类型特定字段可覆盖）
 # ====================================================================
 
+
 def _make_request(
     letter_type: str,
     extra_fields: dict | None = None,
@@ -57,6 +58,7 @@ def _make_request(
 # ====================================================================
 # 1-8. 8 种信函类型生成测试
 # ====================================================================
+
 
 class TestEightLetterTypes:
     """8 种信函类型各 1 个生成测试"""
@@ -199,8 +201,8 @@ class TestEightLetterTypes:
 # 9. 占位符提取测试
 # ====================================================================
 
-class TestPlaceholderExtraction:
 
+class TestPlaceholderExtraction:
     def test_extract_placeholders_basic(self):
         """提取 [xxx] 占位符（去重保序）"""
         text = (
@@ -235,8 +237,8 @@ class TestPlaceholderExtraction:
 # 10. PII 脱敏测试
 # ====================================================================
 
-class TestPIIMasking:
 
+class TestPIIMasking:
     def test_mask_id_card(self):
         """身份证号 18 位脱敏"""
         text = "身份证号：110101199001011234"
@@ -291,8 +293,8 @@ class TestPIIMasking:
 # 11. LLM 不可用降级测试
 # ====================================================================
 
-class TestLLMUnavailableFallback:
 
+class TestLLMUnavailableFallback:
     def test_llm_unavailable_returns_low_confidence(self):
         """use_llm=True 但 llm_client 不可用 → confidence=0.3"""
         req = _make_request(
@@ -301,6 +303,7 @@ class TestLLMUnavailableFallback:
         )
         # llm_client.api_key 为空 → 视为不可用
         import deadman.llm as llm_module
+
         mock_llm = MagicMock()
         mock_llm.api_key = ""  # 空 key 表示未配置
         old = llm_module.llm_client
@@ -341,8 +344,8 @@ class TestLLMUnavailableFallback:
 # 12. CLI 命令测试
 # ====================================================================
 
-class TestCLICommands:
 
+class TestCLICommands:
     def _run_cli(self, cmd_func, args_dict: dict) -> str:
         """运行 CLI 子命令，捕获 stdout"""
         args = argparse.Namespace(**args_dict)
@@ -354,6 +357,7 @@ class TestCLICommands:
     def test_letter_list_types(self):
         """letter-list-types 列出 8 种类型"""
         from deadman._cli_extensions.phase15_letters import cmd_letter_list_types
+
         out = self._run_cli(cmd_letter_list_types, {})
         assert "household_cancellation" in out
         assert "internet_account_cancellation" in out
@@ -365,6 +369,7 @@ class TestCLICommands:
     def test_letter_template(self):
         """letter-template 打印原始模板"""
         from deadman._cli_extensions.phase15_letters import cmd_letter_template
+
         out = self._run_cli(
             cmd_letter_template,
             {"type": "household_cancellation"},
@@ -376,6 +381,7 @@ class TestCLICommands:
     def test_letter_template_invalid_type_exits(self):
         """letter-template 未知类型应 sys.exit(1)"""
         from deadman._cli_extensions.phase15_letters import cmd_letter_template
+
         args = argparse.Namespace(type="nonexistent_type")
         with pytest.raises(SystemExit) as exc_info:
             cmd_letter_template(args)
@@ -384,6 +390,7 @@ class TestCLICommands:
     def test_letter_generate(self):
         """letter-generate 生成信函"""
         from deadman._cli_extensions.phase15_letters import cmd_letter_generate
+
         out = self._run_cli(
             cmd_letter_generate,
             {
@@ -406,6 +413,7 @@ class TestCLICommands:
     def test_letter_generate_missing_extra_uses_placeholder(self):
         """letter-generate 缺失 extra_fields → 占位符"""
         from deadman._cli_extensions.phase15_letters import cmd_letter_generate
+
         out = self._run_cli(
             cmd_letter_generate,
             {
@@ -426,6 +434,7 @@ class TestCLICommands:
     def test_register_subparsers(self):
         """register_subparsers 挂载 3 个子命令"""
         from deadman._cli_extensions.phase15_letters import register_subparsers
+
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command")
         register_subparsers(subparsers)
@@ -438,17 +447,27 @@ class TestCLICommands:
         assert args.command == "letter-template"
         assert args.type == "household_cancellation"
         # 解析 letter-generate
-        args = parser.parse_args([
-            "letter-generate",
-            "--type", "credit_card_cancellation",
-            "--name", "张**",
-            "--id-masked", "110101********1234",
-            "--death-date", "2026-01-15",
-            "--applicant", "李**",
-            "--relationship", "子女",
-            "--recipient", "测试行",
-            "--extra", "card_last_four=1234",
-        ])
+        args = parser.parse_args(
+            [
+                "letter-generate",
+                "--type",
+                "credit_card_cancellation",
+                "--name",
+                "张**",
+                "--id-masked",
+                "110101********1234",
+                "--death-date",
+                "2026-01-15",
+                "--applicant",
+                "李**",
+                "--relationship",
+                "子女",
+                "--recipient",
+                "测试行",
+                "--extra",
+                "card_last_four=1234",
+            ]
+        )
         assert args.command == "letter-generate"
         assert args.type == "credit_card_cancellation"
         assert args.extra == ["card_last_four=1234"]
@@ -457,6 +476,7 @@ class TestCLICommands:
 # ====================================================================
 # 13-14. Web 端点测试
 # ====================================================================
+
 
 class _CapturedHandler:
     """模拟 WebServer.run 内的 Handler 实例，捕获 _send_json 调用
@@ -484,15 +504,19 @@ class _CapturedHandler:
     def _handle_letters_types(self) -> None:
         from deadman.notification_letters.models import DEFAULT_DISCLAIMER
         from deadman.notification_letters.templates import LETTER_TYPES
+
         user = self._phase_auth_user()
         if user is None:
             self._phase_unauthorized()
             return
-        self._send_json(200, {
-            "types": [dict(t) for t in LETTER_TYPES],
-            "count": len(LETTER_TYPES),
-            "disclaimer": DEFAULT_DISCLAIMER,
-        })
+        self._send_json(
+            200,
+            {
+                "types": [dict(t) for t in LETTER_TYPES],
+                "count": len(LETTER_TYPES),
+                "disclaimer": DEFAULT_DISCLAIMER,
+            },
+        )
 
     def _handle_letters_template(self, query: dict) -> None:
         from deadman.notification_letters.models import DEFAULT_DISCLAIMER
@@ -501,48 +525,62 @@ class _CapturedHandler:
             LETTER_TYPES,
             get_letter_type_meta,
         )
+
         user = self._phase_auth_user()
         if user is None:
             self._phase_unauthorized()
             return
         letter_type = (query.get("type", [""])[0] or "").strip()
         if not letter_type:
-            self._send_json(400, {
-                "error": "缺少 type 参数",
-                "disclaimer": DEFAULT_DISCLAIMER,
-            })
+            self._send_json(
+                400,
+                {
+                    "error": "缺少 type 参数",
+                    "disclaimer": DEFAULT_DISCLAIMER,
+                },
+            )
             return
         if letter_type not in LETTER_TEMPLATES:
-            self._send_json(404, {
-                "error": f"未知信函类型: {letter_type}",
-                "supported_types": [t["type"] for t in LETTER_TYPES],
-                "disclaimer": DEFAULT_DISCLAIMER,
-            })
+            self._send_json(
+                404,
+                {
+                    "error": f"未知信函类型: {letter_type}",
+                    "supported_types": [t["type"] for t in LETTER_TYPES],
+                    "disclaimer": DEFAULT_DISCLAIMER,
+                },
+            )
             return
         meta = get_letter_type_meta(letter_type) or {}
-        self._send_json(200, {
-            "type": letter_type,
-            "name": meta.get("name", ""),
-            "template": LETTER_TEMPLATES[letter_type],
-            "extra_fields_needed": meta.get("extra_fields_needed", []),
-            "disclaimer": DEFAULT_DISCLAIMER,
-        })
+        self._send_json(
+            200,
+            {
+                "type": letter_type,
+                "name": meta.get("name", ""),
+                "template": LETTER_TEMPLATES[letter_type],
+                "extra_fields_needed": meta.get("extra_fields_needed", []),
+                "disclaimer": DEFAULT_DISCLAIMER,
+            },
+        )
 
     def _handle_letters_generate(self, body: dict, use_llm: bool = False) -> None:
         from deadman.notification_letters import (
             LetterRequest,
         )
         from deadman.notification_letters.models import DEFAULT_DISCLAIMER
+
         user = self._phase_auth_user()
         if user is None:
             self._phase_unauthorized()
             return
         letter_type = body.get("letter_type")
         if not letter_type:
-            self._send_json(400, {
-                "error": "缺少 letter_type",
-                "disclaimer": DEFAULT_DISCLAIMER,
-            })
+            self._send_json(
+                400,
+                {
+                    "error": "缺少 letter_type",
+                    "disclaimer": DEFAULT_DISCLAIMER,
+                },
+            )
             return
         try:
             request = LetterRequest(
@@ -559,16 +597,18 @@ class _CapturedHandler:
             generator = LetterGenerator(use_llm=use_llm)
             result = generator.generate(request)
         except ValueError as exc:
-            self._send_json(400, {
-                "error": str(exc),
-                "disclaimer": DEFAULT_DISCLAIMER,
-            })
+            self._send_json(
+                400,
+                {
+                    "error": str(exc),
+                    "disclaimer": DEFAULT_DISCLAIMER,
+                },
+            )
             return
         self._send_json(200, result.to_dict())
 
 
 class TestWebEndpoints:
-
     def test_letters_types_401_without_auth(self):
         """未认证访问 /api/letters/types 返回 401"""
         h = _CapturedHandler(auth_user=None)
@@ -618,25 +658,29 @@ class TestWebEndpoints:
     def test_letters_generate_401_without_auth(self):
         """未认证 POST /api/letters/generate 返回 401"""
         h = _CapturedHandler(auth_user=None)
-        h._handle_letters_generate({
-            "letter_type": "household_cancellation",
-        })
+        h._handle_letters_generate(
+            {
+                "letter_type": "household_cancellation",
+            }
+        )
         status, _payload = h.calls[0]
         assert status == 401
 
     def test_letters_generate_200_with_auth(self):
         """认证后 POST /api/letters/generate 返回 200 + 信函文本"""
         h = _CapturedHandler(auth_user={"user_id": "u1"})
-        h._handle_letters_generate({
-            "letter_type": "credit_card_cancellation",
-            "decedent_name": "张**",
-            "decedent_id_masked": "110101********1234",
-            "death_date": "2026-01-15",
-            "applicant_name": "李**",
-            "applicant_relationship": "子女",
-            "recipient_org": "测试发卡行",
-            "extra_fields": {"card_last_four": "1234"},
-        })
+        h._handle_letters_generate(
+            {
+                "letter_type": "credit_card_cancellation",
+                "decedent_name": "张**",
+                "decedent_id_masked": "110101********1234",
+                "death_date": "2026-01-15",
+                "applicant_name": "李**",
+                "applicant_relationship": "子女",
+                "recipient_org": "测试发卡行",
+                "extra_fields": {"card_last_four": "1234"},
+            }
+        )
         status, payload = h.calls[0]
         assert status == 200
         assert payload["letter_type"] == "credit_card_cancellation"
@@ -658,6 +702,7 @@ class TestWebEndpoints:
 # 15. 不编造测试
 # ====================================================================
 
+
 class TestNoFabrication:
     """生成结果不应编造未提供的具体电话/地址"""
 
@@ -670,6 +715,7 @@ class TestNoFabrication:
         result = Gen().generate(req)
         # 扫描是否含 11 位 1 开头的连续数字（手机号模式）
         import re
+
         phones = re.findall(r"\b1[3-9]\d{9}\b", result.text)
         assert phones == [], f"信函中不应出现编造的手机号，但发现: {phones}"
 
@@ -682,6 +728,7 @@ class TestNoFabrication:
         )
         result = Gen().generate(req)
         import re
+
         # 16-19 位连续数字
         accounts = re.findall(r"\b\d{16,19}\b", result.text)
         assert accounts == [], f"信函中不应出现编造的银行账号，但发现: {accounts}"
@@ -694,6 +741,7 @@ class TestNoFabrication:
         )
         result = Gen().generate(req)
         import re
+
         # 18 位身份证号（明文）
         ids = re.findall(r"\b\d{17}[\dXx]\b", result.text)
         assert ids == [], f"信函中不应出现明文身份证号，但发现: {ids}"

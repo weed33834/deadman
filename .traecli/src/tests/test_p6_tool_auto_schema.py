@@ -369,6 +369,7 @@ class TestMcpServerToolAuto:
             return {"echoed": message}
 
         import asyncio
+
         result = asyncio.run(server.call_tool("echo", {"message": "hello"}))
         assert result["echoed"] == "hello"
 
@@ -420,10 +421,16 @@ class TestReportIncidentAutoSchema:
         import asyncio
 
         from deadman.mcp_server.server import mcp
-        result = asyncio.run(mcp.call_tool("report_incident", {
-            "incident_type": "injection_attempt",
-            "description": "测试注入",
-        }))
+
+        result = asyncio.run(
+            mcp.call_tool(
+                "report_incident",
+                {
+                    "incident_type": "injection_attempt",
+                    "description": "测试注入",
+                },
+            )
+        )
         assert result["logged"] is True
         assert result["incident_type"] == "injection_attempt"
         assert "incident_id" in result

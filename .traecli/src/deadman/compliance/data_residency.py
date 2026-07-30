@@ -234,7 +234,9 @@ class DataResidency:
             ExportResult: 导出结果(若违规则 success=False)
         """
         if not is_enabled("compliance"):
-            return ExportResult(True, user_id, target_region, data_kind, False, "compliance_disabled")
+            return ExportResult(
+                True, user_id, target_region, data_kind, False, "compliance_disabled"
+            )
 
         tid = get_current_tenant_id()
         policy = self._policies.get(tid) if tid else None
@@ -275,7 +277,8 @@ class DataResidency:
                         cross_border_consent=pdata.get("cross_border_consent", False),
                         cross_border_consent_at=pdata.get("cross_border_consent_at"),
                         sensitive_data_regions={
-                            k: DataRegion(v) for k, v in pdata.get("sensitive_data_regions", {}).items()
+                            k: DataRegion(v)
+                            for k, v in pdata.get("sensitive_data_regions", {}).items()
                         },
                     )
         except Exception as e:
@@ -294,13 +297,17 @@ class DataResidency:
                         "allowed_regions": [r.value for r in p.allowed_regions],
                         "cross_border_consent": p.cross_border_consent,
                         "cross_border_consent_at": p.cross_border_consent_at,
-                        "sensitive_data_regions": {k: v.value for k, v in p.sensitive_data_regions.items()},
+                        "sensitive_data_regions": {
+                            k: v.value for k, v in p.sensitive_data_regions.items()
+                        },
                     }
                     for tid, p in self._policies.items()
                 },
             }
             tmp = self.store_path.with_suffix(".tmp")
-            tmp.write_text(yaml.safe_dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
+            tmp.write_text(
+                yaml.safe_dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Residency store save failed: %s", e)

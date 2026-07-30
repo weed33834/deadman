@@ -63,9 +63,7 @@ _ENDING_NOTE_SECTION_SUGGESTIONS: dict[str, str] = {
     "family_relations": "未填写家庭关系章节，建议列出配偶、子女、父母等家庭成员",
     "assets": "未填写资产清单章节，建议列出房产、银行账户、证券、保险等资产",
     "funeral_wishes": "未填写葬礼意愿章节，建议填写火葬/土葬/海葬等仪式偏好",
-    "medical_wishes": (
-        "未填写医疗意愿章节，建议填写是否愿意接受姑息治疗、是否捐献器官等"
-    ),
+    "medical_wishes": ("未填写医疗意愿章节，建议填写是否愿意接受姑息治疗、是否捐献器官等"),
     "digital_legacy": "未填写数字遗产章节，建议列出微信、支付宝、银行账号的处理意愿",
     "messages": "未填写给家人的留言章节，建议留下感谢、道歉、嘱托等话语",
     "emergency_contacts": "未填写重要联系人章节，建议列出律师、公证处、医生、殡仪馆等联系方式",
@@ -140,9 +138,7 @@ class PlanScorer:
         缺失维度（不在列表中）按 0 分处理；
         结果四舍五入到整数，clamp 到 [0, 100]。
         """
-        score_map: dict[Category, int] = {
-            s.category: s.score for s in category_scores
-        }
+        score_map: dict[Category, int] = {s.category: s.score for s in category_scores}
         total = 0.0
         for cat, weight in WEIGHTS.items():
             total += score_map.get(cat, 0) * weight
@@ -205,8 +201,7 @@ class PlanScorer:
         # will_intent 标记额外 1 分（用户已立正式遗嘱或明确意向）
         will_intent = getattr(note, "will_intent", None)
         if isinstance(will_intent, dict) and (
-            will_intent.get("has_formal_will")
-            or will_intent.get("intent_to_create")
+            will_intent.get("has_formal_will") or will_intent.get("intent_to_create")
         ):
             score += 1
             completed.append("已明确立遗嘱意向")
@@ -264,13 +259,9 @@ class PlanScorer:
         score = 0
         has_password = any(it.get("type") == "password" for it in items)
         has_document = any(it.get("type") == "document" for it in items)
-        has_beneficiary = any(
-            it.get("beneficiary_user_ids") for it in items
-        )
+        has_beneficiary = any(it.get("beneficiary_user_ids") for it in items)
         has_trigger = any(
-            it.get("delivery_trigger")
-            and it.get("delivery_trigger") != "manual"
-            for it in items
+            it.get("delivery_trigger") and it.get("delivery_trigger") != "manual" for it in items
         )
 
         if has_password:
@@ -358,22 +349,16 @@ class PlanScorer:
             completed.append("案例已有时间线事件")
         else:
             missing.append("案例尚无时间线事件")
-            suggestions.append(
-                "建议为案例添加时间线事件（case-event-add），记录关键流程节点"
-            )
+            suggestions.append("建议为案例添加时间线事件（case-event-add），记录关键流程节点")
 
         # case 已归档：30 分
-        has_archived = any(
-            getattr(c, "status", "") == "archived" for c in cases
-        )
+        has_archived = any(getattr(c, "status", "") == "archived" for c in cases)
         if has_archived:
             score += 30
             completed.append("已有案例归档（流程完成）")
         else:
             missing.append("无已归档案例")
-            suggestions.append(
-                "建议在流程完成后归档案例（case-archive），便于后续查阅与统计"
-            )
+            suggestions.append("建议在流程完成后归档案例（case-archive），便于后续查阅与统计")
 
         return SubScore(
             category=Category.DECEDENT_CASE,
@@ -435,9 +420,7 @@ class PlanScorer:
         # 配置了紧急联系人：30 分
         if cfg.emergency_contacts:
             score += 30
-            completed.append(
-                f"已配置 {len(cfg.emergency_contacts)} 名紧急联系人"
-            )
+            completed.append(f"已配置 {len(cfg.emergency_contacts)} 名紧急联系人")
         else:
             missing.append("未配置紧急联系人")
             suggestions.append("建议配置至少 1 名紧急联系人，失联时由其确认")
@@ -448,21 +431,15 @@ class PlanScorer:
             completed.append("已配置律师")
         else:
             missing.append("未配置律师")
-            suggestions.append(
-                "建议配置律师 user_id，确保法律流程有专业人士介入"
-            )
+            suggestions.append("建议配置律师 user_id，确保法律流程有专业人士介入")
 
         # 配置了继承人：15 分
         if cfg.heir_user_ids:
             score += 15
-            completed.append(
-                f"已配置 {len(cfg.heir_user_ids)} 名继承人"
-            )
+            completed.append(f"已配置 {len(cfg.heir_user_ids)} 名继承人")
         else:
             missing.append("未配置继承人")
-            suggestions.append(
-                "建议配置法定继承人 user_id，确保身后流程可推进"
-            )
+            suggestions.append("建议配置法定继承人 user_id，确保身后流程可推进")
 
         return SubScore(
             category=Category.DEADMAN_SWITCH,
@@ -543,9 +520,7 @@ class PlanScorer:
                 else:
                     missing.append("注册时间无法解析")
             except Exception as exc:
-                logger.warning(
-                    "PlanScorer._score_basic_info created_at 解析失败: %s", exc
-                )
+                logger.warning("PlanScorer._score_basic_info created_at 解析失败: %s", exc)
                 missing.append("注册时间无法解析")
         else:
             missing.append("无注册时间记录")

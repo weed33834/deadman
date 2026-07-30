@@ -90,7 +90,7 @@ class AuditEntry:
     """单次多模态调用的审计记录。"""
 
     ts: float
-    capability: str           # ocr / asr / tts / vision / image_gen
+    capability: str  # ocr / asr / tts / vision / image_gen
     provider: str
     user_id: str
     success: bool
@@ -544,7 +544,9 @@ class MultimodalPipeline:
             if alloc is None:
                 logger.warning(
                     "Multimodal budget rejected for user=%s consumer=%s tokens=%d (degrading)",
-                    user_id, consumer, tokens,
+                    user_id,
+                    consumer,
+                    tokens,
                 )
             else:
                 # 立即释放(实际已用 = amount)

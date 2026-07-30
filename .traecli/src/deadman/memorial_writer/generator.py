@@ -36,21 +36,42 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # 自伤/自杀相关（参考 safety-protocol.md 第一章识别信号）
 _SELF_HARM_KEYWORDS: tuple[str, ...] = (
-    "自杀", "自残", "自伤", "了结自己", "结束自己", "结束生命",
-    "想死", "不想活", "一了百了", "解脱",
-    "self-harm", "self harm", "suicide", "kill myself",
+    "自杀",
+    "自残",
+    "自伤",
+    "了结自己",
+    "结束自己",
+    "结束生命",
+    "想死",
+    "不想活",
+    "一了百了",
+    "解脱",
+    "self-harm",
+    "self harm",
+    "suicide",
+    "kill myself",
 )
 
 # 暴力相关（针对他人的伤害描述，悼文场景不应出现）
 _VIOLENCE_KEYWORDS: tuple[str, ...] = (
-    "杀害", "谋杀", "行凶", "屠杀", "虐待",
-    "bloodbath", "massacre", "torture",
+    "杀害",
+    "谋杀",
+    "行凶",
+    "屠杀",
+    "虐待",
+    "bloodbath",
+    "massacre",
+    "torture",
 )
 
 # 不当内容（与悼文场景严重不符的露骨/歧视表述）
 _INAPPROPRIATE_KEYWORDS: tuple[str, ...] = (
-    "歧视", "侮辱", "羞辱", "秽语",
-    "racist", "sexist",
+    "歧视",
+    "侮辱",
+    "羞辱",
+    "秽语",
+    "racist",
+    "sexist",
 )
 
 
@@ -111,18 +132,14 @@ class MemorialGenerator:
         """
         errors = request.validate()
         if errors:
-            raise ValueError(
-                "MemorialRequest 校验失败: " + "; ".join(errors)
-            )
+            raise ValueError("MemorialRequest 校验失败: " + "; ".join(errors))
 
         # 调 LLM（含降级）
         try:
             text = await self._call_llm(request)
             confidence = self.LLM_OK_CONFIDENCE
         except Exception as exc:
-            logger.warning(
-                "MemorialGenerator LLM 调用失败，降级模板填充: %s", exc
-            )
+            logger.warning("MemorialGenerator LLM 调用失败，降级模板填充: %s", exc)
             text = self._fallback_template(request)
             confidence = self.LLM_UNAVAILABLE_CONFIDENCE
 
@@ -172,9 +189,7 @@ class MemorialGenerator:
         _word_lo, word_hi = self._resolve_word_range(request)
         max_tokens = max(256, int(word_hi * 2.0))
 
-        resp = await llm_client.chat(
-            messages, temperature=0.4, max_tokens=max_tokens
-        )
+        resp = await llm_client.chat(messages, temperature=0.4, max_tokens=max_tokens)
         if not resp or not resp.strip():
             raise RuntimeError("LLM 返回空响应")
         return resp.strip()
@@ -210,9 +225,7 @@ class MemorialGenerator:
 
         # 风格指引
         faith_hint = _FAITH_HINTS.get(request.faith, _FAITH_HINTS["none"])
-        lang_hint = _LANGUAGE_HINTS.get(
-            request.language, _LANGUAGE_HINTS["zh-CN"]
-        )
+        lang_hint = _LANGUAGE_HINTS.get(request.language, _LANGUAGE_HINTS["zh-CN"])
         tone_hint = _TONE_HINTS.get(request.tone, _TONE_HINTS["solemn"])
 
         # 文档类型说明
@@ -268,17 +281,27 @@ class MemorialGenerator:
         if request.doc_type == "epitaph":
             return self._template_epitaph_cn(name, rel, request, faith_phrase)
         # memorial_speech
-        return self._template_memorial_speech_cn(
-            name, rel, request, faith_phrase
-        )
+        return self._template_memorial_speech_cn(name, rel, request, faith_phrase)
 
     # ---------- 中文降级模板 ----------
     def _template_eulogy_cn(
         self, name: str, rel: str, req: MemorialRequest, faith_phrase: str
     ) -> str:
-        traits = "、".join(req.personality_traits) if req.personality_traits else "（家属可补充性格特质）"
-        memories = "\n".join(f"  · {m}" for m in req.memories) if req.memories else "  · （家属可补充共同回忆）"
-        values = "；".join(req.values_or_sayings) if req.values_or_sayings else "（家属可补充价值观或口头禅）"
+        traits = (
+            "、".join(req.personality_traits)
+            if req.personality_traits
+            else "（家属可补充性格特质）"
+        )
+        memories = (
+            "\n".join(f"  · {m}" for m in req.memories)
+            if req.memories
+            else "  · （家属可补充共同回忆）"
+        )
+        values = (
+            "；".join(req.values_or_sayings)
+            if req.values_or_sayings
+            else "（家属可补充价值观或口头禅）"
+        )
         return (
             f"[模板生成] 悼文\n\n"
             f"{name}，{rel}。{faith_phrase}\n"
@@ -330,9 +353,21 @@ class MemorialGenerator:
     def _template_memorial_speech_cn(
         self, name: str, rel: str, req: MemorialRequest, faith_phrase: str
     ) -> str:
-        traits = "、".join(req.personality_traits) if req.personality_traits else "（家属可补充性格特质）"
-        memories = "\n".join(f"  · {m}" for m in req.memories) if req.memories else "  · （家属可补充共同回忆）"
-        values = "；".join(req.values_or_sayings) if req.values_or_sayings else "（家属可补充价值观或口头禅）"
+        traits = (
+            "、".join(req.personality_traits)
+            if req.personality_traits
+            else "（家属可补充性格特质）"
+        )
+        memories = (
+            "\n".join(f"  · {m}" for m in req.memories)
+            if req.memories
+            else "  · （家属可补充共同回忆）"
+        )
+        values = (
+            "；".join(req.values_or_sayings)
+            if req.values_or_sayings
+            else "（家属可补充价值观或口头禅）"
+        )
         return (
             f"[模板生成] 追思会致辞\n\n"
             f"各位亲友：\n"
@@ -345,14 +380,18 @@ class MemorialGenerator:
         )
 
     # ---------- 古文降级模板 ----------
-    def _fallback_classical(
-        self, doc_meta: dict, name: str, rel: str, req: MemorialRequest
-    ) -> str:
+    def _fallback_classical(self, doc_meta: dict, name: str, rel: str, req: MemorialRequest) -> str:
         faith_phrase = self._faith_phrase_classical(req.faith)
         traits = "、".join(req.personality_traits[:3]) if req.personality_traits else "性敦厚"
         values = req.values_or_sayings[0] if req.values_or_sayings else "行止有度"
         # 古文模板以"先考"或"先妣"开头（参考明清墓志铭格式）
-        prefix = "先考" if "父" in rel or "考" in name else "先妣" if "母" in rel or "妣" in name else "先"
+        prefix = (
+            "先考"
+            if "父" in rel or "考" in name
+            else "先妣"
+            if "母" in rel or "妣" in name
+            else "先"
+        )
         return (
             f"[模板生成] {doc_meta['name']}\n"
             f"{prefix}{name}，{traits}，{values}。{faith_phrase}\n"
@@ -361,13 +400,23 @@ class MemorialGenerator:
         )
 
     # ---------- 英文降级模板 ----------
-    def _fallback_english(
-        self, doc_meta: dict, name: str, rel: str, req: MemorialRequest
-    ) -> str:
+    def _fallback_english(self, doc_meta: dict, name: str, rel: str, req: MemorialRequest) -> str:
         faith_phrase = self._faith_phrase_en(req.faith)
-        traits = ", ".join(req.personality_traits) if req.personality_traits else "(family may add traits)"
-        memories = "\n".join(f"  - {m}" for m in req.memories) if req.memories else "  - (family may add memories)"
-        values = "; ".join(req.values_or_sayings) if req.values_or_sayings else "(family may add sayings)"
+        traits = (
+            ", ".join(req.personality_traits)
+            if req.personality_traits
+            else "(family may add traits)"
+        )
+        memories = (
+            "\n".join(f"  - {m}" for m in req.memories)
+            if req.memories
+            else "  - (family may add memories)"
+        )
+        values = (
+            "; ".join(req.values_or_sayings)
+            if req.values_or_sayings
+            else "(family may add sayings)"
+        )
         return (
             f"[Template-generated] {doc_meta['name_en']}\n\n"
             f"In memory of {name}, my {rel}. {faith_phrase}\n"
@@ -433,9 +482,7 @@ class MemorialGenerator:
     # ==================================================================
     # 字数范围解析
     # ==================================================================
-    def _resolve_word_range(
-        self, request: MemorialRequest
-    ) -> tuple[int, int]:
+    def _resolve_word_range(self, request: MemorialRequest) -> tuple[int, int]:
         """解析字数范围
 
         优先用 request.word_limit 作为上限（>0 时），

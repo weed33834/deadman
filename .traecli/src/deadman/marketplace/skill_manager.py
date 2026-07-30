@@ -87,7 +87,7 @@ def _assert_safe_url(url: str) -> None:
         infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror as exc:
         raise SkillError(f"域名解析失败: {hostname} - {exc}") from exc
-    for family, _stype, _proto, _canon, sockaddr in infos:
+    for _family, _stype, _proto, _canon, sockaddr in infos:
         ip_str = sockaddr[0]
         try:
             ip = ipaddress.ip_address(ip_str)
@@ -129,9 +129,7 @@ def _parse_frontmatter_raw(text: str) -> tuple[dict[str, Any], str]:
     """
     match = _FRONTMATTER_RE.match(text)
     if not match:
-        raise SkillError(
-            "SKILL.md 格式非法: 未找到 YAML frontmatter 分隔符 (---)"
-        )
+        raise SkillError("SKILL.md 格式非法: 未找到 YAML frontmatter 分隔符 (---)")
     fm_text = match.group(1)
     body = match.group(2).strip()
 
@@ -266,9 +264,7 @@ class SkillManager:
 
             return Path(settings.skills_dir)
         except Exception:
-            logger.debug(
-                "无法从 config.settings 读取 skills_dir, 回退到 ~/.deadman/skills"
-            )
+            logger.debug("无法从 config.settings 读取 skills_dir, 回退到 ~/.deadman/skills")
             return Path.home() / ".deadman" / "skills"
 
     @property
@@ -313,8 +309,7 @@ class SkillManager:
             r"^[a-z0-9]$", name
         ):
             raise SkillError(
-                f"技能名 '{name}' 格式非法: 仅允许小写字母、数字、连字符, "
-                "且首尾必须为字母或数字"
+                f"技能名 '{name}' 格式非法: 仅允许小写字母、数字、连字符, 且首尾必须为字母或数字"
             )
 
     # ------------------------------------------------------------------
@@ -562,9 +557,7 @@ class SkillManager:
         meta, body = _parse_frontmatter_raw(raw_text)
         skill_name = meta.get("name")
         if not skill_name:
-            raise SkillError(
-                "导入失败: SKILL.md frontmatter 中缺少 'name' 字段"
-            )
+            raise SkillError("导入失败: SKILL.md frontmatter 中缺少 'name' 字段")
         # 规范化名称
         skill_name = re.sub(r"[^a-z0-9\-]", "-", skill_name.lower()).strip("-")
         if not skill_name:
@@ -648,8 +641,7 @@ class SkillManager:
                 errors.append("frontmatter 缺少 'name' 字段")
             elif meta["name"] != name:
                 warnings.append(
-                    f"frontmatter 中的 name ('{meta['name']}') "
-                    f"与目录名 ('{name}') 不一致"
+                    f"frontmatter 中的 name ('{meta['name']}') 与目录名 ('{name}') 不一致"
                 )
 
             if not meta.get("description"):
@@ -665,7 +657,10 @@ class SkillManager:
             valid = len(errors) == 0
             logger.info(
                 "技能 '%s' 校验完成: valid=%s errors=%d warnings=%d",
-                name, valid, len(errors), len(warnings),
+                name,
+                valid,
+                len(errors),
+                len(warnings),
             )
             return {
                 "valid": valid,
@@ -719,7 +714,9 @@ class SkillManager:
 
         logger.info(
             "技能 '%s' prompt 组装完成 (prompt_length=%d, query_length=%d)",
-            name, len(prompt), len(user_query),
+            name,
+            len(prompt),
+            len(user_query),
         )
         return {
             "skill_name": skill_name,

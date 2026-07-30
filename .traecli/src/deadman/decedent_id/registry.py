@@ -61,6 +61,7 @@ class DecedentRecord:
 
     case_id 是 deadman 内部 ID，不与官方系统对接，不冒充官方编号。
     """
+
     case_id: str
     owner_user_id: str
     decedent_alias: str
@@ -183,9 +184,7 @@ class DecedentRegistry:
         """
         if relationship not in _VALID_RELATIONSHIPS:
             # 不阻断，仅标准化为"其他"并 warning
-            logger.warning(
-                "DecedentRegistry: 未知 relationship %r，标准化为 '其他'", relationship
-            )
+            logger.warning("DecedentRegistry: 未知 relationship %r，标准化为 '其他'", relationship)
             relationship = "其他"
 
         # 脱敏化名（防止用户在 alias 中误填身份证号等）
@@ -208,9 +207,7 @@ class DecedentRegistry:
         self._write_cases(owner_user_id, cases)
         return record
 
-    def get_case(
-        self, case_id: str, requester_user_id: str
-    ) -> DecedentRecord | None:
+    def get_case(self, case_id: str, requester_user_id: str) -> DecedentRecord | None:
         """获取案例（仅 owner 可访问）"""
         cases = self._read_cases(requester_user_id)
         entry = cases.get(case_id)
@@ -262,9 +259,7 @@ class DecedentRegistry:
         self._write_cases(owner_user_id, cases)
         return self._entry_to_record(entry)
 
-    def update_status(
-        self, case_id: str, owner_user_id: str, status: str
-    ) -> DecedentRecord | None:
+    def update_status(self, case_id: str, owner_user_id: str, status: str) -> DecedentRecord | None:
         """更新案例状态"""
         if status not in _VALID_STATUSES:
             raise ValueError(f"无效 status: {status}（允许: {sorted(_VALID_STATUSES)}）")
@@ -287,9 +282,7 @@ class DecedentRegistry:
         result = self.update_status(case_id, owner_user_id, STATUS_ARCHIVED)
         return result is not None
 
-    def get_timeline(
-        self, case_id: str, owner_user_id: str
-    ) -> list[dict[str, Any]]:
+    def get_timeline(self, case_id: str, owner_user_id: str) -> list[dict[str, Any]]:
         """获取时间线（按事件时间排序）"""
         record = self.get_case(case_id, owner_user_id)
         if record is None:

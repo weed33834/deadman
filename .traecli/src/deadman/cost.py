@@ -59,9 +59,7 @@ def _lookup_price(provider: str, model: str) -> tuple[float, float] | None:
     return None
 
 
-def calc_cost(
-    provider: str, model: str, prompt_tokens: int, completion_tokens: int
-) -> float:
+def calc_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
     """计算单次调用成本(USD)
 
     价格表查不到时返回 0.0 并记录 warning(本地模型/未配置价格的模型)。
@@ -156,15 +154,11 @@ class CostTracker:
 
         # 记录到 metrics_collector
         tags = {"provider": provider, "model": model}
-        metrics_collector.record_metric(
-            "efficiency.token_input_count", prompt_tokens, tags=tags
-        )
+        metrics_collector.record_metric("efficiency.token_input_count", prompt_tokens, tags=tags)
         metrics_collector.record_metric(
             "efficiency.token_output_count", completion_tokens, tags=tags
         )
-        metrics_collector.record_metric(
-            "efficiency.cost_per_dialogue_usd", cost, tags=tags
-        )
+        metrics_collector.record_metric("efficiency.cost_per_dialogue_usd", cost, tags=tags)
 
         # 配额预警
         if self._alert_threshold_usd > 0:
@@ -193,7 +187,8 @@ class CostTracker:
             total_completion += r.completion_tokens
 
             p = by_provider.setdefault(
-                r.provider, {"cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
+                r.provider,
+                {"cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0},
             )
             p["cost_usd"] += r.cost_usd
             p["calls"] += 1

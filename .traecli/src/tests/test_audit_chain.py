@@ -247,9 +247,7 @@ class TestAuditDisabledNoop:
         # 文件不创建
         assert not tmp_audit_path.exists()
 
-    def test_audit_disabled_read_operations_return_empty(
-        self, monkeypatch, tmp_audit_path
-    ):
+    def test_audit_disabled_read_operations_return_empty(self, monkeypatch, tmp_audit_path):
         """feature flag 关闭：读操作返回空"""
         monkeypatch.setattr(audit_module, "AUDIT_CHAIN_ENABLED", False)
         c = AuditChain(persist_path=tmp_audit_path)
@@ -260,9 +258,7 @@ class TestAuditDisabledNoop:
         assert c.verify_chain() is False
         assert c.count() == 0
 
-    def test_audit_disabled_does_not_load_existing_file(
-        self, monkeypatch, tmp_audit_path
-    ):
+    def test_audit_disabled_does_not_load_existing_file(self, monkeypatch, tmp_audit_path):
         """feature flag 关闭时不加载已有文件"""
         # 先开启 flag 写入数据
         monkeypatch.setattr(audit_module, "AUDIT_CHAIN_ENABLED", True)
@@ -297,12 +293,9 @@ class TestAuditQueryByTargetAndSince:
     def test_audit_query_by_since(self, chain):
         """按 since 时间过滤（ISO8601 字典序）"""
         # 手工指定 timestamp 以测试 since 过滤
-        chain.append("tool_call", "a", "call_tool", "t1",
-                     timestamp="2026-01-01T00:00:00")
-        chain.append("tool_call", "b", "call_tool", "t2",
-                     timestamp="2026-06-01T00:00:00")
-        chain.append("tool_call", "c", "call_tool", "t3",
-                     timestamp="2026-12-01T00:00:00")
+        chain.append("tool_call", "a", "call_tool", "t1", timestamp="2026-01-01T00:00:00")
+        chain.append("tool_call", "b", "call_tool", "t2", timestamp="2026-06-01T00:00:00")
+        chain.append("tool_call", "c", "call_tool", "t3", timestamp="2026-12-01T00:00:00")
 
         # since 2026-05-01 → 应返回后两条
         results = chain.query(since="2026-05-01T00:00:00")
@@ -312,12 +305,13 @@ class TestAuditQueryByTargetAndSince:
 
     def test_audit_query_combined_filter(self, chain):
         """多条件组合过滤（交集）"""
-        chain.append("tool_call", "alice", "call_tool", "web_search",
-                     timestamp="2026-01-01T00:00:00")
-        chain.append("tool_call", "bob", "call_tool", "web_search",
-                     timestamp="2026-06-01T00:00:00")
-        chain.append("rule_triggered", "alice", "trigger_rule", "L0",
-                     timestamp="2026-07-01T00:00:00")
+        chain.append(
+            "tool_call", "alice", "call_tool", "web_search", timestamp="2026-01-01T00:00:00"
+        )
+        chain.append("tool_call", "bob", "call_tool", "web_search", timestamp="2026-06-01T00:00:00")
+        chain.append(
+            "rule_triggered", "alice", "trigger_rule", "L0", timestamp="2026-07-01T00:00:00"
+        )
 
         # event_type=tool_call + actor=alice → 1 条
         results = chain.query(event_type="tool_call", actor="alice")
@@ -359,26 +353,42 @@ class TestAuditComputeHash:
     def test_audit_compute_hash_metadata_order_stable(self):
         """metadata dict 顺序不同但内容相同 → 相同 hash（sort_keys）"""
         e1 = AuditEvent(
-            event_id="evt-1", event_type="t", actor="a", action="act",
-            target="t", timestamp="ts", metadata={"b": "2", "a": "1"},
+            event_id="evt-1",
+            event_type="t",
+            actor="a",
+            action="act",
+            target="t",
+            timestamp="ts",
+            metadata={"b": "2", "a": "1"},
             prev_hash=GENESIS_HASH,
         )
         e2 = AuditEvent(
-            event_id="evt-1", event_type="t", actor="a", action="act",
-            target="t", timestamp="ts", metadata={"a": "1", "b": "2"},
+            event_id="evt-1",
+            event_type="t",
+            actor="a",
+            action="act",
+            target="t",
+            timestamp="ts",
+            metadata={"a": "1", "b": "2"},
             prev_hash=GENESIS_HASH,
         )
         assert compute_hash(e1) == compute_hash(e2)
 
     def test_audit_compute_hash_unserializable_metadata_falls_back(self):
         """不可序列化 metadata 退化为 default=str，不抛异常"""
+
         class Obj:
             def __str__(self):
                 return "<obj>"
 
         e = AuditEvent(
-            event_id="evt", event_type="t", actor="a", action="act",
-            target="t", timestamp="ts", metadata={"obj": Obj()},
+            event_id="evt",
+            event_type="t",
+            actor="a",
+            action="act",
+            target="t",
+            timestamp="ts",
+            metadata={"obj": Obj()},
             prev_hash=GENESIS_HASH,
         )
         h = compute_hash(e)
@@ -416,16 +426,22 @@ class TestAuditPersistence:
     def test_audit_corrupt_line_skipped(self, tmp_audit_path):
         """get_chain 跳过损坏行"""
         tmp_audit_path.parent.mkdir(parents=True, exist_ok=True)
-        valid_line = json.dumps({
-            "event_id": "evt-1", "event_type": "tool_call", "actor": "a",
-            "action": "call_tool", "target": "t", "timestamp": "2026-01-01T00:00:00",
-            "metadata": {}, "prev_hash": GENESIS_HASH,
-            "curr_hash": "deadbeef" + "0" * 56,
-        }, ensure_ascii=False)
-        corrupt_line = "not a valid json {"
-        tmp_audit_path.write_text(
-            valid_line + "\n" + corrupt_line + "\n", encoding="utf-8"
+        valid_line = json.dumps(
+            {
+                "event_id": "evt-1",
+                "event_type": "tool_call",
+                "actor": "a",
+                "action": "call_tool",
+                "target": "t",
+                "timestamp": "2026-01-01T00:00:00",
+                "metadata": {},
+                "prev_hash": GENESIS_HASH,
+                "curr_hash": "deadbeef" + "0" * 56,
+            },
+            ensure_ascii=False,
         )
+        corrupt_line = "not a valid json {"
+        tmp_audit_path.write_text(valid_line + "\n" + corrupt_line + "\n", encoding="utf-8")
 
         c = AuditChain(persist_path=tmp_audit_path)
         events = c.get_chain()

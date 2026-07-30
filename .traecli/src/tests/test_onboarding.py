@@ -194,13 +194,16 @@ class TestSaveProfile:
     def test_save_profile_persists_to_store(self, tmp_path: Path):
         store = OnboardingStore(data_dir=tmp_path)
         wiz = OnboardingWizard(store=store)
-        profile = wiz.save_profile("user-001", {
-            "relationship": "亲属",
-            "location": "北京",
-            "death_date": "2024-01-15",
-            "current_stage": ["死亡证明"],
-            "consent": True,
-        })
+        profile = wiz.save_profile(
+            "user-001",
+            {
+                "relationship": "亲属",
+                "location": "北京",
+                "death_date": "2024-01-15",
+                "current_stage": ["死亡证明"],
+                "consent": True,
+            },
+        )
         assert profile.user_id == "user-001"
         # 持久化
         loaded = store.load("user-001")
@@ -211,13 +214,16 @@ class TestSaveProfile:
     def test_save_profile_skip_death_date_when_self(self, tmp_path: Path):
         store = OnboardingStore(data_dir=tmp_path)
         wiz = OnboardingWizard(store=store)
-        profile = wiz.save_profile("user-002", {
-            "relationship": "本人",
-            "location": "上海",
-            "death_date": "",  # 本人可跳过
-            "current_stage": [],
-            "consent": True,
-        })
+        profile = wiz.save_profile(
+            "user-002",
+            {
+                "relationship": "本人",
+                "location": "上海",
+                "death_date": "",  # 本人可跳过
+                "current_stage": [],
+                "consent": True,
+            },
+        )
         assert profile.death_date is None
         assert profile.relationship == "本人"
 
@@ -225,37 +231,46 @@ class TestSaveProfile:
         store = OnboardingStore(data_dir=tmp_path)
         wiz = OnboardingWizard(store=store)
         with pytest.raises(ValueError, match="必填字段缺失"):
-            wiz.save_profile("user-003", {
-                "relationship": "亲属",
-                # 缺 location
-                "death_date": "",
-                "current_stage": [],
-                "consent": True,
-            })
+            wiz.save_profile(
+                "user-003",
+                {
+                    "relationship": "亲属",
+                    # 缺 location
+                    "death_date": "",
+                    "current_stage": [],
+                    "consent": True,
+                },
+            )
 
     def test_save_profile_consent_false_raises(self, tmp_path: Path):
         store = OnboardingStore(data_dir=tmp_path)
         wiz = OnboardingWizard(store=store)
         with pytest.raises(ValueError, match="consent"):
-            wiz.save_profile("user-004", {
-                "relationship": "亲属",
-                "location": "北京",
-                "death_date": "",
-                "current_stage": [],
-                "consent": False,
-            })
+            wiz.save_profile(
+                "user-004",
+                {
+                    "relationship": "亲属",
+                    "location": "北京",
+                    "death_date": "",
+                    "current_stage": [],
+                    "consent": False,
+                },
+            )
 
     def test_save_profile_invalid_user_id_raises(self, tmp_path: Path):
         store = OnboardingStore(data_dir=tmp_path)
         wiz = OnboardingWizard(store=store)
         with pytest.raises(ValueError, match="user_id"):
-            wiz.save_profile("", {
-                "relationship": "亲属",
-                "location": "北京",
-                "death_date": "",
-                "current_stage": [],
-                "consent": True,
-            })
+            wiz.save_profile(
+                "",
+                {
+                    "relationship": "亲属",
+                    "location": "北京",
+                    "death_date": "",
+                    "current_stage": [],
+                    "consent": True,
+                },
+            )
 
 
 # =====================================================================

@@ -64,15 +64,15 @@ except ImportError:  # pragma: no cover - 降级路径
 class SpanType(str, Enum):
     """11 类 span 类型 - 对应 Span-Model.md v1.1"""
 
-    ROOT = "root"            # 用户请求根 span
-    AGENT = "agent"          # 并列智能体处理
-    SUBAGENT = "subagent"    # 父智能体调用私有子智能体
-    TRANSFER = "transfer"    # 智能体间转介
-    RULE = "rule"            # 规则优先级链裁决
-    TOOL = "tool"            # 工具调用（WebSearch/Read/...）
-    DEBATE = "debate"        # 多智能体辩论会话
-    MEMORY = "memory"        # 分层记忆查询/更新
-    A2A = "a2a"              # 跨厂商 A2A 协议调用
+    ROOT = "root"  # 用户请求根 span
+    AGENT = "agent"  # 并列智能体处理
+    SUBAGENT = "subagent"  # 父智能体调用私有子智能体
+    TRANSFER = "transfer"  # 智能体间转介
+    RULE = "rule"  # 规则优先级链裁决
+    TOOL = "tool"  # 工具调用（WebSearch/Read/...）
+    DEBATE = "debate"  # 多智能体辩论会话
+    MEMORY = "memory"  # 分层记忆查询/更新
+    A2A = "a2a"  # 跨厂商 A2A 协议调用
     REFLEXION = "reflexion"  # 反思-调整-重试
     LLM_JUDGE = "llm_judge"  # LLM-as-Judge 评审
 
@@ -252,9 +252,7 @@ class Tracer:
             kind = _SPAN_KIND_MAP.get(span_type_str)
             try:
                 if kind is not None:
-                    otel_span = self._otel_tracer.start_as_current_span(
-                        name, kind=kind
-                    )
+                    otel_span = self._otel_tracer.start_as_current_span(name, kind=kind)
                 else:
                     otel_span = self._otel_tracer.start_as_current_span(name)
                 # 写入属性
@@ -310,9 +308,7 @@ class Tracer:
                 if events:
                     for ev in events:
                         ev_name = str(ev.get("name", "event"))
-                        ev_attrs = {
-                            k: _to_otel_value(v) for k, v in ev.items() if k != "name"
-                        }
+                        ev_attrs = {k: _to_otel_value(v) for k, v in ev.items() if k != "name"}
                         try:
                             otel_span.add_event(ev_name, attributes=ev_attrs)
                         except Exception as e:
@@ -400,9 +396,7 @@ class Tracer:
         # OTel 模式：尝试创建一个独立 span（无法精确还原 parent，仅作记录）
         if self.otel_available and self._otel_tracer is not None:
             try:
-                with self._otel_tracer.start_as_current_span(
-                    normalized["name"]
-                ) as otel_span:
+                with self._otel_tracer.start_as_current_span(normalized["name"]) as otel_span:
                     attrs = normalized.get("attributes", {}) or {}
                     for k, v in attrs.items():
                         try:
@@ -410,16 +404,12 @@ class Tracer:
                         except Exception as e:
                             logger.debug("OTel set_attribute 失败: %s", e)
                     try:
-                        otel_span.set_attribute(
-                            "span.type", normalized.get("span_type", "tool")
-                        )
+                        otel_span.set_attribute("span.type", normalized.get("span_type", "tool"))
                     except Exception as e:
                         logger.debug("OTel set_attribute(span.type) 失败: %s", e)
                     for ev in normalized.get("events", []) or []:
                         ev_name = str(ev.get("name", "event"))
-                        ev_attrs = {
-                            k: _to_otel_value(v) for k, v in ev.items() if k != "name"
-                        }
+                        ev_attrs = {k: _to_otel_value(v) for k, v in ev.items() if k != "name"}
                         try:
                             otel_span.add_event(ev_name, attributes=ev_attrs)
                         except Exception as e:

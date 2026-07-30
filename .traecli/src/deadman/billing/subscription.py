@@ -183,7 +183,13 @@ class SubscriptionManager:
             )
             self._subs[user_id] = sub
             self._save()
-            logger.info("User %s subscribed to %s (%s, trial=%s)", user_id, plan_name, cycle.value, with_trial)
+            logger.info(
+                "User %s subscribed to %s (%s, trial=%s)",
+                user_id,
+                plan_name,
+                cycle.value,
+                with_trial,
+            )
             return sub
 
     def cancel(
@@ -209,7 +215,9 @@ class SubscriptionManager:
 
             now = time.time()
             sub.updated_at = now
-            sub.history.append({"action": "cancel", "at": now, "reason": reason, "immediate": immediately})
+            sub.history.append(
+                {"action": "cancel", "at": now, "reason": reason, "immediate": immediately}
+            )
 
             if immediately:
                 sub.status = SubscriptionStatus.CANCELED
@@ -219,7 +227,12 @@ class SubscriptionManager:
                 sub.cancel_at_period_end = True
                 # 状态保持 ACTIVE 直到周期末
             self._save()
-            logger.info("User %s canceled subscription (immediate=%s, reason=%s)", user_id, immediately, reason)
+            logger.info(
+                "User %s canceled subscription (immediate=%s, reason=%s)",
+                user_id,
+                immediately,
+                reason,
+            )
             return sub
 
     def upgrade(
@@ -251,17 +264,27 @@ class SubscriptionManager:
             old_plan_name = sub.plan_name
             now = time.time()
             sub.updated_at = now
-            sub.history.append({
-                "action": "upgrade" if plan.price_monthly >= (get_plan(old_plan_name) or plan).price_monthly else "downgrade",
-                "at": now,
-                "from": old_plan_name,
-                "to": new_plan_name,
-                "prorated": prorate,
-            })
+            sub.history.append(
+                {
+                    "action": "upgrade"
+                    if plan.price_monthly >= (get_plan(old_plan_name) or plan).price_monthly
+                    else "downgrade",
+                    "at": now,
+                    "from": old_plan_name,
+                    "to": new_plan_name,
+                    "prorated": prorate,
+                }
+            )
             sub.plan_name = new_plan_name
             # prorate 不调整 period_end,保持当前周期末
             self._save()
-            logger.info("User %s upgraded %s → %s (prorate=%s)", user_id, old_plan_name, new_plan_name, prorate)
+            logger.info(
+                "User %s upgraded %s → %s (prorate=%s)",
+                user_id,
+                old_plan_name,
+                new_plan_name,
+                prorate,
+            )
             return sub
 
     def renew(self, user_id: str) -> Subscription | None:
@@ -352,7 +375,11 @@ class SubscriptionManager:
                 old_status = sub.status
 
                 # TRIALING → ACTIVE
-                if sub.status == SubscriptionStatus.TRIALING and sub.trial_end and now >= sub.trial_end:
+                if (
+                    sub.status == SubscriptionStatus.TRIALING
+                    and sub.trial_end
+                    and now >= sub.trial_end
+                ):
                     sub.status = SubscriptionStatus.ACTIVE
 
                 # ACTIVE → PAST_DUE / CANCELED
@@ -370,7 +397,14 @@ class SubscriptionManager:
 
                 if sub.status != old_status:
                     sub.updated_at = now
-                    sub.history.append({"action": "status_change", "at": now, "from": old_status.value, "to": sub.status.value})
+                    sub.history.append(
+                        {
+                            "action": "status_change",
+                            "at": now,
+                            "from": old_status.value,
+                            "to": sub.status.value,
+                        }
+                    )
                     changed += 1
 
             if changed:
@@ -414,7 +448,9 @@ class SubscriptionManager:
                 "subscriptions": {uid: s.to_dict() for uid, s in self._subs.items()},
             }
             tmp = self.store_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Subscription store save failed: %s", e)

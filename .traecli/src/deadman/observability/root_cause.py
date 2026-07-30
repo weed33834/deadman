@@ -33,9 +33,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-ROOT_CAUSE_ENABLED: bool = os.environ.get(
-    "DEADMAN_ROOT_CAUSE_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+ROOT_CAUSE_ENABLED: bool = os.environ.get("DEADMAN_ROOT_CAUSE_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 # =====================================================================
@@ -164,9 +167,7 @@ class RootCauseAnalyzer:
             return RootCauseReport(trace_id=trace_id)
 
         # 4. LLM 分析根因（失败用 rule-based fallback）
-        root_cause, contributing_factors, suggested_fix = await self._llm_analyze(
-            error_span
-        )
+        root_cause, contributing_factors, suggested_fix = await self._llm_analyze(error_span)
 
         # 5. 关联相似历史失败（reflexion_memory_store 不可用时为空）
         similar_history = await self._query_similar_history(error_span)
@@ -248,9 +249,7 @@ class RootCauseAnalyzer:
                 return span
         return None
 
-    async def _llm_analyze(
-        self, error_span: dict[str, Any]
-    ) -> tuple[str, list[str], str]:
+    async def _llm_analyze(self, error_span: dict[str, Any]) -> tuple[str, list[str], str]:
         """调 LLM 分析根因，失败时降级为 rule-based fallback
 
         Returns:
@@ -342,13 +341,9 @@ class RootCauseAnalyzer:
             "reflexion": "检查重试策略与 fallback 路径，必要时增加预定义策略",
             "llm_judge": "检查评审模型可用性与共识阈值，必要时降级为正则/关键词判定",
         }
-        return suggestions.get(
-            span_type, "检查 span 上下文与依赖服务，必要时触发降级路径"
-        )
+        return suggestions.get(span_type, "检查 span 上下文与依赖服务，必要时触发降级路径")
 
-    async def _query_similar_history(
-        self, error_span: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    async def _query_similar_history(self, error_span: dict[str, Any]) -> list[dict[str, Any]]:
         """从 reflexion_memory_store 查询相似历史失败
 
         reflexion_memory_store 需实现 get_reflexion_memory(agent_name) 或类似接口。
@@ -392,9 +387,7 @@ class RootCauseAnalyzer:
                     {
                         "failure_type": str(failure_type),
                         "count": int(count),
-                        "successful_adjustment": str(
-                            successful_adjustments.get(failure_type, "")
-                        ),
+                        "successful_adjustment": str(successful_adjustments.get(failure_type, "")),
                     }
                 )
             # 按出现次数倒序

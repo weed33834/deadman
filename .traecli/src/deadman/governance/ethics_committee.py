@@ -262,7 +262,9 @@ class EthicsCommittee:
             self._save()
             logger.info(
                 "Ethics case submitted: %s (category=%s severity=%s)",
-                case_id, category, severity,
+                case_id,
+                category,
+                severity,
             )
             return case
 
@@ -290,7 +292,9 @@ class EthicsCommittee:
             case.status = CaseStatus.ASSIGNED
             self._save()
             logger.info(
-                "Ethics case %s assigned to %d members", case_id, len(member_ids),
+                "Ethics case %s assigned to %d members",
+                case_id,
+                len(member_ids),
             )
             return case
 
@@ -307,9 +311,7 @@ class EthicsCommittee:
             if case is None:
                 raise KeyError(f"Ethics case not found: {case_id}")
             if case.status != CaseStatus.ASSIGNED:
-                raise ValueError(
-                    f"Case {case_id} cannot be decided in status={case.status.value}"
-                )
+                raise ValueError(f"Case {case_id} cannot be decided in status={case.status.value}")
             if not isinstance(decision, CaseDecision):
                 raise ValueError(f"decision must be CaseDecision, got {type(decision)}")
             case.decision = decision
@@ -318,7 +320,9 @@ class EthicsCommittee:
             case.status = CaseStatus.DECIDED
             self._save()
             logger.info(
-                "Ethics case %s decided: %s", case_id, decision.value,
+                "Ethics case %s decided: %s",
+                case_id,
+                decision.value,
             )
             return case
 
@@ -384,22 +388,16 @@ class EthicsCommittee:
 
         # high severity
         if len(member_ids) < 3:
-            raise ValueError(
-                "Quorum not met: high-severity case requires at least 3 members"
-            )
+            raise ValueError("Quorum not met: high-severity case requires at least 3 members")
         roles_present = set()
         for mid in member_ids:
             member = self._members.get(mid)
             if member:
                 roles_present.add(member.role)
         if MemberRole.CHAIR not in roles_present:
-            raise ValueError(
-                "Quorum not met: high-severity case requires chair"
-            )
+            raise ValueError("Quorum not met: high-severity case requires chair")
         if MemberRole.LAWYER not in roles_present:
-            raise ValueError(
-                "Quorum not met: high-severity case requires lawyer"
-            )
+            raise ValueError("Quorum not met: high-severity case requires lawyer")
 
     def _check_digital_twin_requirements(
         self,
@@ -413,9 +411,7 @@ class EthicsCommittee:
             if member:
                 roles_present.add(member.role)
         if MemberRole.USER_REP not in roles_present:
-            raise ValueError(
-                "Digital twin deceased case requires user_rep in committee"
-            )
+            raise ValueError("Digital twin deceased case requires user_rep in committee")
         if not case.user_consent_verified:
             raise ValueError(
                 "Digital twin deceased case requires verified user consent "

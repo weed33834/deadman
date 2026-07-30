@@ -35,22 +35,21 @@ deadman 严肃对待安全问题。如发现漏洞，请勿在公开 Issue 中�
 下列问题**不视为**安全漏洞：
 
 - 自身账户内数据被合法管理员查看
-- 文档中已明示的「临时加密方案」（XOR 流密码，代码自评已声明生产应换 AES-GCM）
 - 自托管部署未配置 HTTPS / 未设置环境变量
 - 已知第三方依赖漏洞（请直接报告至上游）
 
 ## 加密方案现状
 
-截至 v5.0.0：
+截至 v5.1.0：
 
 | 模块 | 算法 | 状态 |
 |------|------|------|
 | `auth/store.py` | PBKDF2-HMAC-SHA256 (100k iter) + 16B salt | ✅ 达 NIST/OWASP 2023 推荐 |
-| `auth/jwt.py` | HS256 + `hmac.compare_digest` 防时序攻击 | ✅ 自实现，无 pyjwt 依赖 |
-| `ending_note/store.py` | PBKDF2-HMAC-SHA256 派生子密钥 + HMAC-SHA256 keystream + per-user passphrase | ⚠️ v2 已修复 per-user 派生，但流密码弱于 AES-256-GCM，生产环境后续切换 |
-| `vault/store.py` | 同 ending_note | ⚠️ 同上 |
+| `auth/jwt.py` | PyJWT HS256 签发/验证/刷新 | ✅ 标准库实现，过期与签名校验由 SDK 处理 |
+| `ending_note/store.py` | PBKDF2-HMAC-SHA256 派生密钥 + AES-256-GCM AEAD + per-user passphrase（v3） | ✅ 已升级到认证加密（utils/crypto.py 共享模块） |
+| `vault/store.py` | 同 ending_note | ✅ 同上 |
 
-加密 envelope v1（无口令）数据通过自动迁移机制升级到 v2。
+加密 envelope v1/v2（旧流密码）数据通过自动迁移机制在读取时解密、写入时升级到 v3（AES-256-GCM）。
 
 ## 安全最佳实践（自托管者必读）
 

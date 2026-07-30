@@ -163,7 +163,9 @@ class RightToDelete:
             )
             self._requests[request.request_id] = request
             self._save()
-            logger.info("Deletion requested for user %s (scheduled_at=%s)", user_id, request.scheduled_at)
+            logger.info(
+                "Deletion requested for user %s (scheduled_at=%s)", user_id, request.scheduled_at
+            )
             return request
 
     def cancel(self, request_id: str) -> bool:
@@ -250,7 +252,8 @@ class RightToDelete:
         with self._lock:
             self._load()
             due = [
-                req for req in self._requests.values()
+                req
+                for req in self._requests.values()
                 if req.status == DeletionStatus.REQUESTED and now >= req.scheduled_at
             ]
         for req in due:
@@ -264,7 +267,8 @@ class RightToDelete:
         with self._lock:
             self._load()
             retryable = [
-                req for req in self._requests.values()
+                req
+                for req in self._requests.values()
                 if req.status == DeletionStatus.FAILED and req.retry_count < MAX_RETRIES
             ]
         for req in retryable:
@@ -337,7 +341,9 @@ class RightToDelete:
                 "requests": {rid: r.to_dict() for rid, r in self._requests.items()},
             }
             tmp = self.store_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Deletion store save failed: %s", e)

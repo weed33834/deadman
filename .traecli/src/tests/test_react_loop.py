@@ -122,12 +122,14 @@ class TestJaccardSimilarity:
 
 class TestParseReActResponse:
     def test_pure_json(self):
-        raw = json.dumps({
-            "thought": "需要搜索",
-            "action": "web_search",
-            "action_input": {"query": "北京户口注销"},
-            "final_answer": "",
-        })
+        raw = json.dumps(
+            {
+                "thought": "需要搜索",
+                "action": "web_search",
+                "action_input": {"query": "北京户口注销"},
+                "final_answer": "",
+            }
+        )
         parsed = _parse_react_response(raw)
         assert parsed["action"] == "web_search"
         assert parsed["action_input"]["query"] == "北京户口注销"
@@ -161,11 +163,13 @@ class TestParseReActResponse:
         assert parsed["action"] == "NO_ACTION"
 
     def test_action_input_as_string_gets_wrapped(self):
-        raw = json.dumps({
-            "thought": "需要搜索",
-            "action": "web_search",
-            "action_input": "北京户口",
-        })
+        raw = json.dumps(
+            {
+                "thought": "需要搜索",
+                "action": "web_search",
+                "action_input": "北京户口",
+            }
+        )
         parsed = _parse_react_response(raw)
         # action_input 是 str,_dispatch_tool 会兜底为 {"query": ...}
         assert parsed["action_input"] == "北京户口"
@@ -193,6 +197,7 @@ class TestFormatObservation:
         class Foo:
             def __str__(self):
                 return "foo-instance"
+
         text, _ = _format_observation(Foo())
         assert "foo-instance" in text
 
@@ -230,9 +235,7 @@ class TestToolRegistry:
 
     async def test_dispatch_success(self):
         register_react_tool("good_tool", _mock_tool_ok)
-        ok, result, err = await _dispatch_tool(
-            "good_tool", {"query": "test"}, set()
-        )
+        ok, result, err = await _dispatch_tool("good_tool", {"query": "test"}, set())
         assert ok is True
         assert err == ""
         assert result["ok"] is True
@@ -248,9 +251,7 @@ class TestToolRegistry:
     async def test_dispatch_action_input_as_string(self):
         register_react_tool("good_tool", _mock_tool_ok)
         # action_input 是 str → 兜底成 {"query": str}
-        ok, result, _err = await _dispatch_tool(
-            "good_tool", "raw query", set()
-        )
+        ok, result, _err = await _dispatch_tool("good_tool", "raw query", set())
         assert ok is True
         assert "raw query" in result["result"]
 
@@ -264,12 +265,18 @@ class TestReActLoopDirectFinal:
     """场景 1:LLM 直接给 FINAL_ANSWER"""
 
     async def test_direct_final_answer(self):
-        llm = MockLLMClient(responses=[json.dumps({
-            "thought": "无需工具,直接回答",
-            "action": "FINAL_ANSWER",
-            "action_input": {},
-            "final_answer": "建议咨询当地医保部门",
-        })])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "无需工具,直接回答",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "建议咨询当地医保部门",
+                    }
+                )
+            ]
+        )
         loop = ReActLoop(llm=llm, system_prompt="sys", user_input="问题")
         result = await loop.run()
         assert result.terminated_by == "final_answer"
@@ -286,20 +293,26 @@ class TestReActLoopSingleTool:
         react_module._TOOL_REGISTRY.clear()
         register_react_tool("web_search", _mock_tool_ok)
 
-        llm = MockLLMClient(responses=[
-            json.dumps({
-                "thought": "需要搜索户口注销流程",
-                "action": "web_search",
-                "action_input": {"query": "北京户口注销"},
-                "final_answer": "",
-            }),
-            json.dumps({
-                "thought": "信息足够,作答",
-                "action": "FINAL_ANSWER",
-                "action_input": {},
-                "final_answer": "北京户口注销需到派出所办理",
-            }),
-        ])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "需要搜索户口注销流程",
+                        "action": "web_search",
+                        "action_input": {"query": "北京户口注销"},
+                        "final_answer": "",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "thought": "信息足够,作答",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "北京户口注销需到派出所办理",
+                    }
+                ),
+            ]
+        )
         loop = ReActLoop(llm=llm, system_prompt="sys", user_input="如何注销户口")
         result = await loop.run()
         assert result.terminated_by == "final_answer"
@@ -321,25 +334,34 @@ class TestReActLoopMaxIterations:
 
         async def varying_tool(query: str = "", **_: Any) -> dict[str, Any]:
             counter["n"] += 1
-            return {"ok": True, "result": f"第{counter['n']}次结果", "query": query, "extra": f"info{counter['n']}"}
+            return {
+                "ok": True,
+                "result": f"第{counter['n']}次结果",
+                "query": query,
+                "extra": f"info{counter['n']}",
+            }
 
         register_react_tool("web_search", varying_tool)
 
         # LLM 永远不输出 FINAL_ANSWER,只调工具,每次 query 不同避免 stuck
         def non_final(query: str) -> str:
-            return json.dumps({
-                "thought": f"搜索{query}",
-                "action": "web_search",
-                "action_input": {"query": query},
-                "final_answer": "",
-            })
+            return json.dumps(
+                {
+                    "thought": f"搜索{query}",
+                    "action": "web_search",
+                    "action_input": {"query": query},
+                    "final_answer": "",
+                }
+            )
 
         summarize_resp = "综合历史:建议咨询派出所"
-        llm = MockLLMClient(responses=[
-            non_final("户口流程"),
-            non_final("派出所地址"),
-            summarize_resp,
-        ])
+        llm = MockLLMClient(
+            responses=[
+                non_final("户口流程"),
+                non_final("派出所地址"),
+                summarize_resp,
+            ]
+        )
 
         loop = ReActLoop(
             llm=llm,
@@ -359,17 +381,21 @@ class TestReActLoopToolBudget:
         react_module._TOOL_REGISTRY.clear()
         register_react_tool("web_search", _mock_tool_ok)
 
-        non_final = json.dumps({
-            "thought": "继续搜索",
-            "action": "web_search",
-            "action_input": {"query": "更多"},
-            "final_answer": "",
-        })
-        llm = MockLLMClient(responses=[
-            non_final,  # iter1: 调工具
-            non_final,  # iter2: 工具 budget=1 已用完 → FINAL_ANSWER + 综合作答
-            "综合:建议打 12393",
-        ])
+        non_final = json.dumps(
+            {
+                "thought": "继续搜索",
+                "action": "web_search",
+                "action_input": {"query": "更多"},
+                "final_answer": "",
+            }
+        )
+        llm = MockLLMClient(
+            responses=[
+                non_final,  # iter1: 调工具
+                non_final,  # iter2: 工具 budget=1 已用完 → FINAL_ANSWER + 综合作答
+                "综合:建议打 12393",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -392,17 +418,21 @@ class TestReActLoopStuckDetection:
         # 工具每次返回相同结果 → Observation 完全相同 → Jaccard=1.0
         register_react_tool("web_search", _mock_tool_ok)
 
-        non_final = json.dumps({
-            "thought": "继续",
-            "action": "web_search",
-            "action_input": {"query": "x"},
-            "final_answer": "",
-        })
-        llm = MockLLMClient(responses=[
-            non_final,  # iter1
-            non_final,  # iter2: Observation 与 iter1 完全相同 → stuck
-            "综合:建议咨询",
-        ])
+        non_final = json.dumps(
+            {
+                "thought": "继续",
+                "action": "web_search",
+                "action_input": {"query": "x"},
+                "final_answer": "",
+            }
+        )
+        llm = MockLLMClient(
+            responses=[
+                non_final,  # iter1
+                non_final,  # iter2: Observation 与 iter1 完全相同 → stuck
+                "综合:建议咨询",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -460,20 +490,26 @@ class TestReActLoopToolFailure:
         react_module._TOOL_REGISTRY.clear()
         register_react_tool("bad_tool", _mock_tool_fail)
 
-        llm = MockLLMClient(responses=[
-            json.dumps({
-                "thought": "调坏工具",
-                "action": "bad_tool",
-                "action_input": {},
-                "final_answer": "",
-            }),
-            json.dumps({
-                "thought": "信息足够",
-                "action": "FINAL_ANSWER",
-                "action_input": {},
-                "final_answer": "兜底回答",
-            }),
-        ])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "调坏工具",
+                        "action": "bad_tool",
+                        "action_input": {},
+                        "final_answer": "",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "thought": "信息足够",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "兜底回答",
+                    }
+                ),
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -497,18 +533,22 @@ class TestReActLoopSelfVerify:
         # chat_json 返回 passed=False
         llm = MockLLMClient(
             responses=[
-                json.dumps({
-                    "thought": "搜索",
-                    "action": "web_search",
-                    "action_input": {"query": "x"},
-                    "final_answer": "",
-                }),
-                json.dumps({
-                    "thought": "再搜",
-                    "action": "web_search",
-                    "action_input": {"query": "y"},
-                    "final_answer": "",
-                }),
+                json.dumps(
+                    {
+                        "thought": "搜索",
+                        "action": "web_search",
+                        "action_input": {"query": "x"},
+                        "final_answer": "",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "thought": "再搜",
+                        "action": "web_search",
+                        "action_input": {"query": "y"},
+                        "final_answer": "",
+                    }
+                ),
                 "综合:答案",
             ],
             chat_json_resp={"passed": False, "reason": "observation 与假设不符"},
@@ -529,12 +569,18 @@ class TestReActLoopTraceCallback:
     """trace_callback 被正确调用"""
 
     async def test_trace_callback_invoked(self):
-        llm = MockLLMClient(responses=[json.dumps({
-            "thought": "直接回答",
-            "action": "FINAL_ANSWER",
-            "action_input": {},
-            "final_answer": "答案",
-        })])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "直接回答",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "答案",
+                    }
+                )
+            ]
+        )
         spans: list[tuple[str, dict]] = []
 
         def cb(name, attrs):
@@ -552,12 +598,18 @@ class TestReActLoopTraceCallback:
 
     async def test_trace_callback_exception_swallowed(self):
         """trace_callback 抛异常不应阻断主流程"""
-        llm = MockLLMClient(responses=[json.dumps({
-            "thought": "x",
-            "action": "FINAL_ANSWER",
-            "action_input": {},
-            "final_answer": "答案",
-        })])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "x",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "答案",
+                    }
+                )
+            ]
+        )
 
         def bad_cb(name, attrs):
             raise RuntimeError("trace failed")
@@ -595,12 +647,18 @@ class TestRunReactLoopEntrypoint:
     """便捷入口 run_react_loop"""
 
     async def test_entrypoint_with_provided_llm(self):
-        llm = MockLLMClient(responses=[json.dumps({
-            "thought": "x",
-            "action": "FINAL_ANSWER",
-            "action_input": {},
-            "final_answer": "答案",
-        })])
+        llm = MockLLMClient(
+            responses=[
+                json.dumps(
+                    {
+                        "thought": "x",
+                        "action": "FINAL_ANSWER",
+                        "action_input": {},
+                        "final_answer": "答案",
+                    }
+                )
+            ]
+        )
         result = await run_react_loop(
             system_prompt="sys",
             user_input="问题",

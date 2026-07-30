@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 class VoiceProfile(str, Enum):
     """嗓音 profile - 适配悼文/讣告/法律文书的语气。"""
 
-    GENTLE_MALE = "gentle_male"          # 温和男声(悼文 / 家书)
-    GENTLE_FEMALE = "gentle_female"      # 温和女声(悼文 / 家书)
-    PROFESSIONAL_MALE = "professional_male"      # 正式男声(公告 / 通知)
+    GENTLE_MALE = "gentle_male"  # 温和男声(悼文 / 家书)
+    GENTLE_FEMALE = "gentle_female"  # 温和女声(悼文 / 家书)
+    PROFESSIONAL_MALE = "professional_male"  # 正式男声(公告 / 通知)
     PROFESSIONAL_FEMALE = "professional_female"  # 正式女声(公告 / 通知)
 
 
@@ -132,6 +132,7 @@ class AzureTTSProvider(TTSProvider):
             return self._available
         try:
             import azure.cognitiveservices.speech  # type: ignore
+
             self._available = bool(self.api_key and self.region)
         except Exception as e:
             logger.debug("azure-cognitiveservices-speech not available: %s", e)
@@ -143,7 +144,8 @@ class AzureTTSProvider(TTSProvider):
 
         voice_id = _VOICE_MAP[voice]["azure"]
         speech_config = speechsdk.SpeechConfig(
-            subscription=self.api_key, region=self.region,
+            subscription=self.api_key,
+            region=self.region,
         )
         speech_config.speech_synthesis_voice_name = voice_id
         synth = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
@@ -176,6 +178,7 @@ class OpenAITTSProvider(TTSProvider):
             return self._available
         try:
             import openai  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -221,6 +224,7 @@ class EdgeTTSProvider(TTSProvider):
             return self._available
         try:
             import edge_tts  # type: ignore
+
             self._available = True
         except Exception as e:
             logger.debug("edge-tts not available: %s", e)
@@ -369,7 +373,9 @@ class TTSService:
                 result = provider.synthesize(text, voice, speed)
                 logger.info(
                     "TTS synthesized via %s (voice=%s, size=%d)",
-                    provider.name, voice.value, len(result.audio_bytes),
+                    provider.name,
+                    voice.value,
+                    len(result.audio_bytes),
                 )
                 return result
             except Exception as e:

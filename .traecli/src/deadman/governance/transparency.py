@@ -125,9 +125,7 @@ class TransparencyReporter:
     """
 
     def __init__(self, store_path: Path | None = None) -> None:
-        self.store_path = store_path or resolve_data_path(
-            "governance/transparency_reports.json"
-        )
+        self.store_path = store_path or resolve_data_path("governance/transparency_reports.json")
         self._lock = threading.RLock()
         self._cache: dict[str, TransparencyReport] = {}
         self._loaded = False
@@ -232,9 +230,9 @@ class TransparencyReporter:
 
         fmt = format.lower()
         if fmt == "json":
-            return json.dumps(
-                report.to_dict(), ensure_ascii=False, indent=2, default=str
-            ).encode("utf-8")
+            return json.dumps(report.to_dict(), ensure_ascii=False, indent=2, default=str).encode(
+                "utf-8"
+            )
         elif fmt == "markdown":
             return self._render_markdown(report).encode("utf-8")
         elif fmt == "html":
@@ -290,8 +288,11 @@ class TransparencyReporter:
     def _render_html(self, report: TransparencyReport) -> str:
         md = self._render_markdown(report)
         # 极简 markdown → html 转换 (h1/h2/h3/list)
-        html_parts = ["<!DOCTYPE html>", "<html><head><meta charset='utf-8'>",
-                      "<title>AI 透明度报告</title></head><body>"]
+        html_parts = [
+            "<!DOCTYPE html>",
+            "<html><head><meta charset='utf-8'>",
+            "<title>AI 透明度报告</title></head><body>",
+        ]
         for line in md.split("\n"):
             stripped = line.strip()
             if stripped.startswith("# "):
@@ -323,19 +324,16 @@ class TransparencyReporter:
         stats: dict[str, Any] = {}
         try:
             from ..compliance.audit_report import get_audit_reporter  # lazy
+
             reporter = get_audit_reporter()
             reports = reporter.list_reports(limit=1000)
-            period_reports = [
-                r for r in reports
-                if period_start <= r.period_start <= period_end
-            ]
+            period_reports = [r for r in reports if period_start <= r.period_start <= period_end]
             stats["total_decisions"] = sum(r.total_calls for r in period_reports)
             stats["deletion_requests"] = sum(r.deletion_requests for r in period_reports)
             stats["data_requests"] = sum(r.deletion_completed for r in period_reports)
             # 偏见事件计数 (event_type="bias_incident")
             stats["bias_incidents_count"] = sum(
-                1 for r in period_reports
-                for e in r.events if e.event_type == "bias_incident"
+                1 for r in period_reports for e in r.events if e.event_type == "bias_incident"
             )
         except Exception as e:
             logger.debug("Fetch audit stats failed (optional): %s", e)

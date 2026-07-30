@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Reflexion 集成(可选,模块缺失则降级)
 try:
     from ..reflexion import ReflexionEngine  # type: ignore
+
     _HAS_REFLEXION = True
 except ImportError:  # pragma: no cover - reflexion 缺失场景
     ReflexionEngine = None  # type: ignore
@@ -43,7 +44,7 @@ except ImportError:  # pragma: no cover - reflexion 缺失场景
 
 
 # 评分阈值
-RATING_CHOSEN_THRESHOLD = 4   # ≥ 4 → chosen
+RATING_CHOSEN_THRESHOLD = 4  # ≥ 4 → chosen
 RATING_REJECTED_THRESHOLD = 3  # < 3 → rejected
 
 
@@ -189,9 +190,7 @@ class ContinuousLearner:
     # ------------------------------------------------------------------
     # 偏好对提取
     # ------------------------------------------------------------------
-    def extract_preference_pair(
-        self, event: FeedbackEvent
-    ) -> PreferenceExample | None:
+    def extract_preference_pair(self, event: FeedbackEvent) -> PreferenceExample | None:
         """从反馈事件提取偏好对。
 
         规则:
@@ -248,9 +247,7 @@ class ContinuousLearner:
         pairs = self._match_complementary_pairs(pairs)
         return pairs
 
-    def _match_complementary_pairs(
-        self, pairs: list[PreferenceExample]
-    ) -> list[PreferenceExample]:
+    def _match_complementary_pairs(self, pairs: list[PreferenceExample]) -> list[PreferenceExample]:
         """将同 prompt 的 chosen-only / rejected-only 配对为完整 pair。
 
         匹配规则:
@@ -269,12 +266,8 @@ class ContinuousLearner:
                 rejected_only.append(p)
 
         # 按 prompt 分组
-        chosen_by_prompt: dict[str, PreferenceExample] = {
-            p.prompt: p for p in chosen_only
-        }
-        rejected_by_prompt: dict[str, PreferenceExample] = {
-            p.prompt: p for p in rejected_only
-        }
+        chosen_by_prompt: dict[str, PreferenceExample] = {p.prompt: p for p in chosen_only}
+        rejected_by_prompt: dict[str, PreferenceExample] = {p.prompt: p for p in rejected_only}
 
         matched: list[PreferenceExample] = []
         consumed_chosen: set[str] = set()
@@ -282,15 +275,17 @@ class ContinuousLearner:
         for prompt, ch in chosen_by_prompt.items():
             if prompt in rejected_by_prompt:
                 rj = rejected_by_prompt[prompt]
-                matched.append(PreferenceExample(
-                    prompt=prompt,
-                    chosen_response=ch.chosen_response,
-                    rejected_response=rj.rejected_response,
-                    source=PreferenceSource.USER_FEEDBACK,
-                    trust_score=0.8,
-                    user_id=ch.user_id or rj.user_id,
-                    redacted=True,
-                ))
+                matched.append(
+                    PreferenceExample(
+                        prompt=prompt,
+                        chosen_response=ch.chosen_response,
+                        rejected_response=rj.rejected_response,
+                        source=PreferenceSource.USER_FEEDBACK,
+                        trust_score=0.8,
+                        user_id=ch.user_id or rj.user_id,
+                        redacted=True,
+                    )
+                )
                 consumed_chosen.add(prompt)
                 consumed_rejected.add(prompt)
 
@@ -316,8 +311,10 @@ class ContinuousLearner:
 
         if not recent:
             return WeeklyReport(
-                period_start=period_start, period_end=now,
-                total_feedback=0, avg_rating=0.0,
+                period_start=period_start,
+                period_end=now,
+                total_feedback=0,
+                avg_rating=0.0,
             )
 
         rating_sum = 0
@@ -341,7 +338,8 @@ class ContinuousLearner:
 
         # 提取偏好对数
         preference_pairs = sum(
-            1 for e in recent
+            1
+            for e in recent
             if e.rating >= RATING_CHOSEN_THRESHOLD or e.rating < RATING_REJECTED_THRESHOLD
         )
 
@@ -436,9 +434,7 @@ class ContinuousLearner:
             before = len(self._events)
             self._events = [e for e in self._events if e.user_id != user_id]
             removed = before - len(self._events)
-        logger.info(
-            "forget_user(%s): removed %d feedback events", user_id, removed
-        )
+        logger.info("forget_user(%s): removed %d feedback events", user_id, removed)
         return removed
 
     # ------------------------------------------------------------------

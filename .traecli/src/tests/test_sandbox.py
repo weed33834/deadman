@@ -115,9 +115,7 @@ class TestLocalSandboxCleanup:
         after = set(tmp_dir.glob("deadman_sandbox_*.py"))
         # 不应残留新的临时文件
         new_files = after - before
-        assert len(new_files) == 0, (
-            f"临时文件未清理，残留: {[str(f) for f in new_files]}"
-        )
+        assert len(new_files) == 0, f"临时文件未清理，残留: {[str(f) for f in new_files]}"
 
 
 # =====================================================================
@@ -159,7 +157,9 @@ class TestSandboxManagerFallback:
         mock_docker.name = "docker"
 
         local = LocalSandbox()
-        manager = SandboxManager(local_sandbox=local, docker_sandbox=mock_docker, prefer_docker=True)
+        manager = SandboxManager(
+            local_sandbox=local, docker_sandbox=mock_docker, prefer_docker=True
+        )
 
         # get_active_backend 应返回 local（Docker 不可用）
         backend = manager.get_active_backend()
@@ -202,7 +202,9 @@ class TestSandboxManagerPrefersDocker:
         )
 
         local = LocalSandbox()
-        manager = SandboxManager(local_sandbox=local, docker_sandbox=mock_docker, prefer_docker=True)
+        manager = SandboxManager(
+            local_sandbox=local, docker_sandbox=mock_docker, prefer_docker=True
+        )
 
         # get_active_backend 应返回 docker（Docker 可用）
         backend = manager.get_active_backend()

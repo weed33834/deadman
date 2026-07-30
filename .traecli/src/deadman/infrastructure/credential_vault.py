@@ -62,6 +62,7 @@ try:
     import secrets
 
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore
+
     _HAS_CRYPTO = True
 except ImportError:
     _HAS_CRYPTO = False
@@ -100,6 +101,7 @@ class CredentialNotFoundError(CredentialVaultError):
 # =====================================================================
 # 加密/解密原语
 # =====================================================================
+
 
 def _derive_master_key() -> bytes:
     """从 env 或文件读取主密钥(若不存在则生成并保存)。
@@ -157,8 +159,7 @@ def _encrypt(plaintext: str, master_key: bytes) -> str:
     if not _HAS_CRYPTO:
         # 不再降级为 base64：明文落盘是安全风险，直接拒绝。
         raise CredentialVaultError(
-            "cryptography 未安装，拒绝加密（明文落盘为安全风险）。"
-            "请 `pip install cryptography`。"
+            "cryptography 未安装，拒绝加密（明文落盘为安全风险）。请 `pip install cryptography`。"
         )
 
     aesgcm = AESGCM(master_key)
@@ -171,9 +172,7 @@ def _decrypt(encrypted: str, master_key: bytes) -> str:
     """AES-256-GCM 解密。"""
     if not _HAS_CRYPTO:
         # 不再降级为 base64 解码：避免把弱密文当合法凭证读取。
-        raise CredentialVaultError(
-            "cryptography 未安装，拒绝解密。请 `pip install cryptography`。"
-        )
+        raise CredentialVaultError("cryptography 未安装，拒绝解密。请 `pip install cryptography`。")
 
     raw = base64.b64decode(encrypted.encode("ascii"))
     nonce = raw[:12]
@@ -185,6 +184,7 @@ def _decrypt(encrypted: str, master_key: bytes) -> str:
 # =====================================================================
 # 凭证保险柜
 # =====================================================================
+
 
 class CredentialVault:
     """凭证保险柜 - 加密存储 + 访问审计 + 轮换管理。
@@ -362,8 +362,7 @@ class CredentialVault:
         with self._lock:
             self._load()
             return [
-                r for r in self._records.get(tid, {}).values()
-                if r.needs_rotation(rotation_days)
+                r for r in self._records.get(tid, {}).values() if r.needs_rotation(rotation_days)
             ]
 
     # ==================================================================
@@ -412,7 +411,9 @@ class CredentialVault:
                 },
             }
             tmp = self.vault_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.vault_path)
             # 设置文件权限 600(仅 owner 读写)
             os.chmod(self.vault_path, 0o600)

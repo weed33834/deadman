@@ -256,9 +256,7 @@ class TestStateMachineTransitions:
 class TestMultiFactorVerification:
     def test_emergency_contact_confirms_missing(self, store: SwitchStore):
         record = _advance_to_verifying(store, "u-emg-conf")
-        result, msg = store.verify_emergency_contact(
-            record.user_id, "contact-A", True
-        )
+        result, msg = store.verify_emergency_contact(record.user_id, "contact-A", True)
         assert result is not None
         assert result.contact_confirmations.get("contact-A") is True
         assert "contact-A" in result.contact_confirmed_at
@@ -267,18 +265,14 @@ class TestMultiFactorVerification:
     def test_emergency_contact_reports_alive_resets(self, store: SwitchStore):
         record = _advance_to_verifying(store, "u-emg-alive")
         # confirm=False 表示联系人表示当事人安好
-        result, msg = store.verify_emergency_contact(
-            record.user_id, "contact-A", False
-        )
+        result, msg = store.verify_emergency_contact(record.user_id, "contact-A", False)
         assert result is not None
         assert result.state == SwitchState.ACTIVE
         assert "alive_report" in msg
 
     def test_emergency_contact_unknown_id_rejected(self, store: SwitchStore):
         record = _advance_to_verifying(store, "u-emg-unknown")
-        result, msg = store.verify_emergency_contact(
-            record.user_id, "not-in-list", True
-        )
+        result, msg = store.verify_emergency_contact(record.user_id, "not-in-list", True)
         assert result is not None
         assert "not_in_emergency_list" in msg
 
@@ -354,9 +348,12 @@ class TestCooldownAndExecution:
         with pytest.raises(RuntimeError, match="cooldown"):
             executor.execute_confirmed(record.user_id)
 
-    def test_cooldown_passed_allows_execution(self, store: SwitchStore, tmp_path: Path, monkeypatch):
+    def test_cooldown_passed_allows_execution(
+        self, store: SwitchStore, tmp_path: Path, monkeypatch
+    ):
         # 用一个独立的 NotificationGuardrail 数据目录避免污染全局
         from deadman.notification.guardrail import NotificationGuardrail
+
         # 本测试关注冷静期机制，提高频率上限避免被 DAILY_LIMIT=1 阻塞
         # （deliver_ending_note + notify_heirs 会对同一收件人发送多次）
         monkeypatch.setattr(NotificationGuardrail, "DAILY_LIMIT", 10)
@@ -366,7 +363,9 @@ class TestCooldownAndExecution:
         # 本测试关注冷静期机制，不验证 silent_hours 规则（该规则由其他测试覆盖）
         monkeypatch.setattr(NotificationGuardrail, "_in_silent_hours", lambda self, dt: False)
         # 同理关闭敏感日期封禁（避免清明/中元等公历近似日误命中）
-        monkeypatch.setattr(NotificationGuardrail, "is_sensitive_date", lambda self, dt, user_id: False)
+        monkeypatch.setattr(
+            NotificationGuardrail, "is_sensitive_date", lambda self, dt, user_id: False
+        )
         record = self._advance_to_confirmed(store, "u-cool-pass")
         # 把 confirmed_at 回退到 8 天前（> 7 天冷静期）
         record.confirmed_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8)
@@ -479,6 +478,7 @@ class TestCLICommands:
         from argparse import Namespace
 
         from deadman._cli_extensions import phase15_switch
+
         args = Namespace(
             user_id="u-cli-init",
             frequency=14,
@@ -498,6 +498,7 @@ class TestCLICommands:
         assert "u-cli-init" in out
         # 验证文件已生成
         from deadman.deadman_switch.store import SwitchStore as S
+
         s = S(data_dir=tmp_path / "switch_cli")
         record = s.load("u-cli-init")
         assert record is not None
@@ -513,6 +514,7 @@ class TestCLICommands:
         from argparse import Namespace
 
         from deadman._cli_extensions import phase15_switch
+
         # 先 init
         init_args = Namespace(
             user_id="u-cli-checkin",
@@ -544,12 +546,19 @@ class TestCLICommands:
         from argparse import Namespace
 
         from deadman._cli_extensions import phase15_switch
+
         # 先 init
         init_args = Namespace(
             user_id="u-cli-status",
-            frequency=30, missed=3, window=7, cooldown=7,
-            emergency_contact=["c-1"], lawyer_id=None, heir_id=["h-1"],
-            email=None, phone=None,
+            frequency=30,
+            missed=3,
+            window=7,
+            cooldown=7,
+            emergency_contact=["c-1"],
+            lawyer_id=None,
+            heir_id=["h-1"],
+            email=None,
+            phone=None,
             data_dir=str(tmp_path / "switch_cli3"),
         )
         phase15_switch.cmd_switch_init(init_args)
@@ -597,29 +606,29 @@ def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
 class TestWebEndpoints:
     """验证 /api/switch/* 端点的认证保护"""
 
-    def test_web_switch_init_without_token_returns_401(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_web_switch_init_without_token_returns_401(self, tmp_path: Path, monkeypatch):
         # 把 SwitchStore 默认数据目录指向 tmp_path
         from deadman.deadman_switch import store as switch_store_mod
+
         monkeypatch.setattr(
-            switch_store_mod.SwitchStore, "__init__",
+            switch_store_mod.SwitchStore,
+            "__init__",
             lambda self, data_dir=None: _orig_init(self, tmp_path / "switch_web"),
         )
         # 启服务器
         port = _get_free_port()
         from deadman.web.server import WebServer
+
         server = WebServer()
-        thread = threading.Thread(
-            target=server.run, args=("127.0.0.1", port), daemon=True
-        )
+        thread = threading.Thread(target=server.run, args=("127.0.0.1", port), daemon=True)
         thread.start()
         try:
             assert _wait_for_server(port), "服务器未在超时内启动"
             # 无 token 调 /api/switch/init
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request(
-                "POST", "/api/switch/init",
+                "POST",
+                "/api/switch/init",
                 body=json.dumps({"frequency": 30}),
                 headers={"Content-Type": "application/json"},
             )
@@ -631,17 +640,18 @@ class TestWebEndpoints:
         finally:
             pass  # daemon 线程随进程退出
 
-    def test_web_switch_init_with_token_returns_201(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_web_switch_init_with_token_returns_201(self, tmp_path: Path, monkeypatch):
         # 让 SwitchStore 默认数据目录指向 tmp_path
         from deadman.deadman_switch import store as switch_store_mod
+
         monkeypatch.setattr(
-            switch_store_mod.SwitchStore, "__init__",
+            switch_store_mod.SwitchStore,
+            "__init__",
             lambda self, data_dir=None: _orig_init(self, tmp_path / "switch_web2"),
         )
         # 让 UserStore 数据目录也指向 tmp_path
         from deadman.config import settings
+
         monkeypatch.setattr(settings, "auth_data_dir", tmp_path / "auth")
         monkeypatch.setattr(settings, "jwt_secret", "")
         monkeypatch.setattr(settings, "jwt_expiry_days", 7)
@@ -649,22 +659,24 @@ class TestWebEndpoints:
 
         port = _get_free_port()
         from deadman.web.server import WebServer
+
         server = WebServer()
-        thread = threading.Thread(
-            target=server.run, args=("127.0.0.1", port), daemon=True
-        )
+        thread = threading.Thread(target=server.run, args=("127.0.0.1", port), daemon=True)
         thread.start()
         try:
             assert _wait_for_server(port)
             # 注册用户拿 token
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request(
-                "POST", "/api/auth/register",
-                body=json.dumps({
-                    "email": "switch-test@example.com",
-                    "password": "password123",
-                    "display_name": "SwitchTest",
-                }),
+                "POST",
+                "/api/auth/register",
+                body=json.dumps(
+                    {
+                        "email": "switch-test@example.com",
+                        "password": "password123",
+                        "display_name": "SwitchTest",
+                    }
+                ),
                 headers={"Content-Type": "application/json"},
             )
             resp = conn.getresponse()
@@ -675,13 +687,16 @@ class TestWebEndpoints:
             # 带 token 调 /api/switch/init
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request(
-                "POST", "/api/switch/init",
-                body=json.dumps({
-                    "frequency": 14,
-                    "missed": 2,
-                    "emergency_contacts": ["c-1"],
-                    "heir_ids": ["h-1"],
-                }),
+                "POST",
+                "/api/switch/init",
+                body=json.dumps(
+                    {
+                        "frequency": 14,
+                        "missed": 2,
+                        "emergency_contacts": ["c-1"],
+                        "heir_ids": ["h-1"],
+                    }
+                ),
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {token}",
@@ -696,7 +711,8 @@ class TestWebEndpoints:
             # 带 token 调 /api/switch/status
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request(
-                "GET", "/api/switch/status",
+                "GET",
+                "/api/switch/status",
                 headers={"Authorization": f"Bearer {token}"},
             )
             resp = conn.getresponse()
@@ -819,9 +835,7 @@ class TestNotifyEmailChannel:
         guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
         fake_sender = self._make_fake_sender(configured=True, send_ok=True)
 
-        executor = SwitchActionExecutor(
-            store=store, guardrail=guardrail, email_sender=fake_sender
-        )
+        executor = SwitchActionExecutor(store=store, guardrail=guardrail, email_sender=fake_sender)
         result = executor.execute_confirmed(record.user_id)
 
         # notify_lawyer 应在 executed 列表中
@@ -843,9 +857,7 @@ class TestNotifyEmailChannel:
         guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
         fake_sender = self._make_fake_sender(configured=False, send_ok=True)
 
-        executor = SwitchActionExecutor(
-            store=store, guardrail=guardrail, email_sender=fake_sender
-        )
+        executor = SwitchActionExecutor(store=store, guardrail=guardrail, email_sender=fake_sender)
         result = executor.execute_confirmed(record.user_id)
 
         # 动作仍应成功（降级不阻塞）
@@ -872,9 +884,7 @@ class TestNotifyEmailChannel:
         # sender 永远失败
         fake_sender = self._make_fake_sender(configured=True, send_ok=False)
 
-        executor = SwitchActionExecutor(
-            store=store, guardrail=guardrail, email_sender=fake_sender
-        )
+        executor = SwitchActionExecutor(store=store, guardrail=guardrail, email_sender=fake_sender)
         result = executor.execute_confirmed(record.user_id)
 
         # notify_lawyer 应在 failed 列表（retryable）
@@ -901,9 +911,7 @@ class TestNotifyEmailChannel:
         guardrail.record_consent("heir@example.com", "同意", "deadman_switch")
         fake_sender = self._make_fake_sender(configured=True, send_ok=True)
 
-        executor = SwitchActionExecutor(
-            store=store, guardrail=guardrail, email_sender=fake_sender
-        )
+        executor = SwitchActionExecutor(store=store, guardrail=guardrail, email_sender=fake_sender)
         result = executor.execute_confirmed(record.user_id)
 
         assert "notify_heirs" in result["executed"]
@@ -950,9 +958,7 @@ class TestNotifyEmailChannel:
         guardrail = NotificationGuardrail(data_dir=tmp_path / "notif")
         guardrail.record_consent("heir-user-99", "同意", "deadman_switch")
         fake_sender = self._make_fake_sender(configured=True, send_ok=True)
-        fake_user_store = self._make_fake_user_store(
-            {"heir-user-99": "resolved-heir@example.com"}
-        )
+        fake_user_store = self._make_fake_user_store({"heir-user-99": "resolved-heir@example.com"})
 
         executor = SwitchActionExecutor(
             store=store,
@@ -964,9 +970,7 @@ class TestNotifyEmailChannel:
 
         assert "notify_heirs" in result["executed"]
         # 验证发到了解析出的邮箱
-        resolved_calls = [
-            c for c in fake_sender.calls if c[0] == "resolved-heir@example.com"
-        ]
+        resolved_calls = [c for c in fake_sender.calls if c[0] == "resolved-heir@example.com"]
         assert len(resolved_calls) == 1, (
             f"应向解析出的 heir 邮箱发送 1 封，实际 {len(resolved_calls)}; "
             f"all_calls={fake_sender.calls}"

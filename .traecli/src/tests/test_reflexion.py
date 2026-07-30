@@ -32,9 +32,16 @@ class TestAdjustmentStrategies:
     def test_strategies_keys(self):
         # 关键失败模式都覆盖
         expected_keys = {
-            "platform_not_supported", "timeout", "format_error",
-            "subagent_not_found", "knowledge_not_found", "api_error",
-            "rate_limit", "invalid_argument", "permission_denied", "unknown",
+            "platform_not_supported",
+            "timeout",
+            "format_error",
+            "subagent_not_found",
+            "knowledge_not_found",
+            "api_error",
+            "rate_limit",
+            "invalid_argument",
+            "permission_denied",
+            "unknown",
         }
         assert set(ADJUSTMENT_STRATEGIES.keys()) == expected_keys
 
@@ -156,12 +163,14 @@ class TestExecuteWithReflexionRetry:
             return {"execution_mode": "success"}
 
         # mock LLM 反思返回 api_error 失败类型（命中预定义策略）
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "api_error",
-            "failure_reason": "API 临时错误",
-            "adjustment_strategy": "降级",
-            "adjusted_params": {"execution_mode": "fallback"},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "api_error",
+                "failure_reason": "API 临时错误",
+                "adjustment_strategy": "降级",
+                "adjusted_params": {"execution_mode": "fallback"},
+            }
+        )
 
         engine = ReflexionEngine(agent_name="test-agent")
         result = await engine.execute_with_reflexion(
@@ -185,12 +194,14 @@ class TestExecuteWithReflexionRetry:
                 return {"execution_mode": "fallback", "fallback_reason": "timeout"}
             return {"execution_mode": "success"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "timeout",
-            "failure_reason": "超时",
-            "adjustment_strategy": "简化任务",
-            "adjusted_params": {"simplify_task": True},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "timeout",
+                "failure_reason": "超时",
+                "adjustment_strategy": "简化任务",
+                "adjusted_params": {"simplify_task": True},
+            }
+        )
 
         engine = ReflexionEngine()
         await engine.execute_with_reflexion(
@@ -218,12 +229,14 @@ class TestExecuteWithReflexionFallback:
             # 永远返回 fallback
             return {"execution_mode": "fallback", "fallback_reason": "api_error"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "api_error",
-            "failure_reason": "持续失败",
-            "adjustment_strategy": "降级",
-            "adjusted_params": {"execution_mode": "fallback"},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "api_error",
+                "failure_reason": "持续失败",
+                "adjustment_strategy": "降级",
+                "adjusted_params": {"execution_mode": "fallback"},
+            }
+        )
 
         engine = ReflexionEngine(agent_name="always-fail")
         result = await engine.execute_with_reflexion(
@@ -245,12 +258,14 @@ class TestExecuteWithReflexionFallback:
         async def operation(**kwargs):
             raise RuntimeError("boom")
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "unknown",
-            "failure_reason": "异常",
-            "adjustment_strategy": "简化输入",
-            "adjusted_params": {"simplify_input": True},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "unknown",
+                "failure_reason": "异常",
+                "adjustment_strategy": "简化输入",
+                "adjusted_params": {"simplify_input": True},
+            }
+        )
 
         engine = ReflexionEngine()
         result = await engine.execute_with_reflexion(
@@ -269,12 +284,14 @@ class TestExecuteWithReflexionFallback:
         async def operation(**kwargs):
             return {"execution_mode": "fallback", "fallback_reason": "rate_limit"}
 
-        patch_llm.chat_json = AsyncMock(return_value={
-            "failure_type": "rate_limit",
-            "failure_reason": "限流",
-            "adjustment_strategy": "等待重试",
-            "adjusted_params": {"backoff_seconds": 60},
-        })
+        patch_llm.chat_json = AsyncMock(
+            return_value={
+                "failure_type": "rate_limit",
+                "failure_reason": "限流",
+                "adjustment_strategy": "等待重试",
+                "adjusted_params": {"backoff_seconds": 60},
+            }
+        )
 
         engine = ReflexionEngine()
         result = await engine.execute_with_reflexion(

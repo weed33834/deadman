@@ -42,6 +42,7 @@ def _make_episode(
 # 1. TTL 标记 archived
 # =====================================================================
 
+
 class TestTTLMarksArchived:
     def test_ttl_marks_archived(self, monkeypatch):
         # EPISODE_TTL_DAYS=10,episode 时间在 20 天前 → 应被标记 archived
@@ -65,6 +66,7 @@ class TestTTLMarksArchived:
 # =====================================================================
 # 2. 30 天后物理删
 # =====================================================================
+
 
 class TestTTLPhysicalDelete:
     def test_ttl_physical_delete_after_30_days(self, monkeypatch):
@@ -112,6 +114,7 @@ class TestTTLPhysicalDelete:
 # 3. LRU 淘汰
 # =====================================================================
 
+
 class TestLRUEviction:
     def test_lru_eviction_when_over_limit(self, monkeypatch):
         # EPISODE_MAX_COUNT=3,加 5 个 episode → 应淘汰 2 个最久未访问的
@@ -127,7 +130,9 @@ class TestLRUEviction:
             ts = now - timedelta(days=5 - i)  # e0 最久,e4 最近
             ep = _make_episode(f"e{i}", ts, last_accessed_at=ts)
             em._store[f"e{i}"] = ep
-            em._by_session["s1"].append(f"e{i}") if "s1" in em._by_session else em._by_session.setdefault("s1", []).append(f"e{i}")
+            em._by_session["s1"].append(
+                f"e{i}"
+            ) if "s1" in em._by_session else em._by_session.setdefault("s1", []).append(f"e{i}")
 
         evicted = em._apply_lru_eviction()
         assert evicted == 2
@@ -143,6 +148,7 @@ class TestLRUEviction:
 # =====================================================================
 # 4. recall 更新 last_accessed_at
 # =====================================================================
+
 
 class TestRecallUpdatesLastAccessed:
     def test_recall_updates_last_accessed(self, monkeypatch):
@@ -186,6 +192,7 @@ class TestRecallUpdatesLastAccessed:
 # 5. feature flag 关闭无 TTL
 # =====================================================================
 
+
 class TestTTLDisabled:
     def test_ttl_disabled_no_change(self, monkeypatch):
         # EPISODIC_TTL_ENABLED=False → _apply_ttl_filter 返回 0,无变化
@@ -217,6 +224,7 @@ class TestTTLDisabled:
 # =====================================================================
 # 6. archived 不召回
 # =====================================================================
+
 
 class TestArchivedNotRecalled:
     def test_archived_not_recalled(self, monkeypatch):

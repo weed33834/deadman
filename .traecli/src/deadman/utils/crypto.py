@@ -52,6 +52,7 @@ def derive_key(passphrase: bytes, salt: bytes, iterations: int = _KDF_ITERATIONS
 # envelope 格式（JSON 可序列化）— 用于 ending_note
 # =====================================================================
 
+
 def encrypt_envelope(plaintext: bytes, passphrase: bytes) -> dict[str, str | int]:
     """AES-256-GCM 加密，返回 JSON 可序列化的 envelope
 
@@ -157,6 +158,7 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
 
 # --- v2 兼容内部函数 ---
 
+
 def _v2_derive_subkey(passphrase: bytes, salt: bytes, info: bytes) -> bytes:
     return hashlib.pbkdf2_hmac(
         "sha256", info + b":" + passphrase, salt, _V2_KDF_ITERATIONS, dklen=_KEY_LEN
@@ -177,6 +179,7 @@ def _v2_keystream(key: bytes, length: int, nonce: bytes) -> bytes:
 # =====================================================================
 # bytes 格式（二进制 blob）— 用于 vault
 # =====================================================================
+
 
 def encrypt_bytes(plaintext: bytes, key: bytes) -> bytes:
     """AES-256-GCM 加密为二进制 blob

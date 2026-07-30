@@ -71,9 +71,7 @@ class ProceduralMemory:
         for proc in self.procedures.values():
             if proc.procedure_name != procedure_name:
                 continue
-            if jurisdiction is None or self._jurisdiction_matches(
-                proc.jurisdiction, jurisdiction
-            ):
+            if jurisdiction is None or self._jurisdiction_matches(proc.jurisdiction, jurisdiction):
                 return proc
         return None
 
@@ -81,9 +79,7 @@ class ProceduralMemory:
         """获取某阶段的所有流程（供 start_session 恢复进度用）"""
         return [p for p in self.procedures.values() if p.stage == stage]
 
-    def get_user_progress(
-        self, user_id: str, procedure_id: str
-    ) -> UserProgress | None:
+    def get_user_progress(self, user_id: str, procedure_id: str) -> UserProgress | None:
         """获取用户进度"""
         return self.user_progress.get((user_id, procedure_id))
 
@@ -110,14 +106,16 @@ class ProceduralMemory:
         # 可选：同步到 Graphiti（跨会话续接）
         if self.graphiti is not None:
             try:
-                self.graphiti.add_event({
-                    "event_type": "UserProgressEvent",
-                    "user_id": user_id,
-                    "procedure_id": procedure_id,
-                    "completed_steps": progress.completed_steps,
-                    "current_step": progress.current_step,
-                    "timestamp": datetime.now(timezone.utc),
-                })
+                self.graphiti.add_event(
+                    {
+                        "event_type": "UserProgressEvent",
+                        "user_id": user_id,
+                        "procedure_id": procedure_id,
+                        "completed_steps": progress.completed_steps,
+                        "current_step": progress.current_step,
+                        "timestamp": datetime.now(timezone.utc),
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
 
@@ -153,13 +151,15 @@ class ProceduralMemory:
         # 可选：记录到 Graphiti 作为 KnowledgeVersion
         if self.graphiti is not None:
             try:
-                self.graphiti.add_event({
-                    "event_type": "KnowledgeVersion",
-                    "procedure_id": proc.procedure_id,
-                    "change": "user_correction",
-                    "user_correction": user_correction,
-                    "transaction_time": datetime.now(timezone.utc),
-                })
+                self.graphiti.add_event(
+                    {
+                        "event_type": "KnowledgeVersion",
+                        "procedure_id": proc.procedure_id,
+                        "change": "user_correction",
+                        "user_correction": user_correction,
+                        "transaction_time": datetime.now(timezone.utc),
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
 
@@ -195,14 +195,16 @@ class ProceduralMemory:
         # 同步到 Graphiti（跨会话检索）
         if self.graphiti is not None:
             try:
-                self.graphiti.add_event({
-                    "event_type": "ReflexionStrategy",
-                    "agent_name": agent_name,
-                    "failure_type": failure_type,
-                    "strategy": strategy,
-                    "success_rate": success_rate,
-                    "timestamp": datetime.now(timezone.utc),
-                })
+                self.graphiti.add_event(
+                    {
+                        "event_type": "ReflexionStrategy",
+                        "agent_name": agent_name,
+                        "failure_type": failure_type,
+                        "strategy": strategy,
+                        "success_rate": success_rate,
+                        "timestamp": datetime.now(timezone.utc),
+                    }
+                )
             except Exception as e:
                 logger.warning("Graphiti 策略同步失败（非致命）: %s", e)
 

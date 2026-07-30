@@ -37,11 +37,13 @@ def enable_multimodal(monkeypatch, tmp_path):
     (tmp_path / "home").mkdir(exist_ok=True)
 
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
 
     # 重置 defense 全局单例(budget_coordinator 等)
     import deadman.infrastructure.defense as defense_pkg
+
     defense_pkg._bc_instance = None
     defense_pkg._pr_instance = None
 
@@ -55,6 +57,7 @@ def enable_multimodal(monkeypatch, tmp_path):
         tts,
         vision,
     )
+
     ocr._ocr_instance = None
     asr._asr_instance = None
     tts._tts_instance = None
@@ -108,6 +111,7 @@ def sample_audio(tmp_path):
 class TestOCRService:
     def test_instantiation_default_providers(self):
         from deadman.multimodal.ocr import OCRService
+
         svc = OCRService()
         names = svc.list_providers()
         assert "cloud" in names
@@ -116,11 +120,13 @@ class TestOCRService:
 
     def test_is_enabled_when_flag_on(self):
         from deadman.multimodal.ocr import OCRService
+
         svc = OCRService()
         assert svc.is_enabled() is True
 
     def test_extract_id_card_with_mock(self, sample_image):
         from deadman.multimodal.ocr import DocType, OCRService
+
         svc = OCRService()
         result = svc.extract(sample_image, DocType.ID_CARD)
         assert result.doc_type == DocType.ID_CARD
@@ -130,6 +136,7 @@ class TestOCRService:
 
     def test_extract_death_certificate_fields(self, sample_image):
         from deadman.multimodal.ocr import DocType, OCRService
+
         svc = OCRService()
         result = svc.extract(sample_image, DocType.DEATH_CERTIFICATE)
         assert result.doc_type == DocType.DEATH_CERTIFICATE
@@ -138,18 +145,21 @@ class TestOCRService:
 
     def test_extract_passport(self, sample_image):
         from deadman.multimodal.ocr import DocType, OCRService
+
         svc = OCRService()
         result = svc.extract(sample_image, DocType.PASSPORT)
         assert "passport_number" in result.fields
 
     def test_extract_will(self, sample_image):
         from deadman.multimodal.ocr import DocType, OCRService
+
         svc = OCRService()
         result = svc.extract(sample_image, DocType.WILL)
         assert "testator" in result.fields
 
     def test_extract_nonexistent_file_returns_empty(self, tmp_path):
         from deadman.multimodal.ocr import DocType, OCRService
+
         svc = OCRService()
         result = svc.extract(tmp_path / "nope.png", DocType.OTHER)
         assert result.text == ""
@@ -166,12 +176,16 @@ class TestOCRService:
 
         class CustomProvider(OCRProvider):
             name = "custom"
+
             def is_available(self) -> bool:
                 return True
+
             def extract(self, image_path, doc_type):
                 return OCRResult(
-                    text="custom", confidence=0.99,
-                    doc_type=doc_type, provider=self.name,
+                    text="custom",
+                    confidence=0.99,
+                    doc_type=doc_type,
+                    provider=self.name,
                 )
 
         svc = OCRService()
@@ -191,19 +205,25 @@ class TestOCRService:
 
         class FailingCloud(OCRProvider):
             name = "cloud_fail"
+
             def is_available(self) -> bool:
                 return True
+
             def extract(self, image_path, doc_type):
                 raise RuntimeError("cloud down")
 
         class ManualOK(OCRProvider):
             name = "manual_ok"
+
             def is_available(self) -> bool:
                 return True
+
             def extract(self, image_path, doc_type):
                 return OCRResult(
-                    text="manual-input", confidence=0.0,
-                    doc_type=doc_type, provider=self.name,
+                    text="manual-input",
+                    confidence=0.0,
+                    doc_type=doc_type,
+                    provider=self.name,
                 )
 
         svc = OCRService(custom_providers=[FailingCloud(), ManualOK()])
@@ -219,11 +239,13 @@ class TestOCRService:
 class TestASRService:
     def test_instantiation(self):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         assert "cloud" in svc.list_providers()
 
     def test_transcribe_chinese(self, sample_audio):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         result = svc.transcribe(sample_audio, language="zh")
         assert result.language == "zh"
@@ -232,6 +254,7 @@ class TestASRService:
 
     def test_transcribe_auto_detect(self, sample_audio):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         result = svc.transcribe(sample_audio, language="auto")
         # mock cloud 对 auto 返回 zh
@@ -239,12 +262,14 @@ class TestASRService:
 
     def test_transcribe_unsupported_lang_fallback_to_auto(self, sample_audio):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         result = svc.transcribe(sample_audio, language="fr")
         assert result.language in ("zh", "auto")
 
     def test_transcribe_nonexistent_file(self, tmp_path):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         result = svc.transcribe(tmp_path / "nope.mp3")
         assert result.text == ""
@@ -252,6 +277,7 @@ class TestASRService:
 
     def test_segments_have_timestamps(self, sample_audio):
         from deadman.multimodal.asr import ASRService
+
         svc = ASRService()
         result = svc.transcribe(sample_audio, language="zh")
         assert len(result.segments) >= 1
@@ -267,11 +293,13 @@ class TestASRService:
 class TestTTSService:
     def test_instantiation(self):
         from deadman.multimodal.tts import TTSService
+
         svc = TTSService()
         assert "mock" in svc.list_providers()
 
     def test_synthesize_returns_bytes(self):
         from deadman.multimodal.tts import TTSService, VoiceProfile
+
         svc = TTSService()
         result = svc.synthesize("怀念父亲", VoiceProfile.GENTLE_MALE)
         assert isinstance(result.audio_bytes, (bytes, bytearray))
@@ -280,6 +308,7 @@ class TestTTSService:
 
     def test_voice_profile_enum_values(self):
         from deadman.multimodal.tts import VoiceProfile
+
         assert VoiceProfile.GENTLE_MALE.value == "gentle_male"
         assert VoiceProfile.GENTLE_FEMALE.value == "gentle_female"
         assert VoiceProfile.PROFESSIONAL_MALE.value == "professional_male"
@@ -287,6 +316,7 @@ class TestTTSService:
 
     def test_speed_clamped(self):
         from deadman.multimodal.tts import TTSService, VoiceProfile
+
         svc = TTSService()
         # speed=10 应被夹到 2.0;mock 内部不报错即可
         result = svc.synthesize("测试", VoiceProfile.GENTLE_FEMALE, speed=10.0)
@@ -294,6 +324,7 @@ class TestTTSService:
 
     def test_empty_text_returns_empty_audio(self):
         from deadman.multimodal.tts import TTSService, VoiceProfile
+
         svc = TTSService()
         result = svc.synthesize("", VoiceProfile.GENTLE_FEMALE)
         assert result.audio_bytes == b""
@@ -308,11 +339,13 @@ class TestTTSService:
 class TestVisionService:
     def test_instantiation(self):
         from deadman.multimodal.vision import VisionService
+
         svc = VisionService()
         assert "mock" in svc.list_providers()
 
     def test_describe_returns_string(self, sample_image):
         from deadman.multimodal.vision import VisionService
+
         svc = VisionService()
         text = svc.describe(sample_image, "描述这张图片")
         assert isinstance(text, str)
@@ -320,6 +353,7 @@ class TestVisionService:
 
     def test_describe_memorial_prompt(self, sample_image):
         from deadman.multimodal.vision import VisionService
+
         svc = VisionService()
         text = svc.describe(sample_image, "用温暖语言描述逝者 memorial")
         # mock 对 memorial 关键词返回温暖描述
@@ -327,6 +361,7 @@ class TestVisionService:
 
     def test_extract_objects_returns_list(self, sample_image):
         from deadman.multimodal.vision import VisionService
+
         svc = VisionService()
         objs = svc.extract_objects(sample_image)
         assert isinstance(objs, list)
@@ -336,6 +371,7 @@ class TestVisionService:
 
     def test_describe_nonexistent_returns_empty(self, tmp_path):
         from deadman.multimodal.vision import VisionService
+
         svc = VisionService()
         assert svc.describe(tmp_path / "nope.png") == ""
 
@@ -348,11 +384,13 @@ class TestVisionService:
 class TestImageGenerator:
     def test_instantiation(self):
         from deadman.multimodal.image_gen import ImageGenerator
+
         gen = ImageGenerator()
         assert "mock" in gen.list_providers()
 
     def test_generate_returns_bytes(self):
         from deadman.multimodal.image_gen import ImageGenerator, ImageSize, ImageStyle
+
         gen = ImageGenerator()
         img_bytes = gen.generate("怀念父亲", ImageStyle.MEMORIAL_CARD, ImageSize.SQUARE_1024)
         assert isinstance(img_bytes, bytes)
@@ -360,6 +398,7 @@ class TestImageGenerator:
 
     def test_style_presets_contain_memorial_card(self):
         from deadman.multimodal.image_gen import STYLE_PRESETS, ImageStyle
+
         preset = STYLE_PRESETS[ImageStyle.MEMORIAL_CARD]
         assert "color_palette" in preset
         assert "prompt_template" in preset
@@ -370,12 +409,14 @@ class TestImageGenerator:
 
     def test_get_style_preset(self):
         from deadman.multimodal.image_gen import ImageGenerator, ImageStyle
+
         gen = ImageGenerator()
         preset = gen.get_style_preset(ImageStyle.OBITUARY)
         assert preset["color_palette"]  # 非空
 
     def test_style_enum_values(self):
         from deadman.multimodal.image_gen import ImageStyle
+
         assert ImageStyle.MEMORIAL_CARD.value == "memorial_card"
         assert ImageStyle.OBITUARY.value == "obituary"
         assert ImageStyle.PORTRAIT.value == "portrait"
@@ -390,6 +431,7 @@ class TestImageGenerator:
 class TestMultimodalStorage:
     def test_store_and_retrieve(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"image-bytes", "image", "user_1", ext="png")
         assert meta.file_id
@@ -400,12 +442,14 @@ class TestMultimodalStorage:
 
     def test_store_invalid_file_type_raises(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         with pytest.raises(ValueError):
             store.store(b"x", "unknown_type", "user_1")
 
     def test_delete_file(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"audio-bytes", "audio", "user_1", ext="mp3")
         assert store.delete(meta.file_id, "user_1") is True
@@ -416,6 +460,7 @@ class TestMultimodalStorage:
 
     def test_get_metadata(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"data", "generated", "user_2", ext="png")
         m = store.get_metadata(meta.file_id, "user_2")
@@ -427,6 +472,7 @@ class TestMultimodalStorage:
         import hashlib
 
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         data = b"hash-test"
         meta = store.store(data, "image", "u1", ext="png")
@@ -434,6 +480,7 @@ class TestMultimodalStorage:
 
     def test_temp_file_has_expires_at(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"temp-data", "temp", "u1", ext="bin")
         assert meta.expires_at is not None
@@ -441,12 +488,14 @@ class TestMultimodalStorage:
 
     def test_permanent_file_has_no_expires_at(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"perm", "image", "u1", ext="png")
         assert meta.expires_at is None
 
     def test_list_files_filter_by_type(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         store.store(b"a", "image", "u1", ext="png")
         store.store(b"b", "audio", "u1", ext="mp3")
@@ -458,6 +507,7 @@ class TestMultimodalStorage:
 
     def test_cleanup_expired_removes_temp(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"temp", "temp", "u1", ext="bin")
         # 手动改 expires_at 让它过期
@@ -471,6 +521,7 @@ class TestMultimodalStorage:
 
     def test_cleanup_does_not_remove_permanent(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         store = MultimodalStorage(base_dir=tmp_path / "mm")
         meta = store.store(b"perm", "image", "u1", ext="png")
         deleted = store.cleanup_expired("u1")
@@ -479,6 +530,7 @@ class TestMultimodalStorage:
 
     def test_index_persistence_across_instances(self, tmp_path):
         from deadman.multimodal.storage import MultimodalStorage
+
         base = tmp_path / "mm"
         s1 = MultimodalStorage(base_dir=base)
         meta = s1.store(b"persist", "image", "u1", ext="png")
@@ -499,6 +551,7 @@ class TestMultimodalStorage:
 class TestMultimodalPipeline:
     def test_instantiation_default_config(self):
         from deadman.multimodal.pipeline import MultimodalConfig, MultimodalPipeline
+
         pipe = MultimodalPipeline()
         assert isinstance(pipe.config, MultimodalConfig)
         assert pipe.is_enabled() is True
@@ -510,6 +563,7 @@ class TestMultimodalPipeline:
         # 模拟 disabled
         monkeypatch.setenv("DEADMAN_MULTIMODAL_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         with pytest.raises(MultimodalDisabledError):
@@ -522,6 +576,7 @@ class TestMultimodalPipeline:
     def test_ocr_extract_via_pipeline(self, sample_image):
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         result = pipe.ocr_extract(sample_image, DocType.ID_CARD, user_id="u1")
         assert result.doc_type == DocType.ID_CARD
@@ -530,6 +585,7 @@ class TestMultimodalPipeline:
         """OCR 提取的 PII(身份证号)应被脱敏。"""
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         result = pipe.ocr_extract(sample_image, DocType.ID_CARD, user_id="u1")
         # mock OCR 返回 "姓名 张三 身份证号 110101199001011234"
@@ -540,6 +596,7 @@ class TestMultimodalPipeline:
     def test_ocr_pii_redaction_can_be_disabled(self, sample_image):
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalConfig, MultimodalPipeline
+
         config = MultimodalConfig(pii_redact_ocr=False)
         pipe = MultimodalPipeline(config=config)
         result = pipe.ocr_extract(sample_image, DocType.ID_CARD, user_id="u1")
@@ -549,6 +606,7 @@ class TestMultimodalPipeline:
 
     def test_asr_transcribe_via_pipeline(self, sample_audio):
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         result = pipe.asr_transcribe(sample_audio, language="zh", user_id="u1")
         assert result.text
@@ -556,12 +614,14 @@ class TestMultimodalPipeline:
     def test_tts_synthesize_via_pipeline(self):
         from deadman.multimodal.pipeline import MultimodalPipeline
         from deadman.multimodal.tts import VoiceProfile
+
         pipe = MultimodalPipeline()
         result = pipe.tts_synthesize("悼文", VoiceProfile.GENTLE_MALE, user_id="u1")
         assert len(result.audio_bytes) > 0
 
     def test_vision_describe_via_pipeline(self, sample_image):
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         text = pipe.vision_describe(sample_image, prompt="描述", user_id="u1")
         assert isinstance(text, str)
@@ -569,24 +629,32 @@ class TestMultimodalPipeline:
     def test_image_gen_via_pipeline(self):
         from deadman.multimodal.image_gen import ImageSize, ImageStyle
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         img = pipe.image_gen_generate(
-            "怀念父亲", ImageStyle.MEMORIAL_CARD, ImageSize.SQUARE_512, user_id="u1",
+            "怀念父亲",
+            ImageStyle.MEMORIAL_CARD,
+            ImageSize.SQUARE_512,
+            user_id="u1",
         )
         assert len(img) > 0
 
     def test_route_capability_ocr(self, sample_image):
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         result = pipe.route(
-            "ocr", user_id="u1",
-            image_path=sample_image, doc_type=DocType.OTHER,
+            "ocr",
+            user_id="u1",
+            image_path=sample_image,
+            doc_type=DocType.OTHER,
         )
         assert result.text is not None
 
     def test_route_unknown_capability_raises(self):
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         with pytest.raises(ValueError):
             pipe.route("unknown_cap")
@@ -597,6 +665,7 @@ class TestMultimodalPipeline:
             MultimodalDisabledError,
             MultimodalPipeline,
         )
+
         config = MultimodalConfig(enable_ocr=False)
         pipe = MultimodalPipeline(config=config)
         with pytest.raises(MultimodalDisabledError):
@@ -604,10 +673,16 @@ class TestMultimodalPipeline:
 
     def test_list_capabilities(self):
         from deadman.multimodal.pipeline import MultimodalConfig, MultimodalPipeline
-        pipe = MultimodalPipeline(config=MultimodalConfig(
-            enable_ocr=True, enable_asr=True, enable_tts=False,
-            enable_vision=False, enable_image_gen=False,
-        ))
+
+        pipe = MultimodalPipeline(
+            config=MultimodalConfig(
+                enable_ocr=True,
+                enable_asr=True,
+                enable_tts=False,
+                enable_vision=False,
+                enable_image_gen=False,
+            )
+        )
         caps = pipe.list_capabilities()
         assert "ocr" in caps
         assert "asr" in caps
@@ -617,6 +692,7 @@ class TestMultimodalPipeline:
     def test_audit_log_recorded(self, sample_image):
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         pipe.ocr_extract(sample_image, DocType.OTHER, user_id="u_audit")
         audit = pipe.get_audit_log()
@@ -628,6 +704,7 @@ class TestMultimodalPipeline:
 
     def test_audit_log_records_failure(self, tmp_path):
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         # 传一个不存在的文件,OCR service 不会抛但返回空 → success=True
         # 改为:让底层 service 抛错
@@ -649,6 +726,7 @@ class TestMultimodalPipeline:
         )
         from deadman.multimodal.ocr import DocType
         from deadman.multimodal.pipeline import MultimodalPipeline
+
         pipe = MultimodalPipeline()
         pipe.ocr_extract(sample_image, DocType.OTHER, user_id="u_budget")
         bc = get_budget_coordinator()
@@ -669,6 +747,7 @@ class TestDisabledState:
 
         monkeypatch.setenv("DEADMAN_MULTIMODAL_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -687,6 +766,7 @@ class TestDisabledState:
 
         monkeypatch.setenv("DEADMAN_MULTIMODAL_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -704,6 +784,7 @@ class TestDisabledState:
 
         monkeypatch.setenv("DEADMAN_MULTIMODAL_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -724,10 +805,17 @@ class TestDisabledState:
 class TestModuleExports:
     def test_required_exports_available(self):
         import deadman.multimodal as mm
+
         required = [
-            "OCRService", "ASRService", "TTSService", "VisionService",
-            "ImageGenerator", "MultimodalPipeline", "MultimodalConfig",
-            "get_multimodal_pipeline", "MultimodalDisabledError",
+            "OCRService",
+            "ASRService",
+            "TTSService",
+            "VisionService",
+            "ImageGenerator",
+            "MultimodalPipeline",
+            "MultimodalConfig",
+            "get_multimodal_pipeline",
+            "MultimodalDisabledError",
         ]
         for name in required:
             assert hasattr(mm, name), f"Missing export: {name}"
@@ -737,6 +825,7 @@ class TestModuleExports:
             get_multimodal_pipeline,
             reset_multimodal_pipeline,
         )
+
         p1 = get_multimodal_pipeline()
         p2 = get_multimodal_pipeline()
         assert p1 is p2

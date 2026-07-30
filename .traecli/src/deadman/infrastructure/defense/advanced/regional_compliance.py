@@ -66,6 +66,7 @@ logger = logging.getLogger(__name__)
 # 区域 / 司法辖区映射
 # =====================================================================
 
+
 class UnifiedRegion(str, Enum):
     """统一区域枚举(合并 DataRegion + Jurisdiction)。"""
 
@@ -131,6 +132,7 @@ def unified_to_jurisdiction(region: UnifiedRegion) -> str:
 # 合规检查结果
 # =====================================================================
 
+
 class ComplianceLevel(str, Enum):
     """合规检查结果等级。"""
 
@@ -195,6 +197,7 @@ class ComplianceViolation(Exception):
 # =====================================================================
 # 数据分级
 # =====================================================================
+
 
 class DataKind(str, Enum):
     """数据分级(基于 GDPR / PIPL)。"""
@@ -289,7 +292,10 @@ class RegionalComplianceOrchestrator:
         if self._data_residency is not None:
             return self._data_residency
         try:
-            from ...compliance.data_residency import get_data_residency  # type: ignore[import-untyped]
+            from ...compliance.data_residency import (
+                get_data_residency,  # type: ignore[import-untyped]
+            )
+
             self._data_residency = get_data_residency()
         except ImportError:
             self._data_residency = None
@@ -300,6 +306,7 @@ class RegionalComplianceOrchestrator:
             return self._law_adapter
         try:
             from ...i18n.law_adapter import get_law_adapter  # type: ignore[import-untyped]
+
             self._law_adapter = get_law_adapter()
         except ImportError:
             self._law_adapter = None
@@ -310,6 +317,7 @@ class RegionalComplianceOrchestrator:
             return self._consent_manager
         try:
             from ...compliance.consent import get_consent_manager  # type: ignore[import-untyped]
+
             self._consent_manager = get_consent_manager()
         except ImportError:
             self._consent_manager = None
@@ -346,11 +354,24 @@ class RegionalComplianceOrchestrator:
             purpose: 跨境目的(用于审计)
         """
         import time as _time
-        from_unified = data_region_to_unified(from_region) if from_region in _DATA_REGION_MAP else (
-            UnifiedRegion(from_region) if from_region in [r.value for r in UnifiedRegion] else UnifiedRegion.OTHER
+
+        from_unified = (
+            data_region_to_unified(from_region)
+            if from_region in _DATA_REGION_MAP
+            else (
+                UnifiedRegion(from_region)
+                if from_region in [r.value for r in UnifiedRegion]
+                else UnifiedRegion.OTHER
+            )
         )
-        to_unified = data_region_to_unified(to_region) if to_region in _DATA_REGION_MAP else (
-            UnifiedRegion(to_region) if to_region in [r.value for r in UnifiedRegion] else UnifiedRegion.OTHER
+        to_unified = (
+            data_region_to_unified(to_region)
+            if to_region in _DATA_REGION_MAP
+            else (
+                UnifiedRegion(to_region)
+                if to_region in [r.value for r in UnifiedRegion]
+                else UnifiedRegion.OTHER
+            )
         )
 
         result = ComplianceCheckResult(
@@ -381,7 +402,9 @@ class RegionalComplianceOrchestrator:
 
         # 是否需要用户同意
         exceptions_raw = rules.get("cross_border_exceptions", [])
-        exceptions: list[str] = list(exceptions_raw) if isinstance(exceptions_raw, (list, tuple)) else []
+        exceptions: list[str] = (
+            list(exceptions_raw) if isinstance(exceptions_raw, (list, tuple)) else []
+        )
         result.consent_required = "consent" in exceptions
 
         # 敏感数据额外严格
@@ -431,12 +454,16 @@ class RegionalComplianceOrchestrator:
                 # 兼容两种返回:dict 或 ValidationResult
                 if hasattr(validation, "allowed"):
                     allowed = validation.allowed
-                    requires_consent = getattr(validation, "requires_consent", False) or getattr(validation, "consents_required", [])
+                    requires_consent = getattr(validation, "requires_consent", False) or getattr(
+                        validation, "consents_required", []
+                    )
                     warnings = getattr(validation, "warnings", [])
                     legal_basis = getattr(validation, "legal_basis", "")
                 elif isinstance(validation, dict):
                     allowed = validation.get("allowed", True)
-                    requires_consent = validation.get("requires_consent", False) or validation.get("consents_required", [])
+                    requires_consent = validation.get("requires_consent", False) or validation.get(
+                        "consents_required", []
+                    )
                     warnings = validation.get("warnings", [])
                     legal_basis = validation.get("legal_basis", "")
                 else:
@@ -464,7 +491,9 @@ class RegionalComplianceOrchestrator:
 
         # 推荐建议
         if result.consent_required and not result.consent_obtained:
-            result.recommendations.append("Obtain explicit user consent before cross-border transfer")
+            result.recommendations.append(
+                "Obtain explicit user consent before cross-border transfer"
+            )
         if data_kind == "sensitive":
             result.recommendations.append("Consider data anonymization before transfer")
         if from_unified == UnifiedRegion.CN_MAINLAND:
@@ -486,8 +515,15 @@ class RegionalComplianceOrchestrator:
     ) -> ComplianceCheckResult:
         """存储前合规检查(透明拦截)。"""
         import time as _time
-        region = data_region_to_unified(target_region) if target_region in _DATA_REGION_MAP else (
-            UnifiedRegion(target_region) if target_region in [r.value for r in UnifiedRegion] else UnifiedRegion.OTHER
+
+        region = (
+            data_region_to_unified(target_region)
+            if target_region in _DATA_REGION_MAP
+            else (
+                UnifiedRegion(target_region)
+                if target_region in [r.value for r in UnifiedRegion]
+                else UnifiedRegion.OTHER
+            )
         )
         result = ComplianceCheckResult(
             allowed=True,
@@ -544,12 +580,14 @@ class RegionalComplianceOrchestrator:
     ) -> ComplianceCheckResult:
         """记录审计事件并返回结果。"""
         with self._lock:
-            self._audit_events.append({
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "purpose": purpose,
-                "result": result.to_dict(),
-            })
+            self._audit_events.append(
+                {
+                    "tenant_id": tenant_id,
+                    "user_id": user_id,
+                    "purpose": purpose,
+                    "result": result.to_dict(),
+                }
+            )
             if len(self._audit_events) > 10000:
                 self._audit_events = self._audit_events[-5000:]
         return result

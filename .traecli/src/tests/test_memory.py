@@ -276,11 +276,13 @@ class TestMemoryManagerBuildContext:
     async def test_build_context_includes_contradictions(self):
         # 待澄清的矛盾应注入上下文
         manager = MemoryManager()
-        manager.working.add_contradiction_alert({
-            "field": "name",
-            "old_value": "张三",
-            "new_value": "李四",
-        })
+        manager.working.add_contradiction_alert(
+            {
+                "field": "name",
+                "old_value": "张三",
+                "new_value": "李四",
+            }
+        )
         context = manager.build_context_for_llm("问题")
         assert "矛盾" in context or "澄清" in context
 

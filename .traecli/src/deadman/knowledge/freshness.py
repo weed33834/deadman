@@ -38,12 +38,12 @@ logger = logging.getLogger(__name__)
 class KnowledgeCategory(str, Enum):
     """知识类别(不同 TTL)。"""
 
-    LAW = "law"                          # 法律法规(TTL 365 天)
-    COURT_CASE = "court_case"            # 法院判例(TTL 1825 天 = 5 年)
-    GOVERNMENT_DOC = "government_doc"    # 政府文件(TTL 365 天)
+    LAW = "law"  # 法律法规(TTL 365 天)
+    COURT_CASE = "court_case"  # 法院判例(TTL 1825 天 = 5 年)
+    GOVERNMENT_DOC = "government_doc"  # 政府文件(TTL 365 天)
     USER_EXPERIENCE = "user_experience"  # 用户实操经验(TTL 90 天)
-    AI_GENERATED = "ai_generated"        # AI 生成内容(TTL 30 天)
-    OTHER = "other"                      # 其他(TTL 180 天)
+    AI_GENERATED = "ai_generated"  # AI 生成内容(TTL 30 天)
+    OTHER = "other"  # 其他(TTL 180 天)
 
 
 # 各类别的 TTL(天)

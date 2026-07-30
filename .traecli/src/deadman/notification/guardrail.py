@@ -56,10 +56,10 @@ class NotificationGuardrail:
     SILENT_HOURS = (22, 8)
 
     # 脆弱期静默时长（第一章约束 7-9）
-    POST_SESSION_SILENCE_HOURS = 72        # 最后会话后 72 小时
-    R3_SILENCE_DAYS = 14                   # R3 触发后 14 天
-    HIGH_EMOTION_SILENCE_DAYS = 7          # 高情绪强度后 7 天
-    SENSITIVE_DEATH_SILENCE_DAYS = 30      # 自杀/他杀/非正常死亡会话后 30 天
+    POST_SESSION_SILENCE_HOURS = 72  # 最后会话后 72 小时
+    R3_SILENCE_DAYS = 14  # R3 触发后 14 天
+    HIGH_EMOTION_SILENCE_DAYS = 7  # 高情绪强度后 7 天
+    SENSITIVE_DEATH_SILENCE_DAYS = 30  # 自杀/他杀/非正常死亡会话后 30 天
 
     # 禁用词替换表（第一章约束 5）
     # "忌日 / 周年 / 自杀 / 他杀 / 非正常死亡" 完全不推送（sanitize 返回空串）

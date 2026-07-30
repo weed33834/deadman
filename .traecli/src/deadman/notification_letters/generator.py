@@ -96,8 +96,7 @@ class LetterGenerator:
         """
         if request.letter_type not in LETTER_TEMPLATES:
             raise ValueError(
-                f"未知信函类型: {request.letter_type}，"
-                f"支持类型: {list(LETTER_TEMPLATES.keys())}"
+                f"未知信函类型: {request.letter_type}，支持类型: {list(LETTER_TEMPLATES.keys())}"
             )
 
         template = LETTER_TEMPLATES[request.letter_type]
@@ -119,9 +118,7 @@ class LetterGenerator:
             confidence = self.TEMPLATE_ONLY_CONFIDENCE
             final_text = masked_text
         else:
-            optimized, ok = self._optimize_with_llm(
-                masked_text, request.letter_type
-            )
+            optimized, ok = self._optimize_with_llm(masked_text, request.letter_type)
             if ok:
                 confidence = self.LLM_OPTIMIZED_CONFIDENCE
                 final_text = self._mask_pii(optimized)
@@ -178,6 +175,7 @@ class LetterGenerator:
 
         实现用 re.sub + 自定义 replacer，避免 str.format 抛 KeyError。
         """
+
         def _replacer(m: re.Match) -> str:
             key = m.group(1)
             val = values.get(key, "")
@@ -231,13 +229,10 @@ class LetterGenerator:
             return ""
 
         # 身份证号
-        text = _ID_CARD_RE.sub(
-            lambda m: f"{m.group(1)}********{m.group(2)}", text
-        )
+        text = _ID_CARD_RE.sub(lambda m: f"{m.group(1)}********{m.group(2)}", text)
         # 手机号
-        text = _PHONE_RE.sub(
-            lambda m: f"{m.group(1)}****{m.group(2)}", text
-        )
+        text = _PHONE_RE.sub(lambda m: f"{m.group(1)}****{m.group(2)}", text)
+
         # 银行账号
         def _mask_bank(m: re.Match) -> str:
             digits = m.group(0)
@@ -249,9 +244,7 @@ class LetterGenerator:
     # ==================================================================
     # LLM 语气优化（可选）
     # ==================================================================
-    def _optimize_with_llm(
-        self, text: str, letter_type: str
-    ) -> tuple[str, bool]:
+    def _optimize_with_llm(self, text: str, letter_type: str) -> tuple[str, bool]:
         """调 LLM 优化信函语气
 
         约束（integrity-framework.md）：
@@ -271,9 +264,7 @@ class LetterGenerator:
         try:
             from ..llm import llm_client
         except Exception as exc:
-            logger.warning(
-                "LetterGenerator: 无法导入 llm_client: %s", exc
-            )
+            logger.warning("LetterGenerator: 无法导入 llm_client: %s", exc)
             return text, False
 
         if not getattr(llm_client, "api_key", ""):
@@ -299,13 +290,9 @@ class LetterGenerator:
         try:
             import asyncio
 
-            resp = asyncio.run(
-                llm_client.chat(messages, temperature=0.2, max_tokens=2048)
-            )
+            resp = asyncio.run(llm_client.chat(messages, temperature=0.2, max_tokens=2048))
         except Exception as exc:
-            logger.warning(
-                "LetterGenerator: LLM 调用失败: %s", exc
-            )
+            logger.warning("LetterGenerator: LLM 调用失败: %s", exc)
             return text, False
 
         if not resp or not isinstance(resp, str) or not resp.strip():
@@ -313,9 +300,7 @@ class LetterGenerator:
 
         # 验证：LLM 输出不能比原文短太多（防止被截断）
         if len(resp.strip()) < len(text) * 0.5:
-            logger.warning(
-                "LetterGenerator: LLM 响应过短，疑似截断，降级使用原模板"
-            )
+            logger.warning("LetterGenerator: LLM 响应过短，疑似截断，降级使用原模板")
             return text, False
 
         # 验证：占位符不能丢失（integrity-framework：不补全未提供字段）
@@ -334,9 +319,7 @@ class LetterGenerator:
     @staticmethod
     def _build_llm_prompt(text: str, letter_type: str) -> str:
         """构造 LLM 提示词"""
-        type_meta = next(
-            (t for t in LETTER_TYPES if t["type"] == letter_type), None
-        )
+        type_meta = next((t for t in LETTER_TYPES if t["type"] == letter_type), None)
         type_name = type_meta["name"] if type_meta else letter_type
         return (
             f"以下是【{type_name}】信函草稿，已用模板填充关键字段。\n"

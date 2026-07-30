@@ -83,7 +83,9 @@ def _resolve_level(level: str | None) -> int:
     兼容旧版 ``LOG_LEVEL``（.env.example 早期版本曾用此名），向后不破坏。
     """
     if level is None:
-        level = os.environ.get("DEADMAN_LOG_LEVEL") or os.environ.get("LOG_LEVEL") or DEFAULT_LOG_LEVEL
+        level = (
+            os.environ.get("DEADMAN_LOG_LEVEL") or os.environ.get("LOG_LEVEL") or DEFAULT_LOG_LEVEL
+        )
     return getattr(logging, str(level).upper(), logging.INFO)
 
 

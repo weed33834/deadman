@@ -40,9 +40,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-CONTENT_SANDBOX_ENABLED: bool = os.environ.get(
-    "DEADMAN_CONTENT_SANDBOX_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+CONTENT_SANDBOX_ENABLED: bool = os.environ.get("DEADMAN_CONTENT_SANDBOX_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 默认最大长度（5000 字符）
 DEFAULT_MAX_LENGTH = 5000
@@ -85,7 +88,7 @@ class ContentSandbox:
 
     def __init__(self, max_length: int = DEFAULT_MAX_LENGTH):
         """Args:
-            max_length: 最大长度（字符数），超过则截断
+        max_length: 最大长度（字符数），超过则截断
         """
         self.max_length = max_length
 

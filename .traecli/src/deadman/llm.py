@@ -105,40 +105,160 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
 PROVIDER_MODELS: dict[str, list[dict[str, Any]]] = {
     "openai": [
         # 数据源: https://platform.openai.com/docs/models (2026-07-14)
-        {"id": "gpt-5.5", "name": "GPT-5.5", "context": "1M", "input_price": 5.0, "output_price": 30.0},
-        {"id": "gpt-5.4", "name": "GPT-5.4", "context": "1M", "input_price": 2.5, "output_price": 15.0},
-        {"id": "gpt-5.4-mini", "name": "GPT-5.4 mini", "context": "400K", "input_price": 0.75, "output_price": 4.5},
-        {"id": "gpt-5.4-nano", "name": "GPT-5.4 nano", "context": "400K", "input_price": 0.3, "output_price": 1.8},
+        {
+            "id": "gpt-5.5",
+            "name": "GPT-5.5",
+            "context": "1M",
+            "input_price": 5.0,
+            "output_price": 30.0,
+        },
+        {
+            "id": "gpt-5.4",
+            "name": "GPT-5.4",
+            "context": "1M",
+            "input_price": 2.5,
+            "output_price": 15.0,
+        },
+        {
+            "id": "gpt-5.4-mini",
+            "name": "GPT-5.4 mini",
+            "context": "400K",
+            "input_price": 0.75,
+            "output_price": 4.5,
+        },
+        {
+            "id": "gpt-5.4-nano",
+            "name": "GPT-5.4 nano",
+            "context": "400K",
+            "input_price": 0.3,
+            "output_price": 1.8,
+        },
     ],
     "anthropic": [
         # 数据源: https://platform.claude.com/docs/en/about-claude/pricing (2026-07-14)
-        {"id": "claude-fable-5", "name": "Claude Fable 5", "context": "1M", "input_price": 10.0, "output_price": 50.0},
-        {"id": "claude-opus-4-8", "name": "Claude Opus 4.8", "context": "1M", "input_price": 5.0, "output_price": 25.0},
-        {"id": "claude-sonnet-5", "name": "Claude Sonnet 5", "context": "1M", "input_price": 2.0, "output_price": 10.0},
-        {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "context": "200K", "input_price": 1.0, "output_price": 5.0},
+        {
+            "id": "claude-fable-5",
+            "name": "Claude Fable 5",
+            "context": "1M",
+            "input_price": 10.0,
+            "output_price": 50.0,
+        },
+        {
+            "id": "claude-opus-4-8",
+            "name": "Claude Opus 4.8",
+            "context": "1M",
+            "input_price": 5.0,
+            "output_price": 25.0,
+        },
+        {
+            "id": "claude-sonnet-5",
+            "name": "Claude Sonnet 5",
+            "context": "1M",
+            "input_price": 2.0,
+            "output_price": 10.0,
+        },
+        {
+            "id": "claude-haiku-4-5",
+            "name": "Claude Haiku 4.5",
+            "context": "200K",
+            "input_price": 1.0,
+            "output_price": 5.0,
+        },
     ],
     "zhipu": [
         # 数据源: https://docs.bigmodel.cn/cn/update/new-releases (2026-07-14)
-        {"id": "glm-5.2", "name": "GLM-5.2", "context": "1M", "input_price": None, "output_price": None},
-        {"id": "glm-5.1", "name": "GLM-5.1", "context": "200K", "input_price": None, "output_price": None},
-        {"id": "glm-5", "name": "GLM-5", "context": "200K", "input_price": None, "output_price": None},
-        {"id": "glm-4.7", "name": "GLM-4.7", "context": "200K", "input_price": None, "output_price": None},
-        {"id": "glm-4.7-flash", "name": "GLM-4.7 Flash (免费)", "context": "200K", "input_price": 0.0, "output_price": 0.0},
-        {"id": "glm-4.6", "name": "GLM-4.6", "context": "200K", "input_price": None, "output_price": None},
+        {
+            "id": "glm-5.2",
+            "name": "GLM-5.2",
+            "context": "1M",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-5.1",
+            "name": "GLM-5.1",
+            "context": "200K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-5",
+            "name": "GLM-5",
+            "context": "200K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-4.7",
+            "name": "GLM-4.7",
+            "context": "200K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-4.7-flash",
+            "name": "GLM-4.7 Flash (免费)",
+            "context": "200K",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
+        {
+            "id": "glm-4.6",
+            "name": "GLM-4.6",
+            "context": "200K",
+            "input_price": None,
+            "output_price": None,
+        },
     ],
     "ollama": [
         # 本地模型，价格均为 0（本地运行）
-        {"id": "qwen3:32b", "name": "Qwen3 32B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
-        {"id": "qwen3:14b", "name": "Qwen3 14B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
-        {"id": "llama3.3:70b", "name": "Llama 3.3 70B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
-        {"id": "deepseek-r1:32b", "name": "DeepSeek R1 32B", "context": "128K", "input_price": 0.0, "output_price": 0.0},
+        {
+            "id": "qwen3:32b",
+            "name": "Qwen3 32B",
+            "context": "128K",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
+        {
+            "id": "qwen3:14b",
+            "name": "Qwen3 14B",
+            "context": "128K",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
+        {
+            "id": "llama3.3:70b",
+            "name": "Llama 3.3 70B",
+            "context": "128K",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
+        {
+            "id": "deepseek-r1:32b",
+            "name": "DeepSeek R1 32B",
+            "context": "128K",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
     ],
     "vllm": [
         # vLLM 模型由用户自行加载，这里仅占位
-        {"id": "custom", "name": "用户自定义模型", "context": "N/A", "input_price": 0.0, "output_price": 0.0},
+        {
+            "id": "custom",
+            "name": "用户自定义模型",
+            "context": "N/A",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
     ],
     "llama_cpp": [
-        {"id": "custom", "name": "用户自定义模型", "context": "N/A", "input_price": 0.0, "output_price": 0.0},
+        {
+            "id": "custom",
+            "name": "用户自定义模型",
+            "context": "N/A",
+            "input_price": 0.0,
+            "output_price": 0.0,
+        },
     ],
 }
 
@@ -174,9 +294,7 @@ def _retry_config(max_attempts: int = 3):
     return retry(
         stop=stop_after_attempt(max_attempts),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(
-            (TimeoutError, ConnectionError, OSError)
-        ),
+        retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
         reraise=True,
     )
 
@@ -411,7 +529,9 @@ class LLMClient:
     ) -> LLMResponse:
         client = self._get_openai_client()
         if client is not None:
-            return await self._call_openai_sdk(client, messages, temperature, max_tokens, tools, **kwargs)
+            return await self._call_openai_sdk(
+                client, messages, temperature, max_tokens, tools, **kwargs
+            )
         return await self._call_openai_httpx(messages, temperature, max_tokens, tools, **kwargs)
 
     async def _call_openai_sdk(
@@ -527,7 +647,9 @@ class LLMClient:
     ) -> LLMResponse:
         client = self._get_anthropic_client()
         if client is not None:
-            return await self._call_anthropic_sdk(client, messages, temperature, max_tokens, tools, **kwargs)
+            return await self._call_anthropic_sdk(
+                client, messages, temperature, max_tokens, tools, **kwargs
+            )
         return await self._call_anthropic_httpx(messages, temperature, max_tokens, tools, **kwargs)
 
     async def _call_anthropic_sdk(
@@ -561,9 +683,7 @@ class LLMClient:
             if block.type == "text":
                 content += block.text
             elif block.type == "tool_use":
-                tool_calls.append(
-                    ToolCall(id=block.id, name=block.name, arguments=block.input)
-                )
+                tool_calls.append(ToolCall(id=block.id, name=block.name, arguments=block.input))
         usage = {}
         if resp.usage:
             usage = {
@@ -842,7 +962,9 @@ def get_llm_for_use_case(use_case: str) -> LLMClient:
         if not api_key:
             logger.warning(
                 "use_case=%s 配置的 provider=%s 未设置 API key (%s)，回退主 LLM",
-                use_case, provider, env_key,
+                use_case,
+                provider,
+                env_key,
             )
             _llm_client_cache[use_case] = llm_client
             return llm_client
@@ -855,7 +977,9 @@ def get_llm_for_use_case(use_case: str) -> LLMClient:
 
     logger.info(
         "P7 多模型分工: use_case=%s → provider=%s model=%s",
-        use_case, client.provider, client.model,
+        use_case,
+        client.provider,
+        client.model,
     )
     _llm_client_cache[use_case] = client
     return client

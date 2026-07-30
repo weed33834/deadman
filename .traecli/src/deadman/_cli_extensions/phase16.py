@@ -55,6 +55,7 @@ _DISCLAIMER = (
 # 1. Support Ticket 子命令
 # =====================================================================
 
+
 def cmd_ticket_create(args: argparse.Namespace) -> None:
     """ticket-create：创建客服工单"""
 
@@ -115,12 +116,10 @@ def cmd_ticket_get(args: argparse.Namespace) -> None:
     if ticket is None:
         logger.warning(
             "ticket-get: 工单 %s 不存在或越权访问（user_id=%s）",
-            args.ticket_id, args.user_id,
+            args.ticket_id,
+            args.user_id,
         )
-        print(
-            f"[提示] 工单 {args.ticket_id} 不存在，"
-            f"或您无权访问（user_id={args.user_id}）。"
-        )
+        print(f"[提示] 工单 {args.ticket_id} 不存在，或您无权访问（user_id={args.user_id}）。")
         return
     print(json.dumps(ticket.to_dict(), ensure_ascii=False, indent=2))
 
@@ -138,7 +137,8 @@ def cmd_ticket_reply(args: argparse.Namespace) -> None:
     if reply is None:
         logger.warning(
             "ticket-reply: 工单 %s 不存在或越权（user_id=%s）",
-            args.ticket_id, args.user_id,
+            args.ticket_id,
+            args.user_id,
         )
         print(
             f"[提示] 无法追加回复：工单 {args.ticket_id} 不存在，"
@@ -164,7 +164,8 @@ def cmd_ticket_close(args: argparse.Namespace) -> None:
     if not ok:
         logger.warning(
             "ticket-close: 工单 %s 关闭失败（不存在/越权/状态流转非法）user_id=%s",
-            args.ticket_id, args.user_id,
+            args.ticket_id,
+            args.user_id,
         )
         print(
             f"[提示] 工单 {args.ticket_id} 关闭失败：可能不存在、"
@@ -178,6 +179,7 @@ def cmd_ticket_close(args: argparse.Namespace) -> None:
 # =====================================================================
 # 2. Onboarding 子命令
 # =====================================================================
+
 
 def cmd_onboarding_show(args: argparse.Namespace) -> None:
     """onboarding-show：查看当前用户的 onboarding profile"""
@@ -255,6 +257,7 @@ def cmd_onboarding_steps(args: argparse.Namespace) -> None:
 # 3. Knowledge Freshness 子命令
 # =====================================================================
 
+
 def cmd_knowledge_freshness_scan(args: argparse.Namespace) -> None:
     """knowledge-freshness-scan：扫描地域知识库时效"""
     from deadman.cron.tasks.knowledge_freshness import KnowledgeFreshnessChecker
@@ -281,9 +284,7 @@ def cmd_knowledge_freshness_scan(args: argparse.Namespace) -> None:
     )
     print()
     for r in reports:
-        last_updated_str = (
-            r.last_updated.isoformat() if r.last_updated else "(无)"
-        )
+        last_updated_str = r.last_updated.isoformat() if r.last_updated else "(无)"
         days_str = f"{r.days_old} 天" if r.days_old is not None else "—"
         areas_str = ", ".join(r.policy_areas) if r.policy_areas else "—"
         print(f"- [{r.status:>7}] {r.region}")
@@ -363,6 +364,7 @@ def cmd_knowledge_freshness_check(args: argparse.Namespace) -> None:
 # 4. CN Search 子命令
 # =====================================================================
 
+
 def cmd_search_baidu(args: argparse.Namespace) -> None:
     """search-baidu：用百度搜索"""
     from deadman.tools.web_search import BaiduSearchProvider
@@ -413,8 +415,7 @@ def _print_search_results(provider_name: str, query: str, results: list) -> None
     for i, r in enumerate(results, 1):
         # SearchResult 实例或 dict 都支持
         d = r.to_dict() if hasattr(r, "to_dict") else r
-        print(f"{i}. [{d.get('source_type', 'unknown')}] "
-              f"confidence={d.get('confidence', 0):.2f}")
+        print(f"{i}. [{d.get('source_type', 'unknown')}] confidence={d.get('confidence', 0):.2f}")
         print(f"   title:   {d.get('title', '')}")
         print(f"   url:     {d.get('url', '')}")
         snippet = d.get("snippet", "") or ""
@@ -428,6 +429,7 @@ def _print_search_results(provider_name: str, query: str, results: list) -> None
 # =====================================================================
 # 5. WeChat Webhook 测试子命令
 # =====================================================================
+
 
 def cmd_wechat_webhook_test(args: argparse.Namespace) -> None:
     """wechat-webhook-test：测试微信公众号 webhook 签名校验"""
@@ -462,8 +464,10 @@ def cmd_wechat_webhook_test(args: argparse.Namespace) -> None:
             print(f"  GET 验证响应（原样返回 echostr）：{args.echostr}")
     else:
         print("  结果：✗ 校验失败（签名不匹配）")
-        print("  请检查 token 是否与微信公众号后台配置一致，"
-              "以及 timestamp/nonce/signature 是否来自微信请求。")
+        print(
+            "  请检查 token 是否与微信公众号后台配置一致，"
+            "以及 timestamp/nonce/signature 是否来自微信请求。"
+        )
     print()
     print(_DISCLAIMER)
 
@@ -471,6 +475,7 @@ def cmd_wechat_webhook_test(args: argparse.Namespace) -> None:
 # =====================================================================
 # 辅助：构造 store（支持 --data-dir 用于测试隔离）
 # =====================================================================
+
 
 def _make_ticket_store(args: argparse.Namespace):
     """构造 TicketStore（支持 --data-dir 用于测试隔离）"""
@@ -520,16 +525,18 @@ def register_subparsers(subparsers: Any) -> None:
             wechat-webhook-test
     """
     # ============== 1. Support Ticket ==============
-    tc_p = subparsers.add_parser(
-        "ticket-create", help="创建客服工单（Phase 16）"
-    )
+    tc_p = subparsers.add_parser("ticket-create", help="创建客服工单（Phase 16）")
     tc_p.add_argument("--user-id", required=True, help="用户 ID")
     tc_p.add_argument(
-        "--category", required=True, choices=_TICKET_CATEGORIES,
+        "--category",
+        required=True,
+        choices=_TICKET_CATEGORIES,
         help="工单类别（咨询/反馈/投诉/数据删除/跨境合规）",
     )
     tc_p.add_argument(
-        "--priority", default="普通", choices=_TICKET_PRIORITIES,
+        "--priority",
+        default="普通",
+        choices=_TICKET_PRIORITIES,
         help="优先级（低/普通/紧急，默认 普通）",
     )
     tc_p.add_argument("--subject", required=True, help="工单主题（≤200 字符）")
@@ -537,38 +544,31 @@ def register_subparsers(subparsers: Any) -> None:
     tc_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     tc_p.set_defaults(func=cmd_ticket_create)
 
-    tl_p = subparsers.add_parser(
-        "ticket-list", help="列出我的工单（Phase 16）"
-    )
+    tl_p = subparsers.add_parser("ticket-list", help="列出我的工单（Phase 16）")
     tl_p.add_argument("--user-id", required=True, help="用户 ID")
     tl_p.add_argument(
-        "--status", default=None,
+        "--status",
+        default=None,
         choices=["open", "in_progress", "resolved", "closed"],
         help="按状态过滤（可选）",
     )
     tl_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     tl_p.set_defaults(func=cmd_ticket_list)
 
-    tg_p = subparsers.add_parser(
-        "ticket-get", help="查看工单详情（Phase 16，越权返回提示）"
-    )
+    tg_p = subparsers.add_parser("ticket-get", help="查看工单详情（Phase 16，越权返回提示）")
     tg_p.add_argument("--ticket-id", required=True, help="工单 ID")
     tg_p.add_argument("--user-id", required=True, help="用户 ID（用于越权校验）")
     tg_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     tg_p.set_defaults(func=cmd_ticket_get)
 
-    tr_p = subparsers.add_parser(
-        "ticket-reply", help="给工单追加回复（Phase 16）"
-    )
+    tr_p = subparsers.add_parser("ticket-reply", help="给工单追加回复（Phase 16）")
     tr_p.add_argument("--ticket-id", required=True, help="工单 ID")
     tr_p.add_argument("--user-id", required=True, help="用户 ID（用于越权校验）")
     tr_p.add_argument("--content", required=True, help="回复内容")
     tr_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     tr_p.set_defaults(func=cmd_ticket_reply)
 
-    tcl_p = subparsers.add_parser(
-        "ticket-close", help="关闭工单（Phase 16，先校验 ownership）"
-    )
+    tcl_p = subparsers.add_parser("ticket-close", help="关闭工单（Phase 16，先校验 ownership）")
     tcl_p.add_argument("--ticket-id", required=True, help="工单 ID")
     tcl_p.add_argument("--user-id", required=True, help="用户 ID（用于越权校验）")
     tcl_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
@@ -587,23 +587,29 @@ def register_subparsers(subparsers: Any) -> None:
     )
     ob_save_p.add_argument("--user-id", required=True, help="用户 ID")
     ob_save_p.add_argument(
-        "--relationship", required=True, choices=_ONBOARDING_RELATIONSHIPS,
+        "--relationship",
+        required=True,
+        choices=_ONBOARDING_RELATIONSHIPS,
         help="与逝者的关系（亲属/朋友/本人/其他）",
     )
     ob_save_p.add_argument(
-        "--location", required=True,
+        "--location",
+        required=True,
         help="所在省份（如 北京 / 上海 / 海外，与知识库 _PROVINCES 列表一致）",
     )
     ob_save_p.add_argument(
-        "--death-date", default=None,
+        "--death-date",
+        default=None,
         help="逝者去世日期（YYYY-MM-DD，可选；本人场景可留空）",
     )
     ob_save_p.add_argument(
-        "--current-stage", default=None,
+        "--current-stage",
+        default=None,
         help="当前已办理阶段，逗号分隔（如 '死亡证明,户口注销'）",
     )
     ob_save_p.add_argument(
-        "--consent-disclaimer", action="store_true",
+        "--consent-disclaimer",
+        action="store_true",
         help="勾选表示已读并同意《用户协议》和《隐私政策》",
     )
     ob_save_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
@@ -619,7 +625,8 @@ def register_subparsers(subparsers: Any) -> None:
         "knowledge-freshness-scan", help="扫描地域知识库文件时效（Phase 16）"
     )
     kf_scan_p.add_argument(
-        "--regions-dir", default=".traecli/knowledge/regions",
+        "--regions-dir",
+        default=".traecli/knowledge/regions",
         help="地域知识库目录（默认 .traecli/knowledge/regions）",
     )
     kf_scan_p.set_defaults(func=cmd_knowledge_freshness_scan)
@@ -628,27 +635,29 @@ def register_subparsers(subparsers: Any) -> None:
         "knowledge-freshness-check", help="检查指定文件的政策漂移（Phase 16）"
     )
     kf_check_p.add_argument(
-        "--file-path", required=True, help="待检查的 .md 文件路径",
+        "--file-path",
+        required=True,
+        help="待检查的 .md 文件路径",
     )
     kf_check_p.set_defaults(func=cmd_knowledge_freshness_check)
 
     # ============== 4. CN Search ==============
-    sb_p = subparsers.add_parser(
-        "search-baidu", help="用百度搜索（Phase 16，中国境内备选）"
-    )
+    sb_p = subparsers.add_parser("search-baidu", help="用百度搜索（Phase 16，中国境内备选）")
     sb_p.add_argument("--query", required=True, help="搜索查询语句")
     sb_p.add_argument(
-        "--max-results", type=int, default=5,
+        "--max-results",
+        type=int,
+        default=5,
         help="最大结果数（默认 5）",
     )
     sb_p.set_defaults(func=cmd_search_baidu)
 
-    sbc_p = subparsers.add_parser(
-        "search-bing-cn", help="用必应中国搜索（Phase 16，中国境内备选）"
-    )
+    sbc_p = subparsers.add_parser("search-bing-cn", help="用必应中国搜索（Phase 16，中国境内备选）")
     sbc_p.add_argument("--query", required=True, help="搜索查询语句")
     sbc_p.add_argument(
-        "--max-results", type=int, default=5,
+        "--max-results",
+        type=int,
+        default=5,
         help="最大结果数（默认 5）",
     )
     sbc_p.set_defaults(func=cmd_search_bing_cn)
@@ -662,7 +671,8 @@ def register_subparsers(subparsers: Any) -> None:
     wx_p.add_argument("--nonce", required=True, help="微信请求随机串")
     wx_p.add_argument("--signature", required=True, help="微信请求签名")
     wx_p.add_argument(
-        "--echostr", default=None,
+        "--echostr",
+        default=None,
         help="GET 校验时的 echostr（提供则原样返回，模拟微信 URL 验证）",
     )
     wx_p.set_defaults(func=cmd_wechat_webhook_test)

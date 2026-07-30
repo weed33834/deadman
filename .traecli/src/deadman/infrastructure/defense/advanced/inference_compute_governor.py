@@ -62,6 +62,7 @@ logger = logging.getLogger(__name__)
 # 数据类
 # =====================================================================
 
+
 class ReasoningModelStyle(str, Enum):
     """推理模型思考阶段输出风格。"""
 
@@ -143,9 +144,18 @@ _PII_PATTERNS = [
 
 # 异常模式(可能是 prompt 注入 / 越狱 / 死循环)
 _ANOMALY_PATTERNS = [
-    (re.compile(r"(?:ignore|disregard)\s+(?:previous|above)\s+instructions", re.IGNORECASE), "prompt_injection"),
+    (
+        re.compile(r"(?:ignore|disregard)\s+(?:previous|above)\s+instructions", re.IGNORECASE),
+        "prompt_injection",
+    ),
     (re.compile(r"system\s*prompt\s*[:：]", re.IGNORECASE), "system_prompt_leak"),
-    (re.compile(r"(?:let me|I should|I'll try)\s+(?:try|attempt)\s+(?:again|once more|a different)", re.IGNORECASE), "loop_indicator"),
+    (
+        re.compile(
+            r"(?:let me|I should|I'll try)\s+(?:try|attempt)\s+(?:again|once more|a different)",
+            re.IGNORECASE,
+        ),
+        "loop_indicator",
+    ),
 ]
 
 
@@ -172,7 +182,9 @@ class ReasoningAuditor:
         self.retain_history = retain_history
         self._lock = threading.RLock()
         # 审计历史(用户 -> deque)
-        self._history: dict[str, deque[dict]] = defaultdict(lambda: deque(maxlen=self.retain_history))
+        self._history: dict[str, deque[dict]] = defaultdict(
+            lambda: deque(maxlen=self.retain_history)
+        )
         # 统计
         self._stats = {
             "audits": 0,
@@ -234,13 +246,15 @@ class ReasoningAuditor:
 
         # 5. 历史记录
         with self._lock:
-            self._history[user_id].append({
-                "timestamp": time.time(),
-                "length": length,
-                "pii_leak": result.pii_leak,
-                "anomaly": result.anomaly,
-                "summary": result.summary,
-            })
+            self._history[user_id].append(
+                {
+                    "timestamp": time.time(),
+                    "length": length,
+                    "pii_leak": result.pii_leak,
+                    "anomaly": result.anomaly,
+                    "summary": result.summary,
+                }
+            )
 
         return result
 
@@ -281,6 +295,7 @@ class ReasoningAuditResult:
 # =====================================================================
 # 用户级聚合器
 # =====================================================================
+
 
 @dataclass
 class UserComputeStats:
@@ -469,9 +484,7 @@ class ComputeGovernor:
             else self.config["max_reasoning_seconds_per_call"]
         )
 
-        estimated_total = (
-            estimated_input_tokens + estimated_output_tokens + max_reasoning
-        )
+        estimated_total = estimated_input_tokens + estimated_output_tokens + max_reasoning
         reserved = int(estimated_total * self.config["reserved_buffer_ratio"])
 
         plan = InferenceBudgetPlan(
@@ -498,14 +511,15 @@ class ComputeGovernor:
             plan.degrade_reason = degrade_reason
             plan.degrade_to_model = self._pick_fallback_model(model)
             with self._lock:
-                self._degrade_until[user_id] = (
-                    time.time() + self.config["degrade_cooldown_seconds"]
-                )
+                self._degrade_until[user_id] = time.time() + self.config["degrade_cooldown_seconds"]
                 stats = self._get_or_create_stats(user_id)
                 stats.degrade_count += 1
             logger.warning(
                 "Degrade reasoning call: user=%s model=%s reason=%s fallback=%s",
-                user_id, model, degrade_reason.value, plan.degrade_to_model,
+                user_id,
+                model,
+                degrade_reason.value,
+                plan.degrade_to_model,
             )
 
         # 记录计划历史
@@ -564,7 +578,9 @@ class ComputeGovernor:
                     stats.reasoning_pii_leak_count += 1
                 logger.error(
                     "Reasoning PII leak! user=%s model=%s pii_types=%s",
-                    plan.user_id, plan.model, audit.pii_types,
+                    plan.user_id,
+                    plan.model,
+                    audit.pii_types,
                 )
 
         # 更新用户统计
@@ -598,7 +614,9 @@ class ComputeGovernor:
 
         logger.warning(
             "Reasoning call timeout: user=%s model=%s duration=%.1fs",
-            plan.user_id, plan.model, plan.actual_duration_seconds,
+            plan.user_id,
+            plan.model,
+            plan.actual_duration_seconds,
         )
 
     def record_failure(self, plan: InferenceBudgetPlan, error: str = "") -> None:
@@ -613,7 +631,9 @@ class ComputeGovernor:
 
         logger.warning(
             "Reasoning call failed: user=%s model=%s error=%s",
-            plan.user_id, plan.model, error,
+            plan.user_id,
+            plan.model,
+            error,
         )
 
     def get_user_stats(self, user_id: str) -> dict | None:
@@ -640,13 +660,15 @@ class ComputeGovernor:
         with self._lock:
             for user_id, stats in self._user_stats.items():
                 if stats.total_reasoning_tokens > self.config["user_daily_reasoning_token_limit"]:
-                    over.append({
-                        "user_id": user_id,
-                        "total_reasoning_tokens": stats.total_reasoning_tokens,
-                        "limit": self.config["user_daily_reasoning_token_limit"],
-                        "ratio": stats.reasoning_ratio,
-                        "degrade_count": stats.degrade_count,
-                    })
+                    over.append(
+                        {
+                            "user_id": user_id,
+                            "total_reasoning_tokens": stats.total_reasoning_tokens,
+                            "limit": self.config["user_daily_reasoning_token_limit"],
+                            "ratio": stats.reasoning_ratio,
+                            "degrade_count": stats.degrade_count,
+                        }
+                    )
         return over
 
     def get_audit_stats(self) -> dict:
@@ -656,9 +678,7 @@ class ComputeGovernor:
                 "auditor": self.auditor.get_stats(),
                 "total_users": len(self._user_stats),
                 "users_over_budget": len(self.list_users_over_budget()),
-                "users_degraded": sum(
-                    1 for u in self._degrade_until.values() if u > time.time()
-                ),
+                "users_degraded": sum(1 for u in self._degrade_until.values() if u > time.time()),
             }
 
     # ---------------- 内部 ----------------
@@ -705,10 +725,7 @@ class ComputeGovernor:
                 return DegradeReason.ABUSIVE_PATTERN
 
         # 4. reasoning token 占比过高(说明 LLM "想太多")
-        if (
-            stats.reasoning_ratio > self.config["reasoning_ratio_limit"]
-            and stats.total_calls >= 10
-        ):
+        if stats.reasoning_ratio > self.config["reasoning_ratio_limit"] and stats.total_calls >= 10:
             return DegradeReason.ABUSIVE_PATTERN
 
         return DegradeReason.NONE

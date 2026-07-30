@@ -49,7 +49,10 @@ logger = logging.getLogger(__name__)
 
 # ReAct 总开关:默认关闭,保留 agent_node 旧行为
 REACT_ENABLED: bool = os.environ.get("DEADMAN_REACT_ENABLED", "0").lower() in (
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
 # 最大迭代次数(Thought → Action → Observation 算一次)
@@ -59,32 +62,32 @@ REACT_MAX_ITERATIONS: int = int(os.environ.get("DEADMAN_REACT_MAX_ITERATIONS", "
 REACT_TOOL_BUDGET: int = int(os.environ.get("DEADMAN_REACT_TOOL_BUDGET", "5"))
 
 # 单次 LLM 迭代 max_tokens 上限(避免单轮输出挤占后续轮次)
-REACT_ITERATION_MAX_TOKENS: int = int(
-    os.environ.get("DEADMAN_REACT_ITERATION_MAX_TOKENS", "1500")
-)
+REACT_ITERATION_MAX_TOKENS: int = int(os.environ.get("DEADMAN_REACT_ITERATION_MAX_TOKENS", "1500"))
 
 # Stuck 检测阈值:连续 2 次 Observation Jaccard 相似度 > 此值 → 提前终止
-REACT_STUCK_JACCARD_THRESHOLD: float = float(
-    os.environ.get("DEADMAN_REACT_STUCK_JACCARD", "0.9")
-)
+REACT_STUCK_JACCARD_THRESHOLD: float = float(os.environ.get("DEADMAN_REACT_STUCK_JACCARD", "0.9"))
 
 # Self-Verification 开关:Action 后让 LLM 校验 Observation 是否符合 Thought 假设
-REACT_SELF_VERIFY: bool = os.environ.get(
-    "DEADMAN_REACT_SELF_VERIFY", "0"
-).lower() in ("1", "true", "yes", "on")
+REACT_SELF_VERIFY: bool = os.environ.get("DEADMAN_REACT_SELF_VERIFY", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # P1.5: ReAct + Reflexion 联动开关 - 默认关闭，确保不破坏现有行为
 # 启用时：ReAct 失败终止（stuck/self_verify_fail/max_iterations/error）后，
 # 自动触发 ReflexionEngine 反思，注入反思上下文重试，最多
 # REACT_REFLEXION_MAX_ROUNDS 轮。
-REACT_REFLEXION_ENABLED: bool = os.environ.get(
-    "DEADMAN_REACT_REFLEXION_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+REACT_REFLEXION_ENABLED: bool = os.environ.get("DEADMAN_REACT_REFLEXION_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # P1.5: Reflexion 重试轮数上限
-REACT_REFLEXION_MAX_ROUNDS: int = int(
-    os.environ.get("DEADMAN_REACT_REFLEXION_MAX_ROUNDS", "2")
-)
+REACT_REFLEXION_MAX_ROUNDS: int = int(os.environ.get("DEADMAN_REACT_REFLEXION_MAX_ROUNDS", "2"))
 
 # P1.5: 触发 Reflexion 的 terminated_by 集合
 # （final_answer 是正常终止，不触发；llm_unavailable 走降级路径，不触发）
@@ -104,7 +107,7 @@ class ReActStep:
 
     iteration: int
     thought: str = ""
-    action: str = ""           # 工具名 / "FINAL_ANSWER" / "NO_ACTION"
+    action: str = ""  # 工具名 / "FINAL_ANSWER" / "NO_ACTION"
     action_input: dict[str, Any] = field(default_factory=dict)
     observation: str = ""
     observation_raw: Any = None
@@ -311,7 +314,7 @@ def _parse_react_response(raw: str) -> dict[str, Any]:
         idx = raw.find("FINAL_ANSWER")
         answer = raw[idx + len("FINAL_ANSWER") :].strip().lstrip(":").strip()
         return {
-            "thought": raw[: idx].strip(),
+            "thought": raw[:idx].strip(),
             "action": "FINAL_ANSWER",
             "action_input": {},
             "final_answer": answer or raw,
@@ -347,9 +350,14 @@ async def _self_verify(
         return True, "llm_unavailable_skipped"
     try:
         resp = await llm.chat_json(
-            [{"role": "user", "content": _SELF_VERIFY_PROMPT.format(
-                thought=thought, action=action, observation=observation
-            )}],
+            [
+                {
+                    "role": "user",
+                    "content": _SELF_VERIFY_PROMPT.format(
+                        thought=thought, action=action, observation=observation
+                    ),
+                }
+            ],
             temperature=0.0,
         )
         passed = bool(resp.get("passed", True))
@@ -467,15 +475,18 @@ class ReActLoop:
         parsed = _parse_react_response(raw)
         step.thought = parsed["thought"]
         step.action = parsed["action"]
-        step.action_input = parsed["action_input"] if isinstance(
-            parsed["action_input"], dict
-        ) else {}
+        step.action_input = (
+            parsed["action_input"] if isinstance(parsed["action_input"], dict) else {}
+        )
 
-        self._emit_trace("react.thought", {
-            "iteration": iteration,
-            "thought": step.thought[:300],
-            "action": step.action,
-        })
+        self._emit_trace(
+            "react.thought",
+            {
+                "iteration": iteration,
+                "thought": step.thought[:300],
+                "action": step.action,
+            },
+        )
 
         # === 终止判断 ===
         if step.action == "FINAL_ANSWER":
@@ -491,9 +502,7 @@ class ReActLoop:
             return step
 
         # === Action 阶段:分发工具 ===
-        ok, result, err = await _dispatch_tool(
-            step.action, step.action_input, self._failed_tools
-        )
+        ok, result, err = await _dispatch_tool(step.action, step.action_input, self._failed_tools)
         step.tool_ok = ok
         step.tool_error = err
         if ok:
@@ -503,16 +512,22 @@ class ReActLoop:
         step.observation = obs_text
         step.observation_raw = obs_raw
 
-        self._emit_trace("react.action", {
-            "iteration": iteration,
-            "action": step.action,
-            "action_input": step.action_input,
-            "tool_ok": ok,
-        })
-        self._emit_trace("react.observation", {
-            "iteration": iteration,
-            "observation": step.observation[:300],
-        })
+        self._emit_trace(
+            "react.action",
+            {
+                "iteration": iteration,
+                "action": step.action,
+                "action_input": step.action_input,
+                "tool_ok": ok,
+            },
+        )
+        self._emit_trace(
+            "react.observation",
+            {
+                "iteration": iteration,
+                "observation": step.observation[:300],
+            },
+        )
 
         # === Self-Verification(可选)===
         if self.self_verify and ok and self.llm and self.llm.api_key:
@@ -521,11 +536,14 @@ class ReActLoop:
             )
             step.self_verify_passed = passed
             if not passed:
-                self._emit_trace("react.self_verify", {
-                    "iteration": iteration,
-                    "passed": False,
-                    "reason": reason,
-                })
+                self._emit_trace(
+                    "react.self_verify",
+                    {
+                        "iteration": iteration,
+                        "passed": False,
+                        "reason": reason,
+                    },
+                )
 
         return step
 
@@ -543,8 +561,10 @@ class ReActLoop:
         )
         try:
             return await self.llm.chat(
-                [{"role": "system", "content": self.system_prompt},
-                 {"role": "user", "content": prompt}],
+                [
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
                 temperature=0.3,
                 max_tokens=self.iteration_max_tokens,
             )
@@ -657,11 +677,14 @@ class ReActLoop:
                 # 反思失败 → 不再重试
                 break
             self._reflections.append(reflection)
-            self._emit_trace("react.reflexion", {
-                "round": round_num,
-                "failure_type": reflection.get("failure_type", ""),
-                "adjustment_strategy": reflection.get("adjustment_strategy", ""),
-            })
+            self._emit_trace(
+                "react.reflexion",
+                {
+                    "round": round_num,
+                    "failure_type": reflection.get("failure_type", ""),
+                    "adjustment_strategy": reflection.get("adjustment_strategy", ""),
+                },
+            )
 
             # 2. 注入反思上下文到 system_prompt，重置内部状态
             original_prompt = self.system_prompt
@@ -679,8 +702,7 @@ class ReActLoop:
             if new_result.terminated_by not in REACT_REFLEXION_TRIGGERS:
                 new_result.steps = list(current.steps) + list(new_result.steps)
                 new_result.note = (
-                    f"reflexion_round={round_num} succeeded "
-                    f"({new_result.terminated_by})"
+                    f"reflexion_round={round_num} succeeded ({new_result.terminated_by})"
                 )
                 return new_result
 
@@ -688,9 +710,7 @@ class ReActLoop:
             current = new_result
 
         # 所有轮次都失败 → 返回最后一次结果（已是失败终止）
-        current.note = (
-            f"reflexion_exhausted_rounds={REACT_REFLEXION_MAX_ROUNDS}"
-        )
+        current.note = f"reflexion_exhausted_rounds={REACT_REFLEXION_MAX_ROUNDS}"
         return current
 
     async def _trigger_reflexion(

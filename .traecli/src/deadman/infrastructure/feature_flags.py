@@ -398,32 +398,36 @@ class FeatureFlagManager:
         for name in all_names:
             rule = rules.get(name)
             if rule:
-                result.append({
-                    "name": name,
-                    "source": "dynamic",
-                    "enabled": rule.enabled,
-                    "percentage": rule.percentage,
-                    "variant": rule.variant,
-                    "user_whitelist": rule.user_whitelist,
-                    "user_blacklist": rule.user_blacklist,
-                    "description": rule.description,
-                    "updated_at": rule.updated_at,
-                    "updated_by": rule.updated_by,
-                })
+                result.append(
+                    {
+                        "name": name,
+                        "source": "dynamic",
+                        "enabled": rule.enabled,
+                        "percentage": rule.percentage,
+                        "variant": rule.variant,
+                        "user_whitelist": rule.user_whitelist,
+                        "user_blacklist": rule.user_blacklist,
+                        "description": rule.description,
+                        "updated_at": rule.updated_at,
+                        "updated_by": rule.updated_by,
+                    }
+                )
             else:
                 env_val = self._read_env_var(name)
-                result.append({
-                    "name": name,
-                    "source": "env" if env_val is not None else "default",
-                    "enabled": env_val if env_val is not None else _DEFAULTS.get(name, False),
-                    "percentage": 100,
-                    "variant": {},
-                    "user_whitelist": [],
-                    "user_blacklist": [],
-                    "description": "",
-                    "updated_at": 0,
-                    "updated_by": "",
-                })
+                result.append(
+                    {
+                        "name": name,
+                        "source": "env" if env_val is not None else "default",
+                        "enabled": env_val if env_val is not None else _DEFAULTS.get(name, False),
+                        "percentage": 100,
+                        "variant": {},
+                        "user_whitelist": [],
+                        "user_blacklist": [],
+                        "description": "",
+                        "updated_at": 0,
+                        "updated_by": "",
+                    }
+                )
         return result
 
     # ==================================================================

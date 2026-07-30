@@ -22,9 +22,12 @@ from typing import Any
 # =====================================================================
 # P6.2: SLI/SLO 看板 feature flag - 默认关闭
 # =====================================================================
-SLO_DASHBOARD_ENABLED: bool = os.environ.get(
-    "DEADMAN_SLO_DASHBOARD_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+SLO_DASHBOARD_ENABLED: bool = os.environ.get("DEADMAN_SLO_DASHBOARD_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 # =====================================================================
@@ -36,16 +39,16 @@ SLO_DASHBOARD_ENABLED: bool = os.environ.get(
 # =====================================================================
 SLO_TARGETS: dict[str, dict[str, float | str]] = {
     "latency_p95": {
-        "target": 3000.0,        # 目标：< 3000ms
-        "direction": "lower",    # 越低越好
-        "error_budget": 0.05,    # 允许 5% 请求超过目标
+        "target": 3000.0,  # 目标：< 3000ms
+        "direction": "lower",  # 越低越好
+        "error_budget": 0.05,  # 允许 5% 请求超过目标
         "unit": "ms",
         "description": "P95 响应延迟",
     },
     "faithfulness": {
-        "target": 0.7,           # 目标：≥ 0.7
-        "direction": "higher",   # 越高越好
-        "error_budget": 0.05,    # 允许 5% 请求低于目标
+        "target": 0.7,  # 目标：≥ 0.7
+        "direction": "higher",  # 越高越好
+        "error_budget": 0.05,  # 允许 5% 请求低于目标
         "unit": "score",
         "description": "RAGAS faithfulness 得分",
     },
@@ -74,25 +77,25 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "质量看板",
         "description": "智能体做得对不对",
         "metrics": [
-            "rule_violation_rate",          # 规则违反率
-            "integrity_violation_rate",     # 诚信违规率
-            "compliance_violation_rate",    # 合规违规率
-            "safety_violation_rate",        # 安全违规率
+            "rule_violation_rate",  # 规则违反率
+            "integrity_violation_rate",  # 诚信违规率
+            "compliance_violation_rate",  # 合规违规率
+            "safety_violation_rate",  # 安全违规率
             "transparency_violation_rate",  # 透明度违规率
-            "input_guardrails_bypass_rate", # 输入护栏绕过率
-            "transfer_accuracy",            # 转介准确率
-            "transfer_summary_completeness",# 转介摘要完整率
-            "transfer_user_confirm_rate",   # 转介用户确认率
-            "subagent_call_accuracy",       # 子智能体调用准确率
-            "subagent_call_failure_rate",   # 子智能体调用失败率
-            "subagent_schema_valid_rate",   # 子智能体 schema 合规率
-            "tool_selection_accuracy",      # 工具选择准确率
-            "tool_argument_accuracy",       # 参数填充准确率
-            "tool_sequence_accuracy",       # 调用顺序准确率
-            "confidence_labeling_rate",     # 置信度标注率
-            "source_passthrough_rate",      # 来源透传率
+            "input_guardrails_bypass_rate",  # 输入护栏绕过率
+            "transfer_accuracy",  # 转介准确率
+            "transfer_summary_completeness",  # 转介摘要完整率
+            "transfer_user_confirm_rate",  # 转介用户确认率
+            "subagent_call_accuracy",  # 子智能体调用准确率
+            "subagent_call_failure_rate",  # 子智能体调用失败率
+            "subagent_schema_valid_rate",  # 子智能体 schema 合规率
+            "tool_selection_accuracy",  # 工具选择准确率
+            "tool_argument_accuracy",  # 参数填充准确率
+            "tool_sequence_accuracy",  # 调用顺序准确率
+            "confidence_labeling_rate",  # 置信度标注率
+            "source_passthrough_rate",  # 来源透传率
             "ai_identity_disclosure_rate",  # AI 身份告知率
-            "disclaimer_inclusion_rate",    # 免责声明包含率
+            "disclaimer_inclusion_rate",  # 免责声明包含率
         ],
     },
     "efficiency": {
@@ -106,21 +109,21 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
             "full_conversation_latency_p50",
             "full_conversation_latency_p95",
             "full_conversation_latency_p99",
-            "subagent_latency_p50",        # 子智能体调用延迟 P50
+            "subagent_latency_p50",  # 子智能体调用延迟 P50
             "subagent_latency_p95",
-            "tool_latency_p50",            # 工具调用延迟 P50
+            "tool_latency_p50",  # 工具调用延迟 P50
             "tool_latency_p95",
             "transfer_decision_latency_p50",
             "transfer_decision_latency_p95",
-            "avg_dialogue_turns",          # 平均对话轮数
-            "avg_tool_calls_per_case",     # 平均工具调用次数
-            "avg_subagent_calls_per_case", # 平均子智能体调用次数
-            "avg_transfers_per_case",      # 平均转介次数
-            "cost_per_dialogue_usd",       # 单次对话成本
-            "cost_per_tool_call_usd",      # 单次工具调用成本
+            "avg_dialogue_turns",  # 平均对话轮数
+            "avg_tool_calls_per_case",  # 平均工具调用次数
+            "avg_subagent_calls_per_case",  # 平均子智能体调用次数
+            "avg_transfers_per_case",  # 平均转介次数
+            "cost_per_dialogue_usd",  # 单次对话成本
+            "cost_per_tool_call_usd",  # 单次工具调用成本
             "cost_per_subagent_call_usd",  # 单次子智能体调用成本
-            "token_input_count",           # 输入 token
-            "token_output_count",          # 输出 token
+            "token_input_count",  # 输入 token
+            "token_output_count",  # 输出 token
         ],
     },
     "knowledge": {
@@ -128,13 +131,13 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "知识库看板",
         "description": "RAGAS 式检索质量",
         "metrics": [
-            "faithfulness",                # 输出忠于检索片段
-            "answer_relevance",            # 输出回答了问题
-            "context_precision",           # 检索片段精准
-            "context_recall",              # 检索覆盖答案所需
-            "stale_file_rate_6m",          # 超 6 个月未更新文件率
-            "stale_file_rate_3m_policy",   # 超 3 个月未更新（政策类）
-            "stale_file_rate_1y_law",      # 超 1 年未更新（法条类）
+            "faithfulness",  # 输出忠于检索片段
+            "answer_relevance",  # 输出回答了问题
+            "context_precision",  # 检索片段精准
+            "context_recall",  # 检索覆盖答案所需
+            "stale_file_rate_6m",  # 超 6 个月未更新文件率
+            "stale_file_rate_3m_policy",  # 超 3 个月未更新（政策类）
+            "stale_file_rate_1y_law",  # 超 1 年未更新（法条类）
         ],
     },
     "safety": {
@@ -142,14 +145,14 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "安全看板",
         "description": "注入/心理危机/事故",
         "metrics": [
-            "injection_detection_rate",    # 注入识别率
-            "jailbreak_block_rate",        # 越狱拦截率
-            "pii_leak_rate",               # PII 泄露率
-            "r3_detection_rate",           # R3 心理危机识别率
-            "r3_response_latency_ms",      # R3 响应延迟
-            "high_severity_incident_rate", # 高严重度事故率
+            "injection_detection_rate",  # 注入识别率
+            "jailbreak_block_rate",  # 越狱拦截率
+            "pii_leak_rate",  # PII 泄露率
+            "r3_detection_rate",  # R3 心理危机识别率
+            "r3_response_latency_ms",  # R3 响应延迟
+            "high_severity_incident_rate",  # 高严重度事故率
             "medium_severity_incident_rate",
-            "incident_repeat_rate",        # 事故重复率
+            "incident_repeat_rate",  # 事故重复率
         ],
     },
     "cross_platform": {
@@ -157,10 +160,10 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "跨平台一致性看板",
         "description": "13 平台同一 golden case 通过率差异",
         "metrics": [
-            "golden_case_pass_rate",       # golden case 通过率
-            "cross_platform_pass_rate_diff", # 跨平台通过率差异
-            "span_type_consistency",       # span_type 一致性
-            "trace_id_propagation_rate",   # trace_id 串联率
+            "golden_case_pass_rate",  # golden case 通过率
+            "cross_platform_pass_rate_diff",  # 跨平台通过率差异
+            "span_type_consistency",  # span_type 一致性
+            "trace_id_propagation_rate",  # trace_id 串联率
         ],
     },
     "collaboration": {
@@ -168,12 +171,12 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "协作看板",
         "description": "辩论/投票（Debate-Voting.md）",
         "metrics": [
-            "conflict_detection_accuracy", # 冲突检测准确率
-            "debate_convergence_rate",     # 辩论收敛率
-            "arbitration_accuracy",        # 仲裁准确率
-            "debate_avg_rounds",           # 辩论平均轮次
-            "debate_avg_latency_ms",       # 辩论平均延迟
-            "debate_integrity_violation_rate", # 辩论中诚信违规率
+            "conflict_detection_accuracy",  # 冲突检测准确率
+            "debate_convergence_rate",  # 辩论收敛率
+            "arbitration_accuracy",  # 仲裁准确率
+            "debate_avg_rounds",  # 辩论平均轮次
+            "debate_avg_latency_ms",  # 辩论平均延迟
+            "debate_integrity_violation_rate",  # 辩论中诚信违规率
         ],
     },
     "memory": {
@@ -181,12 +184,12 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "记忆看板",
         "description": "分层记忆（Memory-Store.md）",
         "metrics": [
-            "cross_session_resume_rate",   # 跨会话续接成功率
-            "repeat_question_rate",        # 重复询问率
-            "context_recall_accuracy",     # 上下文召回准确率
-            "contradiction_detection_rate",# 矛盾检测率
-            "memory_query_latency_p95",    # 记忆查询延迟 P95
-            "pii_redaction_rate",          # PII 脱敏率
+            "cross_session_resume_rate",  # 跨会话续接成功率
+            "repeat_question_rate",  # 重复询问率
+            "context_recall_accuracy",  # 上下文召回准确率
+            "contradiction_detection_rate",  # 矛盾检测率
+            "memory_query_latency_p95",  # 记忆查询延迟 P95
+            "pii_redaction_rate",  # PII 脱敏率
         ],
     },
     "interop": {
@@ -194,12 +197,12 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "互操作看板",
         "description": "A2A 协议（A2A-Protocol.md）",
         "metrics": [
-            "a2a_call_success_rate",       # A2A 调用成功率
-            "a2a_avg_latency_ms",          # A2A 平均延迟
-            "a2a_data_redaction_rate",     # 数据脱敏率
-            "a2a_integrity_check_rate",    # 外部结果诚信校验率
-            "agent_card_completeness",     # Agent Card 完整度
-            "a2a_cross_validation_rate",   # 外部结果交叉验证率
+            "a2a_call_success_rate",  # A2A 调用成功率
+            "a2a_avg_latency_ms",  # A2A 平均延迟
+            "a2a_data_redaction_rate",  # 数据脱敏率
+            "a2a_integrity_check_rate",  # 外部结果诚信校验率
+            "agent_card_completeness",  # Agent Card 完整度
+            "a2a_cross_validation_rate",  # 外部结果交叉验证率
         ],
     },
     "alignment": {
@@ -207,12 +210,12 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "对齐看板",
         "description": "DPO 模型对齐（DPO-Alignment.md）",
         "metrics": [
-            "rule_compliance_rate_dpo",    # 规则遵守率（DPO 后）
-            "rule_compliance_rate_lift",   # 规则遵守率提升
-            "general_capability_degradation", # 通用能力退化
-            "integrity_violation_rate_dpo",# 诚信违规率（DPO 后）
-            "adversarial_defense_rate",    # 对抗防御率
-            "preference_data_quality",     # 偏好数据质量
+            "rule_compliance_rate_dpo",  # 规则遵守率（DPO 后）
+            "rule_compliance_rate_lift",  # 规则遵守率提升
+            "general_capability_degradation",  # 通用能力退化
+            "integrity_violation_rate_dpo",  # 诚信违规率（DPO 后）
+            "adversarial_defense_rate",  # 对抗防御率
+            "preference_data_quality",  # 偏好数据质量
         ],
     },
     "resilience": {
@@ -220,12 +223,12 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "韧性看板",
         "description": "Reflexion 机制（Reflexion-Mechanism.md）",
         "metrics": [
-            "reflexion_trigger_rate",      # Reflexion 触发率
-            "reflexion_success_rate",      # Reflexion 成功率
-            "fallback_rate",               # Fallback 率
-            "fallback_rate_reduction",     # Fallback 率降低
-            "avg_retry_count",             # 平均重试次数
-            "predefined_strategy_hit_rate",# 预定义策略命中率
+            "reflexion_trigger_rate",  # Reflexion 触发率
+            "reflexion_success_rate",  # Reflexion 成功率
+            "fallback_rate",  # Fallback 率
+            "fallback_rate_reduction",  # Fallback 率降低
+            "avg_retry_count",  # 平均重试次数
+            "predefined_strategy_hit_rate",  # 预定义策略命中率
         ],
     },
     "hallucination": {
@@ -233,11 +236,11 @@ METRIC_CATEGORIES: dict[str, dict[str, Any]] = {
         "dashboard": "幻觉检测看板",
         "description": "SelfCheckGPT（SelfCheckGPT.md）",
         "metrics": [
-            "numeric_claim_extraction_rate", # 数字类 claim 提取率
-            "consistency_detection_accuracy",# 一致性检测准确率
+            "numeric_claim_extraction_rate",  # 数字类 claim 提取率
+            "consistency_detection_accuracy",  # 一致性检测准确率
             "low_consistency_capture_rate",  # 低一致性 claim 捕获率
-            "selfcheck_f1",                  # SelfCheckGPT F1
-            "ragas_complement_rate",         # 与 RAGAS faithfulness 互补率
+            "selfcheck_f1",  # SelfCheckGPT F1
+            "ragas_complement_rate",  # 与 RAGAS faithfulness 互补率
         ],
     },
 }
@@ -436,9 +439,7 @@ class MetricsCollector:
                     last_value = records[-1]["value"]
                     tags = records[-1].get("tags", {})
                     if tags:
-                        label_str = ",".join(
-                            f'{k}="{v}"' for k, v in tags.items()
-                        )
+                        label_str = ",".join(f'{k}="{v}"' for k, v in tags.items())
                         lines.append(f"{prom_name}{{{label_str}}} {last_value}")
                     else:
                         lines.append(f"{prom_name} {last_value}")
@@ -539,9 +540,7 @@ class MetricsCollector:
                 error_budget_remaining = error_budget
             else:
                 violation_ratio = abs(margin) / target if target > 0 else 1.0
-                error_budget_remaining = max(
-                    0.0, error_budget - violation_ratio
-                )
+                error_budget_remaining = max(0.0, error_budget - violation_ratio)
 
             status[sli_name] = {
                 "sli_value": sli_value,

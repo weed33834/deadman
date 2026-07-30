@@ -96,6 +96,7 @@ from deadman.knowledge import (
 # Fixtures
 # =====================================================================
 
+
 @pytest.fixture
 def graphiti(tmp_path):
     return GraphitiRuntime(persist_path=tmp_path / "graphiti.json")
@@ -140,6 +141,7 @@ def km(tmp_path):
 # GraphitiRuntime tests
 # =====================================================================
 
+
 class TestGraphitiRuntime:
     def test_add_episode_returns_id(self, graphiti):
         """add_episode 应返回字符串 episode id。"""
@@ -175,12 +177,14 @@ class TestGraphitiRuntime:
     def test_get_temporal_valid_node(self, graphiti):
         """get_temporal 应返回当时有效的节点。"""
         ts = time.time() - 100  # 100 秒前
-        graphiti.add_node(KGNode(
-            id="tn1",
-            content="past fact",
-            valid_from=ts - 50,
-            valid_to=ts + 100,  # 仍然有效
-        ))
+        graphiti.add_node(
+            KGNode(
+                id="tn1",
+                content="past fact",
+                valid_from=ts - 50,
+                valid_to=ts + 100,  # 仍然有效
+            )
+        )
         result = graphiti.get_temporal("tn1", at_time=ts)
         assert result is not None
         assert result.id == "tn1"
@@ -188,11 +192,13 @@ class TestGraphitiRuntime:
     def test_get_temporal_invalid_node(self, graphiti):
         """get_temporal 应在节点未生效或已失效时返回 None。"""
         ts = time.time()
-        graphiti.add_node(KGNode(
-            id="tn2",
-            content="future fact",
-            valid_from=ts + 1000,  # 未来才生效
-        ))
+        graphiti.add_node(
+            KGNode(
+                id="tn2",
+                content="future fact",
+                valid_from=ts + 1000,  # 未来才生效
+            )
+        )
         # 查询当前时间 → 节点尚未生效
         result = graphiti.get_temporal("tn2", at_time=ts)
         assert result is None
@@ -226,6 +232,7 @@ class TestGraphitiRuntime:
 # LightRAGRuntime tests
 # =====================================================================
 
+
 class TestLightRAGRuntime:
     def test_add_and_search(self, lightrag):
         """add 后 search 应返回相似节点。"""
@@ -255,6 +262,7 @@ class TestLightRAGRuntime:
 # =====================================================================
 # KnowledgeFreshness tests
 # =====================================================================
+
 
 class TestKnowledgeFreshness:
     def test_check_fresh(self, freshness):
@@ -324,6 +332,7 @@ class TestKnowledgeFreshness:
 # TrustScorer tests
 # =====================================================================
 
+
 class TestTrustScorer:
     def test_score_official_law(self, trust_scorer):
         """OFFICIAL_LAW 默认分数 = 0.95。"""
@@ -390,13 +399,16 @@ class TestTrustScorer:
 # KnowledgeFusion tests
 # =====================================================================
 
+
 class TestKnowledgeFusion:
     def test_single_source(self, fusion, graphiti):
         """单源融合:仅 graphiti 有候选 → 结果含 1 个 contributing source。"""
-        graphiti.add_episode(Episode(
-            content="北京户口注销流程:1. 死亡证明 2. 户口本",
-            source="official_law:cn",
-        ))
+        graphiti.add_episode(
+            Episode(
+                content="北京户口注销流程:1. 死亡证明 2. 户口本",
+                source="official_law:cn",
+            )
+        )
         result = fusion.fuse("北京户口")
         assert isinstance(result, FusionResult)
         assert "official_law:cn" in result.contributing_sources
@@ -406,10 +418,12 @@ class TestKnowledgeFusion:
     def test_multi_source_agreement(self, fusion, graphiti, lightrag):
         """多源一致:graphiti + lightrag 都有候选,confidence 应聚合。"""
         # 两源都加同样的内容
-        graphiti.add_episode(Episode(
-            content="社保政策:全国统一",
-            source="official_law:cn",
-        ))
+        graphiti.add_episode(
+            Episode(
+                content="社保政策:全国统一",
+                source="official_law:cn",
+            )
+        )
         lightrag.add(content="社保政策:全国统一", source="official_law:other")
         result = fusion.fuse("社保政策")
         # 两源都贡献
@@ -420,10 +434,12 @@ class TestKnowledgeFusion:
     def test_conflict_detection(self, fusion, graphiti, lightrag):
         """冲突检测:不同类别来源给出不同内容 → conflicts 非空。"""
         # 官方法律说 A(含 "事项办理时间" 关键词)
-        graphiti.add_episode(Episode(
-            content="事项办理时间法律条文 A:需 30 天",
-            source="official_law:cn",
-        ))
+        graphiti.add_episode(
+            Episode(
+                content="事项办理时间法律条文 A:需 30 天",
+                source="official_law:cn",
+            )
+        )
         # 用户经验说 B(完全不同内容,含相同关键词)
         lightrag.add(content="事项办理时间用户实际操作 60 天才完成", source="user_experience:u1")
         result = fusion.fuse("事项办理时间")
@@ -433,10 +449,12 @@ class TestKnowledgeFusion:
 
     def test_confidence_propagation(self, fusion, graphiti):
         """置信度传播:仅高信任来源时 confidence 应较高。"""
-        graphiti.add_episode(Episode(
-            content="权威法律条文内容",
-            source="official_law:cn",
-        ))
+        graphiti.add_episode(
+            Episode(
+                content="权威法律条文内容",
+                source="official_law:cn",
+            )
+        )
         result = fusion.fuse("权威法律")
         # 单源且高信任 → confidence 应接近 0.95
         assert result.confidence >= 0.5
@@ -445,6 +463,7 @@ class TestKnowledgeFusion:
 # =====================================================================
 # PrivateGraph tests
 # =====================================================================
+
 
 class TestPrivateGraph:
     def test_add_and_query(self, tmp_path):
@@ -508,6 +527,7 @@ class TestPrivateGraph:
 # Anonymizer tests
 # =====================================================================
 
+
 class TestAnonymizer:
     def test_k_anonymity_generalization(self, anonymizer):
         """k-匿名:准标识符(如 location)应被泛化。"""
@@ -549,10 +569,14 @@ class TestAnonymizer:
 
     def test_can_share_threshold(self, anonymizer):
         """can_share:other_users_count < k 应返回 False。"""
-        node = KGNode(id="s1", content="test", properties={
-            "_anonymized": True,
-            "income": "low",
-        })
+        node = KGNode(
+            id="s1",
+            content="test",
+            properties={
+                "_anonymized": True,
+                "income": "low",
+            },
+        )
         # other_users_count=3 < k=5 → False
         assert anonymizer.can_share(node, other_users_count=3, k=5, l_diversity=1) is False
         # other_users_count=10 >= k=5 且 _anonymized → True(若 l=1)
@@ -583,6 +607,7 @@ class TestAnonymizer:
 # KnowledgeManager tests
 # =====================================================================
 
+
 class TestKnowledgeManager:
     def test_add_knowledge_pii_redaction(self, km):
         """add_knowledge 应在存储前做 PII 脱敏。"""
@@ -599,7 +624,11 @@ class TestKnowledgeManager:
         for n in kg_nodes:
             # 不应含原始手机号
             assert "13800138000" not in n.content
-            assert "[REDACTED" in n.content or "138****8000" in n.content or "13800138000" not in n.content
+            assert (
+                "[REDACTED" in n.content
+                or "138****8000" in n.content
+                or "13800138000" not in n.content
+            )
 
     def test_query_end_to_end(self, km):
         """端到端 query 应返回 FusionResult。"""
@@ -629,6 +658,7 @@ class TestKnowledgeManager:
     def test_disabled_raises_error(self, monkeypatch, tmp_path):
         """flag 关闭时 add_knowledge 应抛 KnowledgeDisabledError。"""
         from deadman.knowledge import manager as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         km = KnowledgeManager(persist_root=tmp_path / "km_disabled")
         with pytest.raises(KnowledgeDisabledError):
@@ -637,6 +667,7 @@ class TestKnowledgeManager:
     def test_disabled_query_raises_error(self, monkeypatch, tmp_path):
         """flag 关闭时 query 应抛 KnowledgeDisabledError。"""
         from deadman.knowledge import manager as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         km = KnowledgeManager(persist_root=tmp_path / "km_disabled2")
         with pytest.raises(KnowledgeDisabledError):
@@ -667,10 +698,12 @@ class TestKnowledgeManager:
 # Disabled state (module-level) tests
 # =====================================================================
 
+
 class TestDisabledState:
     def test_graphiti_returns_empty_when_disabled(self, monkeypatch, tmp_path):
         """flag 关闭时 graphiti.search 返回空列表。"""
         from deadman.knowledge import graphiti_runtime as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         rt = GraphitiRuntime(persist_path=tmp_path / "g_disabled.json")
         # add_episode 返回 ID 但不实际入库
@@ -684,6 +717,7 @@ class TestDisabledState:
     def test_lightrag_returns_empty_when_disabled(self, monkeypatch, tmp_path):
         """flag 关闭时 lightrag.search 返回空列表。"""
         from deadman.knowledge import lightrag_runtime as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         rt = LightRAGRuntime(persist_path=tmp_path / "l_disabled.json")
         # add 返回 ID 但不实际入库
@@ -695,6 +729,7 @@ class TestDisabledState:
     def test_freshness_check_when_disabled(self, monkeypatch, tmp_path):
         """flag 关闭时 freshness.check 返回非 stale 报告。"""
         from deadman.knowledge import freshness as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         fr = KnowledgeFreshness(persist_path=tmp_path / "f_disabled.json")
         report = fr.check("any-id")
@@ -704,6 +739,7 @@ class TestDisabledState:
     def test_fusion_returns_empty_when_disabled(self, monkeypatch, tmp_path):
         """flag 关闭时 fusion.fuse 返回空结果。"""
         from deadman.knowledge import fusion as mod
+
         monkeypatch.setattr(mod, "is_enabled", lambda name: False)
         f = KnowledgeFusion(
             graphiti=GraphitiRuntime(persist_path=tmp_path / "g.json"),

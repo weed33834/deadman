@@ -259,8 +259,9 @@ class Translator:
             return ValidationResult(
                 allowed=True,
                 jurisdiction_from="cn_mainland",
-                jurisdiction_to=target_jurisdiction.value if isinstance(target_jurisdiction, Jurisdiction)
-                    else (str(target_jurisdiction) if target_jurisdiction else "cn_mainland"),
+                jurisdiction_to=target_jurisdiction.value
+                if isinstance(target_jurisdiction, Jurisdiction)
+                else (str(target_jurisdiction) if target_jurisdiction else "cn_mainland"),
                 data_kind=data_kind,
                 legal_basis="i18n_disabled",
                 warnings=["i18n disabled, validation skipped"],
@@ -269,8 +270,11 @@ class Translator:
         user_j = self.get_jurisdiction(user_id)
         # 跨境动作
         if action == "cross_border_transfer" and target_jurisdiction is not None:
-            tj = target_jurisdiction if isinstance(target_jurisdiction, Jurisdiction) else \
-                Jurisdiction(str(target_jurisdiction))
+            tj = (
+                target_jurisdiction
+                if isinstance(target_jurisdiction, Jurisdiction)
+                else Jurisdiction(str(target_jurisdiction))
+            )
             return self._law.validate_cross_border(user_j, tj, data_kind)
         # 同管辖区动作:只检查 consent 列表
         consents = self._law.get_required_consents(user_j, action)
@@ -282,9 +286,9 @@ class Translator:
             data_kind=data_kind,
             consents_required=consents,
             legal_basis="local_action",
-            warnings=[] if not consents else [
-                f"Action '{action}' in {user_j.value} requires consents: {consents}"
-            ],
+            warnings=[]
+            if not consents
+            else [f"Action '{action}' in {user_j.value} requires consents: {consents}"],
         )
 
     # ==================================================================

@@ -57,9 +57,15 @@ class _MockResponse:
 class _MockAsyncClient:
     """模拟 httpx.AsyncClient 上下文管理器"""
 
-    def __init__(self, get_response: _MockResponse | None = None, post_response: _MockResponse | None = None):
-        self._get_response = get_response or _MockResponse(json_data={"access_token": "test-token", "expires_in": 7200})
-        self._post_response = post_response or _MockResponse(json_data={"errcode": 0, "errmsg": "ok"})
+    def __init__(
+        self, get_response: _MockResponse | None = None, post_response: _MockResponse | None = None
+    ):
+        self._get_response = get_response or _MockResponse(
+            json_data={"access_token": "test-token", "expires_in": 7200}
+        )
+        self._post_response = post_response or _MockResponse(
+            json_data={"errcode": 0, "errmsg": "ok"}
+        )
         self.calls: list[dict[str, Any]] = []  # 记录所有调用
 
     async def __aenter__(self):
@@ -72,7 +78,9 @@ class _MockAsyncClient:
         self.calls.append({"method": "GET", "url": url, "params": params})
         return self._get_response
 
-    async def post(self, url: str, params: dict[str, Any] | None = None, json: Any = None, **kwargs):
+    async def post(
+        self, url: str, params: dict[str, Any] | None = None, json: Any = None, **kwargs
+    ):
         self.calls.append({"method": "POST", "url": url, "params": params, "json": json})
         return self._post_response
 
@@ -123,9 +131,7 @@ class TestVerifySignature:
 
     def test_verify_signature_correct(self):
         # 正确签名应通过
-        conn = WeChatConnector(
-            app_id="wx_app", app_secret="secret", verify_token="mytoken"
-        )
+        conn = WeChatConnector(app_id="wx_app", app_secret="secret", verify_token="mytoken")
         ts = "1348831860"
         nonce = "testnonce"
         sig = _make_signature("mytoken", ts, nonce)
@@ -133,9 +139,7 @@ class TestVerifySignature:
 
     def test_verify_signature_wrong(self):
         # 错误签名应失败
-        conn = WeChatConnector(
-            app_id="wx_app", app_secret="secret", verify_token="mytoken"
-        )
+        conn = WeChatConnector(app_id="wx_app", app_secret="secret", verify_token="mytoken")
         ts = "1348831860"
         nonce = "testnonce"
         wrong_sig = "0" * 40  # 错误签名
@@ -143,9 +147,7 @@ class TestVerifySignature:
 
     def test_verify_signature_no_verify_token(self):
         # 未配置 verify_token 时跳过校验（开发模式）
-        conn = WeChatConnector(
-            app_id="wx_app", app_secret="secret", verify_token=""
-        )
+        conn = WeChatConnector(app_id="wx_app", app_secret="secret", verify_token="")
         # 即使签名错误，也应通过（开发模式）
         assert conn._verify_signature("anything", "1", "2") is True
 

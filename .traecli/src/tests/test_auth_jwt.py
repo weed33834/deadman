@@ -76,6 +76,7 @@ class TestIssueAndVerify:
         # 把 payload 替换为另一个 base64url（user_id 改为 hacker）
         import base64
         import json
+
         tampered_payload = {
             "user_id": "hacker",
             "email": "carol@example.com",

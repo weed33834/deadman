@@ -60,35 +60,56 @@ _STATIC_DIR = Path(__file__).parent / "static"
 # 覆盖全部 13 领域的只读/测试类命令
 _CLI_COMMANDS = {
     # 基础
-    "version", "eval-list",
+    "version",
+    "eval-list",
     # LLM
-    "llm-test", "llm-sync-models", "llm-cost",
+    "llm-test",
+    "llm-sync-models",
+    "llm-cost",
     # 提示词
-    "prompt-list", "prompt-sync",
+    "prompt-list",
+    "prompt-sync",
     # 规则
-    "rule-test", "rule-validate",
+    "rule-test",
+    "rule-validate",
     # 智能体
-    "agent-list", "agent-ping",
+    "agent-list",
+    "agent-ping",
     # 知识库
-    "knowledge-list", "knowledge-freshness",
+    "knowledge-list",
+    "knowledge-freshness",
     # MCP 工具
-    "tool-list", "mcp-ping",
+    "tool-list",
+    "mcp-ping",
     # 可观测性
-    "obs-dashboard", "obs-test", "obs-export",
+    "obs-dashboard",
+    "obs-test",
+    "obs-export",
     # 记忆
-    "memory-list", "memory-test", "memory-ping",
+    "memory-list",
+    "memory-test",
+    "memory-ping",
     # A2A
-    "a2a-card", "a2a-test", "a2a-registry",
+    "a2a-card",
+    "a2a-test",
+    "a2a-registry",
     # 部署
-    "deploy-check", "deploy-test",
+    "deploy-check",
+    "deploy-test",
     # Reflexion
-    "reflexion-list", "reflexion-test", "reflexion-ping",
+    "reflexion-list",
+    "reflexion-test",
+    "reflexion-ping",
     # 技能
-    "skill-list", "skill-validate",
+    "skill-list",
+    "skill-validate",
     # Alignment / Governance / Multimodal
-    "alignment-status", "alignment-train",
-    "governance-status", "governance-check",
-    "multimodal-status", "multimodal-test",
+    "alignment-status",
+    "alignment-train",
+    "governance-status",
+    "governance-check",
+    "multimodal-status",
+    "multimodal-test",
 }
 
 
@@ -168,6 +189,7 @@ class WebServer:
                     return True
                 try:
                     import ssl
+
                     if isinstance(self.request, ssl.SSLSocket):
                         return True
                 except Exception:
@@ -216,9 +238,7 @@ class WebServer:
                 self.send_header("X-XSS-Protection", "1; mode=block")
                 # HSTS 仅在 HTTPS 下下发（HTTP 下设置会被浏览器忽略且可能带来风险）
                 if self._is_https():
-                    self.send_header(
-                        "Strict-Transport-Security", "max-age=31536000"
-                    )
+                    self.send_header("Strict-Transport-Security", "max-age=31536000")
 
             def end_headers(self) -> None:
                 """覆写 end_headers：统一为所有响应注入 CORS + 安全头。"""
@@ -272,23 +292,29 @@ class WebServer:
                     # 移动端 UA 自动跳转 /m（不破坏 web 端直接访问）
                     ua = self.headers.get("User-Agent", "")
                     _MOBILE_UA = ("android", "iphone", "ipod", "windows phone", "mobile")
-                    if path == "/" and any(k in ua.lower() for k in _MOBILE_UA) and "ipad" not in ua.lower():
+                    if (
+                        path == "/"
+                        and any(k in ua.lower() for k in _MOBILE_UA)
+                        and "ipad" not in ua.lower()
+                    ):
                         self.send_response(302)
                         self.send_header("Location", "/m")
                         self.end_headers()
                         return
                     self._send_file(_STATIC_DIR / "index.html", "text/html; charset=utf-8")
                 # === 移动端入口（独立于 web 端，/m → mobile.html）===
-                elif path == "/m" or path == "/m/":
-                    self._send_file(_STATIC_DIR / "mobile.html", "text/html; charset=utf-8")
-                elif path == "/mobile.html":
+                elif path == "/m" or path == "/m/" or path == "/mobile.html":
                     self._send_file(_STATIC_DIR / "mobile.html", "text/html; charset=utf-8")
                 elif path == "/manifest.json":
-                    self._send_file(_STATIC_DIR / "manifest.json", "application/manifest+json; charset=utf-8")
+                    self._send_file(
+                        _STATIC_DIR / "manifest.json", "application/manifest+json; charset=utf-8"
+                    )
                 elif path == "/sw.js":
                     self._send_file(_STATIC_DIR / "sw.js", "application/javascript; charset=utf-8")
                 elif path == "/mobile.js":
-                    self._send_file(_STATIC_DIR / "mobile.js", "application/javascript; charset=utf-8")
+                    self._send_file(
+                        _STATIC_DIR / "mobile.js", "application/javascript; charset=utf-8"
+                    )
                 elif path == "/api/health":
                     self._send_json(200, {"status": "ok", "service": "ag-ui"})
                 elif path == "/api/whoami":
@@ -332,7 +358,7 @@ class WebServer:
                 elif path == "/api/institutions":
                     self._handle_institutions(query)
                 elif path.startswith("/api/institutions/"):
-                    institution_id = path[len("/api/institutions/"):]
+                    institution_id = path[len("/api/institutions/") :]
                     self._handle_institution_by_id(institution_id)
                 # === Phase 10: 终活笔记（エンディングノート）+ 家庭共享（只追加）===
                 elif path == "/api/ending-note":
@@ -351,20 +377,20 @@ class WebServer:
                 elif path == "/api/vault/inherited":
                     self._handle_vault_inherited()
                 elif path.startswith("/api/vault/items/"):
-                    item_id = path[len("/api/vault/items/"):]
+                    item_id = path[len("/api/vault/items/") :]
                     self._handle_vault_item_get(item_id)
                 elif path == "/api/documents":
                     self._handle_documents_list()
                 elif path.startswith("/api/documents/"):
-                    doc_id = path[len("/api/documents/"):]
+                    doc_id = path[len("/api/documents/") :]
                     self._handle_document_get(doc_id)
                 elif path == "/api/cases":
                     self._handle_cases_list()
                 elif path.startswith("/api/cases/") and path.endswith("/timeline"):
-                    case_id = path[len("/api/cases/"):-len("/timeline")]
+                    case_id = path[len("/api/cases/") : -len("/timeline")]
                     self._handle_case_timeline(case_id)
                 elif path.startswith("/api/cases/"):
-                    case_id = path[len("/api/cases/"):]
+                    case_id = path[len("/api/cases/") :]
                     self._handle_case_get(case_id)
                 # === Phase 15: Dead Man Switch GET 路由（只追加）===
                 elif path == "/api/switch/status":
@@ -394,18 +420,18 @@ class WebServer:
                 elif path == "/api/support/tickets":
                     self._handle_support_tickets_list()
                 elif path.startswith("/api/support/tickets/"):
-                    ticket_id = path[len("/api/support/tickets/"):]
+                    ticket_id = path[len("/api/support/tickets/") :]
                     self._handle_support_ticket_get(ticket_id)
                 elif path == "/api/onboarding":
                     self._handle_onboarding_get()
                 elif path.startswith("/api/onboarding/step/"):
-                    step_str = path[len("/api/onboarding/step/"):]
+                    step_str = path[len("/api/onboarding/step/") :]
                     self._handle_onboarding_step(step_str)
                 # === Skill Management GET 路由（只追加）===
                 elif path == "/api/skills":
                     self._handle_skills_list()
                 elif path.startswith("/api/skills/"):
-                    skill_name = path[len("/api/skills/"):]
+                    skill_name = path[len("/api/skills/") :]
                     self._handle_skill_get(skill_name)
                 # === Alignment / Governance / Multimodal GET 路由（只追加）===
                 elif path == "/api/alignment/status":
@@ -523,14 +549,12 @@ class WebServer:
                         req.setdefault("user_id", user.get("user_id"))
                         req.setdefault("user_email", user.get("email"))
                     user_id = req.get("user_id") or req.get("userId") or None
-                    resp = asyncio.run(
-                        server_ref._handle_chat(agent, query_text, history, user_id)
-                    )
+                    resp = asyncio.run(server_ref._handle_chat(agent, query_text, history, user_id))
                     self._send_json(200, resp)
                 elif path == "/api/whoami":
                     self._send_json(200, server_ref._handle_whoami())
                 elif path.startswith("/api/cli/"):
-                    command = path[len("/api/cli/"):]
+                    command = path[len("/api/cli/") :]
                     length = int(self.headers.get("Content-Length", "0"))
                     raw = self.rfile.read(length) if length else b"{}"
                     try:
@@ -554,13 +578,13 @@ class WebServer:
                 elif path == "/api/cases":
                     self._handle_case_create()
                 elif path.startswith("/api/vault/items/") and path.endswith("/trigger"):
-                    item_id = path[len("/api/vault/items/"):-len("/trigger")]
+                    item_id = path[len("/api/vault/items/") : -len("/trigger")]
                     self._handle_vault_item_trigger(item_id)
                 elif path.startswith("/api/cases/") and path.endswith("/events"):
-                    case_id = path[len("/api/cases/"):-len("/events")]
+                    case_id = path[len("/api/cases/") : -len("/events")]
                     self._handle_case_event_add(case_id)
                 elif path.startswith("/api/cases/") and path.endswith("/archive"):
-                    case_id = path[len("/api/cases/"):-len("/archive")]
+                    case_id = path[len("/api/cases/") : -len("/archive")]
                     self._handle_case_archive(case_id)
                 # === Phase 15: Dead Man Switch POST 路由（只追加）===
                 elif path == "/api/switch/init":
@@ -589,7 +613,7 @@ class WebServer:
                 elif path == "/api/support/tickets":
                     self._handle_support_ticket_create()
                 elif path.startswith("/api/support/tickets/") and path.endswith("/replies"):
-                    ticket_id = path[len("/api/support/tickets/"):-len("/replies")]
+                    ticket_id = path[len("/api/support/tickets/") : -len("/replies")]
                     self._handle_support_ticket_reply(ticket_id)
                 elif path == "/api/onboarding":
                     self._handle_onboarding_save()
@@ -601,7 +625,7 @@ class WebServer:
                 elif path == "/api/skills":
                     self._handle_skill_create()
                 elif path.startswith("/api/skills/") and path.endswith("/invoke"):
-                    skill_name = path[len("/api/skills/"):-len("/invoke")]
+                    skill_name = path[len("/api/skills/") : -len("/invoke")]
                     self._handle_skill_invoke(skill_name)
                 # === Billing POST 路由（只追加）===
                 elif path == "/api/billing/subscribe":
@@ -614,10 +638,10 @@ class WebServer:
                 parsed = urlparse(self.path)
                 path = parsed.path
                 if path.startswith("/api/vault/items/"):
-                    item_id = path[len("/api/vault/items/"):]
+                    item_id = path[len("/api/vault/items/") :]
                     self._handle_vault_item_update(item_id)
                 elif path.startswith("/api/support/tickets/") and path.endswith("/status"):
-                    ticket_id = path[len("/api/support/tickets/"):-len("/status")]
+                    ticket_id = path[len("/api/support/tickets/") : -len("/status")]
                     self._handle_support_ticket_update_status(ticket_id)
                 else:
                     self.send_error(404, "Not Found")
@@ -633,16 +657,16 @@ class WebServer:
                     self._handle_ending_note_section_delete()
                 # === Phase 11/12: 保险库 / 文档提取 DELETE 路由（只追加）===
                 elif path.startswith("/api/vault/items/"):
-                    item_id = path[len("/api/vault/items/"):]
+                    item_id = path[len("/api/vault/items/") :]
                     self._handle_vault_item_delete(item_id)
                 elif path == "/api/onboarding":
                     self._handle_onboarding_delete()
                 elif path.startswith("/api/documents/"):
-                    doc_id = path[len("/api/documents/"):]
+                    doc_id = path[len("/api/documents/") :]
                     self._handle_document_delete(doc_id)
                 # === Skill Management DELETE 路由（只追加）===
                 elif path.startswith("/api/skills/"):
-                    skill_name = path[len("/api/skills/"):]
+                    skill_name = path[len("/api/skills/") :]
                     self._handle_skill_delete(skill_name)
                 else:
                     self.send_error(404, "Not Found")
@@ -662,9 +686,7 @@ class WebServer:
                 self.send_header("Connection", "keep-alive")
                 self.end_headers()
                 try:
-                    asyncio.run(
-                        server_ref._stream_chat(self.wfile, q, agent, stream_user_id)
-                    )
+                    asyncio.run(server_ref._stream_chat(self.wfile, q, agent, stream_user_id))
                 except Exception as exc:
                     logger.warning("SSE 流式失败: %s", exc)
                     self.wfile.write(
@@ -688,6 +710,7 @@ class WebServer:
                 """返回 MCP 工具列表"""
                 try:
                     from ..mcp_server.server import mcp
+
                     self._send_json(200, {"tools": mcp.list_tools()})
                 except Exception as exc:
                     self._send_json(200, {"tools": [], "error": str(exc)})
@@ -696,12 +719,11 @@ class WebServer:
                 """Prometheus 指标端点"""
                 try:
                     from ..observability.metrics import metrics_collector
+
                     text = metrics_collector.export_prometheus()
                     body = text.encode("utf-8")
                     self.send_response(200)
-                    self.send_header(
-                        "Content-Type", "text/plain; version=0.0.4; charset=utf-8"
-                    )
+                    self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
@@ -712,6 +734,7 @@ class WebServer:
                 """可观测性看板（结构化 JSON）"""
                 try:
                     from ..observability import metrics_collector
+
                     self._send_json(200, metrics_collector.get_dashboard())
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
@@ -728,6 +751,7 @@ class WebServer:
                         SLO_TARGETS,
                         metrics_collector,
                     )
+
                     # 通过模块属性访问 SLO_DASHBOARD_ENABLED，
                     # 确保运行时对该属性的修改（如测试 monkeypatch）能被正确读取
                     if not m_module.SLO_DASHBOARD_ENABLED:
@@ -764,6 +788,7 @@ class WebServer:
                 - total_conversations / degraded_count / recent_spans
                 """
                 import copy
+
                 try:
                     snapshot = copy.deepcopy(server_ref._conversation_stats)
                     self._send_json(200, snapshot)
@@ -781,29 +806,41 @@ class WebServer:
                     except Exception as exc:
                         self._send_json(500, {"error": f"读取失败: {exc}"})
                         return
-                self._send_json(200, {"status": "no_data", "message": f"{filename} 尚未生成，请先运行对应 CLI 命令"})
+                self._send_json(
+                    200,
+                    {"status": "no_data", "message": f"{filename} 尚未生成，请先运行对应 CLI 命令"},
+                )
 
             def _handle_memory_state(self) -> None:
                 """记忆 4 层状态"""
                 try:
                     from ..memory.manager import MemoryManager
+
                     mgr = MemoryManager()
-                    self._send_json(200, {
-                        "working": len(mgr.working._turns) if hasattr(mgr.working, "_turns") else 0,
-                        "episodic": len(mgr.episodic._store),
-                        "semantic": len(mgr.semantic.facts),
-                        "semantic_profiles": len(mgr.semantic.user_profiles),
-                        "semantic_contradictions": len(mgr.semantic.pending_contradictions),
-                        "procedural": len(mgr.procedural._procedures) if hasattr(mgr.procedural, "_procedures") else 0,
-                        "graphiti_enabled": mgr.graphiti is not None,
-                        "lightrag_enabled": mgr.lightrag is not None,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "working": len(mgr.working._turns)
+                            if hasattr(mgr.working, "_turns")
+                            else 0,
+                            "episodic": len(mgr.episodic._store),
+                            "semantic": len(mgr.semantic.facts),
+                            "semantic_profiles": len(mgr.semantic.user_profiles),
+                            "semantic_contradictions": len(mgr.semantic.pending_contradictions),
+                            "procedural": len(mgr.procedural._procedures)
+                            if hasattr(mgr.procedural, "_procedures")
+                            else 0,
+                            "graphiti_enabled": mgr.graphiti is not None,
+                            "lightrag_enabled": mgr.lightrag is not None,
+                        },
+                    )
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
             def _handle_deploy_check(self) -> None:
                 """部署工件校验"""
                 import yaml
+
                 project_root = settings.project_root.parent
                 docker_dir = settings.project_root / "docker"
                 artifacts = [
@@ -827,19 +864,33 @@ class WebServer:
                         compose_ok = True
                     except Exception as exc:
                         logger.debug("docker-compose.yml 解析失败: %s", exc)
-                self._send_json(200, {
-                    "artifacts": results,
-                    "compose_valid": compose_ok,
-                    "compose_services": services,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "artifacts": results,
+                        "compose_valid": compose_ok,
+                        "compose_services": services,
+                    },
+                )
 
             def _handle_health_all(self) -> None:
                 """全领域健康汇总（读取所有 data/*_health.json）"""
                 data_dir = settings.project_root / "data"
                 domains = [
-                    "llm", "prompt", "rule", "agent", "knowledge",
-                    "eval", "tool", "mcp", "obs", "memory",
-                    "a2a", "deploy", "reflexion", "skill",
+                    "llm",
+                    "prompt",
+                    "rule",
+                    "agent",
+                    "knowledge",
+                    "eval",
+                    "tool",
+                    "mcp",
+                    "obs",
+                    "memory",
+                    "a2a",
+                    "deploy",
+                    "reflexion",
+                    "skill",
                 ]
                 summary = {}
                 for domain in domains:
@@ -860,6 +911,7 @@ class WebServer:
             def _disclaimer_footer() -> str:
                 """所有 Phase 9 响应附带的 disclaimer 字段（transparency-framework）"""
                 from deadman.disclaimer.text import DisclaimerBuilder
+
                 return DisclaimerBuilder.for_web_footer()
 
             def _handle_disclaimer(self, query: dict[str, list[str]]) -> None:
@@ -870,6 +922,7 @@ class WebServer:
                 ?format=footer：Web 页面底部固定告知
                 """
                 from deadman.disclaimer.text import DisclaimerBuilder
+
                 scenario = query.get("scenario", [None])[0]
                 fmt = query.get("format", [None])[0]
                 try:
@@ -885,56 +938,73 @@ class WebServer:
                 except ValueError as exc:
                     self._send_json(400, {"error": str(exc)})
                     return
-                self._send_json(200, {
-                    "text": text,
-                    "kind": kind,
-                    "disclaimer": self._disclaimer_footer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "text": text,
+                        "kind": kind,
+                        "disclaimer": self._disclaimer_footer(),
+                    },
+                )
 
             def _handle_hotlines(self, query: dict[str, list[str]]) -> None:
                 """GET /api/hotlines?province=&function= - 热线查询"""
                 from deadman.hotlines.lookup import HotlineLookup
+
                 province = query.get("province", [None])[0]
                 function = query.get("function", [None])[0]
                 lookup = HotlineLookup()
                 results = lookup.lookup(province, function)
-                self._send_json(200, {
-                    "hotlines": results,
-                    "count": len(results),
-                    "query": {"province": province, "function": function},
-                    "disclaimer": self._disclaimer_footer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "hotlines": results,
+                        "count": len(results),
+                        "query": {"province": province, "function": function},
+                        "disclaimer": self._disclaimer_footer(),
+                    },
+                )
 
             def _handle_institutions(self, query: dict[str, list[str]]) -> None:
                 """GET /api/institutions?province=&city=&type=&keyword= - 机构查询"""
                 from deadman.institutions.store import InstitutionStore
+
                 province = query.get("province", [None])[0]
                 city = query.get("city", [None])[0]
                 inst_type = query.get("type", [None])[0]
                 keyword = query.get("keyword", [None])[0]
                 store = InstitutionStore()
                 results = store.search(province, city, inst_type, keyword)
-                self._send_json(200, {
-                    "institutions": [i.to_dict() for i in results],
-                    "count": len(results),
-                    "query": {
-                        "province": province, "city": city,
-                        "type": inst_type, "keyword": keyword,
+                self._send_json(
+                    200,
+                    {
+                        "institutions": [i.to_dict() for i in results],
+                        "count": len(results),
+                        "query": {
+                            "province": province,
+                            "city": city,
+                            "type": inst_type,
+                            "keyword": keyword,
+                        },
+                        "disclaimer": self._disclaimer_footer(),
                     },
-                    "disclaimer": self._disclaimer_footer(),
-                })
+                )
 
             def _handle_institution_by_id(self, institution_id: str) -> None:
                 """GET /api/institutions/<id> - 机构详情"""
                 from deadman.institutions.store import InstitutionStore
+
                 store = InstitutionStore()
                 inst = store.get(institution_id)
                 if inst is None:
-                    self._send_json(404, {
-                        "error": "机构不存在",
-                        "institution_id": institution_id,
-                        "disclaimer": self._disclaimer_footer(),
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "机构不存在",
+                            "institution_id": institution_id,
+                            "disclaimer": self._disclaimer_footer(),
+                        },
+                    )
                     return
                 payload = inst.to_dict()
                 payload["needs_verification_warning"] = inst.needs_verification_warning()
@@ -978,6 +1048,7 @@ class WebServer:
             def _handle_ending_note_get(self, query: dict[str, list[str]]) -> None:
                 """GET /api/ending-note - 获取我的笔记（Phase 14 后强制认证）"""
                 from deadman.ending_note.store import EndingNoteStore
+
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
                     self._phase_unauthorized()
@@ -985,16 +1056,22 @@ class WebServer:
                 store = EndingNoteStore()
                 note = store.load(user_id)
                 if note is None:
-                    self._send_json(404, {
-                        "note": None,
-                        "message": "尚无终活笔记，请调 POST /api/ending-note/section 开始填写",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "note": None,
+                            "message": "尚无终活笔记，请调 POST /api/ending-note/section 开始填写",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "note": note.to_dict(),
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "note": note.to_dict(),
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_section(self) -> None:
                 """POST /api/ending-note/section - 保存某章节
@@ -1028,16 +1105,22 @@ class WebServer:
                 section = req.get("section")
                 answer = req.get("answer")
                 if not section:
-                    self._send_json(400, {
-                        "error": "缺少 section",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 section",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 if not isinstance(answer, dict):
-                    self._send_json(400, {
-                        "error": "answer 必须是 dict",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "answer 必须是 dict",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
 
                 store = EndingNoteStore()
@@ -1046,10 +1129,13 @@ class WebServer:
                 try:
                     note = guide.save_answer(note, section, answer)
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 store.save(note)
 
@@ -1081,21 +1167,27 @@ class WebServer:
 
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
-                    self._send_json(400, {
-                        "error": "缺少 user_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 user_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 store = EndingNoteStore()
                 note = store.load(user_id) or EN.new(user_id)
                 guide = EndingNoteGuide(store=store)
                 section, title, question = guide.next_question(note)
-                self._send_json(200, {
-                    "section": section,
-                    "title": title,
-                    "question": question,
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "section": section,
+                        "title": title,
+                        "question": question,
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_share(self) -> None:
                 """POST /api/ending-note/share - 共享给家庭成员
@@ -1126,16 +1218,22 @@ class WebServer:
                 target_user_id = req.get("target_user_id")
                 sections = req.get("sections")
                 if not target_user_id:
-                    self._send_json(400, {
-                        "error": "缺少 target_user_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 target_user_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 if sections is not None and not isinstance(sections, list):
-                    self._send_json(400, {
-                        "error": "sections 必须是 list[str] 或 null",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "sections 必须是 list[str] 或 null",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
 
                 store = EndingNoteStore()
@@ -1144,31 +1242,41 @@ class WebServer:
                 except ValueError as exc:
                     self._send_json(400, {"error": str(exc)})
                     return
-                self._send_json(200, {
-                    "ok": True,
-                    "shared_with": target_user_id,
-                    "sections": sections,
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "shared_with": target_user_id,
+                        "sections": sections,
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_unshare(self, query: dict[str, list[str]]) -> None:
                 """DELETE /api/ending-note/share?user_id=xxx&target_user_id=xxx"""
                 from deadman.ending_note.store import EndingNoteStore
+
                 user_id = self._ending_note_user_id(query)
                 target_user_id = query.get("target_user_id", [None])[0]
                 if not user_id or not target_user_id:
-                    self._send_json(400, {
-                        "error": "缺少 user_id 或 target_user_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 user_id 或 target_user_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 store = EndingNoteStore()
                 store.unshare(user_id, target_user_id)
-                self._send_json(200, {
-                    "ok": True,
-                    "unshared_with": target_user_id,
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "unshared_with": target_user_id,
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_section_delete(self) -> None:
                 """DELETE /api/ending-note/section - 删除（清空）某个章节
@@ -1193,50 +1301,69 @@ class WebServer:
 
                 section_key = req.get("section_id")
                 if not section_key:
-                    self._send_json(400, {
-                        "error": "缺少 section_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 section_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
 
                 store = EndingNoteStore()
                 try:
                     ok = store.delete_section(user_id, section_key)
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 if not ok:
-                    self._send_json(404, {
-                        "error": "笔记不存在",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "笔记不存在",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "ok": True,
-                    "deleted_section": section_key,
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "deleted_section": section_key,
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_shared_with_me(self, query: dict[str, list[str]]) -> None:
                 """GET /api/ending-note/shared-with-me?user_id=xxx - 共享给我的笔记"""
                 from deadman.ending_note.store import EndingNoteStore
+
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
-                    self._send_json(400, {
-                        "error": "缺少 user_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 user_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 store = EndingNoteStore()
                 notes = store.list_shared_with_me(user_id)
-                self._send_json(200, {
-                    "notes": [n.to_dict() for n in notes],
-                    "count": len(notes),
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "notes": [n.to_dict() for n in notes],
+                        "count": len(notes),
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             def _handle_ending_note_trigger(self) -> None:
                 """POST /api/ending-note/trigger - 触发投递
@@ -1265,10 +1392,13 @@ class WebServer:
 
                 trigger_type = req.get("trigger_type")
                 if not trigger_type:
-                    self._send_json(400, {
-                        "error": "缺少 trigger_type",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 trigger_type",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
 
                 store = EndingNoteStore()
@@ -1292,19 +1422,25 @@ class WebServer:
 
                 user_id = self._ending_note_user_id(query)
                 if not user_id:
-                    self._send_json(400, {
-                        "error": "缺少 user_id",
-                        "disclaimer": self._ending_note_disclaimer(),
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 user_id",
+                            "disclaimer": self._ending_note_disclaimer(),
+                        },
+                    )
                     return
                 store = EndingNoteStore()
                 note = store.load(user_id) or EN.new(user_id)
                 guide = EndingNoteGuide(store=store)
                 rate = guide.completion_rate(note)
-                self._send_json(200, {
-                    "completion": rate,
-                    "disclaimer": self._ending_note_disclaimer(),
-                })
+                self._send_json(
+                    200,
+                    {
+                        "completion": rate,
+                        "disclaimer": self._ending_note_disclaimer(),
+                    },
+                )
 
             # ==============================================================
             # Phase 11/12/13: 保险库 / 文档提取 / 遗码通 Handler 方法（只追加）
@@ -1325,6 +1461,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 items = store.list_items(user["user_id"], user["user_id"])
                 self._send_json(200, {"items": items})
@@ -1336,6 +1473,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 item = store.get_item(item_id, user["user_id"])
                 if item is None:
@@ -1364,17 +1502,20 @@ class WebServer:
                     return
                 try:
                     from deadman.vault.store import VaultStore
+
                     store = VaultStore()
                     content = req.get("content", "")
                     # content 可以是 str 或 base64
                     if isinstance(content, str) and content.startswith("base64:"):
                         import base64
-                        content = base64.b64decode(content[len("base64:"):])
+
+                        content = base64.b64decode(content[len("base64:") :])
                     delivery_date_str = req.get("delivery_date")
                     delivery_date = None
                     if delivery_date_str:
                         try:
                             from datetime import datetime as _dt
+
                             delivery_date = _dt.fromisoformat(delivery_date_str)
                         except (TypeError, ValueError):
                             delivery_date = None
@@ -1402,6 +1543,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 ok = store.delete_item(item_id, user["user_id"])
                 if ok:
@@ -1428,18 +1570,25 @@ class WebServer:
                     return
                 try:
                     from deadman.vault.store import VaultStore
+
                     store = VaultStore()
                     # 构造 updates 字典，只包含请求中提供的字段
                     updates: dict[str, Any] = {}
-                    for field in ("title", "content", "metadata",
-                                  "beneficiary_user_ids", "delivery_trigger",
-                                  "delivery_date"):
+                    for field in (
+                        "title",
+                        "content",
+                        "metadata",
+                        "beneficiary_user_ids",
+                        "delivery_trigger",
+                        "delivery_date",
+                    ):
                         if field in req:
                             updates[field] = req[field]
                     # delivery_date 字符串转 datetime
                     if updates.get("delivery_date"):
                         try:
                             from datetime import datetime as _dt
+
                             updates["delivery_date"] = _dt.fromisoformat(
                                 str(updates["delivery_date"])
                             )
@@ -1463,6 +1612,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 beneficiaries = store.list_beneficiaries(user["user_id"])
                 self._send_json(200, {"beneficiaries": beneficiaries})
@@ -1474,6 +1624,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 inherited = store.list_inherited(user["user_id"])
                 self._send_json(200, {"inherited": inherited})
@@ -1495,11 +1646,13 @@ class WebServer:
                     req = {}
                 trigger_type = req.get("trigger_type", "manual")
                 from deadman.vault.store import VaultStore
+
                 store = VaultStore()
                 result = store.trigger_delivery(item_id, trigger_type, user["user_id"])
                 # content 是 bytes，转 base64
                 if result.get("content") is not None:
                     import base64
+
                     result["content_b64"] = base64.b64encode(result["content"]).decode("ascii")
                     result["content"] = None  # 不直接放 bytes 进 JSON
                 self._send_json(200, result)
@@ -1512,6 +1665,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.doc_extract.extractor import DocumentExtractor
+
                 extractor = DocumentExtractor()
                 docs = extractor.list_my_documents(user["user_id"])
                 self._send_json(200, {"documents": [d.to_dict() for d in docs]})
@@ -1523,6 +1677,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.doc_extract.extractor import DocumentExtractor
+
                 extractor = DocumentExtractor()
                 doc = extractor.get_document(doc_id, user["user_id"])
                 if doc is None:
@@ -1559,6 +1714,7 @@ class WebServer:
                         return
                     filename = req.get("filename", "")
                     import base64
+
                     try:
                         content = base64.b64decode(req.get("content_base64", ""))
                     except (ValueError, Exception) as exc:
@@ -1570,6 +1726,7 @@ class WebServer:
                     return
                 try:
                     from deadman.doc_extract.extractor import DocumentExtractor
+
                     extractor = DocumentExtractor()
                     doc = asyncio.run(
                         extractor.extract(
@@ -1591,6 +1748,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.doc_extract.extractor import DocumentExtractor
+
                 extractor = DocumentExtractor()
                 ok = extractor.delete_document(doc_id, user["user_id"])
                 if ok:
@@ -1606,6 +1764,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.decedent_id.registry import DecedentRegistry
+
                 reg = DecedentRegistry()
                 cases = reg.list_cases(user["user_id"])
                 self._send_json(200, {"cases": [c.to_dict() for c in cases]})
@@ -1617,6 +1776,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.decedent_id.registry import DecedentRegistry
+
                 reg = DecedentRegistry()
                 case = reg.get_case(case_id, user["user_id"])
                 if case is None:
@@ -1642,6 +1802,7 @@ class WebServer:
                     return
                 try:
                     from deadman.decedent_id.registry import DecedentRegistry
+
                     reg = DecedentRegistry()
                     case = reg.create_case(
                         owner_user_id=user["user_id"],
@@ -1670,6 +1831,7 @@ class WebServer:
                     self._send_json(400, {"error": f"invalid json: {exc}"})
                     return
                 from deadman.decedent_id.registry import DecedentRegistry
+
                 reg = DecedentRegistry()
                 case = reg.add_event(
                     case_id=case_id,
@@ -1690,6 +1852,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.decedent_id.registry import DecedentRegistry
+
                 reg = DecedentRegistry()
                 ok = reg.archive_case(case_id, user["user_id"])
                 if ok:
@@ -1704,6 +1867,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.decedent_id.registry import DecedentRegistry
+
                 reg = DecedentRegistry()
                 timeline = reg.get_timeline(case_id, user["user_id"])
                 self._send_json(200, {"timeline": timeline})
@@ -1739,6 +1903,7 @@ class WebServer:
                     return
                 from deadman.deadman_switch.models import SwitchConfig
                 from deadman.deadman_switch.store import SwitchStore
+
                 config = SwitchConfig(
                     check_in_frequency_days=int(req.get("frequency", 30)),
                     missed_threshold=int(req.get("missed", 3)),
@@ -1766,6 +1931,7 @@ class WebServer:
                 if req is None:
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 method = req.get("method", "web")
                 record = store.record_check_in(user["user_id"], method=method)
@@ -1781,6 +1947,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record = store.load(user["user_id"])
                 if record is None:
@@ -1802,6 +1969,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record = store.tick(user["user_id"])
                 if record is None:
@@ -1827,6 +1995,7 @@ class WebServer:
                     self._send_json(400, {"error": "缺少 contact_id"})
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record, msg = store.verify_emergency_contact(
                     user["user_id"], str(contact_id), confirm
@@ -1854,10 +2023,9 @@ class WebServer:
                     self._send_json(400, {"error": "缺少 heir_id"})
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
-                record, msg = store.verify_heir(
-                    user["user_id"], str(heir_id), confirm
-                )
+                record, msg = store.verify_heir(user["user_id"], str(heir_id), confirm)
                 if record is None:
                     self._send_json(404, {"error": msg})
                     return
@@ -1877,6 +2045,7 @@ class WebServer:
                     return
                 reason = str(req.get("reason", "user_cancelled"))
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record = store.cancel(user["user_id"], reason=reason)
                 if record is None:
@@ -1891,16 +2060,20 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record = store.load(user["user_id"])
                 if record is None:
                     self._send_json(404, {"error": "switch not initialized"})
                     return
-                self._send_json(200, {
-                    "pending_actions": record.pending_actions,
-                    "executed_actions": record.executed_actions,
-                    "state": record.state.value,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "pending_actions": record.pending_actions,
+                        "executed_actions": record.executed_actions,
+                        "state": record.state.value,
+                    },
+                )
 
             def _handle_switch_execute(self) -> None:
                 """POST /api/switch/execute - 执行 CONFIRMED → EXECUTED
@@ -1913,6 +2086,7 @@ class WebServer:
                     return
                 from deadman.deadman_switch.actions import SwitchActionExecutor
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 executor = SwitchActionExecutor(store=store)
                 try:
@@ -1933,6 +2107,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.deadman_switch.store import SwitchStore
+
                 store = SwitchStore()
                 record, msg = store.engage_lawyer(user["user_id"])
                 if record is None:
@@ -1940,17 +2115,23 @@ class WebServer:
                     return
                 # 业务规则失败（状态不符 / 无律师配置）→ 409 冲突
                 if msg != "lawyer_engaged":
-                    self._send_json(409, {
-                        "success": False,
+                    self._send_json(
+                        409,
+                        {
+                            "success": False,
+                            "message": msg,
+                            "record": record.to_dict(),
+                        },
+                    )
+                    return
+                self._send_json(
+                    200,
+                    {
+                        "success": True,
                         "message": msg,
                         "record": record.to_dict(),
-                    })
-                    return
-                self._send_json(200, {
-                    "success": True,
-                    "message": msg,
-                    "record": record.to_dict(),
-                })
+                    },
+                )
 
             # ==============================================================
             # Phase 15: 通知信函生成器 Handler 方法（只追加）
@@ -1966,11 +2147,15 @@ class WebServer:
                     return
                 from deadman.notification_letters.models import DEFAULT_DISCLAIMER
                 from deadman.notification_letters.templates import LETTER_TYPES
-                self._send_json(200, {
-                    "types": [dict(t) for t in LETTER_TYPES],
-                    "count": len(LETTER_TYPES),
-                    "disclaimer": DEFAULT_DISCLAIMER,
-                })
+
+                self._send_json(
+                    200,
+                    {
+                        "types": [dict(t) for t in LETTER_TYPES],
+                        "count": len(LETTER_TYPES),
+                        "disclaimer": DEFAULT_DISCLAIMER,
+                    },
+                )
 
             def _handle_letters_template(self, query: dict[str, list[str]]) -> None:
                 """GET /api/letters/template?type=xxx - 返回原始模板
@@ -1987,28 +2172,38 @@ class WebServer:
                     LETTER_TYPES,
                     get_letter_type_meta,
                 )
+
                 letter_type = (query.get("type", [""])[0] or "").strip()
                 if not letter_type:
-                    self._send_json(400, {
-                        "error": "缺少 type 参数",
-                        "disclaimer": DEFAULT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 type 参数",
+                            "disclaimer": DEFAULT_DISCLAIMER,
+                        },
+                    )
                     return
                 if letter_type not in LETTER_TEMPLATES:
-                    self._send_json(404, {
-                        "error": f"未知信函类型: {letter_type}",
-                        "supported_types": [t["type"] for t in LETTER_TYPES],
-                        "disclaimer": DEFAULT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": f"未知信函类型: {letter_type}",
+                            "supported_types": [t["type"] for t in LETTER_TYPES],
+                            "disclaimer": DEFAULT_DISCLAIMER,
+                        },
+                    )
                     return
                 meta = get_letter_type_meta(letter_type) or {}
-                self._send_json(200, {
-                    "type": letter_type,
-                    "name": meta.get("name", ""),
-                    "template": LETTER_TEMPLATES[letter_type],
-                    "extra_fields_needed": meta.get("extra_fields_needed", []),
-                    "disclaimer": DEFAULT_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "type": letter_type,
+                        "name": meta.get("name", ""),
+                        "template": LETTER_TEMPLATES[letter_type],
+                        "extra_fields_needed": meta.get("extra_fields_needed", []),
+                        "disclaimer": DEFAULT_DISCLAIMER,
+                    },
+                )
 
             def _handle_letters_generate(self) -> None:
                 """POST /api/letters/generate - 生成通知信函
@@ -2041,10 +2236,13 @@ class WebServer:
 
                 letter_type = req.get("letter_type")
                 if not letter_type:
-                    self._send_json(400, {
-                        "error": "缺少 letter_type",
-                        "disclaimer": DEFAULT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 letter_type",
+                            "disclaimer": DEFAULT_DISCLAIMER,
+                        },
+                    )
                     return
 
                 try:
@@ -2060,10 +2258,13 @@ class WebServer:
                         language=req.get("language", "zh-CN") or "zh-CN",
                     )
                 except (TypeError, ValueError) as exc:
-                    self._send_json(400, {
-                        "error": f"请求参数无效: {exc}",
-                        "disclaimer": DEFAULT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"请求参数无效: {exc}",
+                            "disclaimer": DEFAULT_DISCLAIMER,
+                        },
+                    )
                     return
 
                 use_llm = bool(req.get("use_llm", False))
@@ -2071,10 +2272,13 @@ class WebServer:
                 try:
                     result = generator.generate(request)
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": DEFAULT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": DEFAULT_DISCLAIMER,
+                        },
+                    )
                     return
                 self._send_json(200, result.to_dict())
 
@@ -2082,8 +2286,7 @@ class WebServer:
             # Phase 15: plan_score 规划完整度评分 Handler 方法（只追加）
             # ==============================================================
             _PLAN_SCORE_DISCLAIMER = (
-                "评分仅反映信息完整度，不代表法律效力；"
-                "建议结合律师/公证处专业意见。"
+                "评分仅反映信息完整度，不代表法律效力；建议结合律师/公证处专业意见。"
             )
 
             def _handle_plan_score(self) -> None:
@@ -2097,6 +2300,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.plan_score.scorer import PlanScorer
+
                 scorer = PlanScorer()
                 result = scorer.score(user["user_id"])
                 payload = result.to_dict()
@@ -2115,6 +2319,7 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.plan_score.scorer import PlanScorer
+
                 scorer = PlanScorer()
                 result = scorer.score(user["user_id"])
                 payload = result.to_dict()
@@ -2122,9 +2327,7 @@ class WebServer:
                 self._send_json(200, payload)
 
             # ---------- Phase 15 (Memorial Writer): AI 悼文撰写 ----------
-            _MEMORIAL_DISCLAIMER = (
-                "AI 生成的悼文仅供参考，建议家属审阅修改后使用。"
-            )
+            _MEMORIAL_DISCLAIMER = "AI 生成的悼文仅供参考，建议家属审阅修改后使用。"
 
             def _handle_memorial_types(self) -> None:
                 """GET /api/memorial/types - 列出 5 种悼文文档类型
@@ -2141,23 +2344,29 @@ class WebServer:
                     VALID_LANGUAGES,
                     VALID_TONES,
                 )
+
                 types_list = []
                 for key, meta in DOC_TYPES.items():
                     word_lo, word_hi = meta["word_range"]
-                    types_list.append({
-                        "key": key,
-                        "name": meta["name"],
-                        "name_en": meta["name_en"],
-                        "description": meta["description"],
-                        "word_range": [word_lo, word_hi],
-                    })
-                self._send_json(200, {
-                    "types": types_list,
-                    "tones": list(VALID_TONES),
-                    "faiths": list(VALID_FAITHS),
-                    "languages": list(VALID_LANGUAGES),
-                    "disclaimer": self._MEMORIAL_DISCLAIMER,
-                })
+                    types_list.append(
+                        {
+                            "key": key,
+                            "name": meta["name"],
+                            "name_en": meta["name_en"],
+                            "description": meta["description"],
+                            "word_range": [word_lo, word_hi],
+                        }
+                    )
+                self._send_json(
+                    200,
+                    {
+                        "types": types_list,
+                        "tones": list(VALID_TONES),
+                        "faiths": list(VALID_FAITHS),
+                        "languages": list(VALID_LANGUAGES),
+                        "disclaimer": self._MEMORIAL_DISCLAIMER,
+                    },
+                )
 
             def _handle_memorial_generate(self) -> None:
                 """POST /api/memorial/generate - 生成悼文/讣告/答谢词/墓志铭/追思会致辞
@@ -2177,43 +2386,59 @@ class WebServer:
                 try:
                     req = json.loads(raw.decode("utf-8")) if raw else {}
                 except json.JSONDecodeError as exc:
-                    self._send_json(400, {
-                        "error": f"invalid json: {exc}",
-                        "disclaimer": self._MEMORIAL_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"invalid json: {exc}",
+                            "disclaimer": self._MEMORIAL_DISCLAIMER,
+                        },
+                    )
                     return
                 from deadman.memorial_writer.generator import MemorialGenerator
                 from deadman.memorial_writer.models import MemorialRequest
+
                 try:
                     request = MemorialRequest.from_dict(req)
                 except (TypeError, ValueError) as exc:
-                    self._send_json(400, {
-                        "error": f"参数解析失败: {exc}",
-                        "disclaimer": self._MEMORIAL_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"参数解析失败: {exc}",
+                            "disclaimer": self._MEMORIAL_DISCLAIMER,
+                        },
+                    )
                     return
                 errors = request.validate()
                 if errors:
-                    self._send_json(400, {
-                        "error": "参数校验失败: " + "; ".join(errors),
-                        "disclaimer": self._MEMORIAL_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "参数校验失败: " + "; ".join(errors),
+                            "disclaimer": self._MEMORIAL_DISCLAIMER,
+                        },
+                    )
                     return
                 try:
                     gen = MemorialGenerator()
                     result = asyncio.run(gen.generate(request))
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": self._MEMORIAL_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": self._MEMORIAL_DISCLAIMER,
+                        },
+                    )
                     return
                 except Exception as exc:
                     logger.exception("memorial generate failed")
-                    self._send_json(500, {
-                        "error": f"server error: {exc}",
-                        "disclaimer": self._MEMORIAL_DISCLAIMER,
-                    })
+                    self._send_json(
+                        500,
+                        {
+                            "error": f"server error: {exc}",
+                            "disclaimer": self._MEMORIAL_DISCLAIMER,
+                        },
+                    )
                     return
                 payload = result.to_dict()
                 payload["disclaimer"] = self._MEMORIAL_DISCLAIMER
@@ -2236,10 +2461,13 @@ class WebServer:
                 docs_dir = settings.project_root.parent / "docs"
                 md_path = docs_dir / f"{name}.md"
                 if not md_path.exists():
-                    self._send_json(404, {
-                        "error": f"未找到文档: {name}",
-                        "disclaimer": self._DOCS_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": f"未找到文档: {name}",
+                            "disclaimer": self._DOCS_DISCLAIMER,
+                        },
+                    )
                     return
                 try:
                     raw = md_path.read_text(encoding="utf-8")
@@ -2247,11 +2475,7 @@ class WebServer:
                     self._send_json(500, {"error": f"读取失败: {exc}"})
                     return
                 # HTML escape 防注入
-                escaped = (
-                    raw.replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                )
+                escaped = raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 html = (
                     "<!DOCTYPE html><html lang='zh-CN'><head>"
                     "<meta charset='UTF-8'>"
@@ -2298,13 +2522,17 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.support.store import TicketStore
+
                 store = TicketStore()
                 tickets = store.list_user_tickets(user["user_id"])
-                self._send_json(200, {
-                    "tickets": [t.to_dict() for t in tickets],
-                    "count": len(tickets),
-                    "disclaimer": self._SUPPORT_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "tickets": [t.to_dict() for t in tickets],
+                        "count": len(tickets),
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    },
+                )
 
             def _handle_support_ticket_get(self, ticket_id: str) -> None:
                 """GET /api/support/tickets/<id> - 工单详情（含 ownership 校验）"""
@@ -2313,19 +2541,26 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.support.store import TicketStore
+
                 store = TicketStore()
                 ticket = store.get_ticket(ticket_id, user["user_id"])
                 if ticket is None:
-                    self._send_json(404, {
-                        "error": "工单不存在或无权限",
-                        "ticket_id": ticket_id,
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "工单不存在或无权限",
+                            "ticket_id": ticket_id,
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "ticket": ticket.to_dict(),
-                    "disclaimer": self._SUPPORT_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "ticket": ticket.to_dict(),
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    },
+                )
 
             def _handle_support_ticket_create(self) -> None:
                 """POST /api/support/tickets - 创建工单
@@ -2341,13 +2576,17 @@ class WebServer:
                 try:
                     req = json.loads(raw.decode("utf-8")) if raw else {}
                 except json.JSONDecodeError as exc:
-                    self._send_json(400, {
-                        "error": f"invalid json: {exc}",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"invalid json: {exc}",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 try:
                     from deadman.support.store import TicketStore
+
                     store = TicketStore()
                     ticket = store.create_ticket(
                         user_id=user["user_id"],
@@ -2357,22 +2596,31 @@ class WebServer:
                         description=req.get("description", ""),
                     )
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 except Exception as exc:
                     logger.exception("support ticket create failed")
-                    self._send_json(500, {
-                        "error": f"server error: {exc}",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        500,
+                        {
+                            "error": f"server error: {exc}",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
-                self._send_json(201, {
-                    "ticket": ticket.to_dict(),
-                    "disclaimer": self._SUPPORT_DISCLAIMER,
-                })
+                self._send_json(
+                    201,
+                    {
+                        "ticket": ticket.to_dict(),
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    },
+                )
 
             def _handle_support_ticket_reply(self, ticket_id: str) -> None:
                 """POST /api/support/tickets/<id>/replies - 追加回复（仅 user 角色）
@@ -2388,19 +2636,26 @@ class WebServer:
                 try:
                     req = json.loads(raw.decode("utf-8")) if raw else {}
                 except json.JSONDecodeError as exc:
-                    self._send_json(400, {
-                        "error": f"invalid json: {exc}",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"invalid json: {exc}",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 content = req.get("content", "")
                 if not content or not str(content).strip():
-                    self._send_json(400, {
-                        "error": "缺少 content",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": "缺少 content",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 from deadman.support.store import TicketStore
+
                 store = TicketStore()
                 reply = store.add_reply(
                     ticket_id=ticket_id,
@@ -2409,16 +2664,22 @@ class WebServer:
                     user_id=user["user_id"],
                 )
                 if reply is None:
-                    self._send_json(404, {
-                        "error": "工单不存在或无权限",
-                        "ticket_id": ticket_id,
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "工单不存在或无权限",
+                            "ticket_id": ticket_id,
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "reply": reply.to_dict(),
-                    "disclaimer": self._SUPPORT_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "reply": reply.to_dict(),
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    },
+                )
 
             def _handle_support_ticket_update_status(self, ticket_id: str) -> None:
                 """PUT /api/support/tickets/<id>/status - 更新工单状态
@@ -2434,20 +2695,27 @@ class WebServer:
                 try:
                     req = json.loads(raw.decode("utf-8")) if raw else {}
                 except json.JSONDecodeError as exc:
-                    self._send_json(400, {
-                        "error": f"invalid json: {exc}",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"invalid json: {exc}",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 new_status = req.get("status", "")
                 valid_statuses = {"open", "in_progress", "resolved", "closed"}
                 if new_status not in valid_statuses:
-                    self._send_json(400, {
-                        "error": f"无效状态 '{new_status}'，允许值: {', '.join(sorted(valid_statuses))}",
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"无效状态 '{new_status}'，允许值: {', '.join(sorted(valid_statuses))}",
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 from deadman.support.store import TicketStore
+
                 store = TicketStore()
                 ok = store.update_status(
                     ticket_id=ticket_id,
@@ -2455,17 +2723,25 @@ class WebServer:
                     user_id=user["user_id"],
                 )
                 if not ok:
-                    self._send_json(404, {
-                        "error": "工单不存在、无权限或状态流转不合法",
-                        "ticket_id": ticket_id,
-                        "disclaimer": self._SUPPORT_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "工单不存在、无权限或状态流转不合法",
+                            "ticket_id": ticket_id,
+                            "disclaimer": self._SUPPORT_DISCLAIMER,
+                        },
+                    )
                     return
                 ticket = store.get_ticket(ticket_id, user["user_id"])
-                self._send_json(200, {
-                    "ticket": ticket.to_dict() if ticket else {"id": ticket_id, "status": new_status},
-                    "disclaimer": self._SUPPORT_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "ticket": ticket.to_dict()
+                        if ticket
+                        else {"id": ticket_id, "status": new_status},
+                        "disclaimer": self._SUPPORT_DISCLAIMER,
+                    },
+                )
 
             # ---------- Phase 16C: Onboarding ----------
 
@@ -2481,20 +2757,27 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.onboarding.store import OnboardingStore
+
                 store = OnboardingStore()
                 profile = store.load(user["user_id"])
                 if profile is None:
-                    self._send_json(200, {
-                        "profile": None,
-                        "completed": False,
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "profile": None,
+                            "completed": False,
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "profile": profile.to_dict(),
-                    "completed": True,
-                    "disclaimer": self._ONBOARDING_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "profile": profile.to_dict(),
+                        "completed": True,
+                        "disclaimer": self._ONBOARDING_DISCLAIMER,
+                    },
+                )
 
             def _handle_onboarding_step(self, step_str: str) -> None:
                 """GET /api/onboarding/step/<index> - 返回第 N 步问题
@@ -2502,6 +2785,7 @@ class WebServer:
                 未认证也允许查看步骤定义（不暴露 PII）。
                 """
                 from deadman.onboarding.wizard import OnboardingWizard
+
                 try:
                     idx = int(step_str)
                 except (TypeError, ValueError):
@@ -2513,11 +2797,14 @@ class WebServer:
                 except ValueError as exc:
                     self._send_json(400, {"error": str(exc)})
                     return
-                self._send_json(200, {
-                    "step": step,
-                    "total_steps": wiz.TOTAL_STEPS,
-                    "disclaimer": self._ONBOARDING_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "step": step,
+                        "total_steps": wiz.TOTAL_STEPS,
+                        "disclaimer": self._ONBOARDING_DISCLAIMER,
+                    },
+                )
 
             def _handle_onboarding_save(self) -> None:
                 """POST /api/onboarding - 保存 onboarding 画像
@@ -2539,36 +2826,49 @@ class WebServer:
                 try:
                     req = json.loads(raw.decode("utf-8")) if raw else {}
                 except json.JSONDecodeError as exc:
-                    self._send_json(400, {
-                        "error": f"invalid json: {exc}",
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": f"invalid json: {exc}",
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
                     return
                 from deadman.onboarding.store import OnboardingStore
                 from deadman.onboarding.wizard import OnboardingWizard
+
                 store = OnboardingStore()
                 wiz = OnboardingWizard(store=store)
                 try:
                     profile = wiz.save_profile(user["user_id"], req)
                 except ValueError as exc:
-                    self._send_json(400, {
-                        "error": str(exc),
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        400,
+                        {
+                            "error": str(exc),
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
                     return
                 except Exception as exc:
                     logger.exception("onboarding save failed")
-                    self._send_json(500, {
-                        "error": f"server error: {exc}",
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        500,
+                        {
+                            "error": f"server error: {exc}",
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
                     return
-                self._send_json(200, {
-                    "profile": profile.to_dict(),
-                    "user_profile": OnboardingWizard.to_user_profile(profile),
-                    "completed": True,
-                    "disclaimer": self._ONBOARDING_DISCLAIMER,
-                })
+                self._send_json(
+                    200,
+                    {
+                        "profile": profile.to_dict(),
+                        "user_profile": OnboardingWizard.to_user_profile(profile),
+                        "completed": True,
+                        "disclaimer": self._ONBOARDING_DISCLAIMER,
+                    },
+                )
 
             def _handle_onboarding_delete(self) -> None:
                 """DELETE /api/onboarding - 删除 onboarding 画像（需认证）"""
@@ -2577,18 +2877,25 @@ class WebServer:
                     self._phase_unauthorized()
                     return
                 from deadman.onboarding.store import OnboardingStore
+
                 store = OnboardingStore()
                 ok = store.delete(user["user_id"])
                 if ok:
-                    self._send_json(200, {
-                        "deleted": True,
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "deleted": True,
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
                 else:
-                    self._send_json(404, {
-                        "error": "onboarding 画像不存在",
-                        "disclaimer": self._ONBOARDING_DISCLAIMER,
-                    })
+                    self._send_json(
+                        404,
+                        {
+                            "error": "onboarding 画像不存在",
+                            "disclaimer": self._ONBOARDING_DISCLAIMER,
+                        },
+                    )
 
             # ==============================================================
             # Skill Management Handler 方法（只追加）
@@ -2601,6 +2908,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     skills = mgr.list_skills()
                     self._send_json(200, {"skills": skills, "count": len(skills)})
@@ -2616,6 +2924,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     skill = mgr.get_skill(skill_name)
                     if skill is None:
@@ -2650,6 +2959,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     skill = mgr.create_skill(
                         name=name,
@@ -2684,6 +2994,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     skill = mgr.import_skill_from_url(url)
                     self._send_json(201, {"ok": True, "skill": skill})
@@ -2715,10 +3026,14 @@ class WebServer:
                     return
                 try:
                     from deadman.llm import llm_client
+
                     if not llm_client.api_key:
-                        self._send_json(503, {
-                            "error": "LLM 未配置，无法生成技能。请先设置 LLM API key。",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "error": "LLM 未配置，无法生成技能。请先设置 LLM API key。",
+                            },
+                        )
                         return
                     # 构造生成提示词
                     system_prompt = (
@@ -2734,11 +3049,10 @@ class WebServer:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt_text},
                     ]
-                    generated_content = asyncio.run(
-                        llm_client.chat(messages, temperature=0.7)
-                    )
+                    generated_content = asyncio.run(llm_client.chat(messages, temperature=0.7))
                     # 创建技能
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     skill = mgr.create_skill(
                         name=name,
@@ -2759,6 +3073,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     mgr.delete_skill(skill_name)
                     self._send_json(200, {"ok": True})
@@ -2789,6 +3104,7 @@ class WebServer:
                     return
                 try:
                     from deadman.marketplace.skill_manager import get_skill_manager
+
                     mgr = get_skill_manager()
                     result = mgr.invoke_skill(skill_name, query_text)
                     self._send_json(200, {"result": result})
@@ -2805,22 +3121,29 @@ class WebServer:
                 try:
                     from ..billing import get_subscription_manager
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("billing"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                            },
+                        )
                         return
                     sub_mgr = get_subscription_manager()
                     user = self._phase_auth_user()
                     user_id = user["user_id"] if user else "anonymous"
                     sub = sub_mgr.get_current(user_id)
-                    self._send_json(200, {
-                        "enabled": True,
-                        "subscription": sub.to_dict() if sub else None,
-                        "is_active": sub.is_active() if sub else False,
-                        "plan_name": sub.plan_name if sub else "free",
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "subscription": sub.to_dict() if sub else None,
+                            "is_active": sub.is_active() if sub else False,
+                            "plan_name": sub.plan_name if sub else "free",
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"billing module unavailable: {exc}"})
                 except Exception as exc:
@@ -2832,35 +3155,38 @@ class WebServer:
                 try:
                     from ..billing import get_usage_tracker
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("billing"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                            },
+                        )
                         return
                     tracker = get_usage_tracker()
                     user = self._phase_auth_user()
-                    user_id = (
-                        user["user_id"]
-                        if user
-                        else query.get("user_id", ["anonymous"])[0]
-                    )
+                    user_id = user["user_id"] if user else query.get("user_id", ["anonymous"])[0]
                     period = query.get("period", [None])[0]
                     report = tracker.get_usage(user_id, period)
-                    self._send_json(200, {
-                        "enabled": True,
-                        "user_id": user_id,
-                        "period": report.period,
-                        "usage": {
-                            "llm_tokens": report.llm_tokens,
-                            "tool_calls": report.tool_calls,
-                            "storage_mb": report.storage_mb,
-                            "multimodal_calls": report.multimodal_calls,
-                            "by_model": report.by_model,
-                            "by_tool": report.by_tool,
-                            "by_multimodal_type": report.by_multimodal_type,
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "user_id": user_id,
+                            "period": report.period,
+                            "usage": {
+                                "llm_tokens": report.llm_tokens,
+                                "tool_calls": report.tool_calls,
+                                "storage_mb": report.storage_mb,
+                                "multimodal_calls": report.multimodal_calls,
+                                "by_model": report.by_model,
+                                "by_tool": report.by_tool,
+                                "by_multimodal_type": report.by_multimodal_type,
+                            },
                         },
-                    })
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"billing module unavailable: {exc}"})
                 except Exception as exc:
@@ -2872,39 +3198,46 @@ class WebServer:
                 try:
                     from ..billing.plans import list_plans
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("billing"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                            },
+                        )
                         return
                     plans = list_plans()
-                    self._send_json(200, {
-                        "enabled": True,
-                        "plans": [
-                            {
-                                "name": p.name.value,
-                                "display_name": p.display_name,
-                                "price_monthly": p.price_monthly,
-                                "price_yearly": p.price_yearly,
-                                "sla_level": p.sla_level,
-                                "support_level": p.support_level,
-                                "data_retention_days": p.data_retention_days,
-                                "description": p.description,
-                                "limits": {
-                                    "llm_tokens_daily": p.limits.llm_tokens_daily,
-                                    "llm_tokens_monthly": p.limits.llm_tokens_monthly,
-                                    "tool_calls_daily": p.limits.tool_calls_daily,
-                                    "tool_calls_monthly": p.limits.tool_calls_monthly,
-                                    "storage_mb": p.limits.storage_mb,
-                                    "multimodal_calls_daily": p.limits.multimodal_calls_daily,
-                                    "multimodal_calls_monthly": p.limits.multimodal_calls_monthly,
-                                },
-                                "features": list(p.features),
-                            }
-                            for p in plans
-                        ],
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "plans": [
+                                {
+                                    "name": p.name.value,
+                                    "display_name": p.display_name,
+                                    "price_monthly": p.price_monthly,
+                                    "price_yearly": p.price_yearly,
+                                    "sla_level": p.sla_level,
+                                    "support_level": p.support_level,
+                                    "data_retention_days": p.data_retention_days,
+                                    "description": p.description,
+                                    "limits": {
+                                        "llm_tokens_daily": p.limits.llm_tokens_daily,
+                                        "llm_tokens_monthly": p.limits.llm_tokens_monthly,
+                                        "tool_calls_daily": p.limits.tool_calls_daily,
+                                        "tool_calls_monthly": p.limits.tool_calls_monthly,
+                                        "storage_mb": p.limits.storage_mb,
+                                        "multimodal_calls_daily": p.limits.multimodal_calls_daily,
+                                        "multimodal_calls_monthly": p.limits.multimodal_calls_monthly,
+                                    },
+                                    "features": list(p.features),
+                                }
+                                for p in plans
+                            ],
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"billing module unavailable: {exc}"})
                 except Exception as exc:
@@ -2916,22 +3249,29 @@ class WebServer:
                 try:
                     from ..infrastructure.feature_flags import is_enabled
                     from ..marketplace import get_marketplace_registry
+
                     if not is_enabled("marketplace"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "marketplace module is disabled (DEADMAN_MARKETPLACE_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "marketplace module is disabled (DEADMAN_MARKETPLACE_ENABLED=0)",
+                            },
+                        )
                         return
                     registry = get_marketplace_registry()
                     q = query.get("q", [None])[0]
                     category = query.get("category", [None])[0]
                     sort_by = query.get("sort", ["newest"])[0]
                     listings = registry.list(query=q, category=category, sort_by=sort_by)
-                    self._send_json(200, {
-                        "enabled": True,
-                        "skills": [listing.to_dict() for listing in listings],
-                        "count": len(listings),
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "skills": [listing.to_dict() for listing in listings],
+                            "count": len(listings),
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"marketplace module unavailable: {exc}"})
                 except Exception as exc:
@@ -2947,11 +3287,15 @@ class WebServer:
                 try:
                     from ..compliance import get_audit_reporter, get_consent_manager
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("compliance"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "compliance module is disabled (DEADMAN_COMPLIANCE_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "compliance module is disabled (DEADMAN_COMPLIANCE_ENABLED=0)",
+                            },
+                        )
                         return
                     consent_mgr = get_consent_manager()
                     audit_reporter = get_audit_reporter()
@@ -2959,15 +3303,18 @@ class WebServer:
                     user_id = user["user_id"] if user else "anonymous"
                     consents = consent_mgr.list_user_consents(user_id)
                     reports = audit_reporter.list_reports(limit=5)
-                    self._send_json(200, {
-                        "enabled": True,
-                        "user_consents": {
-                            k: v.value if hasattr(v, "value") else str(v)
-                            for k, v in consents.items()
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "user_consents": {
+                                k: v.value if hasattr(v, "value") else str(v)
+                                for k, v in consents.items()
+                            },
+                            "recent_reports": [r.to_dict() for r in reports],
+                            "report_count": len(reports),
                         },
-                        "recent_reports": [r.to_dict() for r in reports],
-                        "report_count": len(reports),
-                    })
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"compliance module unavailable: {exc}"})
                 except Exception as exc:
@@ -2979,23 +3326,30 @@ class WebServer:
                 try:
                     from ..i18n import Locale, get_message_bundle
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("i18n"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
+                            },
+                        )
                         return
                     bundle = get_message_bundle()
                     locale_str = query.get("locale", ["zh-CN"])[0]
                     locale = Locale.from_string(locale_str)
                     keys = bundle.list_keys(locale)
                     messages = {k: bundle.get(k, locale) for k in keys}
-                    self._send_json(200, {
-                        "enabled": True,
-                        "locale": locale.value,
-                        "messages": messages,
-                        "key_count": len(messages),
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "locale": locale.value,
+                            "messages": messages,
+                            "key_count": len(messages),
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"i18n module unavailable: {exc}"})
                 except Exception as exc:
@@ -3007,11 +3361,15 @@ class WebServer:
                 try:
                     from ..i18n import Currency, get_currency_converter
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("i18n"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "i18n module is disabled (DEADMAN_I18N_ENABLED=0)",
+                            },
+                        )
                         return
                     converter = get_currency_converter()
                     rates = converter.get_all_rates()
@@ -3024,12 +3382,15 @@ class WebServer:
                         }
                         for c in Currency
                     ]
-                    self._send_json(200, {
-                        "enabled": True,
-                        "base": "CNY",
-                        "rates": rates,
-                        "currencies": currencies,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "base": "CNY",
+                            "rates": rates,
+                            "currencies": currencies,
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"i18n module unavailable: {exc}"})
                 except Exception as exc:
@@ -3059,11 +3420,15 @@ class WebServer:
                 try:
                     from ..billing import get_subscription_manager
                     from ..infrastructure.feature_flags import is_enabled
+
                     if not is_enabled("billing"):
-                        self._send_json(503, {
-                            "enabled": False,
-                            "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
-                        })
+                        self._send_json(
+                            503,
+                            {
+                                "enabled": False,
+                                "error": "billing module is disabled (DEADMAN_BILLING_ENABLED=0)",
+                            },
+                        )
                         return
                     sub_mgr = get_subscription_manager()
                     billing_cycle = req.get("billing_cycle", "monthly")
@@ -3074,11 +3439,14 @@ class WebServer:
                         billing_cycle=billing_cycle,
                         with_trial=with_trial,
                     )
-                    self._send_json(201, {
-                        "ok": True,
-                        "subscription": sub.to_dict(),
-                        "is_active": sub.is_active(),
-                    })
+                    self._send_json(
+                        201,
+                        {
+                            "ok": True,
+                            "subscription": sub.to_dict(),
+                            "is_active": sub.is_active(),
+                        },
+                    )
                 except ImportError as exc:
                     self._send_json(503, {"error": f"billing module unavailable: {exc}"})
                 except ValueError as exc:
@@ -3095,19 +3463,26 @@ class WebServer:
                 """GET /api/alignment/status - Alignment 对齐训练状态"""
                 try:
                     from ..alignment import AlignmentDisabledError, get_alignment_manager
+
                     try:
                         mgr = get_alignment_manager()
                     except AlignmentDisabledError:
-                        self._send_json(200, {
-                            "enabled": False,
-                            "message": "Alignment 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)",
-                        })
+                        self._send_json(
+                            200,
+                            {
+                                "enabled": False,
+                                "message": "Alignment 模块未启用 (DEADMAN_ALIGNMENT_ENABLED=0)",
+                            },
+                        )
                         return
                     stats = mgr.stats()
-                    self._send_json(200, {
-                        "enabled": True,
-                        "stats": stats,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "stats": stats,
+                        },
+                    )
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -3115,24 +3490,31 @@ class WebServer:
                 """GET /api/governance/status - Governance 治理框架状态"""
                 try:
                     from ..governance import GovernanceDisabledError, get_governance_manager
+
                     try:
                         gm = get_governance_manager()
                     except GovernanceDisabledError:
-                        self._send_json(200, {
-                            "enabled": False,
-                            "message": "Governance 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)",
-                            "redline_enforced": True,
-                        })
+                        self._send_json(
+                            200,
+                            {
+                                "enabled": False,
+                                "message": "Governance 模块未启用 (DEADMAN_GOVERNANCE_ENABLED=0)",
+                                "redline_enforced": True,
+                            },
+                        )
                         return
-                    self._send_json(200, {
-                        "enabled": True,
-                        "decision_count": gm._decision_count,
-                        "ai_decision_count": gm._ai_decision_count,
-                        "human_review_count": gm._human_review_count,
-                        "bias_incidents": gm._bias_incidents,
-                        "model_usage": gm._model_usage,
-                        "user_feedback": gm._user_feedback,
-                    })
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": True,
+                            "decision_count": gm._decision_count,
+                            "ai_decision_count": gm._ai_decision_count,
+                            "human_review_count": gm._human_review_count,
+                            "bias_incidents": gm._bias_incidents,
+                            "model_usage": gm._model_usage,
+                            "user_feedback": gm._user_feedback,
+                        },
+                    )
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -3140,28 +3522,35 @@ class WebServer:
                 """GET /api/multimodal/status - Multimodal 多模态管道状态"""
                 try:
                     from ..multimodal import MultimodalDisabledError, get_multimodal_pipeline
+
                     try:
                         pipe = get_multimodal_pipeline()
                     except MultimodalDisabledError:
-                        self._send_json(200, {
-                            "enabled": False,
-                            "message": "Multimodal 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)",
-                        })
+                        self._send_json(
+                            200,
+                            {
+                                "enabled": False,
+                                "message": "Multimodal 模块未启用 (DEADMAN_MULTIMODAL_ENABLED=0)",
+                            },
+                        )
                         return
                     caps = pipe.list_capabilities()
                     cfg = pipe.config
                     audit = pipe.get_audit_log(limit=10)
-                    self._send_json(200, {
-                        "enabled": pipe.is_enabled(),
-                        "capabilities": caps,
-                        "config": {
-                            "default_provider": cfg.default_provider,
-                            "budget_token_per_session": cfg.budget_token_per_session,
-                            "audit_log_enabled": cfg.audit_log_enabled,
-                            "pii_redact_ocr": cfg.pii_redact_ocr,
+                    self._send_json(
+                        200,
+                        {
+                            "enabled": pipe.is_enabled(),
+                            "capabilities": caps,
+                            "config": {
+                                "default_provider": cfg.default_provider,
+                                "budget_token_per_session": cfg.budget_token_per_session,
+                                "audit_log_enabled": cfg.audit_log_enabled,
+                                "pii_redact_ocr": cfg.pii_redact_ocr,
+                            },
+                            "recent_audit": list(audit),
                         },
-                        "recent_audit": list(audit),
-                    })
+                    )
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -3230,10 +3619,7 @@ class WebServer:
             )
 
             # 提取响应
-            response = (
-                result_state.get("final_response")
-                or result_state.get("draft_response", "")
-            )
+            response = result_state.get("final_response") or result_state.get("draft_response", "")
             actual_agent = result_state.get("current_agent") or agent_normalized
             # 转回短横线格式（与前端 agent ID 一致）
             actual_agent = actual_agent.replace("_", "-")
@@ -3241,15 +3627,9 @@ class WebServer:
             # risk_tier / safety_triggered / rule_violations 来自 rule_check
             rule_check = result_state.get("rule_check")
             if rule_check is not None:
-                risk_tier = getattr(
-                    getattr(rule_check, "risk_tier", None), "value", "R0"
-                )
-                safety_triggered = bool(
-                    getattr(rule_check, "safety_triggered", False)
-                )
-                rule_violations = list(
-                    getattr(rule_check, "violations", []) or []
-                )
+                risk_tier = getattr(getattr(rule_check, "risk_tier", None), "value", "R0")
+                safety_triggered = bool(getattr(rule_check, "safety_triggered", False))
+                rule_violations = list(getattr(rule_check, "violations", []) or [])
             else:
                 risk_tier = "R0"
                 safety_triggered = False
@@ -3267,9 +3647,7 @@ class WebServer:
                     risk_tier=risk_tier,
                 )
             except Exception as exc:
-                logger.warning(
-                    "MemoryManager.after_turn 失败（不影响响应）: %s", exc
-                )
+                logger.warning("MemoryManager.after_turn 失败（不影响响应）: %s", exc)
 
             # P9：累加对话级统计（best-effort，失败不影响响应）
             self._record_conversation_stats(
@@ -3304,13 +3682,17 @@ class WebServer:
                     "degraded": True,
                     "error": "llm_not_configured",
                 }
-            messages: list[dict[str, str]] = [
-                {"role": "system", "content": SoulLoader().default_soul()},
-            ] + [
-                {"role": item.get("role", "user"), "content": item.get("content", "")}
-                for item in history[-10:]
-                if item.get("role") in ("user", "assistant") and item.get("content")
-            ] + [{"role": "user", "content": query}]
+            messages: list[dict[str, str]] = (
+                [
+                    {"role": "system", "content": SoulLoader().default_soul()},
+                ]
+                + [
+                    {"role": item.get("role", "user"), "content": item.get("content", "")}
+                    for item in history[-10:]
+                    if item.get("role") in ("user", "assistant") and item.get("content")
+                ]
+                + [{"role": "user", "content": query}]
+            )
             try:
                 response = await llm_client.chat(messages, temperature=0.3)
                 # P9：累加对话级统计 - 降级路径
@@ -3359,8 +3741,7 @@ class WebServer:
             "version": "5.0.0",
             "is_ai": True,  # transparency-framework L5 强制
             "disclaimer": (
-                "本平台是信息引导工具，不代办、不代查、不出具法律意见、"
-                "不与殡葬机构分成。"
+                "本平台是信息引导工具，不代办、不代查、不出具法律意见、不与殡葬机构分成。"
             ),
             "rules_count": 15,
             "agents": [
@@ -3447,9 +3828,7 @@ class WebServer:
         """
         if not query:
             wfile.write(
-                b"event: error\ndata: "
-                + json.dumps({"error": "query 不能为空"}).encode()
-                + b"\n\n"
+                b"event: error\ndata: " + json.dumps({"error": "query 不能为空"}).encode() + b"\n\n"
             )
             wfile.flush()
             return
@@ -3492,19 +3871,14 @@ class WebServer:
             result_state = await graph.ainvoke(
                 state, config={"configurable": {"thread_id": thread_id}}
             )
-            response_text = (
-                result_state.get("final_response")
-                or result_state.get("draft_response", "")
+            response_text = result_state.get("final_response") or result_state.get(
+                "draft_response", ""
             )
             draft_response = result_state.get("draft_response", "") or ""
             rule_check = result_state.get("rule_check")
             if rule_check is not None:
-                risk_tier = getattr(
-                    getattr(rule_check, "risk_tier", None), "value", "R0"
-                )
-                safety_triggered = bool(
-                    getattr(rule_check, "safety_triggered", False)
-                )
+                risk_tier = getattr(getattr(rule_check, "risk_tier", None), "value", "R0")
+                safety_triggered = bool(getattr(rule_check, "safety_triggered", False))
             # P3：抽取 trace_spans / metrics / subagent_called（降级时保持空）
             trace_spans = list(result_state.get("trace_spans") or [])
             trace_metrics = dict(result_state.get("metrics") or {})
@@ -3686,30 +4060,23 @@ class WebServer:
             stats = self._conversation_stats
             # 1. agent_calls
             agent_key = agent or "unknown"
-            stats["agent_calls"][agent_key] = (
-                stats["agent_calls"].get(agent_key, 0) + 1
-            )
+            stats["agent_calls"][agent_key] = stats["agent_calls"].get(agent_key, 0) + 1
             # 2. risk_tier_counts
             tier = risk_tier or "R0"
-            stats["risk_tier_counts"][tier] = (
-                stats["risk_tier_counts"].get(tier, 0) + 1
-            )
+            stats["risk_tier_counts"][tier] = stats["risk_tier_counts"].get(tier, 0) + 1
             # 3. span_type_counts
             for span in trace_spans or []:
                 if not isinstance(span, dict):
                     continue
                 st = span.get("span_type")
                 if st:
-                    stats["span_type_counts"][st] = (
-                        stats["span_type_counts"].get(st, 0) + 1
-                    )
+                    stats["span_type_counts"][st] = stats["span_type_counts"].get(st, 0) + 1
             # 4. token_usage_total
             tu = (metrics or {}).get("token_usage") or {}
             if isinstance(tu, dict):
                 for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
-                    stats["token_usage_total"][k] = (
-                        stats["token_usage_total"].get(k, 0)
-                        + int(tu.get(k, 0) or 0)
+                    stats["token_usage_total"][k] = stats["token_usage_total"].get(k, 0) + int(
+                        tu.get(k, 0) or 0
                     )
             # 5. termination_triggers
             if forced_terminate:
@@ -3736,19 +4103,19 @@ class WebServer:
             if degraded:
                 stats["degraded_count"] = stats["degraded_count"] + 1
             # 8. recent_spans（最多 20 条）
-            stats["recent_spans"].append({
-                "agent": agent_key,
-                "span_count": len(trace_spans or []),
-                "subagent_count": len(subagent_called or []),
-                "risk_tier": tier,
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            })
+            stats["recent_spans"].append(
+                {
+                    "agent": agent_key,
+                    "span_count": len(trace_spans or []),
+                    "subagent_count": len(subagent_called or []),
+                    "risk_tier": tier,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
             if len(stats["recent_spans"]) > 20:
                 stats["recent_spans"] = stats["recent_spans"][-20:]
         except Exception as exc:
-            logger.warning(
-                "_record_conversation_stats 失败（不影响响应）: %s", exc
-            )
+            logger.warning("_record_conversation_stats 失败（不影响响应）: %s", exc)
 
     # ================================================================
     # Phase 8: 用户认证与会话
@@ -3757,11 +4124,13 @@ class WebServer:
     def _get_user_store(self):
         """懒加载 UserStore（用 settings.auth_data_dir，便于测试 monkeypatch）"""
         from ..auth.store import UserStore
+
         return UserStore(data_dir=settings.auth_data_dir)
 
     def _get_jwt_manager(self):
         """懒加载 JWTManager"""
         from ..auth.jwt import JWTManager
+
         secret = settings.jwt_secret or None
         return JWTManager(secret=secret, expiry_days=settings.jwt_expiry_days)
 
@@ -3872,6 +4241,7 @@ class WebServer:
     def _token_expiry_iso(jwt_mgr, token: str) -> str:
         """从 token 解析 exp 并转为 ISO 时间戳"""
         from datetime import datetime, timezone
+
         payload = jwt_mgr.verify(token)
         if payload is None:
             return ""
@@ -3896,7 +4266,7 @@ class WebServer:
         for part in ct.split(";"):
             part = part.strip()
             if part.startswith("boundary="):
-                boundary = part[len("boundary="):].strip().strip('"')
+                boundary = part[len("boundary=") :].strip().strip('"')
                 break
         if not boundary:
             return {"filename": "", "content": b"", "doc_type": ""}
@@ -3927,9 +4297,9 @@ class WebServer:
                     for tok in line_str.split(";"):
                         tok = tok.strip()
                         if tok.startswith("name="):
-                            name = tok[len("name="):].strip().strip('"')
+                            name = tok[len("name=") :].strip().strip('"')
                         elif tok.startswith("filename="):
-                            filename = tok[len("filename="):].strip().strip('"')
+                            filename = tok[len("filename=") :].strip().strip('"')
             # 去掉 body 末尾的 \r\n（multipart 协议要求）
             if body_bytes.endswith(b"\r\n"):
                 body_bytes = body_bytes[:-2]
@@ -3985,9 +4355,7 @@ def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
             _ticker_state["ticker"] = ticker
             _ticker_state["loop"] = loop
             try:
-                loop.run_until_complete(
-                    ticker.run_forever(interval_seconds=interval)
-                )
+                loop.run_until_complete(ticker.run_forever(interval_seconds=interval))
             finally:
                 loop.close()
                 _ticker_state.clear()
@@ -4001,9 +4369,7 @@ def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
         daemon=True,
     )
     thread.start()
-    logger.info(
-        "SwitchAutoTicker 后台线程已启动 interval=%ss", interval
-    )
+    logger.info("SwitchAutoTicker 后台线程已启动 interval=%ss", interval)
     return thread
 
 
@@ -4036,9 +4402,7 @@ def _stop_switch_auto_ticker(thread: threading.Thread | None) -> None:
         # 给后台线程最多 2s 退出，避免 lifespan teardown 卡住
         thread.join(timeout=2.0)
         if thread.is_alive():
-            logger.warning(
-                "SwitchAutoTicker 后台线程 2s 内未退出（daemon，随主进程回收）"
-            )
+            logger.warning("SwitchAutoTicker 后台线程 2s 内未退出（daemon，随主进程回收）")
         else:
             logger.info("SwitchAutoTicker 后台线程已优雅退出")
     _ticker_state.clear()

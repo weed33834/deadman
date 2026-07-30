@@ -69,9 +69,7 @@ class SwitchAutoTicker:
         # 同时把 email_sender 传入 executor，使 EXECUTED 阶段的 notify_lawyer /
         # notify_heirs 动作能复用同一份 SMTP 配置真正发送邮件（P0-3 修复）
         if executor is None:
-            self.executor = SwitchActionExecutor(
-                store=store, email_sender=self.email_sender
-            )
+            self.executor = SwitchActionExecutor(store=store, email_sender=self.email_sender)
         else:
             self.executor = executor
         # 主循环控制位（run_forever 内部置 False 后退出）
@@ -129,9 +127,7 @@ class SwitchAutoTicker:
                 result["emails_sent"] += int(advanced.get("emails_sent") or 0)
             except Exception as exc:
                 # 单用户失败不影响其他用户
-                logger.exception(
-                    "auto_tick 处理用户失败 user=%s: %s", user_id, exc
-                )
+                logger.exception("auto_tick 处理用户失败 user=%s: %s", user_id, exc)
                 result["errors"].append(f"{user_id}: {exc}")
         if result["errors"]:
             logger.warning(
@@ -196,9 +192,7 @@ class SwitchAutoTicker:
                         sent,
                     )
             except Exception as exc:
-                logger.warning(
-                    "auto_tick 邮件通知流程异常 user=%s: %s", user_id, exc
-                )
+                logger.warning("auto_tick 邮件通知流程异常 user=%s: %s", user_id, exc)
 
         # VERIFYING 状态：律师自动介入
         # （_check_verification_complete 要求 lawyer_engaged=True 才能推进到 CONFIRMED）
@@ -208,9 +202,7 @@ class SwitchAutoTicker:
             and not record.lawyer_engaged
         ):
             try:
-                rec, msg = await asyncio.to_thread(
-                    self.store.engage_lawyer, user_id
-                )
+                rec, msg = await asyncio.to_thread(self.store.engage_lawyer, user_id)
                 if rec is not None and msg == "lawyer_engaged":
                     out["lawyer_engaged"] = True
                     logger.info(
@@ -225,20 +217,14 @@ class SwitchAutoTicker:
                     if record is None:
                         return out
             except Exception as exc:
-                logger.warning(
-                    "auto_tick engage_lawyer 失败 user=%s: %s", user_id, exc
-                )
+                logger.warning("auto_tick engage_lawyer 失败 user=%s: %s", user_id, exc)
 
         # CONFIRMED 状态且冷静期已过 → 自动执行预设动作
         if record.state == SwitchState.CONFIRMED:
-            cooldown_passed = await asyncio.to_thread(
-                self.store.is_cooldown_passed, user_id
-            )
+            cooldown_passed = await asyncio.to_thread(self.store.is_cooldown_passed, user_id)
             if cooldown_passed:
                 try:
-                    exec_result = await asyncio.to_thread(
-                        self.executor.execute_confirmed, user_id
-                    )
+                    exec_result = await asyncio.to_thread(self.executor.execute_confirmed, user_id)
                     out["executed"] = True
                     logger.info(
                         "auto_tick 自动执行完成 user=%s executed=%d failed=%d state=%s",
@@ -265,9 +251,7 @@ class SwitchAutoTicker:
     # ==================================================================
     # 邮件通知（状态进入 SUSPECTED/VERIFYING 时触发）
     # ==================================================================
-    async def _notify_state_change_via_email(
-        self, record: SwitchRecord
-    ) -> tuple[int, int]:
+    async def _notify_state_change_via_email(self, record: SwitchRecord) -> tuple[int, int]:
         """状态进入 SUSPECTED/VERIFYING 时尝试发送通知邮件给紧急联系人和继承人
 
         所有异常被捕获，绝不影响主 tick 流程。返回 (attempted, sent) 计数。
@@ -290,9 +274,7 @@ class SwitchAutoTicker:
 
         # 收件人：紧急联系人 + 法定继承人，去重，仅取形如邮箱的标识符
         recipients: list[str] = []
-        for rid in list(record.config.emergency_contacts) + list(
-            record.config.heir_user_ids
-        ):
+        for rid in list(record.config.emergency_contacts) + list(record.config.heir_user_ids):
             if "@" in rid and rid not in recipients:
                 recipients.append(rid)
         if not recipients:

@@ -195,23 +195,17 @@ class TestCacheIntegration:
     async def test_cache_hit_via_call_tool(self, cache_enabled):
         """call_tool 第二次调用 read-only 工具应命中缓存"""
         # 第一次调用：未命中
-        r1 = await mcp.call_tool(
-            "query_knowledge", {"country": "XX", "topic": "x"}
-        )
+        r1 = await mcp.call_tool("query_knowledge", {"country": "XX", "topic": "x"})
         assert isinstance(r1, dict)
         # 第二次相同 args：应命中缓存
-        r2 = await mcp.call_tool(
-            "query_knowledge", {"country": "XX", "topic": "x"}
-        )
+        r2 = await mcp.call_tool("query_knowledge", {"country": "XX", "topic": "x"})
         assert r2.get("cache_hit") is True
 
     async def test_cache_not_used_for_write_tools(self, cache_enabled, tmp_path, monkeypatch):
         """write 工具不应被缓存"""
         from deadman.config import Settings
 
-        monkeypatch.setattr(
-            "deadman.mcp_server.server.settings", Settings(project_root=tmp_path)
-        )
+        monkeypatch.setattr("deadman.mcp_server.server.settings", Settings(project_root=tmp_path))
         r1 = await mcp.call_tool(
             "write_file",
             {"path": "data/x.txt", "content": "a", "overwrite": True, "create_dirs": True},
@@ -226,11 +220,7 @@ class TestCacheIntegration:
 
     async def test_cache_disabled_passthrough(self, cache_disabled):
         """缓存关闭时多次调用应每次都执行（无 cache_hit 标记）"""
-        r1 = await mcp.call_tool(
-            "query_knowledge", {"country": "XX", "topic": "x"}
-        )
-        r2 = await mcp.call_tool(
-            "query_knowledge", {"country": "XX", "topic": "x"}
-        )
+        r1 = await mcp.call_tool("query_knowledge", {"country": "XX", "topic": "x"})
+        r2 = await mcp.call_tool("query_knowledge", {"country": "XX", "topic": "x"})
         assert r1.get("cache_hit") is not True
         assert r2.get("cache_hit") is not True

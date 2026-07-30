@@ -126,6 +126,7 @@ class TestSaveAnswer:
         old_updated = note.updated_at
         # 强制时间差
         import time
+
         time.sleep(0.01)
         note = guide.save_answer(
             note,
@@ -227,9 +228,7 @@ class TestCompletionRate:
         for v in rate["sections"].values():
             assert v == 1.0
 
-    def test_completion_rate_empty_dict_counts_as_unfilled(
-        self, guide: EndingNoteGuide
-    ):
+    def test_completion_rate_empty_dict_counts_as_unfilled(self, guide: EndingNoteGuide):
         """空 dict / 空 list 应计为未填写"""
         note = EndingNote.new("user-12")
         note.personal_info = {}  # 空 dict

@@ -33,9 +33,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-DRIFT_DETECTION_ENABLED: bool = os.environ.get(
-    "DEADMAN_DRIFT_DETECTION_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+DRIFT_DETECTION_ENABLED: bool = os.environ.get("DEADMAN_DRIFT_DETECTION_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 # =====================================================================
@@ -328,18 +331,14 @@ class DriftDetector:
             current_freq = self._word_freq(current_words)
 
             # 用 PSI 检测词频分布漂移
-            psi_report = self.detect_distribution_drift(
-                metric_name, baseline_freq, current_freq
-            )
+            psi_report = self.detect_distribution_drift(metric_name, baseline_freq, current_freq)
             psi_score = psi_report.drift_score
 
             # 当前独有词占比（current 有 baseline 没有的词的比例）
             baseline_vocab = set(baseline_freq.keys())
             current_vocab = set(current_freq.keys())
             current_only = current_vocab - baseline_vocab
-            current_only_ratio = (
-                len(current_only) / len(current_vocab) if current_vocab else 0.0
-            )
+            current_only_ratio = len(current_only) / len(current_vocab) if current_vocab else 0.0
 
             # 综合 drift_score = PSI + 当前独有词占比
             drift_score = psi_score + current_only_ratio

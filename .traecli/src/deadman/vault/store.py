@@ -266,9 +266,7 @@ class VaultStore:
         keystream = bytearray()
         counter = 0
         while len(keystream) < len(body):
-            block = hmac.new(
-                key, nonce + counter.to_bytes(4, "big"), _hl.sha256
-            ).digest()
+            block = hmac.new(key, nonce + counter.to_bytes(4, "big"), _hl.sha256).digest()
             keystream.extend(block)
             counter += 1
         keystream = keystream[: len(body)]
@@ -337,6 +335,7 @@ class VaultStore:
     @staticmethod
     def _entry_to_item(entry: dict[str, Any], encrypted: bytes) -> VaultItem:
         """把索引条目 + 加密内容转回 VaultItem"""
+
         def _parse_dt(v: Any) -> datetime | None:
             if not v:
                 return None
@@ -352,8 +351,10 @@ class VaultStore:
             title=entry["title"],
             content_encrypted=encrypted,
             metadata=entry.get("metadata", {}) or {},
-            created_at=_parse_dt(entry.get("created_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
-            updated_at=_parse_dt(entry.get("updated_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
+            created_at=_parse_dt(entry.get("created_at"))
+            or datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=_parse_dt(entry.get("updated_at"))
+            or datetime.now(timezone.utc).replace(tzinfo=None),
             beneficiary_user_ids=list(entry.get("beneficiary_user_ids", []) or []),
             delivery_trigger=entry.get("delivery_trigger", TRIGGER_MANUAL),
             delivery_date=_parse_dt(entry.get("delivery_date")),
@@ -470,8 +471,7 @@ class VaultStore:
             for bid in entry.get("beneficiary_user_ids", []) or []:
                 counter[bid] = counter.get(bid, 0) + 1
         return [
-            {"beneficiary_user_id": bid, "item_count": cnt}
-            for bid, cnt in sorted(counter.items())
+            {"beneficiary_user_id": bid, "item_count": cnt} for bid, cnt in sorted(counter.items())
         ]
 
     def list_inherited(self, beneficiary_user_id: str) -> list[dict[str, Any]]:
@@ -493,15 +493,17 @@ class VaultStore:
                 if beneficiary_user_id not in (entry.get("beneficiary_user_ids") or []):
                     continue
                 status = self._compute_delivery_status(entry, beneficiary_user_id)
-                results.append({
-                    "item_id": entry["item_id"],
-                    "owner_user_id": owner_id,
-                    "title": entry.get("title", ""),
-                    "type": entry.get("type", ""),
-                    "delivery_trigger": entry.get("delivery_trigger", TRIGGER_MANUAL),
-                    "delivery_date": entry.get("delivery_date"),
-                    "status": status,
-                })
+                results.append(
+                    {
+                        "item_id": entry["item_id"],
+                        "owner_user_id": owner_id,
+                        "title": entry.get("title", ""),
+                        "type": entry.get("type", ""),
+                        "delivery_trigger": entry.get("delivery_trigger", TRIGGER_MANUAL),
+                        "delivery_date": entry.get("delivery_date"),
+                        "status": status,
+                    }
+                )
         return results
 
     @staticmethod
@@ -521,7 +523,9 @@ class VaultStore:
                 since = datetime.fromisoformat(pending_since)
             except (TypeError, ValueError):
                 return "pending"
-            if datetime.now(timezone.utc).replace(tzinfo=None) - since >= timedelta(days=ON_DEATH_WAIT_DAYS):
+            if datetime.now(timezone.utc).replace(tzinfo=None) - since >= timedelta(
+                days=ON_DEATH_WAIT_DAYS
+            ):
                 return "deliverable"
             return "pending"
         if trigger == TRIGGER_ON_DATE:
@@ -659,7 +663,9 @@ class VaultStore:
                 "reason": "decrypt_failed",
             }
         # 标记已投递
-        item.delivered_to[beneficiary_id] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        item.delivered_to[beneficiary_id] = (
+            datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        )
         item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         index = self._read_index(item.owner_user_id)
         index[item.item_id] = item.to_index_dict()

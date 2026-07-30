@@ -153,9 +153,7 @@ def register_subparser(subparsers: Any) -> None:
         choices=list(DOC_TYPES.keys()),
         help="文档类型",
     )
-    gen_parser.add_argument(
-        "--name", required=True, help="逝者姓名或称呼（可化名）"
-    )
+    gen_parser.add_argument("--name", required=True, help="逝者姓名或称呼（可化名）")
     gen_parser.add_argument(
         "--relationship", default="家属", help="与逝者的关系（如 儿子/配偶/孙女）"
     )

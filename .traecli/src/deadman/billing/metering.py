@@ -115,7 +115,12 @@ class MeteringService:
             return None
 
         if amount < 0:
-            logger.warning("Negative metering amount: %d (dimension=%s, user=%s)", amount, dimension.value, user_id)
+            logger.warning(
+                "Negative metering amount: %d (dimension=%s, user=%s)",
+                amount,
+                dimension.value,
+                user_id,
+            )
             return None
 
         tid = tenant_id or get_current_tenant_id()

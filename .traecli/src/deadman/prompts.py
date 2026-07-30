@@ -68,6 +68,7 @@ def render_template(template_str: str, variables: dict[str, Any] | None = None) 
             return _JinjaTemplate(template_str).render(**variables)
         except Exception as e:
             logger.warning("Jinja2 渲染失败,降级简单替换: %s", e)
+
     # 降级: 逐个替换 {{var}}
     def _repl(m: re.Match) -> str:
         key = m.group(1)
@@ -156,7 +157,9 @@ def load_prompt_file(path: Path) -> LocalPrompt | None:
         inputs=inputs,
         model=str(model),
         source=str(path),
-        metadata={k: v for k, v in meta.items() if k not in ("name", "description", "inputs", "model")},
+        metadata={
+            k: v for k, v in meta.items() if k not in ("name", "description", "inputs", "model")
+        },
     )
 
 

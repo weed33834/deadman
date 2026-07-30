@@ -35,20 +35,19 @@ from typing import Any
 # 配置（feature flag，默认关闭）
 # =====================================================================
 
-TOOL_SIGNING_ENABLED: bool = os.environ.get(
-    "DEADMAN_TOOL_SIGNING_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+TOOL_SIGNING_ENABLED: bool = os.environ.get("DEADMAN_TOOL_SIGNING_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 可选：预置的公钥（PEM 格式字符串），用于验签
 # 未配置时仅做 schema_hash 校验
-TOOL_SIGNING_PUBLIC_KEY_PEM: str = os.environ.get(
-    "DEADMAN_TOOL_SIGNING_PUBLIC_KEY_PEM", ""
-)
+TOOL_SIGNING_PUBLIC_KEY_PEM: str = os.environ.get("DEADMAN_TOOL_SIGNING_PUBLIC_KEY_PEM", "")
 
 # 可选：预置的私钥（PEM 格式字符串），用于签名（仅发布方需要）
-TOOL_SIGNING_PRIVATE_KEY_PEM: str = os.environ.get(
-    "DEADMAN_TOOL_SIGNING_PRIVATE_KEY_PEM", ""
-)
+TOOL_SIGNING_PRIVATE_KEY_PEM: str = os.environ.get("DEADMAN_TOOL_SIGNING_PRIVATE_KEY_PEM", "")
 
 # cryptography 可选依赖
 try:
@@ -98,9 +97,7 @@ def compute_schema_hash(input_schema: dict[str, Any]) -> str:
 
     sort_keys=True 保证字段顺序无关；default=str 兜底不可序列化对象。
     """
-    payload = json.dumps(
-        input_schema or {}, sort_keys=True, default=str, ensure_ascii=False
-    )
+    payload = json.dumps(input_schema or {}, sort_keys=True, default=str, ensure_ascii=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -116,9 +113,7 @@ def _load_private_key(pem: str):
     if not pem:
         return None
     try:
-        return serialization.load_pem_private_key(
-            pem.encode("utf-8"), password=None
-        )
+        return serialization.load_pem_private_key(pem.encode("utf-8"), password=None)
     except Exception:
         return None
 
@@ -180,9 +175,7 @@ def sign_manifest(manifest: ToolManifest, private_key_pem: str | None = None) ->
         return ""
 
 
-def verify_manifest(
-    manifest: ToolManifest, public_key_pem: str | None = None
-) -> bool:
+def verify_manifest(manifest: ToolManifest, public_key_pem: str | None = None) -> bool:
     """校验 manifest 签名
 
     返回 True 表示通过：
@@ -311,8 +304,6 @@ def build_manifest(
 ) -> ToolManifest:
     """便捷工厂：根据 schema 计算哈希并签名"""
     schema_hash = compute_schema_hash(input_schema)
-    manifest = ToolManifest(
-        name=name, version=version, schema_hash=schema_hash, signature=""
-    )
+    manifest = ToolManifest(name=name, version=version, schema_hash=schema_hash, signature="")
     manifest.signature = sign_manifest(manifest, private_key_pem)
     return manifest

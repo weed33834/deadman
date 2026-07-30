@@ -224,6 +224,7 @@ class TestEvalLLMUnavailableDegraded:
         class FailingLLM(MockLLMClient):
             async def chat_json(self, messages, temperature=0.3, **kwargs):
                 raise RuntimeError("eval error")
+
         llm = FailingLLM()
         eo = EvaluatorOptimizer(llm=llm)
         score, feedback = await eo.evaluate("答案", "问题")
@@ -250,6 +251,7 @@ class TestEvalOptimizerFeatureFlag:
     def test_optimize_result_to_dict_serializable(self):
         """OptimizeResult.to_dict 可序列化"""
         import json
+
         result = OptimizeResult(
             final_answer="答案",
             final_score=0.8,

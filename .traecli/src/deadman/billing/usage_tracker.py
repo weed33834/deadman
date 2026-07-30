@@ -244,7 +244,9 @@ class UsageTracker:
             usage = self.quota.consume(dimension, amount, tid)
         except QuotaExceededError as e:
             # 超限拒绝:返回明确状态,不抛
-            logger.warning("Quota rejected: %s (user=%s, used=%d/%d)", dimension, user_id, e.used, e.limit)
+            logger.warning(
+                "Quota rejected: %s (user=%s, used=%d/%d)", dimension, user_id, e.used, e.limit
+            )
             return QuotaResult(
                 dimension=dimension,
                 used=e.used,

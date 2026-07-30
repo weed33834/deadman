@@ -95,8 +95,7 @@ class SelfCheckChecker:
                 # 同类型且归一化后文本相同的 claim 视为匹配
                 # 归一化可处理 "30 天" 与 "30天" 这类空白差异
                 found = any(
-                    sc["type"] == claim["type"]
-                    and self._normalize(sc["claim"]) == norm_claim
+                    sc["type"] == claim["type"] and self._normalize(sc["claim"]) == norm_claim
                     for sc in sampled_claims
                 )
                 if found:
@@ -117,9 +116,7 @@ class SelfCheckChecker:
             consistency_scores.append(consistency)
 
         overall_consistency = (
-            sum(consistency_scores) / len(consistency_scores)
-            if consistency_scores
-            else 0.0
+            sum(consistency_scores) / len(consistency_scores) if consistency_scores else 0.0
         )
 
         return {

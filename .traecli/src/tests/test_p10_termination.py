@@ -246,11 +246,7 @@ class TestOrCombination:
 
     def test_or_chain_three_conditions(self):
         """A | B | C 嵌套组合"""
-        term = (
-            MaxStepsTermination(5)
-            | StuckAgentTermination(3)
-            | TokenUsageTermination(1000)
-        )
+        term = MaxStepsTermination(5) | StuckAgentTermination(3) | TokenUsageTermination(1000)
         state = {"metrics": {"token_usage": {"total_tokens": 2000}}}
         r = term.evaluate(state)
         assert r.should_terminate is True

@@ -20,9 +20,7 @@ from deadman.observability.metrics import (
 @pytest.fixture
 def enabled_slo(monkeypatch):
     """临时启用 SLO_DASHBOARD_ENABLED"""
-    monkeypatch.setattr(
-        "deadman.observability.metrics.SLO_DASHBOARD_ENABLED", True
-    )
+    monkeypatch.setattr("deadman.observability.metrics.SLO_DASHBOARD_ENABLED", True)
     yield
 
 
@@ -68,6 +66,7 @@ class TestComputeSLI:
         """feature flag 关闭时 compute_sli 应返回空 dict"""
         # 不使用 enabled_slo fixture，强制设为 False
         from deadman.observability import metrics as m_module
+
         original = m_module.SLO_DASHBOARD_ENABLED
         m_module.SLO_DASHBOARD_ENABLED = False
         try:
@@ -174,6 +173,7 @@ class TestComputeSLOStatus:
     def test_slo_disabled_returns_empty(self):
         """feature flag 关闭时 compute_slo_status 应返回空 dict"""
         from deadman.observability import metrics as m_module
+
         original = m_module.SLO_DASHBOARD_ENABLED
         m_module.SLO_DASHBOARD_ENABLED = False
         try:
@@ -217,6 +217,7 @@ class TestSloEndpoint:
                     SLO_TARGETS,
                     metrics_collector,
                 )
+
                 try:
                     # 注意：必须通过模块属性访问 SLO_DASHBOARD_ENABLED，
                     # 不能用顶部 from import 的常量（那是导入时绑定的快照，
@@ -250,10 +251,12 @@ class TestSloEndpoint:
     def test_endpoint_disabled_returns_empty_payload(self):
         """feature flag 关闭时 /api/slo 返回 enabled=False 空 payload"""
         from deadman.observability import metrics as m_module
+
         original = m_module.SLO_DASHBOARD_ENABLED
         m_module.SLO_DASHBOARD_ENABLED = False
         try:
             from deadman.observability.metrics import metrics_collector
+
             metrics_collector.clear()
             handler = self._make_handler(None)
             handler._handle_slo_dashboard()
@@ -267,6 +270,7 @@ class TestSloEndpoint:
     def test_endpoint_enabled_returns_full_payload(self, enabled_slo):
         """feature flag 开启时 /api/slo 返回完整 SLI + SLO + targets"""
         from deadman.observability.metrics import metrics_collector
+
         metrics_collector.clear()
         metrics_collector.record_metric("efficiency.first_response_latency_p95", 2500.0)
         metrics_collector.record_metric("knowledge.faithfulness", 0.85)

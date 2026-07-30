@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_TENANT_ID = os.environ.get("DEADMAN_DEFAULT_TENANT_ID", "default")
 
 # 租户数据根目录
-TENANTS_ROOT = Path(os.environ.get("DEADMAN_TENANTS_ROOT", str(Path.home() / ".deadman" / "tenants")))
+TENANTS_ROOT = Path(
+    os.environ.get("DEADMAN_TENANTS_ROOT", str(Path.home() / ".deadman" / "tenants"))
+)
 
 
 @dataclass
@@ -110,6 +112,7 @@ def is_multi_tenant_enabled() -> bool:
 # 路径路由
 # =====================================================================
 
+
 def resolve_tenant_path(sub_path: str, tenant_id: str | None = None) -> Path:
     """按租户路由数据路径。
 
@@ -147,6 +150,7 @@ def resolve_data_path(filename: str, tenant_id: str | None = None) -> Path:
 # =====================================================================
 # 租户注册中心(轻量 - 单文件持久化)
 # =====================================================================
+
 
 class TenantRegistry:
     """租户注册中心 - 管理 tenant_id → TenantInfo 映射。
@@ -213,6 +217,7 @@ class TenantRegistry:
         try:
             if self.registry_path.exists():
                 import json
+
                 data = json.loads(self.registry_path.read_text(encoding="utf-8"))
                 for tid, info in data.get("tenants", {}).items():
                     self._cache[tid] = TenantInfo(
@@ -232,6 +237,7 @@ class TenantRegistry:
     def _save(self) -> None:
         try:
             import json
+
             self.registry_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
                 "version": 1,

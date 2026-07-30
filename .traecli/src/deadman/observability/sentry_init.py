@@ -74,7 +74,7 @@ def init_sentry(
 
         # 日志集成：WARNING 以上自动上报为 Sentry event，ERROR 以上附带完整栈
         logging_integration = LoggingIntegration(
-            level=logging.INFO,        # INFO 及以上作为 breadcrumb
+            level=logging.INFO,  # INFO 及以上作为 breadcrumb
             event_level=logging.ERROR,  # ERROR 及以上作为 event
         )
 
@@ -93,7 +93,9 @@ def init_sentry(
         sentry_sdk.init(**init_kwargs)
         logger.info(
             "Sentry 初始化成功 env=%s traces_sample_rate=%s release=%s",
-            environment, traces_sample_rate, release or "(auto)",
+            environment,
+            traces_sample_rate,
+            release or "(auto)",
         )
         return True
     except Exception as exc:

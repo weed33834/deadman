@@ -95,9 +95,7 @@ class TestGenerateByDocType:
             ("memorial_speech", "追思会致辞"),
         ],
     )
-    def test_generate_each_doc_type(
-        self, patch_generator_llm, doc_type: str, expected_marker: str
-    ):
+    def test_generate_each_doc_type(self, patch_generator_llm, doc_type: str, expected_marker: str):
         # LLM mock 返回带 doc_type 标识的文本
         mock_text = f"这是一篇{expected_marker}正文。"
         patch_generator_llm(mock_text)
@@ -253,10 +251,7 @@ class TestMultiFaith:
 class TestMultiTone:
     def test_humorous_tone_does_not_trigger_safety(self, patch_generator_llm):
         """humorous 语气生成的文本不应触发安全标记"""
-        patch_generator_llm(
-            "记得父亲总爱讲冷笑话，每次都自己先笑出声。"
-            "他的笑声是我最温暖的回忆。"
-        )
+        patch_generator_llm("记得父亲总爱讲冷笑话，每次都自己先笑出声。他的笑声是我最温暖的回忆。")
 
         req = _make_request(tone="humorous")
         gen = MemorialGenerator()
@@ -288,9 +283,7 @@ class TestMultiTone:
 class TestSafetyCheck:
     def test_self_harm_content_triggers_safety_flag(self, patch_generator_llm):
         """LLM 返回含'自杀'的文本应触发 self_harm safety_flag"""
-        patch_generator_llm(
-            "某人自杀了，这是一段不该出现的悼文内容。"
-        )
+        patch_generator_llm("某人自杀了，这是一段不该出现的悼文内容。")
 
         req = _make_request()
         gen = MemorialGenerator()
@@ -300,9 +293,7 @@ class TestSafetyCheck:
 
     def test_violence_content_triggers_safety_flag(self, patch_generator_llm):
         """LLM 返回含'杀害'的文本应触发 violence safety_flag"""
-        patch_generator_llm(
-            "他生前曾被人杀害，凶手至今未找到。"
-        )
+        patch_generator_llm("他生前曾被人杀害，凶手至今未找到。")
 
         req = _make_request()
         gen = MemorialGenerator()
@@ -312,9 +303,7 @@ class TestSafetyCheck:
 
     def test_safe_content_does_not_trigger_flags(self, patch_generator_llm):
         """正常悼文不触发任何安全标记"""
-        patch_generator_llm(
-            "父亲一生勤俭，待人和善。愿父亲安息。"
-        )
+        patch_generator_llm("父亲一生勤俭，待人和善。愿父亲安息。")
 
         req = _make_request()
         gen = MemorialGenerator()
@@ -353,16 +342,26 @@ class TestCLIRegistration:
         args, _ = parser.parse_known_args(
             [
                 "memorial-generate",
-                "--type", "eulogy",
-                "--name", "先父",
-                "--relationship", "儿子",
-                "--traits", "宽厚,爱读书",
-                "--memories", "每天浇花|教我骑车",
-                "--values", "做人要厚道",
-                "--tone", "solemn",
-                "--faith", "none",
-                "--language", "zh-CN",
-                "--limit", "600",
+                "--type",
+                "eulogy",
+                "--name",
+                "先父",
+                "--relationship",
+                "儿子",
+                "--traits",
+                "宽厚,爱读书",
+                "--memories",
+                "每天浇花|教我骑车",
+                "--values",
+                "做人要厚道",
+                "--tone",
+                "solemn",
+                "--faith",
+                "none",
+                "--language",
+                "zh-CN",
+                "--limit",
+                "600",
             ]
         )
         assert args.command == "memorial-generate"
@@ -407,9 +406,7 @@ def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:
 class TestWebMemorialEndpoints:
     """Web 端点测试"""
 
-    def test_generate_without_token_returns_401(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_generate_without_token_returns_401(self, tmp_path: Path, monkeypatch):
         """未认证访问 /api/memorial/generate 应返回 401"""
         server = _make_web_server(tmp_path, monkeypatch)
 
@@ -417,32 +414,33 @@ class TestWebMemorialEndpoints:
         user = server._require_auth({})
         assert user is None
 
-    def test_types_endpoint_requires_auth(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_types_endpoint_requires_auth(self, tmp_path: Path, monkeypatch):
         """/api/memorial/types 也强制认证"""
         server = _make_web_server(tmp_path, monkeypatch)
         # 无 token → _require_auth 返回 None
         user = server._require_auth({})
         assert user is None
 
-    def test_generate_with_token_returns_200(
-        self, tmp_path: Path, monkeypatch, mock_llm_client
-    ):
+    def test_generate_with_token_returns_200(self, tmp_path: Path, monkeypatch, mock_llm_client):
         """带 token 访问 /api/memorial/generate 应正常生成"""
         server = _make_web_server(tmp_path, monkeypatch)
         # 注册并拿 token
-        reg_resp = asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-            "display_name": "Alice",
-        }))
+        reg_resp = asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                    "display_name": "Alice",
+                }
+            )
+        )
         token = reg_resp["token"]
         user = server._require_auth({"Authorization": f"Bearer {token}"})
         assert user is not None
 
         # mock LLM
         import deadman.memorial_writer.generator as gen_module
+
         mock_llm = MagicMock()
         mock_llm.api_key = "test-key"
         mock_llm.chat = AsyncMock(return_value="这是一篇悼文正文。")
@@ -450,6 +448,7 @@ class TestWebMemorialEndpoints:
 
         # 调 generator（模拟 _handle_memorial_generate 的核心逻辑）
         from deadman.memorial_writer.models import MemorialRequest
+
         req = MemorialRequest(
             doc_type="eulogy",
             decedent_name="先父",
@@ -580,9 +579,7 @@ class TestCLISmoke:
         assert "墓志铭" in out
         assert "追思会致辞" in out
 
-    def test_memorial_generate_runs_with_mock_llm(
-        self, capsys, monkeypatch
-    ):
+    def test_memorial_generate_runs_with_mock_llm(self, capsys, monkeypatch):
         """memorial-generate 命令带 mock LLM 可运行"""
         import deadman.memorial_writer.generator as gen_module
         from deadman._cli_extensions import phase15_memorial
@@ -596,13 +593,19 @@ class TestCLISmoke:
         subparsers = parser.add_subparsers(dest="command")
         phase15_memorial.register_subparsers(subparsers)
 
-        args = parser.parse_args([
-            "memorial-generate",
-            "--type", "eulogy",
-            "--name", "先父",
-            "--relationship", "儿子",
-            "--traits", "宽厚,爱读书",
-        ])
+        args = parser.parse_args(
+            [
+                "memorial-generate",
+                "--type",
+                "eulogy",
+                "--name",
+                "先父",
+                "--relationship",
+                "儿子",
+                "--traits",
+                "宽厚,爱读书",
+            ]
+        )
         args.func(args)
 
         out = capsys.readouterr().out

@@ -73,6 +73,7 @@ logger = logging.getLogger(__name__)
 # 枚举
 # =====================================================================
 
+
 class ThresholdType(str, Enum):
     """阈值类型(决定基线 / 漂移容忍度)。"""
 
@@ -114,6 +115,7 @@ class ChangeReason(str, Enum):
 # =====================================================================
 # 数据类
 # =====================================================================
+
 
 @dataclass
 class ThresholdSnapshot:
@@ -207,7 +209,9 @@ class DriftReport:
 
     @property
     def has_concerning_alerts(self) -> bool:
-        return any(a.severity in (DriftSeverity.CONCERNING, DriftSeverity.CRITICAL) for a in self.alerts)
+        return any(
+            a.severity in (DriftSeverity.CONCERNING, DriftSeverity.CRITICAL) for a in self.alerts
+        )
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -241,6 +245,7 @@ DETECTOR_DEFAULTS = {
 # =====================================================================
 # Constitutional Drift Detector
 # =====================================================================
+
 
 class ConstitutionalDriftDetector:
     """宪法漂移检测器。
@@ -352,7 +357,9 @@ class ConstitutionalDriftDetector:
             self._history[name].append(rollback)
             self._stats["rollbacks"] += 1
             self._save()
-            logger.warning("Rolled back %s from %s to baseline %s", name, current.value, baseline.value)
+            logger.warning(
+                "Rolled back %s from %s to baseline %s", name, current.value, baseline.value
+            )
             return True
 
     # ==================================================================
@@ -402,7 +409,11 @@ class ConstitutionalDriftDetector:
 
         logger.info(
             "Threshold recorded: %s = %s (prev=%s, actor=%s, reason=%s)",
-            name, value, prev_value, actor, reason.value,
+            name,
+            value,
+            prev_value,
+            actor,
+            reason.value,
         )
         return snap
 
@@ -469,8 +480,10 @@ class ConstitutionalDriftDetector:
                 else:
                     alert.relative_drift = 1.0 if alert.absolute_drift > 0 else 0.0
                 alert.direction = (
-                    DriftDirection.UP if curr_f > base_f
-                    else DriftDirection.DOWN if curr_f < base_f
+                    DriftDirection.UP
+                    if curr_f > base_f
+                    else DriftDirection.DOWN
+                    if curr_f < base_f
                     else DriftDirection.NONE
                 )
             except (TypeError, ValueError):
@@ -539,8 +552,10 @@ class ConstitutionalDriftDetector:
             # 计算这一步方向
             try:
                 step_dir = (
-                    DriftDirection.UP if float(curr.value) > float(prev.value)
-                    else DriftDirection.DOWN if float(curr.value) < float(prev.value)
+                    DriftDirection.UP
+                    if float(curr.value) > float(prev.value)
+                    else DriftDirection.DOWN
+                    if float(curr.value) < float(prev.value)
                     else DriftDirection.NONE
                 )
             except (TypeError, ValueError):
@@ -677,9 +692,7 @@ class ConstitutionalDriftDetector:
                         name: [s.to_dict() for s in history]
                         for name, history in self._history.items()
                     },
-                    "baseline": {
-                        name: s.to_dict() for name, s in self._baseline.items()
-                    },
+                    "baseline": {name: s.to_dict() for name, s in self._baseline.items()},
                 }
             with open(self.store_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

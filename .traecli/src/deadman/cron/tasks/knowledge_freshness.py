@@ -90,9 +90,7 @@ class FreshnessReport:
         return {
             "file_path": str(self.file_path),
             "region": self.region,
-            "last_updated": (
-                self.last_updated.isoformat() if self.last_updated else None
-            ),
+            "last_updated": (self.last_updated.isoformat() if self.last_updated else None),
             "days_old": self.days_old,
             "status": self.status,
             "policy_areas": list(self.policy_areas),
@@ -221,16 +219,12 @@ class KnowledgeFreshnessChecker:
             try:
                 report = self._scan_file(md_path, regions_dir)
             except Exception as e:
-                logger.warning(
-                    "扫描文件失败 %s: %s（跳过）", md_path, e
-                )
+                logger.warning("扫描文件失败 %s: %s（跳过）", md_path, e)
                 continue
             reports.append(report)
         return reports
 
-    def _scan_file(
-        self, md_path: Path, regions_dir: Path
-    ) -> FreshnessReport:
+    def _scan_file(self, md_path: Path, regions_dir: Path) -> FreshnessReport:
         """扫描单个 .md 文件并生成报告"""
         text = md_path.read_text(encoding="utf-8")
         last_updated = self._parse_last_updated(text)
@@ -275,9 +269,7 @@ class KnowledgeFreshnessChecker:
         缺失或格式错误返回 None。
         """
         # 匹配 "最后更新: YYYY-MM-DD"，允许前后空白与可选列表符
-        pattern = re.compile(
-            r"最后更新\s*[:：]\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})"
-        )
+        pattern = re.compile(r"最后更新\s*[:：]\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})")
         m = pattern.search(text)
         if not m:
             return None
@@ -299,9 +291,7 @@ class KnowledgeFreshnessChecker:
                 hit.append(area)
         return hit
 
-    def _compute_status(
-        self, days_old: int, policy_areas: list[str]
-    ) -> str:
+    def _compute_status(self, days_old: int, policy_areas: list[str]) -> str:
         """根据天数与政策领域判定状态
 
         - >= stale_days → stale（无论是否高频领域）
@@ -322,9 +312,7 @@ class KnowledgeFreshnessChecker:
     # check_official_sources: 对 stale 文件提取关键政策点
     # ============================================================
 
-    def check_official_sources(
-        self, report: FreshnessReport
-    ) -> list[DriftItem]:
+    def check_official_sources(self, report: FreshnessReport) -> list[DriftItem]:
         """对 stale 文件提取关键政策点，输出待审核列表
 
         本期实现骨架：
@@ -345,7 +333,8 @@ class KnowledgeFreshnessChecker:
         if report.status != "stale":
             logger.info(
                 "check_official_sources 仅对 stale 文件生效，%s 当前为 %s",
-                report.file_path, report.status,
+                report.file_path,
+                report.status,
             )
             return []
 
@@ -418,7 +407,8 @@ class KnowledgeFreshnessChecker:
 
         logger.info(
             "check_official_sources: %s 提取 %d 条待审核项",
-            report.file_path, len(drifts),
+            report.file_path,
+            len(drifts),
         )
         return drifts
 
@@ -466,9 +456,7 @@ class KnowledgeFreshnessChecker:
             proposal: dict = {
                 "file_path": str(r.file_path),
                 "region": r.region,
-                "last_updated": (
-                    r.last_updated.isoformat() if r.last_updated else None
-                ),
+                "last_updated": (r.last_updated.isoformat() if r.last_updated else None),
                 "days_old": r.days_old,
                 "proposed": False,
                 "job_id": None,
@@ -489,13 +477,12 @@ class KnowledgeFreshnessChecker:
                     )
                     proposal["proposed"] = True
                     proposal["job_id"] = result.get("job_id")
-                    proposal["message"] = result.get(
-                        "message", "已通过 scheduler.propose_job 提交"
-                    )
+                    proposal["message"] = result.get("message", "已通过 scheduler.propose_job 提交")
                 except Exception as e:
                     logger.warning(
                         "scheduler.propose_job 失败 %s: %s（仅生成建议）",
-                        r.file_path, e,
+                        r.file_path,
+                        e,
                     )
                     proposal["message"] = f"scheduler 提交失败: {e}"
 

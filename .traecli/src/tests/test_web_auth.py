@@ -32,6 +32,7 @@ def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:
     """构造一个用 tmp_path 作为 auth_data_dir 的 WebServer"""
     # monkeypatch settings.auth_data_dir
     from deadman.config import settings
+
     monkeypatch.setattr(settings, "auth_data_dir", tmp_path)
     monkeypatch.setattr(settings, "jwt_secret", "")  # 走文件默认
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
@@ -39,7 +40,9 @@ def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:
     return WebServer()
 
 
-def _register_user(tmp_path: Path, email: str = "alice@example.com", password: str = "password123") -> dict:
+def _register_user(
+    tmp_path: Path, email: str = "alice@example.com", password: str = "password123"
+) -> dict:
     """直接用 UserStore 注册一个用户，返回 user dict"""
     store = UserStore(data_dir=tmp_path)
     return store.register(email, password, email.split("@")[0].capitalize())
@@ -103,16 +106,24 @@ class TestLoginEndpoint:
         # 登录成功返回 token + display_name
         server = _make_web_server(tmp_path, monkeypatch)
         # 先注册
-        asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-            "display_name": "Alice",
-        }))
+        asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                    "display_name": "Alice",
+                }
+            )
+        )
         # 再登录
-        resp = asyncio.run(server._handle_auth_login({
-            "email": "alice@example.com",
-            "password": "password123",
-        }))
+        resp = asyncio.run(
+            server._handle_auth_login(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                }
+            )
+        )
         assert resp is not None
         assert "token" in resp
         assert "user_id" in resp
@@ -121,23 +132,35 @@ class TestLoginEndpoint:
     def test_login_wrong_password_returns_none(self, tmp_path: Path, monkeypatch):
         # 错误密码返回 None（防枚举）
         server = _make_web_server(tmp_path, monkeypatch)
-        asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-        }))
-        resp = asyncio.run(server._handle_auth_login({
-            "email": "alice@example.com",
-            "password": "wrongpassword",
-        }))
+        asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                }
+            )
+        )
+        resp = asyncio.run(
+            server._handle_auth_login(
+                {
+                    "email": "alice@example.com",
+                    "password": "wrongpassword",
+                }
+            )
+        )
         assert resp is None
 
     def test_login_nonexistent_email_returns_none(self, tmp_path: Path, monkeypatch):
         # 不存在邮箱返回 None（防枚举）
         server = _make_web_server(tmp_path, monkeypatch)
-        resp = asyncio.run(server._handle_auth_login({
-            "email": "nobody@example.com",
-            "password": "password123",
-        }))
+        resp = asyncio.run(
+            server._handle_auth_login(
+                {
+                    "email": "nobody@example.com",
+                    "password": "password123",
+                }
+            )
+        )
         assert resp is None
 
 
@@ -158,24 +181,32 @@ class TestMeEndpoint:
     def test_me_with_invalid_token_returns_none(self, tmp_path: Path, monkeypatch):
         # 无效 token：返回 None
         server = _make_web_server(tmp_path, monkeypatch)
-        resp = server._handle_auth_me({
-            "Authorization": "Bearer invalid.token.here",
-        })
+        resp = server._handle_auth_me(
+            {
+                "Authorization": "Bearer invalid.token.here",
+            }
+        )
         assert resp is None
 
     def test_me_with_valid_token_returns_user(self, tmp_path: Path, monkeypatch):
         # 有效 token 返回用户信息
         server = _make_web_server(tmp_path, monkeypatch)
         # 注册
-        reg_resp = asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-            "display_name": "Alice",
-        }))
+        reg_resp = asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                    "display_name": "Alice",
+                }
+            )
+        )
         # 用 token 调 me
-        resp = server._handle_auth_me({
-            "Authorization": f"Bearer {reg_resp['token']}",
-        })
+        resp = server._handle_auth_me(
+            {
+                "Authorization": f"Bearer {reg_resp['token']}",
+            }
+        )
         assert resp is not None
         assert resp["email"] == "alice@example.com"
         assert resp["display_name"] == "Alice"
@@ -197,16 +228,21 @@ class TestChatWithAuth:
         # 带 token 调 chat 时 user_id 来自 token（验证 _require_auth 工作）
         server = _make_web_server(tmp_path, monkeypatch)
         # 注册并拿 token
-        reg_resp = asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-            "display_name": "Alice",
-        }))
+        reg_resp = asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                    "display_name": "Alice",
+                }
+            )
+        )
         token = reg_resp["token"]
         user_id = reg_resp["user_id"]
 
         # mock LLM 客户端
         import deadman.llm as llm_module
+
         monkeypatch.setattr(llm_module, "llm_client", mock_llm_client)
 
         # 用 _require_auth 验证 token 解析出的 user_id 是注册的 user_id
@@ -245,13 +281,19 @@ class TestRefreshEndpoint:
     def test_refresh_far_from_expiry_returns_none(self, tmp_path: Path, monkeypatch):
         # 剩余 > 1 天：返回 None（do_POST 转 401）
         server = _make_web_server(tmp_path, monkeypatch)
-        reg_resp = asyncio.run(server._handle_auth_register({
-            "email": "alice@example.com",
-            "password": "password123",
-        }))
-        resp = server._handle_auth_refresh({
-            "Authorization": f"Bearer {reg_resp['token']}",
-        })
+        reg_resp = asyncio.run(
+            server._handle_auth_register(
+                {
+                    "email": "alice@example.com",
+                    "password": "password123",
+                }
+            )
+        )
+        resp = server._handle_auth_refresh(
+            {
+                "Authorization": f"Bearer {reg_resp['token']}",
+            }
+        )
         assert resp is None
 
     def test_refresh_without_token_returns_none(self, tmp_path: Path, monkeypatch):

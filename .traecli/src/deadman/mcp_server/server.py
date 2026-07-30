@@ -53,19 +53,28 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 
 # P3.1 MCP 6 层网关
-GATEWAY_ENABLED: bool = os.environ.get(
-    "DEADMAN_MCP_GATEWAY_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+GATEWAY_ENABLED: bool = os.environ.get("DEADMAN_MCP_GATEWAY_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # P3.2 写操作 dry-run
-DRY_RUN_ENABLED: bool = os.environ.get(
-    "DEADMAN_DRY_RUN_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+DRY_RUN_ENABLED: bool = os.environ.get("DEADMAN_DRY_RUN_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # P3.4 工具结果缓存（与 cache.TOOL_CACHE_ENABLED 同步）
-TOOL_CACHE_ENABLED: bool = os.environ.get(
-    "DEADMAN_TOOL_CACHE_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+TOOL_CACHE_ENABLED: bool = os.environ.get("DEADMAN_TOOL_CACHE_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # P3.6 运行时动态注册 API
 DYNAMIC_TOOL_REGISTRATION_ENABLED: bool = os.environ.get(
@@ -81,6 +90,7 @@ try:
     from . import gateway as _gateway_module
     from . import permissions as _permissions_module
     from . import signing as _signing_module
+
     _P3_MODULES_AVAILABLE = True
 except ImportError as exc:  # pragma: no cover - 降级
     logger.warning("P3 子模块加载失败，相关 feature flag 将降级为关闭: %s", exc)
@@ -104,6 +114,7 @@ except (ImportError, OSError):  # pragma: no cover - 环境降级
 # SelfCheckGPT 校验器（selfcheck 模块可能尚未实现）
 try:
     from ..selfcheck.checker import SelfCheckChecker  # type: ignore
+
     _SELFCHECK_AVAILABLE = True
 except (ImportError, OSError):
     logger.info("selfcheck 模块不可用，check_integrity 将仅做 5 关校验")
@@ -122,9 +133,11 @@ except (ImportError, OSError):
         """降级版 trace_tool_span - no-op 上下文管理器，签名对齐全局实现"""
         yield None
 
+
 # 分层记忆模块（deadman.memory.manager.MemoryManager）
 try:
     from ..memory.manager import MemoryManager  # type: ignore
+
     _MEMORY_AVAILABLE = True
 except (ImportError, OSError):
     MemoryManager = None  # type: ignore
@@ -133,6 +146,7 @@ except (ImportError, OSError):
 # 辩论模块（可能尚未实现）
 try:
     from ..debate.orchestrator import DebateOrchestrator  # type: ignore
+
     _DEBATE_AVAILABLE = True
 except (ImportError, OSError):
     DebateOrchestrator = None  # type: ignore
@@ -141,6 +155,7 @@ except (ImportError, OSError):
 # Reflexion 模块（deadman.reflexion.engine.ReflexionEngine）
 try:
     from ..reflexion.engine import ReflexionEngine, get_predefined_strategy  # type: ignore
+
     _REFLEXION_AVAILABLE = True
 except (ImportError, OSError):
     ReflexionEngine = None  # type: ignore
@@ -161,6 +176,7 @@ except ImportError:
 # =====================================================================
 # 辅助函数
 # =====================================================================
+
 
 def _utcnow_iso() -> str:
     """当前 UTC 时间 ISO 字符串"""
@@ -196,6 +212,7 @@ def _redact_pii(data: Any) -> Any:
     （含中文别名：姓名/电话/手机/地址/住址/身份证/证件号/账号/账户号/卡号）
     """
     from ..memory.manager import sanitize_before_store
+
     return sanitize_before_store(data)
 
 
@@ -854,17 +871,12 @@ class McpServer:
         # ---------- P3.4 缓存查（仅 READ_ONLY 工具 + 非 dry_run）----------
         cache_lookup_key: str | None = None
         cache = None
-        if (
-            TOOL_CACHE_ENABLED
-            and _P3_MODULES_AVAILABLE
-            and not arguments.get("dry_run")
-        ):
+        if TOOL_CACHE_ENABLED and _P3_MODULES_AVAILABLE and not arguments.get("dry_run"):
             try:
                 cache = self._get_cache()
                 if cache is not None and _permissions_module.is_read_only(name):
                     cache_lookup_key = _cache_module.ToolResultCache.hash_args(
-                        {k: v for k, v in arguments.items()
-                         if k not in ("caller", "user_id")}
+                        {k: v for k, v in arguments.items() if k not in ("caller", "user_id")}
                     )
                     cached = cache.get(name, cache_lookup_key)
                     if cached is not None:
@@ -913,7 +925,9 @@ class McpServer:
 
     # ---------- 启动入口 ----------
 
-    def run(self, transport: str = "stdio", host: str | None = None, port: int | None = None) -> None:
+    def run(
+        self, transport: str = "stdio", host: str | None = None, port: int | None = None
+    ) -> None:
         """启动 server
 
         transport:
@@ -967,7 +981,11 @@ class McpServer:
             try:
                 req = json.loads(line_text)
             except json.JSONDecodeError as exc:
-                resp = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": f"Parse error: {exc}"}}
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {exc}"},
+                }
                 sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
                 sys.stdout.flush()
                 continue
@@ -986,7 +1004,14 @@ class McpServer:
             if method == "tools/call":
                 name = params.get("name")
                 if not isinstance(name, str):
-                    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": "Invalid params: name must be a string"}}
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "error": {
+                            "code": -32602,
+                            "message": "Invalid params: name must be a string",
+                        },
+                    }
                 arguments = params.get("arguments", {}) or {}
                 result = await self.call_tool(name, arguments)
                 return {"jsonrpc": "2.0", "id": req_id, "result": result}
@@ -1234,6 +1259,7 @@ def _get_sandbox_manager() -> Any:
 # 工具 1: query_knowledge
 # =====================================================================
 
+
 @mcp.tool_auto(
     name="query_knowledge",
     description=(
@@ -1394,6 +1420,7 @@ async def query_knowledge(
 # 工具 2: web_search（真实实现 - 借鉴 Hermes MIT 设计，httpx 直连 DuckDuckGo）
 # =====================================================================
 
+
 @mcp.tool_auto(
     name="web_search",
     description=(
@@ -1454,6 +1481,7 @@ async def web_search(
 # 工具 2b: web_search_official（仅返回官方源）
 # =====================================================================
 
+
 @mcp.tool_auto(
     name="web_search_official",
     description=(
@@ -1495,20 +1523,17 @@ async def web_search_official(
             "ok": False,
             "error": "web_search_tool_unavailable",
             "results": [],
-            "note": (
-                "web_search 工具不可用。建议打 12345 政务服务热线或当地对应机构核实"
-            ),
+            "note": ("web_search 工具不可用。建议打 12345 政务服务热线或当地对应机构核实"),
             "query": query,
             "max_results": max_results,
         }
-    return await tool.search_official(
-        query, max_results=max_results, min_confidence=min_confidence
-    )
+    return await tool.search_official(query, max_results=max_results, min_confidence=min_confidence)
 
 
 # =====================================================================
 # 工具 3: read_file
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="read_file",
@@ -1559,6 +1584,7 @@ async def read_file(path: str, encoding: str = "utf-8", max_bytes: int = 1048576
 # =====================================================================
 # 工具 4: write_file
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="write_file",
@@ -1673,6 +1699,7 @@ async def write_file(
 # 工具 5: invoke_subagent
 # =====================================================================
 
+
 @mcp.tool_auto(
     name="invoke_subagent",
     description=(
@@ -1769,8 +1796,7 @@ async def invoke_subagent(
                 elif rc_result.integrity_violations:
                     rule_check_passed = False
                     response = (
-                        response
-                        + "\n\n【诚信提示】以上回复中可能包含未经核实的数据/时限，"
+                        response + "\n\n【诚信提示】以上回复中可能包含未经核实的数据/时限，"
                         "请以官方渠道核实后再行决策。"
                     )
             except Exception as exc:  # 规则校验异常不应阻断子智能体响应
@@ -1787,12 +1813,16 @@ async def invoke_subagent(
                     "agent_def_found": agent_def_exists,
                 },
                 "confidence": 0.7,
-                "sources": [str(agent_file.relative_to(settings.project_root))] if agent_def_exists else [],
+                "sources": [str(agent_file.relative_to(settings.project_root))]
+                if agent_def_exists
+                else [],
                 "rule_check_passed": rule_check_passed,
                 "rule_violations": rule_violations,
             }
         except asyncio.TimeoutError:
-            return _subagent_fallback(subagent_name, task, context, reason=f"LLM 调用超时（{timeout}s）")
+            return _subagent_fallback(
+                subagent_name, task, context, reason=f"LLM 调用超时（{timeout}s）"
+            )
         except Exception as exc:
             return _subagent_fallback(subagent_name, task, context, reason=f"LLM 调用失败: {exc}")
 
@@ -1833,6 +1863,7 @@ def _subagent_fallback(
 # 工具 6: check_integrity
 # =====================================================================
 
+
 @mcp.tool(
     name="check_integrity",
     description=(
@@ -1854,13 +1885,27 @@ def _subagent_fallback(
                         "source": {"type": "string", "description": "来源 URL 或文件"},
                         "claim_type": {
                             "type": "string",
-                            "enum": ["fact", "number", "legal_citation", "procedure", "phone_number"],
+                            "enum": [
+                                "fact",
+                                "number",
+                                "legal_citation",
+                                "procedure",
+                                "phone_number",
+                            ],
                         },
                     },
                 },
             },
-            "selfcheck_enabled": {"type": "boolean", "default": True, "description": "是否启用 SelfCheckGPT"},
-            "selfcheck_sample_count": {"type": "integer", "default": 5, "description": "SelfCheckGPT 采样次数（3-5）"},
+            "selfcheck_enabled": {
+                "type": "boolean",
+                "default": True,
+                "description": "是否启用 SelfCheckGPT",
+            },
+            "selfcheck_sample_count": {
+                "type": "integer",
+                "default": 5,
+                "description": "SelfCheckGPT 采样次数（3-5）",
+            },
         },
         "required": ["output_text", "claims_to_verify"],
     },
@@ -1904,7 +1949,11 @@ async def check_integrity(
             hallucination_issues.append(f"匹配到编造模式 {pattern}: {matches}")
     # 数字类 claim 无来源视为幻觉风险
     for idx, claim in enumerate(claims_to_verify):
-        if claim.get("claim_type") in {"number", "phone_number", "legal_citation"} and not claim.get("source"):
+        if claim.get("claim_type") in {
+            "number",
+            "phone_number",
+            "legal_citation",
+        } and not claim.get("source"):
             hallucination_issues.append(f"claim[{idx}] 为数字/法条类但无来源: {claim.get('claim')}")
 
     # 3. 时效校验 - 检查 file 类来源的最后更新
@@ -1976,7 +2025,12 @@ async def check_integrity(
         numeric_claims = _extract_numeric_claims(output_text)
         selfcheck_result["numeric_claims_found"] = len(numeric_claims)
 
-        if _SELFCHECK_AVAILABLE and SelfCheckChecker is not None and llm_client is not None and llm_client.api_key:
+        if (
+            _SELFCHECK_AVAILABLE
+            and SelfCheckChecker is not None
+            and llm_client is not None
+            and llm_client.api_key
+        ):
             try:
                 # SelfCheckChecker 无参构造（内部读 settings）
                 checker = SelfCheckChecker()
@@ -1998,13 +2052,15 @@ async def check_integrity(
                     llm_client=llm_client,
                 )
                 # 兼容不同返回结构：sc 可能含 passed / numeric_claims_found / consistency_scores / ...
-                selfcheck_result.update({
-                    "consistency_scores": sc.get("consistency_scores", []),
-                    "overall_consistency": sc.get("overall_consistency"),
-                    "low_consistency_claims": sc.get("low_consistency_claims", []),
-                    "passed": sc.get("passed"),
-                    "note": "原始 messages 未传入，使用 output_text 构造采样 prompt；建议调用方在需要精确 SelfCheckGPT 时直接使用 selfcheck 模块",
-                })
+                selfcheck_result.update(
+                    {
+                        "consistency_scores": sc.get("consistency_scores", []),
+                        "overall_consistency": sc.get("overall_consistency"),
+                        "low_consistency_claims": sc.get("low_consistency_claims", []),
+                        "passed": sc.get("passed"),
+                        "note": "原始 messages 未传入，使用 output_text 构造采样 prompt；建议调用方在需要精确 SelfCheckGPT 时直接使用 selfcheck 模块",
+                    }
+                )
             except Exception as exc:
                 selfcheck_result["note"] = f"SelfCheckChecker 调用失败，降级为只做 5 关: {exc}"
         else:
@@ -2048,8 +2104,7 @@ async def check_integrity(
         )
 
     passed = five_gate_passed and (
-        not selfcheck_enabled
-        or not selfcheck_result.get("low_consistency_claims")
+        not selfcheck_enabled or not selfcheck_result.get("low_consistency_claims")
     )
 
     return {
@@ -2070,6 +2125,7 @@ async def check_integrity(
 # =====================================================================
 # 工具 7: check_rules
 # =====================================================================
+
 
 @mcp.tool(
     name="check_rules",
@@ -2146,24 +2202,17 @@ def _agent_specific_notes(agent_name: str) -> list[str]:
             "涉及诉讼/遗产纠纷请引导咨询专业律师。"
         ],
         "financial_analyst": [
-            "财务边界：不提供具体投资/税务决策建议；"
-            "大额财产/跨境资产请引导咨询持牌财务/税务顾问。"
+            "财务边界：不提供具体投资/税务决策建议；大额财产/跨境资产请引导咨询持牌财务/税务顾问。"
         ],
-        "medical_guide": [
-            "医疗边界：不替代专业医疗诊断与处置；"
-            "紧急情况请引导立即就医或拨打 120。"
-        ],
+        "medical_guide": ["医疗边界：不替代专业医疗诊断与处置；紧急情况请引导立即就医或拨打 120。"],
         "cross_border_specialist": [
-            "跨境边界：涉外事务（领事馆/外籍/海外资产）需以官方最新规定为准，"
-            "提示用户核实办理时效。"
+            "跨境边界：涉外事务（领事馆/外籍/海外资产）需以官方最新规定为准，提示用户核实办理时效。"
         ],
         "policy_researcher": [
-            "政策时效：地方政策更新频繁，输出需注明查询日期，"
-            "并提示以官方发布为准。"
+            "政策时效：地方政策更新频繁，输出需注明查询日期，并提示以官方发布为准。"
         ],
         "death_aftercare": [
-            "服务边界：身后事流程引导不替代专业法律/医疗/财务建议；"
-            "重要决策请引导咨询专业人士。"
+            "服务边界：身后事流程引导不替代专业法律/医疗/财务建议；重要决策请引导咨询专业人士。"
         ],
     }
     return notes_map.get(normalized, [])
@@ -2172,6 +2221,7 @@ def _agent_specific_notes(agent_name: str) -> list[str]:
 # =====================================================================
 # 工具 8: query_memory
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="query_memory",
@@ -2227,11 +2277,13 @@ async def query_memory(
             if query:
                 episodes = manager.episodic.recall_by_semantic(query, top_k=3)
                 for ep in episodes:
-                    results.append({
-                        "type": "episodic",
-                        "summary": getattr(ep, "summary", str(ep)),
-                        "timestamp": str(getattr(ep, "timestamp", "")),
-                    })
+                    results.append(
+                        {
+                            "type": "episodic",
+                            "summary": getattr(ep, "summary", str(ep)),
+                            "timestamp": str(getattr(ep, "timestamp", "")),
+                        }
+                    )
             # 工作记忆窗口
             window = manager.working.get_context_window()
             if window:
@@ -2266,14 +2318,14 @@ async def query_memory(
             step_completed = (updates or {}).get("step_completed")
             progress_dict: dict[str, Any] = {}
             if procedure_id is not None and step_completed is not None:
-                manager.procedural.update_user_progress(
-                    user_id, procedure_id, step_completed
-                )
+                manager.procedural.update_user_progress(user_id, procedure_id, step_completed)
                 progress = manager.procedural.get_user_progress(user_id, procedure_id)
                 progress_dict = {
                     "procedure_id": procedure_id,
                     "current_step": getattr(progress, "current_step", None) if progress else None,
-                    "completed_steps": list(getattr(progress, "completed_steps", [])) if progress else [],
+                    "completed_steps": list(getattr(progress, "completed_steps", []))
+                    if progress
+                    else [],
                 }
             else:
                 progress_dict = {"error": "updates 需包含 procedure_id 与 step_completed"}
@@ -2338,6 +2390,7 @@ def _profile_to_dict(profile: Any) -> dict[str, Any]:
         return {}
     try:
         from dataclasses import asdict
+
         d = asdict(profile)
         # 过滤 None 值，减小返回体积
         return {k: v for k, v in d.items() if v is not None}
@@ -2348,6 +2401,7 @@ def _profile_to_dict(profile: Any) -> dict[str, Any]:
 # =====================================================================
 # 工具 9: initiate_debate
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="initiate_debate",
@@ -2372,7 +2426,9 @@ async def initiate_debate(
     topic: str,
     participants: list[str],
     initial_responses: list[dict[str, Any]],
-    voting_strategy: Literal["majority", "weighted", "confidence_weighted", "consensus"] = "weighted",
+    voting_strategy: Literal[
+        "majority", "weighted", "confidence_weighted", "consensus"
+    ] = "weighted",
 ) -> dict[str, Any]:
     """发起辩论
 
@@ -2431,6 +2487,7 @@ async def initiate_debate(
 # =====================================================================
 # 工具 10: call_external_agent
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="call_external_agent",
@@ -2579,6 +2636,7 @@ def _collect_redacted_fields(original: Any, redacted: Any) -> list[str]:
 # =====================================================================
 # 工具 11: execute_reflexion
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="execute_reflexion",
@@ -2775,7 +2833,9 @@ _ADJUSTMENT_STRATEGIES: list[dict[str, str]] = [
 ]
 
 
-def _lookup_adjustment_strategy(operation_type: str, operation_name: str, failure_reason: str) -> str | None:
+def _lookup_adjustment_strategy(
+    operation_type: str, operation_name: str, failure_reason: str
+) -> str | None:
     """根据失败原因匹配预定义调整策略"""
     reason_lower = (failure_reason or "").lower()
     for entry in _ADJUSTMENT_STRATEGIES:
@@ -2788,6 +2848,7 @@ def _lookup_adjustment_strategy(operation_type: str, operation_name: str, failur
 # =====================================================================
 # 工具 12: init_transfer
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="init_transfer",
@@ -2906,6 +2967,7 @@ async def init_transfer(
 # 工具 13: report_incident
 # =====================================================================
 
+
 @mcp.tool_auto(
     name="report_incident",
     description=(
@@ -2965,6 +3027,7 @@ async def report_incident(
 # =====================================================================
 # 工具 14: execute_code（沙箱代码执行 - 借鉴 Hermes MIT 设计）
 # =====================================================================
+
 
 @mcp.tool_auto(
     name="execute_code",
@@ -3064,6 +3127,7 @@ async def execute_code(
 # 入口
 # =====================================================================
 
+
 def main() -> None:
     """命令行入口：启动 MCP server
 
@@ -3081,8 +3145,15 @@ def main() -> None:
         default="stdio",
         help="传输方式（默认 stdio）",
     )
-    parser.add_argument("--host", default=None, help="HTTP 模式监听地址（默认取 settings.mcp_server_host）")
-    parser.add_argument("--port", type=int, default=None, help="HTTP 模式监听端口（默认取 settings.mcp_server_port）")
+    parser.add_argument(
+        "--host", default=None, help="HTTP 模式监听地址（默认取 settings.mcp_server_host）"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="HTTP 模式监听端口（默认取 settings.mcp_server_port）",
+    )
     parser.add_argument("--log-level", default="INFO", help="日志级别")
     args = parser.parse_args()
 

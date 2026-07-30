@@ -35,10 +35,12 @@ def enable_billing(monkeypatch):
     monkeypatch.setenv("DEADMAN_FEATURE_FLAG_SYSTEM_ENABLED", "1")
     # 清缓存
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     # 重置全局单例
     import deadman.billing as billing_pkg
+
     billing_pkg._sm_instance = None
     billing_pkg._ms_instance = None
     billing_pkg._ut_instance = None
@@ -46,6 +48,7 @@ def enable_billing(monkeypatch):
     billing_pkg._cr_instance = None
     # 重置 quota 单例(避免上一个测试的状态泄漏)
     import deadman.infrastructure.quota as quota_pkg
+
     quota_pkg._qm_instance = None
     yield
     # 测试后重置(防污染其他测试)
@@ -64,41 +67,49 @@ def enable_billing(monkeypatch):
 class TestPlans:
     def test_three_plans_exist(self):
         from deadman.billing.plans import PLANS, PlanName
+
         assert PlanName.FREE.value in PLANS
         assert PlanName.PRO.value in PLANS
         assert PlanName.ENTERPRISE.value in PLANS
 
     def test_free_plan_price_zero(self):
         from deadman.billing.plans import FREE_PLAN
+
         assert FREE_PLAN.price_monthly == 0.0
         assert FREE_PLAN.price_yearly == 0.0
 
     def test_pro_plan_more_expensive_than_free(self):
         from deadman.billing.plans import FREE_PLAN, PRO_PLAN
+
         assert PRO_PLAN.price_monthly > FREE_PLAN.price_monthly
 
     def test_enterprise_plan_more_expensive_than_pro(self):
         from deadman.billing.plans import ENTERPRISE_PLAN, PRO_PLAN
+
         assert ENTERPRISE_PLAN.price_monthly > PRO_PLAN.price_monthly
 
     def test_yearly_discount(self):
         """年付应有折扣(月付*12 > 年付)。"""
         from deadman.billing.plans import PRO_PLAN
+
         monthly_total = PRO_PLAN.price_monthly * 12
         assert PRO_PLAN.price_yearly < monthly_total
 
     def test_enterprise_unlimited_tokens(self):
         """ENTERPRISE 无限 token(-1)。"""
         from deadman.billing.plans import ENTERPRISE_PLAN
+
         assert ENTERPRISE_PLAN.limits.llm_tokens_daily == -1
         assert ENTERPRISE_PLAN.limits.llm_tokens_monthly == -1
 
     def test_enterprise_more_features_than_pro(self):
         from deadman.billing.plans import ENTERPRISE_PLAN, PRO_PLAN
+
         assert len(ENTERPRISE_PLAN.features) > len(PRO_PLAN.features)
 
     def test_has_feature(self):
         from deadman.billing.plans import FREE_PLAN, PRO_PLAN
+
         assert FREE_PLAN.has_feature("debate") is True
         assert FREE_PLAN.has_feature("plan_execute") is False
         assert PRO_PLAN.has_feature("plan_execute") is True
@@ -106,31 +117,37 @@ class TestPlans:
     def test_data_retention_increasing(self):
         """数据保留期随 plan 递增。"""
         from deadman.billing.plans import ENTERPRISE_PLAN, FREE_PLAN, PRO_PLAN
+
         assert FREE_PLAN.data_retention_days < PRO_PLAN.data_retention_days
         assert PRO_PLAN.data_retention_days < ENTERPRISE_PLAN.data_retention_days
 
     def test_enterprise_7_year_retention(self):
         """ENTERPRISE 7 年保留(法规要求)。"""
         from deadman.billing.plans import ENTERPRISE_PLAN
+
         assert ENTERPRISE_PLAN.data_retention_days >= 2555  # 7 * 365
 
     def test_get_plan_unknown(self):
         from deadman.billing.plans import get_plan
+
         assert get_plan("nonexistent") is None
 
     def test_get_plan_known(self):
         from deadman.billing.plans import get_plan
+
         plan = get_plan("free")
         assert plan is not None
         assert plan.name.value == "free"
 
     def test_list_plans(self):
         from deadman.billing.plans import list_plans
+
         plans = list_plans()
         assert len(plans) == 3
 
     def test_sla_level_increasing(self):
         from deadman.billing.plans import ENTERPRISE_PLAN, FREE_PLAN, PRO_PLAN
+
         assert FREE_PLAN.sla_level == "none"
         assert PRO_PLAN.sla_level == "99"
         assert ENTERPRISE_PLAN.sla_level == "99.9"
@@ -144,6 +161,7 @@ class TestPlans:
 class TestSubscription:
     def test_subscribe_free(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sub = sm.subscribe("user1", "free")
         assert sub.user_id == "user1"
@@ -152,6 +170,7 @@ class TestSubscription:
 
     def test_subscribe_with_trial(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sub = sm.subscribe("user1", "pro", with_trial=True)
         assert sub.status == SubscriptionStatus.TRIALING
@@ -160,6 +179,7 @@ class TestSubscription:
     def test_subscribe_enterprise_no_trial(self, tmp_path):
         """ENTERPRISE 不支持试用。"""
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sub = sm.subscribe("user1", "enterprise", with_trial=True)
         # with_trial 被 force False
@@ -168,12 +188,14 @@ class TestSubscription:
 
     def test_subscribe_unknown_plan_raises(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         with pytest.raises(ValueError):
             sm.subscribe("user1", "nonexistent_plan")
 
     def test_subscribe_duplicate_active_raises(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "free")
         with pytest.raises(ValueError):
@@ -181,6 +203,7 @@ class TestSubscription:
 
     def test_cancel_immediately(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.cancel("user1", immediately=True, reason="too expensive")
@@ -189,6 +212,7 @@ class TestSubscription:
 
     def test_cancel_at_period_end(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.cancel("user1", immediately=False)
@@ -197,11 +221,13 @@ class TestSubscription:
 
     def test_cancel_nonexistent_returns_none(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         assert sm.cancel("nonexistent") is None
 
     def test_upgrade_plan(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "free")
         sub = sm.upgrade("user1", "pro")
@@ -213,6 +239,7 @@ class TestSubscription:
     def test_downgrade_plan(self, tmp_path):
         """upgrade() 也支持降级。"""
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.upgrade("user1", "free", prorate=True)
@@ -222,6 +249,7 @@ class TestSubscription:
 
     def test_upgrade_unknown_plan_raises(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "free")
         with pytest.raises(ValueError):
@@ -229,12 +257,14 @@ class TestSubscription:
 
     def test_upgrade_no_active_sub_raises(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         with pytest.raises(ValueError):
             sm.upgrade("user1", "pro")
 
     def test_renew_extends_period(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         old_sub = sm.get_current("user1")
@@ -246,12 +276,14 @@ class TestSubscription:
         """无订阅 → free plan。"""
         from deadman.billing.plans import FREE_PLAN
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         plan = sm.get_effective_plan("nonexistent")
         assert plan.name == FREE_PLAN.name
 
     def test_get_effective_plan_with_sub(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         plan = sm.get_effective_plan("user1")
@@ -260,6 +292,7 @@ class TestSubscription:
     def test_advance_status_trial_to_active(self, tmp_path):
         """试用到期 → ACTIVE。"""
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro", with_trial=True)
         sub = sm.get_current("user1")
@@ -274,6 +307,7 @@ class TestSubscription:
     def test_advance_status_active_to_past_due(self, tmp_path):
         """周期末未续费 → PAST_DUE。"""
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.get_current("user1")
@@ -287,6 +321,7 @@ class TestSubscription:
     def test_advance_status_past_due_to_expired(self, tmp_path):
         """宽限期满 → EXPIRED。"""
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.get_current("user1")
@@ -300,6 +335,7 @@ class TestSubscription:
     def test_advance_status_cancel_at_period_end(self, tmp_path):
         """cancel_at_period_end=True 到期 → CANCELED。"""
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sm.cancel("user1", immediately=False)
@@ -313,6 +349,7 @@ class TestSubscription:
     def test_persist_across_instances(self, tmp_path):
         """订阅信息跨实例持久化。"""
         from deadman.billing.subscription import SubscriptionManager
+
         store = tmp_path / "subs.json"
         sm1 = SubscriptionManager(store_path=store)
         sm1.subscribe("user1", "pro")
@@ -323,6 +360,7 @@ class TestSubscription:
 
     def test_is_active(self, tmp_path):
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         sub = sm.get_current("user1")
@@ -341,6 +379,7 @@ class TestSubscription:
 class TestMetering:
     def test_record_event(self, tmp_path):
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         event = ms.record_llm_tokens("user1", 1000, model="gpt-4o")
         assert event is not None
@@ -350,6 +389,7 @@ class TestMetering:
 
     def test_record_tool_call(self, tmp_path):
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         event = ms.record_tool_call("user1", tool_name="web_search")
         assert event is not None
@@ -358,6 +398,7 @@ class TestMetering:
 
     def test_record_storage(self, tmp_path):
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         # 2.5 MB → 3 MB(向上取整)
         event = ms.record_storage("user1", 2 * 1024 * 1024 + 1)
@@ -366,6 +407,7 @@ class TestMetering:
 
     def test_record_multimodal(self, tmp_path):
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         event = ms.record_multimodal("user1", "OCR")
         assert event is not None
@@ -373,12 +415,14 @@ class TestMetering:
 
     def test_negative_amount_ignored(self, tmp_path):
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         event = ms.record_llm_tokens("user1", -100)
         assert event is None
 
     def test_aggregate_single_day(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         ms.record_llm_tokens("user1", 500)
@@ -389,6 +433,7 @@ class TestMetering:
 
     def test_aggregate_month(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         ms.record_llm_tokens("user1", 500)
@@ -398,6 +443,7 @@ class TestMetering:
 
     def test_aggregate_all(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         total = ms.aggregate("user1", MeteringDimension.LLM_TOKENS, "all")
@@ -405,6 +451,7 @@ class TestMetering:
 
     def test_aggregate_other_user(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         ms.record_llm_tokens("user2", 500)
@@ -413,6 +460,7 @@ class TestMetering:
 
     def test_get_daily_usage(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000, model="gpt-4o")
         ms.record_tool_call("user1", tool_name="web_search")
@@ -423,6 +471,7 @@ class TestMetering:
 
     def test_get_monthly_usage(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         month = time.strftime("%Y-%m", time.localtime())
@@ -431,6 +480,7 @@ class TestMetering:
 
     def test_no_data_returns_zero(self, tmp_path):
         from deadman.billing.metering import MeteringDimension, MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         total = ms.aggregate("nonexistent_user", MeteringDimension.LLM_TOKENS, "all")
         assert total == 0
@@ -438,6 +488,7 @@ class TestMetering:
     def test_file_per_day(self, tmp_path):
         """事件按天分文件。"""
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         ms.record_llm_tokens("user1", 1000)
         today = time.strftime("%Y-%m-%d", time.localtime())
@@ -471,6 +522,7 @@ class TestUsageTracker:
         from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -484,6 +536,7 @@ class TestUsageTracker:
         from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -497,6 +550,7 @@ class TestUsageTracker:
         from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -510,6 +564,7 @@ class TestUsageTracker:
         from deadman.billing.subscription import SubscriptionManager
         from deadman.billing.usage_tracker import UsageTracker
         from deadman.infrastructure.quota import QuotaManager
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         qm = QuotaManager(store_path=tmp_path / "quota.json")
@@ -529,6 +584,7 @@ class TestInvoice:
         from deadman.billing.invoice import InvoiceGenerator
         from deadman.billing.metering import MeteringService
         from deadman.billing.subscription import SubscriptionManager
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", plan_name)
@@ -619,6 +675,7 @@ class TestInvoice:
         # invoice 状态变 OPEN
         inv2 = ig.get(invoice.invoice_id)
         from deadman.billing.invoice import InvoiceStatus
+
         assert inv2.status == InvoiceStatus.OPEN
 
     def test_unknown_payment_gateway_raises(self, tmp_path):
@@ -636,6 +693,7 @@ class TestInvoice:
         ig.mark_paid(invoice.invoice_id, "stripe_123")
         inv2 = ig.get(invoice.invoice_id)
         from deadman.billing.invoice import InvoiceStatus
+
         assert inv2.status == InvoiceStatus.PAID
         assert inv2.paid_at is not None
 
@@ -648,6 +706,7 @@ class TestInvoice:
         ig.refund(invoice.invoice_id, reason="user requested")
         inv2 = ig.get(invoice.invoice_id)
         from deadman.billing.invoice import InvoiceStatus
+
         assert inv2.status == InvoiceStatus.REFUNDED
         assert inv2.refunded_amount == inv2.total
 
@@ -661,6 +720,7 @@ class TestInvoice:
         inv2 = ig.get(invoice.invoice_id)
         # 部分退款不改变状态(仍 PAID)
         from deadman.billing.invoice import InvoiceStatus
+
         assert inv2.status == InvoiceStatus.PAID
         assert inv2.refunded_amount == 50.0
 
@@ -671,6 +731,7 @@ class TestInvoice:
         ig.void(invoice.invoice_id, reason="duplicate")
         inv2 = ig.get(invoice.invoice_id)
         from deadman.billing.invoice import InvoiceStatus
+
         assert inv2.status == InvoiceStatus.VOID
 
     def test_void_paid_invoice_raises(self, tmp_path):
@@ -695,6 +756,7 @@ class TestInvoice:
         now = time.time()
         ig.generate("user1", now - 30 * 86400, now)
         from deadman.billing.invoice import InvoiceStatus
+
         drafts = ig.list_by_status(InvoiceStatus.DRAFT)
         assert len(drafts) == 1
 
@@ -721,6 +783,7 @@ class TestCostRouter:
     def test_route_free_plan_cost_first(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "free")
         cr = CostRouter(subscriptions=sm)
@@ -728,11 +791,13 @@ class TestCostRouter:
         assert result.chosen is not None
         # free 限制在 SMALL tier
         from deadman.billing.cost_router import ModelTier
+
         assert cr._tier_rank(result.chosen.tier) <= cr._tier_rank(ModelTier.SMALL)
 
     def test_route_pro_plan_quality_first(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, ModelTier
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
@@ -744,6 +809,7 @@ class TestCostRouter:
     def test_route_enterprise_can_use_reasoning(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, ModelTier
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "enterprise")
         cr = CostRouter(subscriptions=sm)
@@ -755,6 +821,7 @@ class TestCostRouter:
     def test_route_filters_by_tool_support(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
@@ -765,6 +832,7 @@ class TestCostRouter:
     def test_route_filters_by_vision_support(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
@@ -775,6 +843,7 @@ class TestCostRouter:
     def test_route_returns_alternatives(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
@@ -786,6 +855,7 @@ class TestCostRouter:
     def test_route_estimates_cost(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
@@ -796,13 +866,20 @@ class TestCostRouter:
     def test_get_failover(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, ModelChoice, ModelTier
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
         # 原模型 openai/gpt-4o
         original = ModelChoice(
-            "openai", "gpt-4o", ModelTier.MEDIUM, 0.85, 0.03,
-            supports_tools=True, supports_json_mode=True, max_context=128000,
+            "openai",
+            "gpt-4o",
+            ModelTier.MEDIUM,
+            0.85,
+            0.03,
+            supports_tools=True,
+            supports_json_mode=True,
+            max_context=128000,
         )
         failover = cr.get_failover(original)
         # 应返回非 openai/gpt-4o 的候选
@@ -812,11 +889,17 @@ class TestCostRouter:
     def test_register_model(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, ModelChoice, ModelTier
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         cr = CostRouter(subscriptions=sm)
         new_model = ModelChoice(
-            "custom_provider", "custom-model", ModelTier.MEDIUM, 0.7, 0.002,
-            supports_tools=True, max_context=64000,
+            "custom_provider",
+            "custom-model",
+            ModelTier.MEDIUM,
+            0.7,
+            0.002,
+            supports_tools=True,
+            max_context=64000,
         )
         cr.register_model(ModelTier.MEDIUM, new_model)
         # 注册后能在列表找到
@@ -827,6 +910,7 @@ class TestCostRouter:
     def test_list_models_all_tiers(self, tmp_path):
         from deadman.billing.cost_router import CostRouter
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         cr = CostRouter(subscriptions=sm)
         all_models = cr.list_models()
@@ -836,6 +920,7 @@ class TestCostRouter:
     def test_list_models_by_tier(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, ModelTier
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         cr = CostRouter(subscriptions=sm)
         models = cr.list_models(ModelTier.MEDIUM)
@@ -845,10 +930,13 @@ class TestCostRouter:
     def test_strategy_cost_first_prefers_cheap(self, tmp_path):
         from deadman.billing.cost_router import CostRouter, RoutingStrategy
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sm.subscribe("user1", "pro")
         cr = CostRouter(subscriptions=sm)
-        result = cr.route("user1", task_complexity="medium", strategy=RoutingStrategy.COST_FIRST.value)
+        result = cr.route(
+            "user1", task_complexity="medium", strategy=RoutingStrategy.COST_FIRST.value
+        )
         # 应该是最便宜的
         alternatives = cr.list_models()
         medium_models = [m for m in alternatives if m.tier.value == "medium"]
@@ -868,9 +956,11 @@ class TestBillingDisabled:
     def test_subscribe_returns_free(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_BILLING_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.billing.subscription import SubscriptionManager, SubscriptionStatus
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         sub = sm.subscribe("user1", "pro")  # 即使请求 pro,关闭时返回 free
         assert sub.plan_name == "free"
@@ -879,19 +969,23 @@ class TestBillingDisabled:
     def test_metering_record_returns_none(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_BILLING_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.billing.metering import MeteringService
+
         ms = MeteringService(data_dir=tmp_path / "metering")
         assert ms.record_llm_tokens("user1", 1000) is None
 
     def test_get_effective_plan_returns_free(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_BILLING_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.billing.plans import FREE_PLAN
         from deadman.billing.subscription import SubscriptionManager
+
         sm = SubscriptionManager(store_path=tmp_path / "subs.json")
         plan = sm.get_effective_plan("user1")
         assert plan.name == FREE_PLAN.name

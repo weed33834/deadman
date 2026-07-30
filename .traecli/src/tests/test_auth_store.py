@@ -135,6 +135,7 @@ class TestPiplCompliance:
             assert record["email_hmac"] != email
             # email_hmac 不应是 email 的简单 sha256（HMAC 用 server secret）
             import hashlib
+
             simple_sha = hashlib.sha256(email.encode("utf-8")).hexdigest()
             assert record["email_hmac"] != simple_sha, (
                 "email_hmac 是 email 的简单 SHA256，无 server secret 防撞库"

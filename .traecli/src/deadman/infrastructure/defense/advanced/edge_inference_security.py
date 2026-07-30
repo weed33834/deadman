@@ -49,9 +49,9 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from collections.abc import Callable
 from typing import Any
 
 from ...feature_flags import is_enabled
@@ -182,7 +182,8 @@ class ModelSignatureVerifier:
             self._save()
         logger.info(
             "Registered model signature: %s (hash=%s...)",
-            model_name, expected_hash[:20],
+            model_name,
+            expected_hash[:20],
         )
         return sig
 
@@ -242,13 +243,14 @@ class ModelSignatureVerifier:
         if actual_hash != sig.expected_hash:
             result.status = VerificationStatus.MISMATCH
             result.error = (
-                f"Hash mismatch: expected {sig.expected_hash[:20]}..., "
-                f"got {actual_hash[:20]}..."
+                f"Hash mismatch: expected {sig.expected_hash[:20]}..., got {actual_hash[:20]}..."
             )
             logger.error(
                 "Model signature mismatch for %s at %s (expected=%s, actual=%s)",
-                model_name, model_path,
-                sig.expected_hash[:20], actual_hash[:20],
+                model_name,
+                model_path,
+                sig.expected_hash[:20],
+                actual_hash[:20],
             )
         else:
             logger.info("Model %s verified (hash=%s...)", model_name, actual_hash[:20])
@@ -298,9 +300,7 @@ class ModelSignatureVerifier:
         try:
             os.makedirs(os.path.dirname(self.store_path) or ".", exist_ok=True)
             data = {
-                "signatures": {
-                    k: asdict(v) for k, v in self._signatures.items()
-                },
+                "signatures": {k: asdict(v) for k, v in self._signatures.items()},
             }
             tmp = self.store_path + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
@@ -509,12 +509,14 @@ class InferenceAuditor:
         for input_hash, group in input_groups.items():
             outputs = {r.output_hash for r in group if r.output_hash}
             if len(outputs) > 1:
-                anomalies.append({
-                    "type": "output_inconsistency",
-                    "input_hash": input_hash[:20],
-                    "distinct_outputs": len(outputs),
-                    "occurrences": len(group),
-                })
+                anomalies.append(
+                    {
+                        "type": "output_inconsistency",
+                        "input_hash": input_hash[:20],
+                        "distinct_outputs": len(outputs),
+                        "occurrences": len(group),
+                    }
+                )
 
         # 2. 推理时间异常(> 3x 平均)
         if records:
@@ -523,21 +525,25 @@ class InferenceAuditor:
                 avg = sum(durations) / len(durations)
                 for r in records:
                     if r.duration_ms > avg * 3 and avg > 0:
-                        anomalies.append({
-                            "type": "slow_inference",
-                            "model": r.model_name,
-                            "duration_ms": r.duration_ms,
-                            "average_ms": int(avg),
-                        })
+                        anomalies.append(
+                            {
+                                "type": "slow_inference",
+                                "model": r.model_name,
+                                "duration_ms": r.duration_ms,
+                                "average_ms": int(avg),
+                            }
+                        )
 
         # 3. 输入 token 异常
         for r in records:
             if r.input_token_count > 10_000:
-                anomalies.append({
-                    "type": "large_input",
-                    "model": r.model_name,
-                    "input_tokens": r.input_token_count,
-                })
+                anomalies.append(
+                    {
+                        "type": "large_input",
+                        "model": r.model_name,
+                        "input_tokens": r.input_token_count,
+                    }
+                )
 
         return anomalies
 

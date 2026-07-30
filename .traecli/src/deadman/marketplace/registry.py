@@ -15,6 +15,7 @@ feature flag: `DEADMAN_MARKETPLACE_ENABLED=0`(默认关闭)
 
 from __future__ import annotations
 
+import builtins
 import json
 import logging
 import os
@@ -23,7 +24,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import get_current_tenant_id, resolve_data_path
@@ -48,30 +49,30 @@ class MarketplaceError(Exception):
 class ListingStatus(str, Enum):
     """listing 生命周期状态。"""
 
-    PENDING = "pending"        # 待审核(初始)
-    APPROVED = "approved"      # 已通过(可上架)
-    REJECTED = "rejected"      # 已拒绝(审核失败)
-    SUSPENDED = "suspended"    # 已暂停(违规 / 投诉)
+    PENDING = "pending"  # 待审核(初始)
+    APPROVED = "approved"  # 已通过(可上架)
+    REJECTED = "rejected"  # 已拒绝(审核失败)
+    SUSPENDED = "suspended"  # 已暂停(违规 / 投诉)
 
 
 class ListingCategory(str, Enum):
     """listing 业务分类(用于浏览过滤)。"""
 
-    LEGAL = "legal"            # 法律
-    FINANCE = "finance"        # 财务
-    HEALTH = "health"          # 健康
-    EDUCATION = "education"    # 教育
+    LEGAL = "legal"  # 法律
+    FINANCE = "finance"  # 财务
+    HEALTH = "health"  # 健康
+    EDUCATION = "education"  # 教育
     PRODUCTIVITY = "productivity"  # 生产力
-    LIFESTYLE = "lifestyle"    # 生活方式
-    OTHER = "other"            # 其他
+    LIFESTYLE = "lifestyle"  # 生活方式
+    OTHER = "other"  # 其他
 
 
 class ListingSort(str, Enum):
     """浏览排序方式。"""
 
-    NEWEST = "newest"          # 按 created_at 倒序
-    NAME = "name"              # 按名称字母序
-    PRICE_ASC = "price_asc"    # 价格升序
+    NEWEST = "newest"  # 按 created_at 倒序
+    NAME = "name"  # 按名称字母序
+    PRICE_ASC = "price_asc"  # 价格升序
     PRICE_DESC = "price_desc"  # 价格降序
 
 
@@ -195,9 +196,7 @@ class MarketplaceRegistry:
         with self._lock:
             self._load()
             if listing.agent_id in self._cache:
-                raise MarketplaceError(
-                    f"Agent {listing.agent_id} already submitted"
-                )
+                raise MarketplaceError(f"Agent {listing.agent_id} already submitted")
             # 强制初始状态为 pending(忽略调用方传入的 status)
             listing.status = ListingStatus.PENDING.value
             listing.created_at = time.time()
@@ -207,7 +206,9 @@ class MarketplaceRegistry:
             self._save()
             logger.info(
                 "Marketplace listing submitted: agent=%s author=%s tenant=%s",
-                listing.agent_id, listing.author, get_current_tenant_id(),
+                listing.agent_id,
+                listing.author,
+                get_current_tenant_id(),
             )
             return listing.listing_id
 
@@ -303,15 +304,15 @@ class MarketplaceRegistry:
         with self._lock:
             self._load()
             results: list[AgentListing] = [
-                item for item in self._cache.values()
-                if item.status == ListingStatus.APPROVED.value
+                item for item in self._cache.values() if item.status == ListingStatus.APPROVED.value
             ]
             if category is not None:
                 results = [item for item in results if item.category == category]
             if query:
                 q = query.lower()
                 results = [
-                    item for item in results
+                    item
+                    for item in results
                     if q in item.name.lower() or q in item.description.lower()
                 ]
             # 排序
@@ -340,7 +341,7 @@ class MarketplaceRegistry:
         """按 listing_id 查询(listing_id == agent_id)。"""
         return self.get(listing_id)
 
-    def search(self, keyword: str) -> List[AgentListing]:
+    def search(self, keyword: str) -> builtins.list[AgentListing]:
         """全文搜索(仅 approved),匹配 name / description / tags。
 
         匹配规则: 关键词小写后任一字段包含即返回。
@@ -383,9 +384,7 @@ class MarketplaceRegistry:
             if listing is None:
                 raise MarketplaceError(f"Agent {agent_id} not found")
             if listing.status != ListingStatus.APPROVED.value:
-                raise MarketplaceError(
-                    f"Agent {agent_id} not approved (current={listing.status})"
-                )
+                raise MarketplaceError(f"Agent {agent_id} not approved (current={listing.status})")
             listing.version = new_version
             if new_card is not None:
                 listing.agent_card = dict(new_card)
@@ -431,9 +430,7 @@ class MarketplaceRegistry:
                 "version": 1,
                 "updated_at": time.time(),
                 "tenant_id": get_current_tenant_id(),
-                "listings": {
-                    aid: item.to_dict() for aid, item in self._cache.items()
-                },
+                "listings": {aid: item.to_dict() for aid, item in self._cache.items()},
             }
             tmp_path = store.with_suffix(store.suffix + ".tmp")
             with open(tmp_path, "w", encoding="utf-8") as f:

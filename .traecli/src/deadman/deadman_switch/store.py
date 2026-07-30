@@ -164,7 +164,8 @@ class SwitchStore:
         """
         try:
             return sorted(
-                d.name for d in self.data_dir.iterdir()
+                d.name
+                for d in self.data_dir.iterdir()
                 if d.is_dir() and (d / "switch.json").exists()
             )
         except OSError:
@@ -268,9 +269,7 @@ class SwitchStore:
         now_dt = now or datetime.now(timezone.utc).replace(tzinfo=None)
         cfg = record.config
         # 阈值时间：连续 missed_threshold 次 check_in_frequency_days 未 check-in
-        threshold = timedelta(
-            days=cfg.check_in_frequency_days * max(cfg.missed_threshold, 1)
-        )
+        threshold = timedelta(days=cfg.check_in_frequency_days * max(cfg.missed_threshold, 1))
         last_check = record.last_check_in or record.created_at
         elapsed = now_dt - last_check
 
@@ -280,10 +279,7 @@ class SwitchStore:
                 self.transition_to(
                     user_id,
                     SwitchState.SUSPECTED,
-                    reason=(
-                        f"missed_{cfg.missed_threshold}_checkins_"
-                        f"elapsed_days={elapsed.days}"
-                    ),
+                    reason=(f"missed_{cfg.missed_threshold}_checkins_elapsed_days={elapsed.days}"),
                     now=now_dt,
                 )
                 record = self.load(user_id)
@@ -425,8 +421,7 @@ class SwitchStore:
                         "state": SwitchState.ACTIVE.value,
                         "timestamp": now.isoformat(),
                         "reason": (
-                            f"emergency_contact_{contact_user_id}_"
-                            f"reports_alive_from_{old.value}"
+                            f"emergency_contact_{contact_user_id}_reports_alive_from_{old.value}"
                         ),
                     }
                 )
@@ -470,10 +465,7 @@ class SwitchStore:
                     {
                         "state": SwitchState.ACTIVE.value,
                         "timestamp": now.isoformat(),
-                        "reason": (
-                            f"heir_{heir_user_id}_"
-                            f"reports_alive_from_{old.value}"
-                        ),
+                        "reason": (f"heir_{heir_user_id}_reports_alive_from_{old.value}"),
                     }
                 )
             record.contact_confirmations = {}

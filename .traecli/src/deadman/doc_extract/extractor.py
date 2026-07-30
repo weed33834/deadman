@@ -49,9 +49,13 @@ DOC_TYPE_ID_CARD = "id_card"
 DOC_TYPE_OTHER = "other"
 
 _VALID_DOC_TYPES = {
-    DOC_TYPE_WILL, DOC_TYPE_TRUST, DOC_TYPE_INSURANCE,
-    DOC_TYPE_PROPERTY, DOC_TYPE_BANK_STATEMENT,
-    DOC_TYPE_ID_CARD, DOC_TYPE_OTHER,
+    DOC_TYPE_WILL,
+    DOC_TYPE_TRUST,
+    DOC_TYPE_INSURANCE,
+    DOC_TYPE_PROPERTY,
+    DOC_TYPE_BANK_STATEMENT,
+    DOC_TYPE_ID_CARD,
+    DOC_TYPE_OTHER,
 }
 
 
@@ -72,6 +76,7 @@ class ExtractedDocument:
     source_text_masked 是 PII 脱敏后的原文（用于用户校对），
     不含完整身份证号 / 银行账号 / 手机号 / 邮箱明文。
     """
+
     doc_id: str
     owner_user_id: str
     filename: str
@@ -160,7 +165,11 @@ class DocumentExtractor:
         masked_text = self._mask_pii_in_text(raw_text)
 
         # 4. 推断文档类型
-        doc_type = doc_type_hint if doc_type_hint in _VALID_DOC_TYPES else self._guess_doc_type(filename, masked_text)
+        doc_type = (
+            doc_type_hint
+            if doc_type_hint in _VALID_DOC_TYPES
+            else self._guess_doc_type(filename, masked_text)
+        )
 
         # 5. LLM 提取
         llm_result = await self._llm_extract(masked_text, doc_type)
@@ -323,7 +332,11 @@ class DocumentExtractor:
         LLM 不可用 / 调用失败 / 文本过短时返回 confidence=0.3
         """
         # 文本不可读或为空 → 直接低 confidence
-        if not masked_text or masked_text.startswith("[needs_ocr]") or masked_text.startswith("[unsupported_"):
+        if (
+            not masked_text
+            or masked_text.startswith("[needs_ocr]")
+            or masked_text.startswith("[unsupported_")
+        ):
             return {
                 "summary": f"文档未能提取有效文本（{masked_text}），需用户手动填写关键字段。",
                 "key_fields": {},
@@ -348,7 +361,7 @@ class DocumentExtractor:
                     "遵守："
                     "1) 不编造，文本中未提及的字段不要补全；"
                     "2) 对每个字段给 0-1 的 confidence；"
-                    "3) 输出严格 JSON 格式：{\"summary\": str, \"key_fields\": dict, \"confidence\": float}；"
+                    '3) 输出严格 JSON 格式：{"summary": str, "key_fields": dict, "confidence": float}；'
                     "4) 不替代律师/会计师审阅；"
                     "5) 若文本是脱敏占位符（如 ***），相关字段 confidence 降至 0.3 以下。"
                 ),
@@ -392,7 +405,7 @@ class DocumentExtractor:
             f"文档类型提示：{doc_type}\n"
             f"应提取字段：{type_hint}\n\n"
             f"以下是 PII 脱敏后的文档原文：\n```\n{snippet}\n```\n\n"
-            "请输出 JSON：{\"summary\": str, \"key_fields\": dict, \"confidence\": float}。"
+            '请输出 JSON：{"summary": str, "key_fields": dict, "confidence": float}。'
             "summary 用 2-3 句话概括；key_fields 为字段名到值的映射（未提及的字段不要编造）；"
             "confidence 是整体提取可信度（0-1）。"
         )
@@ -505,9 +518,7 @@ class DocumentExtractor:
             results.append(self._entry_to_doc(entry))
         return results
 
-    def get_document(
-        self, doc_id: str, requester_user_id: str
-    ) -> ExtractedDocument | None:
+    def get_document(self, doc_id: str, requester_user_id: str) -> ExtractedDocument | None:
         """获取文档详情
 
         权限：
@@ -554,6 +565,7 @@ class DocumentExtractor:
     @staticmethod
     def _entry_to_doc(entry: dict[str, Any]) -> ExtractedDocument:
         """索引条目转 ExtractedDocument（无 source_text_masked）"""
+
         def _parse_dt(v: Any) -> datetime:
             if not v:
                 return datetime.now(timezone.utc).replace(tzinfo=None)

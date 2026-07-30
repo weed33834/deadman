@@ -275,9 +275,7 @@ class TestDisabledNoChange:
         # 不持久化（文件不创建）
         assert not tmp_registry_path.exists()
 
-    def test_disabled_does_not_load_existing_file(
-        self, monkeypatch, tmp_registry_path, legal_card
-    ):
+    def test_disabled_does_not_load_existing_file(self, monkeypatch, tmp_registry_path, legal_card):
         """feature flag 关闭时不加载已有文件"""
         # 先开启 flag 写入数据
         monkeypatch.setattr(registry_module, "AGENT_REGISTRY_ENABLED", True)

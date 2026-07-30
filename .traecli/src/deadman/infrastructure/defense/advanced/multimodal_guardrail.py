@@ -226,7 +226,9 @@ class MultimodalGuardrail:
                 # OCR / ASR 输入含 PII 不可逆(图像 / 音频无法简单脱敏)
                 if capability in ("ocr", "asr"):
                     decision.action = GuardrailAction.BLOCK
-                    decision.reason = f"PII in {capability} input cannot be redacted (count={pii_count})"
+                    decision.reason = (
+                        f"PII in {capability} input cannot be redacted (count={pii_count})"
+                    )
                     with self._lock:
                         self._stats["blocked"] += 1
                     return decision
@@ -339,9 +341,7 @@ class MultimodalGuardrail:
         if isinstance(input_data, (list, tuple)):
             return sum(MultimodalGuardrail._measure_size(x) for x in input_data)
         if isinstance(input_data, dict):
-            return sum(
-                MultimodalGuardrail._measure_size(v) for v in input_data.values()
-            )
+            return sum(MultimodalGuardrail._measure_size(v) for v in input_data.values())
         # 其他对象 → 用 repr 长度估算
         return len(repr(input_data))
 

@@ -45,25 +45,22 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 
 # Plan-and-Execute 总开关：默认关闭，保留 ReAct 旧行为
-PLAN_EXECUTE_ENABLED: bool = os.environ.get(
-    "DEADMAN_PLAN_EXECUTE_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+PLAN_EXECUTE_ENABLED: bool = os.environ.get("DEADMAN_PLAN_EXECUTE_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # Plan 缓存大小（LRU）
 PLAN_CACHE_MAX_SIZE: int = int(os.environ.get("DEADMAN_PLAN_CACHE_SIZE", "100"))
 
 # 相似度阈值（Jaccard > 此值则复用历史 Plan）
-PLAN_CACHE_JACCARD_THRESHOLD: float = float(
-    os.environ.get("DEADMAN_PLAN_CACHE_JACCARD", "0.85")
-)
+PLAN_CACHE_JACCARD_THRESHOLD: float = float(os.environ.get("DEADMAN_PLAN_CACHE_JACCARD", "0.85"))
 
 # 复杂度判断阈值
-COMPLEX_QUERY_MIN_KEYWORDS: int = int(
-    os.environ.get("DEADMAN_COMPLEX_QUERY_MIN_KEYWORDS", "3")
-)
-COMPLEX_QUERY_MIN_LENGTH: int = int(
-    os.environ.get("DEADMAN_COMPLEX_QUERY_MIN_LENGTH", "100")
-)
+COMPLEX_QUERY_MIN_KEYWORDS: int = int(os.environ.get("DEADMAN_COMPLEX_QUERY_MIN_KEYWORDS", "3"))
+COMPLEX_QUERY_MIN_LENGTH: int = int(os.environ.get("DEADMAN_COMPLEX_QUERY_MIN_LENGTH", "100"))
 
 
 # =====================================================================
@@ -346,9 +343,7 @@ class PlannerAgent:
                     step_id=str(raw.get("step_id", f"s{len(steps) + 1}")),
                     action=str(raw.get("action", "")),
                     tool_hint=str(raw.get("tool_hint", "")),
-                    depends_on=[
-                        str(d) for d in (raw.get("depends_on") or []) if d
-                    ],
+                    depends_on=[str(d) for d in (raw.get("depends_on") or []) if d],
                     expected_output=str(raw.get("expected_output", "")),
                 )
             )
@@ -437,10 +432,7 @@ class PlannerAgent:
                 "error": "llm_unavailable",
             }
         context = json.dumps(
-            [
-                {"step_id": r["step_id"], "output": r.get("output", "")}
-                for r in prior_results
-            ],
+            [{"step_id": r["step_id"], "output": r.get("output", "")} for r in prior_results],
             ensure_ascii=False,
             default=str,
         )

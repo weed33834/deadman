@@ -26,9 +26,7 @@ LETTER_TYPE_SOCIAL_SECURITY_BENEFIT = "social_security_benefit"
 LETTER_TYPE_PROVIDENT_FUND_WITHDRAWAL = "provident_fund_withdrawal"
 LETTER_TYPE_MEDICAL_INSURANCE_CANCELLATION = "medical_insurance_cancellation"
 LETTER_TYPE_BANK_ACCOUNT_INHERITANCE = "bank_account_inheritance"
-LETTER_TYPE_PROPERTY_INHERITANCE_NOTARIZATION = (
-    "property_inheritance_notarization"
-)
+LETTER_TYPE_PROPERTY_INHERITANCE_NOTARIZATION = "property_inheritance_notarization"
 LETTER_TYPE_CREDIT_CARD_CANCELLATION = "credit_card_cancellation"
 LETTER_TYPE_INTERNET_ACCOUNT_CANCELLATION = "internet_account_cancellation"
 
@@ -36,10 +34,7 @@ LETTER_TYPE_INTERNET_ACCOUNT_CANCELLATION = "internet_account_cancellation"
 # ====================================================================
 # 默认 disclaimer（service-boundary-framework.md 第三章）
 # ====================================================================
-DEFAULT_DISCLAIMER = (
-    "信函仅为草稿，具体格式请以办理机构要求为准；"
-    "占位符 [xxx] 需手动填写。"
-)
+DEFAULT_DISCLAIMER = "信函仅为草稿，具体格式请以办理机构要求为准；占位符 [xxx] 需手动填写。"
 
 
 # ====================================================================

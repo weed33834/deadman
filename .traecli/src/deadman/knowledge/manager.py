@@ -198,17 +198,19 @@ class KnowledgeManager:
         # 4. 写入私有图(若指定 user_id)
         if user_id is not None:
             pg = self._get_or_create_private_graph(tid, user_id)
-            pg.add_node(KGNode(
-                id=knowledge_id,
-                type="entity",
-                content=safe_content,
-                properties={
-                    "source": source,
-                    "tenant_id": tid,
-                    "user_id": user_id,
-                    **(metadata or {}),
-                },
-            ))
+            pg.add_node(
+                KGNode(
+                    id=knowledge_id,
+                    type="entity",
+                    content=safe_content,
+                    properties={
+                        "source": source,
+                        "tenant_id": tid,
+                        "user_id": user_id,
+                        **(metadata or {}),
+                    },
+                )
+            )
 
         # 5. 时效记录
         self.freshness.touch(knowledge_id, source=source)
@@ -240,9 +242,7 @@ class KnowledgeManager:
             FusionResult
         """
         if not is_enabled("knowledge_graph"):
-            raise KnowledgeDisabledError(
-                "knowledge_graph feature flag disabled"
-            )
+            raise KnowledgeDisabledError("knowledge_graph feature flag disabled")
 
         tid = tenant_id or get_current_tenant_id() or DEFAULT_TENANT_ID
 

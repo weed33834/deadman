@@ -47,7 +47,7 @@ ADJUSTMENT_STRATEGIES: dict[str, dict[str, Any]] = {
     },
     "format_error": {
         "strategy": "在 prompt 中加入更明确的输出格式要求",
-        "format_spec": "请严格返回 JSON 格式：{\"field\": value}",
+        "format_spec": '请严格返回 JSON 格式：{"field": value}',
         "adjusted_params": {"enforce_format": True, "format_hint": "JSON"},
     },
     "subagent_not_found": {
@@ -199,9 +199,7 @@ class ReflexionEngine:
 
                 except Exception as e:
                     # 异常失败 → 构造 failure_info
-                    logger.warning(
-                        "Reflexion 第 %d 次执行抛出异常: %s", attempt, e, exc_info=True
-                    )
+                    logger.warning("Reflexion 第 %d 次执行抛出异常: %s", attempt, e, exc_info=True)
                     failure_info = {
                         "attempt": attempt,
                         "failure_type": "exception",
@@ -248,9 +246,7 @@ class ReflexionEngine:
             self._finalize_span(span_id, final_result)
             return final_result
 
-    async def _evaluate_result(
-        self, result: Any, operation_type: str
-    ) -> dict[str, Any]:
+    async def _evaluate_result(self, result: Any, operation_type: str) -> dict[str, Any]:
         """判断操作结果是否成功
 
         Args:
@@ -320,17 +316,13 @@ class ReflexionEngine:
             return {
                 "success": False,
                 "failure_type": result.get("failure_type", "transfer_failed"),
-                "failure_message": result.get("reason")
-                or result.get("error")
-                or "转介失败",
+                "failure_message": result.get("reason") or result.get("error") or "转介失败",
             }
 
         # 未知 operation_type，默认成功（无法评估）
         return {"success": True}
 
-    async def _reflect(
-        self, failure_info: dict[str, Any], operation_type: str
-    ) -> dict[str, Any]:
+    async def _reflect(self, failure_info: dict[str, Any], operation_type: str) -> dict[str, Any]:
         """用 LLM 生成反思（什么原因失败、如何调整）
 
         Args:
@@ -369,15 +361,15 @@ class ReflexionEngine:
 {operation_type}
 
 ## 失败记录
-- 第 {failure_info.get('attempt', 1)} 次尝试
+- 第 {failure_info.get("attempt", 1)} 次尝试
 - 失败类型：{failure_type}
-- 失败信息：{failure_info.get('failure_message', '')}
-- 输入摘要：{failure_info.get('input_summary', '')}
-- 输出摘要：{failure_info.get('output_summary') or '无'}
+- 失败信息：{failure_info.get("failure_message", "")}
+- 输入摘要：{failure_info.get("input_summary", "")}
+- 输出摘要：{failure_info.get("output_summary") or "无"}
 
 ## 历史经验
 - 此类失败历史出现次数：{historical_pattern}
-- 历史成功调整策略：{historical_adjustment or '无'}
+- 历史成功调整策略：{historical_adjustment or "无"}
 
 ## 反思任务
 1. 分析失败的根本原因（不要只看表面）
@@ -466,9 +458,7 @@ class ReflexionEngine:
         # 3. 注入历史反思上下文
         return self._inject_reflection_context(adjusted)
 
-    def _inject_reflection_context(
-        self, current_input: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _inject_reflection_context(self, current_input: dict[str, Any]) -> dict[str, Any]:
         """把最近的失败反思加入 prompt，避免重复犯错
 
         取最近 3 次失败与对应反思，拼接到 prompt/task 末尾。
@@ -681,8 +671,6 @@ class ReflexionEngine:
             if not result.get("success"):
                 attrs["failure_reason"] = result.get("fallback_reason", "")
             if self.reflections:
-                attrs["strategy_used"] = self.reflections[-1].get(
-                    "adjustment_strategy", ""
-                )
+                attrs["strategy_used"] = self.reflections[-1].get("adjustment_strategy", "")
         except Exception as e:
             logger.warning("更新 span 最终属性失败: %s", e)

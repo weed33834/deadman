@@ -293,9 +293,7 @@ class DPOTrainer:
         with self._lock:
             # 1. 计算 trust(若 caller 未设置)
             if example.trust_score <= 0:
-                example.trust_score = self._trust.combined_trust(
-                    example.user_id, example.source
-                )
+                example.trust_score = self._trust.combined_trust(example.user_id, example.source)
 
             # 2. PII 脱敏(默认开启)
             if not example.redacted:
@@ -312,7 +310,9 @@ class DPOTrainer:
             if example.trust_score < 0.1:
                 logger.warning(
                     "DPO preference rejected: trust_score=%.3f user=%s source=%s",
-                    example.trust_score, example.user_id, example.source.value,
+                    example.trust_score,
+                    example.user_id,
+                    example.source.value,
                 )
                 self._trust.record_outcome(example.user_id, positive=False)
                 return False
@@ -391,7 +391,9 @@ class DPOTrainer:
             self._trained = True
             logger.info(
                 "DPO train done: steps=%d loss=%.3f acc=%.3f kl=%.3f",
-                steps, report.final_loss, report.final_reward_accuracy,
+                steps,
+                report.final_loss,
+                report.final_reward_accuracy,
                 report.final_kl_divergence,
             )
             return report
@@ -456,7 +458,8 @@ class DPOTrainer:
                     self._trust.record_outcome(user_id, positive=False)
         logger.info(
             "DPO checkpoint loaded: %s (%d preferences)",
-            path, len(self._preferences),
+            path,
+            len(self._preferences),
         )
         return True
 

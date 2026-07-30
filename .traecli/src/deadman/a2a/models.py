@@ -18,9 +18,12 @@ from typing import Any
 # =====================================================================
 # P4.4 Feature flag - 默认关闭，保证 v1.0 行为不变
 # =====================================================================
-A2A_V12_ENABLED: bool = os.environ.get(
-    "DEADMAN_A2A_V12_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+A2A_V12_ENABLED: bool = os.environ.get("DEADMAN_A2A_V12_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 class TaskState(str, Enum):

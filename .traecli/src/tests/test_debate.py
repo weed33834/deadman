@@ -53,7 +53,9 @@ class MockLLMClient:
         }
         self.call_count = 0
 
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.3, **kwargs: Any) -> str:
+    async def chat(
+        self, messages: list[dict[str, str]], temperature: float = 0.3, **kwargs: Any
+    ) -> str:
         self.call_count += 1
         if self.mode == "raise":
             raise RuntimeError("mock LLM error")
@@ -71,7 +73,9 @@ class MockLLMClient:
             return "适用中国法律"
         return "模拟陈述文本"
 
-    async def chat_json(self, messages: list[dict[str, str]], temperature: float = 0.3, **kwargs: Any) -> dict[str, Any]:
+    async def chat_json(
+        self, messages: list[dict[str, str]], temperature: float = 0.3, **kwargs: Any
+    ) -> dict[str, Any]:
         self.call_count += 1
         if self.mode == "raise":
             raise RuntimeError("mock LLM error")

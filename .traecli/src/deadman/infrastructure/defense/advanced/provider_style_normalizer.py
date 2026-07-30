@@ -175,10 +175,7 @@ class ProviderStyleAdapter:
         elif self.provider == Provider.OLLAMA:
             # 本地模型:增加格式约束
             if target_profile.prefer_lists:
-                adjusted = (
-                    f"{adjusted}\n\n"
-                    f"请使用清晰的列表格式输出,避免重复啰嗦。"
-                )
+                adjusted = f"{adjusted}\n\n请使用清晰的列表格式输出,避免重复啰嗦。"
 
         return adjusted
 
@@ -300,10 +297,10 @@ class ProviderStyleAdapter:
         """移除 emoji(简化版)。"""
         # 常见 emoji 范围:U+1F600-U+1F64F, U+1F300-U+1F5FF, U+2600-U+26FF
         emoji_pattern = re.compile(
-            "[\U0001F600-\U0001F64F"
-            "\U0001F300-\U0001F5FF"
-            "\U00002600-\U000026FF"
-            "\U00002700-\U000027BF"
+            "[\U0001f600-\U0001f64f"
+            "\U0001f300-\U0001f5ff"
+            "\U00002600-\U000026ff"
+            "\U00002700-\U000027bf"
             "]+",
             flags=re.UNICODE,
         )
@@ -377,7 +374,9 @@ class StyleNormalizer:
             if drift.drift_score > 0.5:
                 logger.warning(
                     "Style drift detected: %s (score=%.2f, format_changed=%s)",
-                    source_provider.value, drift.drift_score, drift.format_changed,
+                    source_provider.value,
+                    drift.drift_score,
+                    drift.format_changed,
                 )
             with self._lock:
                 self._drift_history.append(drift)

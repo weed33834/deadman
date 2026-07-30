@@ -31,13 +31,19 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # P2 feature flags - 默认全部关闭
 # =====================================================================
-EPISODIC_TTL_ENABLED: bool = os.environ.get(
-    "DEADMAN_EPISODIC_TTL_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+EPISODIC_TTL_ENABLED: bool = os.environ.get("DEADMAN_EPISODIC_TTL_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
-GRAPHITI_DEEP_ENABLED: bool = os.environ.get(
-    "DEADMAN_GRAPHITI_DEEP_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+GRAPHITI_DEEP_ENABLED: bool = os.environ.get("DEADMAN_GRAPHITI_DEEP_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 FORGETTING_CURVE_ENABLED: bool = os.environ.get(
     "DEADMAN_FORGETTING_CURVE_ENABLED", "0"
@@ -53,6 +59,7 @@ except Exception:  # pragma: no cover - 极端情况
     def _get_vector_store(*a, **kw):  # type: ignore[no-redef,misc]
         return None
 
+
 # =====================================================================
 # P2.2 TTL + LRU 常量
 # =====================================================================
@@ -66,12 +73,73 @@ FORGETTING_DECAY_DAYS: int = 30
 
 # 简单中英文停用词，用于关键词过滤
 _STOPWORDS = {
-    "的", "了", "是", "在", "我", "你", "他", "她", "它", "和", "与", "及",
-    "或", "也", "都", "就", "这", "那", "有", "没", "不", "要", "会", "能",
-    "把", "被", "让", "给", "对", "向", "从", "到", "一个", "什么", "怎么",
-    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-    "i", "you", "he", "she", "it", "we", "they", "and", "or", "but", "in",
-    "on", "at", "to", "for", "of", "with", "by", "from", "as", "that", "this",
+    "的",
+    "了",
+    "是",
+    "在",
+    "我",
+    "你",
+    "他",
+    "她",
+    "它",
+    "和",
+    "与",
+    "及",
+    "或",
+    "也",
+    "都",
+    "就",
+    "这",
+    "那",
+    "有",
+    "没",
+    "不",
+    "要",
+    "会",
+    "能",
+    "把",
+    "被",
+    "让",
+    "给",
+    "对",
+    "向",
+    "从",
+    "到",
+    "一个",
+    "什么",
+    "怎么",
+    "a",
+    "an",
+    "the",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "i",
+    "you",
+    "he",
+    "she",
+    "it",
+    "we",
+    "they",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "from",
+    "as",
+    "that",
+    "this",
 }
 
 
@@ -181,9 +249,7 @@ class EpisodicMemory:
             user_message=content if turn.get("role") == "user" else "",
             assistant_response=content if turn.get("role") == "assistant" else "",
             transfer_triggered=turn.get("transfer_triggered", False),
-            subagents_called=turn.get(
-                "subagent_called", turn.get("subagents_called", [])
-            ),
+            subagents_called=turn.get("subagent_called", turn.get("subagents_called", [])),
             rule_check_result=turn.get("rule_check_result"),
             risk_tier=turn.get("risk_tier", "R0"),
             summary=summary,
@@ -206,17 +272,14 @@ class EpisodicMemory:
         # P2.1 向量库同步(VECTOR_STORE_ENABLED 启用时)
         if _VS_FLAG and self.vector_store is not None:
             try:
-                text_for_vec = (
-                    episode.summary or episode.user_message or episode.assistant_response
-                )
+                text_for_vec = episode.summary or episode.user_message or episode.assistant_response
                 self.vector_store.add(
                     id=episode.episode_id,
                     text=text_for_vec,
                     metadata={
                         "session_id": session_id,
                         "agent": episode.agent,
-                        "timestamp": episode.timestamp.isoformat()
-                        if episode.timestamp else "",
+                        "timestamp": episode.timestamp.isoformat() if episode.timestamp else "",
                     },
                 )
             except Exception as exc:
@@ -225,22 +288,22 @@ class EpisodicMemory:
         # 4. 可选：同步到 Graphiti（时态记忆）
         if self.graphiti is not None:
             try:
-                self.graphiti.add_event({
-                    "event_type": "UserProgressEvent",
-                    "episode_id": episode.episode_id,
-                    "session_id": session_id,
-                    "timestamp": episode.timestamp,
-                    "summary": summary,
-                    "agent": episode.agent,
-                })
+                self.graphiti.add_event(
+                    {
+                        "event_type": "UserProgressEvent",
+                        "episode_id": episode.episode_id,
+                        "session_id": session_id,
+                        "timestamp": episode.timestamp,
+                        "summary": summary,
+                        "agent": episode.agent,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
 
         return episode
 
-    def recall_by_time(
-        self, session_id: str, start: datetime, end: datetime
-    ) -> list[Episode]:
+    def recall_by_time(self, session_id: str, start: datetime, end: datetime) -> list[Episode]:
         """按时间范围回忆"""
         result: list[Episode] = []
         for eid in self._by_session.get(session_id, []):
@@ -321,9 +384,7 @@ class EpisodicMemory:
                 if episodes:
                     # P2.6 遗忘曲线加权重排
                     if FORGETTING_CURVE_ENABLED:
-                        episodes.sort(
-                            key=lambda e: self.forgetting_score(e), reverse=True
-                        )
+                        episodes.sort(key=lambda e: self.forgetting_score(e), reverse=True)
                     return episodes
                 # 向量库查询无命中,继续走降级路径
             except Exception as exc:
@@ -335,9 +396,7 @@ class EpisodicMemory:
             if graphiti_results:
                 # P2.6 遗忘曲线加权重排
                 if FORGETTING_CURVE_ENABLED:
-                    graphiti_results.sort(
-                        key=lambda e: self.forgetting_score(e), reverse=True
-                    )
+                    graphiti_results.sort(key=lambda e: self.forgetting_score(e), reverse=True)
                 return graphiti_results
 
         # 降级：关键词匹配模拟
@@ -374,9 +433,7 @@ class EpisodicMemory:
     # ==================================================================
     # P2.3 Graphiti 深度集成 - 真实图搜索
     # ==================================================================
-    async def recall_by_graphiti(
-        self, query: str, top_k: int = 3
-    ) -> list[Episode]:
+    async def recall_by_graphiti(self, query: str, top_k: int = 3) -> list[Episode]:
         """用 Graphiti 真实图搜索(深度集成,非 fallback)。
 
         降级链:
@@ -468,9 +525,7 @@ class EpisodicMemory:
                     timestamp=ts,
                     agent=str(data.get("agent", "graphiti")),
                     user_message="",
-                    assistant_response=str(
-                        data.get("content", data.get("summary", ""))
-                    ),
+                    assistant_response=str(data.get("content", data.get("summary", ""))),
                     summary=str(data.get("summary", data.get("content", ""))),
                 )
             )

@@ -25,9 +25,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # P2.3 feature flag - 默认关闭
 # =====================================================================
-GRAPHITI_DEEP_ENABLED: bool = os.environ.get(
-    "DEADMAN_GRAPHITI_DEEP_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+GRAPHITI_DEEP_ENABLED: bool = os.environ.get("DEADMAN_GRAPHITI_DEEP_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 @dataclass
@@ -120,9 +123,7 @@ class SemanticMemory:
                 for sub_key, sub_new in value.items():
                     sub_old = old_value.get(sub_key)
                     if sub_old is not None and sub_old != sub_new:
-                        self._handle_contradiction(
-                            user_id, f"{key}.{sub_key}", sub_old, sub_new
-                        )
+                        self._handle_contradiction(user_id, f"{key}.{sub_key}", sub_old, sub_new)
                 merged = {**old_value, **value}
                 setattr(profile, key, merged)
                 continue
@@ -144,12 +145,14 @@ class SemanticMemory:
         # 可选：同步到 Graphiti（时态记忆，保留历史版本）
         if self.graphiti is not None:
             try:
-                self.graphiti.add_event({
-                    "event_type": "UserProgressEvent",
-                    "user_id": user_id,
-                    "profile_update": updates,
-                    "timestamp": datetime.now(timezone.utc),
-                })
+                self.graphiti.add_event(
+                    {
+                        "event_type": "UserProgressEvent",
+                        "user_id": user_id,
+                        "profile_update": updates,
+                        "timestamp": datetime.now(timezone.utc),
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
 
@@ -178,10 +181,7 @@ class SemanticMemory:
                 self._working_memory.add_contradiction_alert(contradiction)
             except Exception as e:
                 logger.warning(f"注入矛盾告警失败: {e}")
-        logger.info(
-            f"检测到矛盾 user={user_id} field={field_name}: "
-            f"{old_value!r} -> {new_value!r}"
-        )
+        logger.info(f"检测到矛盾 user={user_id} field={field_name}: {old_value!r} -> {new_value!r}")
 
     def add_fact(self, fact: Fact) -> None:
         """添加事实知识。
@@ -200,19 +200,19 @@ class SemanticMemory:
         # 可选：同步到 Graphiti（PolicyFact / KnowledgeVersion 类型，时态管理）
         if self.graphiti is not None:
             try:
-                event_type = (
-                    "PolicyFact" if fact.fact_type == "policy" else "KnowledgeVersion"
+                event_type = "PolicyFact" if fact.fact_type == "policy" else "KnowledgeVersion"
+                self.graphiti.add_event(
+                    {
+                        "event_type": event_type,
+                        "fact_id": fact.fact_id,
+                        "content": fact.content,
+                        "source": fact.source,
+                        "confidence": fact.confidence,
+                        "valid_time": fact.valid_time,
+                        "supersedes": fact.supersedes,
+                        "transaction_time": datetime.now(timezone.utc),
+                    }
                 )
-                self.graphiti.add_event({
-                    "event_type": event_type,
-                    "fact_id": fact.fact_id,
-                    "content": fact.content,
-                    "source": fact.source,
-                    "confidence": fact.confidence,
-                    "valid_time": fact.valid_time,
-                    "supersedes": fact.supersedes,
-                    "transaction_time": datetime.now(timezone.utc),
-                })
             except Exception as e:
                 logger.warning(f"Graphiti 同步失败: {e}")
 
@@ -242,13 +242,15 @@ class SemanticMemory:
             try:
                 graph_results = self.lightrag.query(query, mode="hybrid")
                 for r in graph_results:
-                    results.append(Fact(
-                        fact_id=str(uuid4()),
-                        fact_type="entity",
-                        content=r.get("content", ""),
-                        source=r.get("source", "lightrag"),
-                        confidence=float(r.get("confidence", 0.7)),
-                    ))
+                    results.append(
+                        Fact(
+                            fact_id=str(uuid4()),
+                            fact_type="entity",
+                            content=r.get("content", ""),
+                            source=r.get("source", "lightrag"),
+                            confidence=float(r.get("confidence", 0.7)),
+                        )
+                    )
             except Exception as e:
                 logger.warning(f"LightRAG 查询失败: {e}")
 
@@ -278,6 +280,7 @@ class SemanticMemory:
         Returns:
             推理结论文本
         """
+
         # 本地兜底:把 facts 拼成可读文本(降级路径通用出口)
         def _local_summary() -> str:
             if not facts:

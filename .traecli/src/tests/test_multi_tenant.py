@@ -26,8 +26,10 @@ def enable_multi_tenant(monkeypatch, tmp_path):
     import importlib
 
     import deadman.infrastructure.multi_tenant as mt
+
     importlib.reload(mt)
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -96,6 +98,7 @@ class TestPathResolution:
         """feature flag 关闭时数据落到 ~/.deadman/(向后兼容)。"""
         monkeypatch.setenv("DEADMAN_MULTI_TENANT_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -113,6 +116,7 @@ class TestTenantRegistry:
 
         # 应创建 tenant 数据目录
         import deadman.infrastructure.multi_tenant as mt
+
         tenant_dir = mt.TENANTS_ROOT / "t_new"
         assert (tenant_dir / "memory").exists()
         assert (tenant_dir / "vault").exists()

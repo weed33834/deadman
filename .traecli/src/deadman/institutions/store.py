@@ -22,13 +22,18 @@ from typing import Any
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "institutions"
 
 # === 种子数据路径（包内自带，首次启动时加载）===
-_SEED_FILE = Path(__file__).resolve().parent.parent.parent.parent / "knowledge" / "institutions" / "seed.json"
+_SEED_FILE = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "knowledge"
+    / "institutions"
+    / "seed.json"
+)
 
 # === 类型枚举 ===
 VALID_TYPES = {
-    "funeral_home",        # 殡仪馆
-    "crematorium",         # 火化场
-    "cemetery",            # 公墓
+    "funeral_home",  # 殡仪馆
+    "crematorium",  # 火化场
+    "cemetery",  # 公墓
     "funeral_service_station",  # 殡仪服务站
 }
 
@@ -45,6 +50,7 @@ class Institution:
         - <0.5: 不可信，输出时必须提示"建议向官方核实"
     - source: 数据来源（如"山东省民政厅 2026.6"），缺失视为不可信
     """
+
     institution_id: str
     name: str
     type: str  # funeral_home / crematorium / cemetery / funeral_service_station
@@ -61,9 +67,7 @@ class Institution:
 
     def __post_init__(self) -> None:
         if self.type not in VALID_TYPES:
-            raise ValueError(
-                f"未知机构类型: {self.type}，可选值: {sorted(VALID_TYPES)}"
-            )
+            raise ValueError(f"未知机构类型: {self.type}，可选值: {sorted(VALID_TYPES)}")
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError(f"confidence 必须在 [0.0, 1.0] 区间，当前: {self.confidence}")
         if not self.source:
@@ -238,11 +242,13 @@ class InstitutionStore:
                 continue
             if keyword is not None:
                 kw = keyword.lower()
-                haystack = " ".join([
-                    inst.name,
-                    inst.address or "",
-                    " ".join(inst.services),
-                ]).lower()
+                haystack = " ".join(
+                    [
+                        inst.name,
+                        inst.address or "",
+                        " ".join(inst.services),
+                    ]
+                ).lower()
                 if kw not in haystack:
                     continue
             results.append(inst)

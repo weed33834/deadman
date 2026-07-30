@@ -40,8 +40,17 @@ class TestSpanType:
 
     def test_all_expected_types(self):
         expected = {
-            "root", "agent", "subagent", "transfer", "rule", "tool",
-            "debate", "memory", "a2a", "reflexion", "llm_judge",
+            "root",
+            "agent",
+            "subagent",
+            "transfer",
+            "rule",
+            "tool",
+            "debate",
+            "memory",
+            "a2a",
+            "reflexion",
+            "llm_judge",
         }
         actual = {s.value for s in SpanType}
         assert actual == expected
@@ -104,7 +113,10 @@ class TestTracerSpan:
         assert t.current_span_id is None
         s1 = t.start_span(SpanType.ROOT, "root")
         assert t.current_span_id == s1
-        s2 = t.start_span(SpanType.AGENT, "agent", )  # 嵌套
+        s2 = t.start_span(
+            SpanType.AGENT,
+            "agent",
+        )  # 嵌套
         assert t.current_span_id == s2
         t.end_span(s2)
         assert t.current_span_id == s1
@@ -327,8 +339,16 @@ class TestMetricCategories:
 
     def test_expected_categories(self):
         expected = {
-            "quality", "efficiency", "knowledge", "safety", "cross_platform",
-            "collaboration", "memory", "interop", "alignment", "resilience",
+            "quality",
+            "efficiency",
+            "knowledge",
+            "safety",
+            "cross_platform",
+            "collaboration",
+            "memory",
+            "interop",
+            "alignment",
+            "resilience",
             "hallucination",
         }
         assert set(METRIC_CATEGORIES.keys()) == expected

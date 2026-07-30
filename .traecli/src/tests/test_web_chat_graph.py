@@ -85,21 +85,21 @@ class TestHandleChatGraph:
 
     async def test_handle_chat_calls_graph(self, web_server: WebServer):
         """_handle_chat 调 graph.ainvoke 而非 llm_client.chat"""
-        mock_graph = _make_mock_graph({
-            "final_response": "graph-response",
-            "current_agent": "death_aftercare",
-            "rule_check": None,
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "graph-response",
+                "current_agent": "death_aftercare",
+                "rule_check": None,
+            }
+        )
         mock_llm = MagicMock()
         mock_llm.api_key = "test-key"
         mock_llm.chat = AsyncMock(return_value="should-not-be-called")
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
-        ), patch(
-            "deadman.llm.llm_client", mock_llm
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
+            patch("deadman.llm.llm_client", mock_llm),
         ):
             result = await web_server._handle_chat(
                 agent="death-aftercare",
@@ -128,10 +128,9 @@ class TestHandleChatGraph:
         mock_graph = MagicMock()
         mock_graph.ainvoke = capture_ainvoke
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
             await web_server._handle_chat(
                 agent="death-aftercare",
@@ -154,21 +153,22 @@ class TestHandleChatGraph:
 
     async def test_handle_chat_returns_risk_tier(self, web_server: WebServer):
         """返回值含 risk_tier"""
-        mock_graph = _make_mock_graph({
-            "final_response": "response",
-            "current_agent": "death_aftercare",
-            "rule_check": RuleCheckResult(
-                passed=False,
-                violations=[{"rule": "test-rule", "priority": 1}],
-                risk_tier=RiskTier.R2,
-                safety_triggered=False,
-            ),
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "response",
+                "current_agent": "death_aftercare",
+                "rule_check": RuleCheckResult(
+                    passed=False,
+                    violations=[{"rule": "test-rule", "priority": 1}],
+                    risk_tier=RiskTier.R2,
+                    safety_triggered=False,
+                ),
+            }
+        )
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
             result = await web_server._handle_chat(
                 agent="death-aftercare",
@@ -186,17 +186,18 @@ class TestHandleChatGraph:
 
     async def test_handle_chat_updates_memory(self, web_server: WebServer):
         """调 MemoryManager.after_turn 更新记忆"""
-        mock_graph = _make_mock_graph({
-            "final_response": "memory-response",
-            "current_agent": "death_aftercare",
-            "rule_check": None,
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "memory-response",
+                "current_agent": "death_aftercare",
+                "rule_check": None,
+            }
+        )
         mock_mm_class = _make_mock_mm_class()
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", mock_mm_class
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", mock_mm_class),
         ):
             result = await web_server._handle_chat(
                 agent="death-aftercare",
@@ -220,10 +221,9 @@ class TestHandleChatGraph:
         mock_llm.api_key = "test-key"
         mock_llm.chat = AsyncMock(return_value="fallback-response")
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.llm.llm_client", mock_llm
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.llm.llm_client", mock_llm),
         ):
             result = await web_server._handle_chat(
                 agent="death-aftercare",
@@ -246,10 +246,9 @@ class TestHandleChatGraph:
         mock_llm.api_key = "test-key"
         mock_llm.chat = AsyncMock(return_value="fallback-response")
 
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.llm.llm_client", mock_llm
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.llm.llm_client", mock_llm),
         ):
             result = await web_server._handle_chat(
                 agent="death-aftercare",
@@ -352,7 +351,9 @@ class TestStreamChatTracePush:
         """构造 mock wfile，记录所有 write 调用便于断言"""
         wfile = MagicMock()
         # write 接受 bytes，flush 不报错
-        wfile.write = MagicMock(side_effect=lambda data: len(data) if isinstance(data, (bytes, bytearray)) else 0)
+        wfile.write = MagicMock(
+            side_effect=lambda data: len(data) if isinstance(data, (bytes, bytearray)) else 0
+        )
         wfile.flush = MagicMock()
         return wfile
 
@@ -366,32 +367,39 @@ class TestStreamChatTracePush:
                 chunks.append(args[0].decode("utf-8", errors="replace"))
         return "".join(chunks)
 
-    async def test_stream_pushes_trace_event_when_graph_returns_spans(
-        self, web_server: WebServer
-    ):
+    async def test_stream_pushes_trace_event_when_graph_returns_spans(self, web_server: WebServer):
         """graph 返回 trace_spans 时，SSE 流应包含 event: trace"""
-        mock_graph = _make_mock_graph({
-            "final_response": "完整响应。",
-            "draft_response": "草稿。",
-            "current_agent": "death_aftercare",
-            "rule_check": None,
-            "trace_spans": [
-                {"span_type": "rule", "name": "node.input_guard",
-                 "attributes": {"passed": True}},
-                {"span_type": "agent", "name": "node.agent.death_aftercare",
-                 "attributes": {"tool_name": "query_knowledge",
-                                "tool_status": "ok",
-                                "tool_result": {"hits": 3}}},
-            ],
-            "subagent_called": ["death-aftercare-emotional"],
-            "metrics": {"tokens": 128, "latency_ms": 420},
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "完整响应。",
+                "draft_response": "草稿。",
+                "current_agent": "death_aftercare",
+                "rule_check": None,
+                "trace_spans": [
+                    {
+                        "span_type": "rule",
+                        "name": "node.input_guard",
+                        "attributes": {"passed": True},
+                    },
+                    {
+                        "span_type": "agent",
+                        "name": "node.agent.death_aftercare",
+                        "attributes": {
+                            "tool_name": "query_knowledge",
+                            "tool_status": "ok",
+                            "tool_result": {"hits": 3},
+                        },
+                    },
+                ],
+                "subagent_called": ["death-aftercare-emotional"],
+                "metrics": {"tokens": 128, "latency_ms": 420},
+            }
+        )
 
         wfile = self._make_wfile()
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
             await web_server._stream_chat(wfile, "test", "death-aftercare", "u1")
 
@@ -406,6 +414,7 @@ class TestStreamChatTracePush:
         # 提取 trace 的 data 并校验字段
         # 形如：event: trace\ndata: {...}\n\n
         import re as _re
+
         m = _re.search(r"event: trace\ndata: (.+)\n\n", written)
         assert m, "trace 事件 data 行未找到"
         payload = json.loads(m.group(1))
@@ -420,22 +429,24 @@ class TestStreamChatTracePush:
 
     async def test_stream_done_has_has_trace_flag(self, web_server: WebServer):
         """done 事件应携带 has_trace 标记，前端据此知道是否有思考面板"""
-        mock_graph = _make_mock_graph({
-            "final_response": "回复。",
-            "current_agent": "death-aftercare",
-            "rule_check": None,
-            "trace_spans": [{"span_type": "rule", "name": "x", "attributes": {}}],
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "回复。",
+                "current_agent": "death-aftercare",
+                "rule_check": None,
+                "trace_spans": [{"span_type": "rule", "name": "x", "attributes": {}}],
+            }
+        )
         wfile = self._make_wfile()
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
             await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
 
         written = self._collect_written(wfile)
         import re as _re
+
         m = _re.search(r"event: done\ndata: (.+)\n\n", written)
         assert m
         done = json.loads(m.group(1))
@@ -444,19 +455,20 @@ class TestStreamChatTracePush:
 
     async def test_stream_no_trace_when_spans_empty(self, web_server: WebServer):
         """graph 跑通但 trace_spans 为空 → 不推送 trace 事件"""
-        mock_graph = _make_mock_graph({
-            "final_response": "回复。",
-            "current_agent": "death-aftercare",
-            "rule_check": None,
-            "trace_spans": [],
-            "subagent_called": [],
-            "metrics": {},
-        })
+        mock_graph = _make_mock_graph(
+            {
+                "final_response": "回复。",
+                "current_agent": "death-aftercare",
+                "rule_check": None,
+                "trace_spans": [],
+                "subagent_called": [],
+                "metrics": {},
+            }
+        )
         wfile = self._make_wfile()
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
             await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
 
@@ -464,6 +476,7 @@ class TestStreamChatTracePush:
         assert "event: trace" not in written, "空 trace 不应推送"
         # done 事件中 has_trace 应为 False
         import re as _re
+
         m = _re.search(r"event: done\ndata: (.+)\n\n", written)
         assert m
         done = json.loads(m.group(1))
@@ -479,12 +492,10 @@ class TestStreamChatTracePush:
         mock_llm.chat = AsyncMock(return_value="降级响应")
 
         wfile = self._make_wfile()
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
-        ), patch(
-            "deadman.llm.llm_client", mock_llm
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
+            patch("deadman.llm.llm_client", mock_llm),
         ):
             await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
 
@@ -493,6 +504,7 @@ class TestStreamChatTracePush:
         assert "event: done" in written
         # 降级路径的 done 仍应有 has_trace=False
         import re as _re
+
         m = _re.search(r"event: done\ndata: (.+)\n\n", written)
         assert m
         done = json.loads(m.group(1))
@@ -509,12 +521,10 @@ class TestStreamChatTracePush:
         mock_llm.chat = AsyncMock(return_value="should-not-call")
 
         wfile = self._make_wfile()
-        with patch(
-            "deadman.orchestration.graph.build_main_graph", return_value=mock_graph
-        ), patch(
-            "deadman.memory.manager.MemoryManager", _make_mock_mm_class()
-        ), patch(
-            "deadman.llm.llm_client", mock_llm
+        with (
+            patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
+            patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
+            patch("deadman.llm.llm_client", mock_llm),
         ):
             await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
 
@@ -522,4 +532,3 @@ class TestStreamChatTracePush:
         assert "event: error" in written
         assert "event: trace" not in written
         assert "event: done" not in written
-

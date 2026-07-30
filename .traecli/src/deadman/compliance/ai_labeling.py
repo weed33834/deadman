@@ -169,7 +169,9 @@ class AILabeling:
         watermark_hash = ""
         if cfg.enable_implicit_watermark:
             seed = cfg.watermark_seed or self._hash_user(user_id)
-            text, watermark_hash = self._apply_implicit_watermark(text, seed, cfg.watermark_strength)
+            text, watermark_hash = self._apply_implicit_watermark(
+                text, seed, cfg.watermark_strength
+            )
             labels_applied.append(LabelType.IMPLICIT_WATERMARK)
             metadata["ai_watermark"] = watermark_hash
 
@@ -188,7 +190,9 @@ class AILabeling:
             if not (has_text and has_meta):
                 logger.warning(
                     "Dual label requirement not met (visible=%s, metadata=%s) for user=%s",
-                    has_text, has_meta, user_id,
+                    has_text,
+                    has_meta,
+                    user_id,
                 )
 
         # 5. 指纹登记(便于事后溯源)

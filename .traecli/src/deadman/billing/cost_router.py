@@ -91,27 +91,134 @@ class RoutingResult:
 # 内置模型池(按 tier 分组,可被 env / config 覆盖)
 _MODEL_POOL: dict[ModelTier, list[ModelChoice]] = {
     ModelTier.TINY: [
-        ModelChoice("openai", "gpt-4o-mini", ModelTier.TINY, 0.55, 0.0015, supports_tools=True, supports_json_mode=True, max_context=128000),
-        ModelChoice("zhipu", "glm-4-flash", ModelTier.TINY, 0.5, 0.001, supports_tools=True, max_context=128000),
+        ModelChoice(
+            "openai",
+            "gpt-4o-mini",
+            ModelTier.TINY,
+            0.55,
+            0.0015,
+            supports_tools=True,
+            supports_json_mode=True,
+            max_context=128000,
+        ),
+        ModelChoice(
+            "zhipu",
+            "glm-4-flash",
+            ModelTier.TINY,
+            0.5,
+            0.001,
+            supports_tools=True,
+            max_context=128000,
+        ),
     ],
     ModelTier.SMALL: [
-        ModelChoice("openai", "gpt-4o-mini", ModelTier.SMALL, 0.6, 0.0015, supports_tools=True, supports_vision=True, supports_json_mode=True, max_context=128000),
-        ModelChoice("zhipu", "glm-4-flash", ModelTier.SMALL, 0.55, 0.001, supports_tools=True, max_context=128000),
-        ModelChoice("deepseek", "deepseek-chat", ModelTier.SMALL, 0.65, 0.001, supports_tools=True, max_context=64000),
+        ModelChoice(
+            "openai",
+            "gpt-4o-mini",
+            ModelTier.SMALL,
+            0.6,
+            0.0015,
+            supports_tools=True,
+            supports_vision=True,
+            supports_json_mode=True,
+            max_context=128000,
+        ),
+        ModelChoice(
+            "zhipu",
+            "glm-4-flash",
+            ModelTier.SMALL,
+            0.55,
+            0.001,
+            supports_tools=True,
+            max_context=128000,
+        ),
+        ModelChoice(
+            "deepseek",
+            "deepseek-chat",
+            ModelTier.SMALL,
+            0.65,
+            0.001,
+            supports_tools=True,
+            max_context=64000,
+        ),
     ],
     ModelTier.MEDIUM: [
-        ModelChoice("openai", "gpt-4o", ModelTier.MEDIUM, 0.85, 0.03, supports_tools=True, supports_vision=True, supports_json_mode=True, max_context=128000),
-        ModelChoice("anthropic", "claude-3-5-sonnet", ModelTier.MEDIUM, 0.88, 0.03, supports_tools=True, supports_vision=True, max_context=200000),
-        ModelChoice("zhipu", "glm-4.6", ModelTier.MEDIUM, 0.82, 0.005, supports_tools=True, supports_json_mode=True, max_context=128000),
+        ModelChoice(
+            "openai",
+            "gpt-4o",
+            ModelTier.MEDIUM,
+            0.85,
+            0.03,
+            supports_tools=True,
+            supports_vision=True,
+            supports_json_mode=True,
+            max_context=128000,
+        ),
+        ModelChoice(
+            "anthropic",
+            "claude-3-5-sonnet",
+            ModelTier.MEDIUM,
+            0.88,
+            0.03,
+            supports_tools=True,
+            supports_vision=True,
+            max_context=200000,
+        ),
+        ModelChoice(
+            "zhipu",
+            "glm-4.6",
+            ModelTier.MEDIUM,
+            0.82,
+            0.005,
+            supports_tools=True,
+            supports_json_mode=True,
+            max_context=128000,
+        ),
     ],
     ModelTier.LARGE: [
-        ModelChoice("openai", "gpt-4o", ModelTier.LARGE, 0.9, 0.03, supports_tools=True, supports_vision=True, supports_json_mode=True, max_context=128000),
-        ModelChoice("anthropic", "claude-3-5-sonnet", ModelTier.LARGE, 0.92, 0.03, supports_tools=True, supports_vision=True, max_context=200000),
-        ModelChoice("zhipu", "glm-4.6", ModelTier.LARGE, 0.85, 0.005, supports_tools=True, max_context=128000),
+        ModelChoice(
+            "openai",
+            "gpt-4o",
+            ModelTier.LARGE,
+            0.9,
+            0.03,
+            supports_tools=True,
+            supports_vision=True,
+            supports_json_mode=True,
+            max_context=128000,
+        ),
+        ModelChoice(
+            "anthropic",
+            "claude-3-5-sonnet",
+            ModelTier.LARGE,
+            0.92,
+            0.03,
+            supports_tools=True,
+            supports_vision=True,
+            max_context=200000,
+        ),
+        ModelChoice(
+            "zhipu",
+            "glm-4.6",
+            ModelTier.LARGE,
+            0.85,
+            0.005,
+            supports_tools=True,
+            max_context=128000,
+        ),
     ],
     ModelTier.REASONING: [
         ModelChoice("openai", "o1", ModelTier.REASONING, 0.98, 0.06, max_context=200000),
-        ModelChoice("anthropic", "claude-3-opus", ModelTier.REASONING, 0.95, 0.05, supports_tools=True, supports_vision=True, max_context=200000),
+        ModelChoice(
+            "anthropic",
+            "claude-3-opus",
+            ModelTier.REASONING,
+            0.95,
+            0.05,
+            supports_tools=True,
+            supports_vision=True,
+            max_context=200000,
+        ),
     ],
 }
 
@@ -187,18 +294,30 @@ class CostRouter:
 
         # 3. 决定 tier 上限 / 下限
         tier_upper = self._tier_upper_for_plan(plan_name)
-        tier_lower = ModelTier(task_complexity) if task_complexity in [t.value for t in ModelTier] else ModelTier.MEDIUM
+        tier_lower = (
+            ModelTier(task_complexity)
+            if task_complexity in [t.value for t in ModelTier]
+            else ModelTier.MEDIUM
+        )
 
         # tier 下限不超过上限
         if self._tier_rank(tier_lower) > self._tier_rank(tier_upper):
             tier_lower = tier_upper
 
         # 4. 候选筛选:tier 在 [lower, upper] + 满足能力需求 + 熔断器未 Open
-        candidates = self._filter_candidates(tier_lower, tier_upper, requires_tools, requires_vision, requires_json)
+        candidates = self._filter_candidates(
+            tier_lower, tier_upper, requires_tools, requires_vision, requires_json
+        )
 
         if not candidates:
             # 无可用候选(所有都熔断)→ 返回 None,业务层降级
-            logger.warning("No available model for user %s (plan=%s, tier=[%s,%s])", user_id, plan_name, tier_lower.value, tier_upper.value)
+            logger.warning(
+                "No available model for user %s (plan=%s, tier=[%s,%s])",
+                user_id,
+                plan_name,
+                tier_lower.value,
+                tier_upper.value,
+            )
             return RoutingResult(chosen=None, reason="no_available_model", alternatives=[])
 
         # 5. 按策略排序
@@ -224,7 +343,9 @@ class CostRouter:
     # 故障转移
     # ==================================================================
 
-    def get_failover(self, original: ModelChoice, tenant_id: str | None = None) -> ModelChoice | None:
+    def get_failover(
+        self, original: ModelChoice, tenant_id: str | None = None
+    ) -> ModelChoice | None:
         """获取故障转移候选(主模型熔断时用)。"""
         candidates = self._model_pool.get(original.tier, [])
         for c in candidates:
@@ -243,7 +364,11 @@ class CostRouter:
         """动态注册模型(扩展用)。"""
         with self._lock:
             # 替换同 provider+model 的现有项
-            existing = [m for m in self._model_pool[tier] if not (m.provider == choice.provider and m.model == choice.model)]
+            existing = [
+                m
+                for m in self._model_pool[tier]
+                if not (m.provider == choice.provider and m.model == choice.model)
+            ]
             existing.append(choice)
             self._model_pool[tier] = existing
 
@@ -316,7 +441,9 @@ class CostRouter:
                 candidates.append(m)
         return candidates
 
-    def _sort_by_strategy(self, candidates: list[ModelChoice], strategy: RoutingStrategy) -> list[ModelChoice]:
+    def _sort_by_strategy(
+        self, candidates: list[ModelChoice], strategy: RoutingStrategy
+    ) -> list[ModelChoice]:
         """按策略排序候选。"""
         if strategy == RoutingStrategy.COST_FIRST:
             return sorted(candidates, key=lambda m: (m.price_per_1k, -m.capability))
@@ -324,8 +451,18 @@ class CostRouter:
             return sorted(candidates, key=lambda m: (-m.capability, m.price_per_1k))
         if strategy == RoutingStrategy.SLA_FIRST:
             # SLA 优先:能力 + 稳定性(用 provider 历史成功率,简化为优先大厂)
-            priority = {"openai": 0, "anthropic": 1, "zhipu": 2, "deepseek": 3, "qwen": 4, "ollama": 5}
-            return sorted(candidates, key=lambda m: (priority.get(m.provider, 99), -m.capability, m.price_per_1k))
+            priority = {
+                "openai": 0,
+                "anthropic": 1,
+                "zhipu": 2,
+                "deepseek": 3,
+                "qwen": 4,
+                "ollama": 5,
+            }
+            return sorted(
+                candidates,
+                key=lambda m: (priority.get(m.provider, 99), -m.capability, m.price_per_1k),
+            )
         return candidates
 
     def _is_breaker_open(self, provider: str) -> bool:

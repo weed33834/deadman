@@ -189,7 +189,10 @@ class RatingSystem:
             self._save()
             logger.info(
                 "Rating submitted: agent=%s user=%s score=%d tenant=%s",
-                agent_id, user_id, score, get_current_tenant_id(),
+                agent_id,
+                user_id,
+                score,
+                get_current_tenant_id(),
             )
             return rating
 
@@ -237,7 +240,7 @@ class RatingSystem:
         with self._lock:
             self._load()
             now = time.time()
-            flag_id = f"flag:{agent_id}:{user_id}:{int(now*1000)}"
+            flag_id = f"flag:{agent_id}:{user_id}:{int(now * 1000)}"
             flag = RatingFlag(
                 flag_id=flag_id,
                 agent_id=agent_id,
@@ -249,7 +252,9 @@ class RatingSystem:
             self._save()
             logger.info(
                 "Agent flagged: agent=%s user=%s reason=%s",
-                agent_id, user_id, reason,
+                agent_id,
+                user_id,
+                reason,
             )
             return True
 

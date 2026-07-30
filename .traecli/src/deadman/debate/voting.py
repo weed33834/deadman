@@ -31,8 +31,7 @@ class VotingStrategy(Protocol):
         self,
         positions: list[DebatePosition],
         votes: dict[str, str],
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 class MajorityVote:
@@ -148,11 +147,7 @@ class ConfidenceWeightedVote:
         scores: dict[str, float] = {}
         for voter, voted_for in votes.items():
             voter_w = WeightedVote.VOTER_WEIGHTS.get(voter, 1.0)
-            pos_conf = (
-                pos_by_agent[voted_for].confidence
-                if voted_for in pos_by_agent
-                else 0.5
-            )
+            pos_conf = pos_by_agent[voted_for].confidence if voted_for in pos_by_agent else 0.5
             scores[voted_for] = scores.get(voted_for, 0.0) + voter_w * pos_conf
         if not scores:
             return {

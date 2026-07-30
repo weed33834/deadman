@@ -34,14 +34,10 @@
 
 from __future__ import annotations
 
-import json
-import time
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # =====================================================================
 # Fixtures：隔离的 TestClient + 认证 token
@@ -691,7 +687,9 @@ class TestLettersFlow:
         _, token = _register_and_login(client, "oscar2@example.com")
         h = _auth_headers(token)
         # 用一个存在的类型 household_cancellation
-        r = client.get("/api/letters/template", params={"type": "household_cancellation"}, headers=h)
+        r = client.get(
+            "/api/letters/template", params={"type": "household_cancellation"}, headers=h
+        )
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["type"] == "household_cancellation"
@@ -972,7 +970,7 @@ class TestCrossUserIsolation:
 
     def test_ending_note_isolation(self, client: TestClient):
         uid_a, token_a = _register_and_login(client, "alice_iso@example.com")
-        uid_b, token_b = _register_and_login(client, "bob_iso@example.com")
+        _uid_b, token_b = _register_and_login(client, "bob_iso@example.com")
         ha = _auth_headers(token_a)
         hb = _auth_headers(token_b)
 
@@ -1003,7 +1001,7 @@ class TestCrossUserIsolation:
         assert r.status_code == 200
 
     def test_vault_isolation(self, client: TestClient):
-        uid_a, token_a = _register_and_login(client, "alice_v@example.com")
+        _uid_a, token_a = _register_and_login(client, "alice_v@example.com")
         _, token_b = _register_and_login(client, "bob_v@example.com")
         ha = _auth_headers(token_a)
         hb = _auth_headers(token_b)

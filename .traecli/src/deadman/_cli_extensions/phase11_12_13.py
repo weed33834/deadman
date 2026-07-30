@@ -41,6 +41,7 @@ def cmd_vault_add(args: argparse.Namespace) -> None:
          --delivery-date ISO, --metadata JSON
     """
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     content = args.content
     if args.content_file:
@@ -54,6 +55,7 @@ def cmd_vault_add(args: argparse.Namespace) -> None:
             print(f"[错误] --metadata 不是合法 JSON: {exc}")
             sys.exit(1)
     from datetime import datetime
+
     delivery_date = None
     if args.delivery_date:
         try:
@@ -81,6 +83,7 @@ def cmd_vault_add(args: argparse.Namespace) -> None:
 def cmd_vault_list(args: argparse.Namespace) -> None:
     """vault-list: 列出我的条目（仅元数据）"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     items = store.list_items(args.user, args.user)
     if not items:
@@ -88,14 +91,17 @@ def cmd_vault_list(args: argparse.Namespace) -> None:
         return
     print(f"共 {len(items)} 条：")
     for it in items:
-        print(f"  [{it.get('item_id', '')[:16]}] {it.get('title', '')} "
-              f"(type={it.get('type', '')}, trigger={it.get('delivery_trigger', '')}, "
-              f"beneficiaries={it.get('beneficiary_user_ids', [])})")
+        print(
+            f"  [{it.get('item_id', '')[:16]}] {it.get('title', '')} "
+            f"(type={it.get('type', '')}, trigger={it.get('delivery_trigger', '')}, "
+            f"beneficiaries={it.get('beneficiary_user_ids', [])})"
+        )
 
 
 def cmd_vault_get(args: argparse.Namespace) -> None:
     """vault-get: 获取条目详情（仅元数据，不解密 content）"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     item = store.get_item(args.item_id, args.user)
     if item is None:
@@ -107,6 +113,7 @@ def cmd_vault_get(args: argparse.Namespace) -> None:
 def cmd_vault_delete(args: argparse.Namespace) -> None:
     """vault-delete: 删除条目"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     ok = store.delete_item(args.item_id, args.user)
     if ok:
@@ -119,6 +126,7 @@ def cmd_vault_delete(args: argparse.Namespace) -> None:
 def cmd_vault_beneficiaries(args: argparse.Namespace) -> None:
     """vault-beneficiaries: 列出我指定的受益人"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     beneficiaries = store.list_beneficiaries(args.user)
     if not beneficiaries:
@@ -132,6 +140,7 @@ def cmd_vault_beneficiaries(args: argparse.Namespace) -> None:
 def cmd_vault_inherited(args: argparse.Namespace) -> None:
     """vault-inherited: 列出我能继承的条目"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     inherited = store.list_inherited(args.user)
     if not inherited:
@@ -139,21 +148,30 @@ def cmd_vault_inherited(args: argparse.Namespace) -> None:
         return
     print(f"共 {len(inherited)} 条可继承：")
     for e in inherited:
-        print(f"  [{e['item_id'][:16]}] from {e['owner_user_id']} - "
-              f"{e['title']} (status={e['status']}, trigger={e['delivery_trigger']})")
+        print(
+            f"  [{e['item_id'][:16]}] from {e['owner_user_id']} - "
+            f"{e['title']} (status={e['status']}, trigger={e['delivery_trigger']})"
+        )
 
 
 def cmd_vault_trigger(args: argparse.Namespace) -> None:
     """vault-trigger: 触发投递"""
     from deadman.vault.store import VaultStore
+
     store = VaultStore()
     result = store.trigger_delivery(args.item_id, args.trigger_type, args.user)
-    print(json.dumps({
-        "delivered": result["delivered"],
-        "pending_days": result["pending_days"],
-        "reason": result["reason"],
-        "content_bytes": len(result["content"]) if result.get("content") else 0,
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "delivered": result["delivered"],
+                "pending_days": result["pending_days"],
+                "reason": result["reason"],
+                "content_bytes": len(result["content"]) if result.get("content") else 0,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     if result.get("content"):
         # 默认不打印解密内容，避免泄露；用 --show-content 显式开启
         if getattr(args, "show_content", False):
@@ -174,10 +192,12 @@ def cmd_doc_extract(args: argparse.Namespace) -> None:
          --user USER_ID
     """
     from deadman.doc_extract.extractor import DocumentExtractor
+
     extractor = DocumentExtractor()
     with open(args.file, "rb") as f:
         content = f.read()
     import os
+
     filename = os.path.basename(args.file)
     doc = asyncio.run(
         extractor.extract(
@@ -202,6 +222,7 @@ def cmd_doc_extract(args: argparse.Namespace) -> None:
 def cmd_doc_list(args: argparse.Namespace) -> None:
     """doc-list: 列出我的文档"""
     from deadman.doc_extract.extractor import DocumentExtractor
+
     extractor = DocumentExtractor()
     docs = extractor.list_my_documents(args.user)
     if not docs:
@@ -209,13 +230,15 @@ def cmd_doc_list(args: argparse.Namespace) -> None:
         return
     print(f"共 {len(docs)} 篇文档：")
     for d in docs:
-        print(f"  [{d.doc_id[:16]}] {d.filename} "
-              f"(type={d.doc_type}, confidence={d.confidence:.2f})")
+        print(
+            f"  [{d.doc_id[:16]}] {d.filename} (type={d.doc_type}, confidence={d.confidence:.2f})"
+        )
 
 
 def cmd_doc_get(args: argparse.Namespace) -> None:
     """doc-get: 文档详情"""
     from deadman.doc_extract.extractor import DocumentExtractor
+
     extractor = DocumentExtractor()
     doc = extractor.get_document(args.doc_id, args.user)
     if doc is None:
@@ -227,6 +250,7 @@ def cmd_doc_get(args: argparse.Namespace) -> None:
 def cmd_doc_delete(args: argparse.Namespace) -> None:
     """doc-delete: 删除文档"""
     from deadman.doc_extract.extractor import DocumentExtractor
+
     extractor = DocumentExtractor()
     ok = extractor.delete_document(args.doc_id, args.user)
     if ok:
@@ -242,6 +266,7 @@ def cmd_doc_delete(args: argparse.Namespace) -> None:
 def cmd_case_create(args: argparse.Namespace) -> None:
     """case-create: 创建案例"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     case = reg.create_case(
         owner_user_id=args.user,
@@ -257,6 +282,7 @@ def cmd_case_create(args: argparse.Namespace) -> None:
 def cmd_case_list(args: argparse.Namespace) -> None:
     """case-list: 列出我的案例"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     cases = reg.list_cases(args.user)
     if not cases:
@@ -264,13 +290,16 @@ def cmd_case_list(args: argparse.Namespace) -> None:
         return
     print(f"共 {len(cases)} 个案例：")
     for c in cases:
-        print(f"  [{c.case_id[:16]}] {c.decedent_alias} ({c.relationship}) "
-              f"status={c.status}, events={len(c.events)}")
+        print(
+            f"  [{c.case_id[:16]}] {c.decedent_alias} ({c.relationship}) "
+            f"status={c.status}, events={len(c.events)}"
+        )
 
 
 def cmd_case_get(args: argparse.Namespace) -> None:
     """case-get: 案例详情"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     case = reg.get_case(args.case_id, args.user)
     if case is None:
@@ -282,6 +311,7 @@ def cmd_case_get(args: argparse.Namespace) -> None:
 def cmd_case_event_add(args: argparse.Namespace) -> None:
     """case-event-add: 添加事件"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     case = reg.add_event(
         case_id=args.case_id,
@@ -299,6 +329,7 @@ def cmd_case_event_add(args: argparse.Namespace) -> None:
 def cmd_case_archive(args: argparse.Namespace) -> None:
     """case-archive: 归档案例"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     ok = reg.archive_case(args.case_id, args.user)
     if ok:
@@ -311,6 +342,7 @@ def cmd_case_archive(args: argparse.Namespace) -> None:
 def cmd_case_timeline(args: argparse.Namespace) -> None:
     """case-timeline: 获取时间线"""
     from deadman.decedent_id.registry import DecedentRegistry
+
     reg = DecedentRegistry()
     timeline = reg.get_timeline(args.case_id, args.user)
     if not timeline:
@@ -318,8 +350,7 @@ def cmd_case_timeline(args: argparse.Namespace) -> None:
         return
     print(f"共 {len(timeline)} 个事件：")
     for e in timeline:
-        print(f"  [{e.get('timestamp', '')[:19]}] "
-              f"{e.get('event', '')} (by {e.get('agent', '')})")
+        print(f"  [{e.get('timestamp', '')[:19]}] {e.get('event', '')} (by {e.get('agent', '')})")
         if e.get("notes"):
             print(f"      notes: {e['notes']}")
 
@@ -340,16 +371,21 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     # ---------- Phase 11: Vault ----------
     va = subparsers.add_parser("vault-add", help="添加保险库条目")
     va.add_argument("--user", required=True, help="owner 用户 ID")
-    va.add_argument("--type", required=True,
-                    help="类型（password/document/photo/video/audio/note/account/crypto）")
+    va.add_argument(
+        "--type",
+        required=True,
+        help="类型（password/document/photo/video/audio/note/account/crypto）",
+    )
     va.add_argument("--title", required=True, help="条目标题")
     va.add_argument("--content", help="内容（文本）。与 --content-file 二选一")
     va.add_argument("--content-file", help="从文件读取内容（二进制安全）")
-    va.add_argument("--beneficiary", action="append", default=[],
-                    help="受益人 user_id（可重复）")
-    va.add_argument("--trigger", default="manual",
-                    choices=["immediate", "on_death", "on_date", "manual"],
-                    help="投递触发方式")
+    va.add_argument("--beneficiary", action="append", default=[], help="受益人 user_id（可重复）")
+    va.add_argument(
+        "--trigger",
+        default="manual",
+        choices=["immediate", "on_death", "on_date", "manual"],
+        help="投递触发方式",
+    )
     va.add_argument("--delivery-date", help="on_date 触发时的目标时间 ISO 格式")
     va.add_argument("--metadata", help="附加元数据 JSON 字符串")
     va.set_defaults(func=cmd_vault_add)
@@ -385,11 +421,10 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     vt = subparsers.add_parser("vault-trigger", help="触发保险库条目投递")
     vt.add_argument("--user", required=True, help="用户 ID")
     vt.add_argument("--item-id", required=True, help="条目 ID")
-    vt.add_argument("--trigger-type", required=True,
-                    choices=["on_death", "on_date", "manual"],
-                    help="触发类型")
-    vt.add_argument("--show-content", action="store_true",
-                    help="显示解密后的内容（默认隐藏）")
+    vt.add_argument(
+        "--trigger-type", required=True, choices=["on_death", "on_date", "manual"], help="触发类型"
+    )
+    vt.add_argument("--show-content", action="store_true", help="显示解密后的内容（默认隐藏）")
     vt.set_defaults(func=cmd_vault_trigger)
     _COMMAND_MAP["vault-trigger"] = cmd_vault_trigger
 
@@ -397,10 +432,12 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     de = subparsers.add_parser("doc-extract", help="上传文档并 AI 提取摘要")
     de.add_argument("--user", required=True, help="用户 ID")
     de.add_argument("--file", required=True, help="文件路径")
-    de.add_argument("--type", default=None,
-                    choices=["will", "trust", "insurance", "property",
-                             "bank_statement", "id_card", "other"],
-                    help="文档类型提示")
+    de.add_argument(
+        "--type",
+        default=None,
+        choices=["will", "trust", "insurance", "property", "bank_statement", "id_card", "other"],
+        help="文档类型提示",
+    )
     de.set_defaults(func=cmd_doc_extract)
     _COMMAND_MAP["doc-extract"] = cmd_doc_extract
 
@@ -425,9 +462,12 @@ def register_subparsers(subparsers: argparse._SubParsersAction) -> None:
     cc = subparsers.add_parser("case-create", help="创建逝者案例（遗码通）")
     cc.add_argument("--user", required=True, help="用户 ID")
     cc.add_argument("--alias", required=True, help="逝者化名（如我父亲，不存真实姓名）")
-    cc.add_argument("--relationship", required=True,
-                    choices=["配偶", "子女", "父母", "兄弟姐妹", "祖父母", "孙辈", "其他"],
-                    help="与逝者的关系")
+    cc.add_argument(
+        "--relationship",
+        required=True,
+        choices=["配偶", "子女", "父母", "兄弟姐妹", "祖父母", "孙辈", "其他"],
+        help="与逝者的关系",
+    )
     cc.set_defaults(func=cmd_case_create)
     _COMMAND_MAP["case-create"] = cmd_case_create
 

@@ -189,9 +189,7 @@ class LiabilityInsurance:
     """
 
     def __init__(self, store_path: Path | None = None) -> None:
-        self.store_path = store_path or resolve_data_path(
-            "governance/liability_insurance.json"
-        )
+        self.store_path = store_path or resolve_data_path("governance/liability_insurance.json")
         self._lock = threading.RLock()
         self._policies: dict[str, InsurancePolicy] = {}
         self._claims: dict[str, InsuranceClaim] = {}
@@ -213,7 +211,9 @@ class LiabilityInsurance:
             self._save()
             logger.info(
                 "Insurance policy registered: %s (provider=%s amount=%s)",
-                policy.policy_id, policy.provider, policy.coverage_amount,
+                policy.policy_id,
+                policy.provider,
+                policy.coverage_amount,
             )
             return policy
 
@@ -243,12 +243,10 @@ class LiabilityInsurance:
                 }
             # 统计该保单下已理赔金额
             total_claimed = sum(
-                c.amount_claimed for c in self._claims.values()
-                if c.policy_id == policy_id
+                c.amount_claimed for c in self._claims.values() if c.policy_id == policy_id
             )
             total_paid = sum(
-                c.payout_amount for c in self._claims.values()
-                if c.policy_id == policy_id
+                c.payout_amount for c in self._claims.values() if c.policy_id == policy_id
             )
             remaining = max(0.0, policy.coverage_amount - total_paid)
             return {
@@ -335,7 +333,9 @@ class LiabilityInsurance:
             self._save()
             logger.info(
                 "Insurance claim filed: %s (policy=%s amount=%s)",
-                claim_id, policy_id, claim.amount_claimed,
+                claim_id,
+                policy_id,
+                claim.amount_claimed,
             )
             return claim
 
@@ -373,7 +373,9 @@ class LiabilityInsurance:
             self._save()
             logger.info(
                 "Insurance claim %s processed: %s payout=%s",
-                claim_id, decision.value, payout,
+                claim_id,
+                decision.value,
+                payout,
             )
             return claim
 

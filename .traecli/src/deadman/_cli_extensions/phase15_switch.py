@@ -120,14 +120,14 @@ def cmd_switch_verify_contact(args: argparse.Namespace) -> None:
     """switch-verify-contact：紧急联系人确认 / 否认失联"""
 
     store = _make_store(args)
-    record, msg = store.verify_emergency_contact(
-        args.user_id, args.contact_id, args.confirm
-    )
+    record, msg = store.verify_emergency_contact(args.user_id, args.contact_id, args.confirm)
     if record is None:
         print(f"[错误] {msg}")
         sys.exit(1)
-    print(f"verify_emergency_contact: user_id={args.user_id}, "
-          f"contact_id={args.contact_id}, confirm={args.confirm}")
+    print(
+        f"verify_emergency_contact: user_id={args.user_id}, "
+        f"contact_id={args.contact_id}, confirm={args.confirm}"
+    )
     print(f"  message: {msg}")
     print(f"  state:   {record.state.value}")
 
@@ -136,14 +136,11 @@ def cmd_switch_verify_heir(args: argparse.Namespace) -> None:
     """switch-verify-heir：继承人确认 / 否认失联"""
 
     store = _make_store(args)
-    record, msg = store.verify_heir(
-        args.user_id, args.heir_id, args.confirm
-    )
+    record, msg = store.verify_heir(args.user_id, args.heir_id, args.confirm)
     if record is None:
         print(f"[错误] {msg}")
         sys.exit(1)
-    print(f"verify_heir: user_id={args.user_id}, "
-          f"heir_id={args.heir_id}, confirm={args.confirm}")
+    print(f"verify_heir: user_id={args.user_id}, heir_id={args.heir_id}, confirm={args.confirm}")
     print(f"  message: {msg}")
     print(f"  state:   {record.state.value}")
 
@@ -229,9 +226,11 @@ def cmd_switch_engage_lawyer(args: argparse.Namespace) -> None:
 def _make_store(args: argparse.Namespace):
     """构造 SwitchStore（支持 --data-dir 用于测试隔离）"""
     from deadman.deadman_switch.store import SwitchStore
+
     data_dir = getattr(args, "data_dir", None)
     if data_dir:
         from pathlib import Path
+
         return SwitchStore(data_dir=Path(data_dir))
     return SwitchStore()
 
@@ -248,30 +247,26 @@ def register_subparsers(subparsers: Any) -> None:
         switch-list-actions / switch-execute / switch-engage-lawyer
     """
     # switch-init
-    init_p = subparsers.add_parser(
-        "switch-init", help="初始化 dead man switch 配置"
-    )
+    init_p = subparsers.add_parser("switch-init", help="初始化 dead man switch 配置")
     init_p.add_argument("--user-id", default="default-user", help="用户 ID")
-    init_p.add_argument("--frequency", type=int, default=30,
-                        help="check-in 频率（天/次，默认 30）")
-    init_p.add_argument("--missed", type=int, default=3,
-                        help="连续失联多少次触发 SUSPECTED（默认 3）")
-    init_p.add_argument("--window", type=int, default=7,
-                        help="多因子验证窗口（天，默认 7）")
-    init_p.add_argument("--cooldown", type=int, default=7,
-                        help="CONFIRMED 后冷静期天数（默认 7，最小 7）")
-    init_p.add_argument("--emergency-contact", action="append", default=[],
-                        help="紧急联系人 user_id（可重复）")
-    init_p.add_argument("--lawyer-id", default=None,
-                        help="律师 user_id（可选）")
-    init_p.add_argument("--heir-id", action="append", default=[],
-                        help="法定继承人 user_id（可重复）")
-    init_p.add_argument("--email", default=None,
-                        help="邮箱（脱敏后存储）")
-    init_p.add_argument("--phone", default=None,
-                        help="手机号（脱敏后存储）")
-    init_p.add_argument("--data-dir", default=None,
-                        help="数据根目录（测试用）")
+    init_p.add_argument("--frequency", type=int, default=30, help="check-in 频率（天/次，默认 30）")
+    init_p.add_argument(
+        "--missed", type=int, default=3, help="连续失联多少次触发 SUSPECTED（默认 3）"
+    )
+    init_p.add_argument("--window", type=int, default=7, help="多因子验证窗口（天，默认 7）")
+    init_p.add_argument(
+        "--cooldown", type=int, default=7, help="CONFIRMED 后冷静期天数（默认 7，最小 7）"
+    )
+    init_p.add_argument(
+        "--emergency-contact", action="append", default=[], help="紧急联系人 user_id（可重复）"
+    )
+    init_p.add_argument("--lawyer-id", default=None, help="律师 user_id（可选）")
+    init_p.add_argument(
+        "--heir-id", action="append", default=[], help="法定继承人 user_id（可重复）"
+    )
+    init_p.add_argument("--email", default=None, help="邮箱（脱敏后存储）")
+    init_p.add_argument("--phone", default=None, help="手机号（脱敏后存储）")
+    init_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     init_p.set_defaults(func=cmd_switch_init)
 
     # switch-checkin
@@ -279,63 +274,56 @@ def register_subparsers(subparsers: Any) -> None:
         "switch-checkin", help="用户主动 check-in（重置状态机到 ACTIVE）"
     )
     checkin_p.add_argument("--user-id", default="default-user", help="用户 ID")
-    checkin_p.add_argument("--method", default="cli",
-                            choices=["web", "cli", "sms", "email", "telegram"],
-                            help="check-in 渠道")
+    checkin_p.add_argument(
+        "--method",
+        default="cli",
+        choices=["web", "cli", "sms", "email", "telegram"],
+        help="check-in 渠道",
+    )
     checkin_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     checkin_p.set_defaults(func=cmd_switch_checkin)
 
     # switch-status
-    status_p = subparsers.add_parser(
-        "switch-status", help="查看 switch 当前状态"
-    )
+    status_p = subparsers.add_parser("switch-status", help="查看 switch 当前状态")
     status_p.add_argument("--user-id", default="default-user", help="用户 ID")
     status_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     status_p.set_defaults(func=cmd_switch_status)
 
     # switch-tick
-    tick_p = subparsers.add_parser(
-        "switch-tick", help="手动触发状态机检查（Cron 调用）"
-    )
+    tick_p = subparsers.add_parser("switch-tick", help="手动触发状态机检查（Cron 调用）")
     tick_p.add_argument("--user-id", default="default-user", help="用户 ID")
     tick_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     tick_p.set_defaults(func=cmd_switch_tick)
 
     # switch-verify-contact
-    vc_p = subparsers.add_parser(
-        "switch-verify-contact", help="紧急联系人确认 / 否认失联"
-    )
+    vc_p = subparsers.add_parser("switch-verify-contact", help="紧急联系人确认 / 否认失联")
     vc_p.add_argument("--user-id", required=True, help="用户 ID")
     vc_p.add_argument("--contact-id", required=True, help="紧急联系人 user_id")
-    vc_p.add_argument("--confirm", required=True, type=_str2bool,
-                        help="True=确认失联 / False=表示当事人安好")
+    vc_p.add_argument(
+        "--confirm", required=True, type=_str2bool, help="True=确认失联 / False=表示当事人安好"
+    )
     vc_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     vc_p.set_defaults(func=cmd_switch_verify_contact)
 
     # switch-verify-heir
-    vh_p = subparsers.add_parser(
-        "switch-verify-heir", help="法定继承人确认 / 否认失联"
-    )
+    vh_p = subparsers.add_parser("switch-verify-heir", help="法定继承人确认 / 否认失联")
     vh_p.add_argument("--user-id", required=True, help="用户 ID")
     vh_p.add_argument("--heir-id", required=True, help="继承人 user_id")
-    vh_p.add_argument("--confirm", required=True, type=_str2bool,
-                        help="True=确认失联 / False=表示当事人安好")
+    vh_p.add_argument(
+        "--confirm", required=True, type=_str2bool, help="True=确认失联 / False=表示当事人安好"
+    )
     vh_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     vh_p.set_defaults(func=cmd_switch_verify_heir)
 
     # switch-cancel
-    cancel_p = subparsers.add_parser(
-        "switch-cancel", help="用户主动取消 switch"
-    )
+    cancel_p = subparsers.add_parser("switch-cancel", help="用户主动取消 switch")
     cancel_p.add_argument("--user-id", default="default-user", help="用户 ID")
     cancel_p.add_argument("--reason", default="user_cancelled", help="取消原因")
     cancel_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     cancel_p.set_defaults(func=cmd_switch_cancel)
 
     # switch-list-actions
-    la_p = subparsers.add_parser(
-        "switch-list-actions", help="列出待执行动作"
-    )
+    la_p = subparsers.add_parser("switch-list-actions", help="列出待执行动作")
     la_p.add_argument("--user-id", default="default-user", help="用户 ID")
     la_p.add_argument("--data-dir", default=None, help="数据根目录（测试用）")
     la_p.set_defaults(func=cmd_switch_list_actions)

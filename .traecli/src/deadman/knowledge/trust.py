@@ -48,13 +48,13 @@ class TrustLevel(str, Enum):
         - UNVERIFIED: 未验证来源 → 0.20
     """
 
-    OFFICIAL_LAW = "official_law"            # 官方法律法规
-    GOVERNMENT_DOC = "government_doc"        # 政府文件(部委规章)
-    COURT_CASE = "court_case"                # 法院判例
-    LAWYER_VERIFIED = "lawyer_verified"      # 律师审核
-    USER_EXPERIENCE = "user_experience"      # 用户实操经验
-    AI_GENERATED = "ai_generated"            # AI 生成
-    UNVERIFIED = "unverified"                 # 未验证
+    OFFICIAL_LAW = "official_law"  # 官方法律法规
+    GOVERNMENT_DOC = "government_doc"  # 政府文件(部委规章)
+    COURT_CASE = "court_case"  # 法院判例
+    LAWYER_VERIFIED = "lawyer_verified"  # 律师审核
+    USER_EXPERIENCE = "user_experience"  # 用户实操经验
+    AI_GENERATED = "ai_generated"  # AI 生成
+    UNVERIFIED = "unverified"  # 未验证
 
 
 # 预设默认信任分数(0.0-1.0)
@@ -243,17 +243,23 @@ class TrustScorer:
             old_score = record.score
             record.score = new_score
             record.last_updated = time.time()
-            record.history.append({
-                "timestamp": record.last_updated,
-                "delta": delta,
-                "old_score": old_score,
-                "new_score": new_score,
-                "reason": reason or "",
-            })
+            record.history.append(
+                {
+                    "timestamp": record.last_updated,
+                    "delta": delta,
+                    "old_score": old_score,
+                    "new_score": new_score,
+                    "reason": reason or "",
+                }
+            )
             self._persist()
             logger.info(
                 "Trust updated: %s %.3f → %.3f (delta=%.3f, reason=%s)",
-                source, old_score, new_score, delta, reason,
+                source,
+                old_score,
+                new_score,
+                delta,
+                reason,
             )
             return new_score
 

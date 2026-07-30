@@ -38,13 +38,14 @@ logger = logging.getLogger(__name__)
 # 关闭以保证隔离；test_handoff.py 显式 monkeypatch 开启。
 # =====================================================================
 HANDOFF_ENABLED: bool = os.environ.get("DEADMAN_HANDOFF_ENABLED", "1").lower() in (
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
 # LLM 不可用时的截断长度（对齐旧 TransferSummary 的 [:500] 行为）
-HANDOFF_FALLBACK_TRUNCATE: int = int(
-    os.environ.get("DEADMAN_HANDOFF_FALLBACK_TRUNCATE", "500")
-)
+HANDOFF_FALLBACK_TRUNCATE: int = int(os.environ.get("DEADMAN_HANDOFF_FALLBACK_TRUNCATE", "500"))
 
 
 # =====================================================================
@@ -93,8 +94,8 @@ class HandoffManager:
 
     def __init__(self, llm_client: Any | None = None):
         """Args:
-            llm_client: 可选的 LLM 客户端（需支持 async chat_json）；
-                        为 None 时延迟到调用点从 deadman.llm 取全局单例
+        llm_client: 可选的 LLM 客户端（需支持 async chat_json）；
+                    为 None 时延迟到调用点从 deadman.llm 取全局单例
         """
         self._llm_client = llm_client
 
@@ -122,9 +123,7 @@ class HandoffManager:
     # 消息历史压缩
     # ------------------------------------------------------------------
 
-    async def _compress_message_history(
-        self, message_history: list[str], llm: Any | None
-    ) -> str:
+    async def _compress_message_history(self, message_history: list[str], llm: Any | None) -> str:
         """用 LLM 把消息历史压缩为 2-3 句摘要
 
         降级路径：
@@ -221,13 +220,13 @@ class HandoffManager:
             for prefix in ("allow:", "whitelist:", "+"):
                 if lowered.startswith(prefix):
                     kind = "allow"
-                    key = rule[len(prefix):].strip()
+                    key = rule[len(prefix) :].strip()
                     break
             if kind != "allow":
                 for prefix in ("deny:", "blacklist:", "-"):
                     if lowered.startswith(prefix):
                         kind = "deny"
-                        key = rule[len(prefix):].strip()
+                        key = rule[len(prefix) :].strip()
                         break
             if kind and key:
                 if kind == "allow":
@@ -294,9 +293,7 @@ class HandoffManager:
         3. filter_rules 解析失败 → 透传全部 context_vars
         """
         if not HANDOFF_ENABLED:
-            logger.debug(
-                "handoff disabled (DEADMAN_HANDOFF_ENABLED=0), skip create_handoff"
-            )
+            logger.debug("handoff disabled (DEADMAN_HANDOFF_ENABLED=0), skip create_handoff")
             return None
 
         message_history = message_history or []
@@ -319,8 +316,11 @@ class HandoffManager:
         )
         logger.info(
             "handoff created: %s -> %s (reason=%s, ctx_keys=%d, compressed_len=%d)",
-            from_agent, to_agent, reason,
-            len(filtered_vars), len(compressed),
+            from_agent,
+            to_agent,
+            reason,
+            len(filtered_vars),
+            len(compressed),
         )
         return ctx
 
@@ -347,8 +347,7 @@ class HandoffManager:
             existing = target_state.get("draft_response", "")
             if handoff.compressed_message and not existing:
                 target_state["draft_response"] = (
-                    f"[来自 {handoff.from_agent} 的交接上下文]\n"
-                    f"{handoff.compressed_message}\n"
+                    f"[来自 {handoff.from_agent} 的交接上下文]\n{handoff.compressed_message}\n"
                 )
             # 合并 context_variables 到 user_profile（不覆盖已有 key）
             profile = dict(target_state.get("user_profile", {}))

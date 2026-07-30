@@ -113,9 +113,7 @@ class CaseRunner:
         # 3. 工具调用序列校验
         expected_tool_calls = case_yaml.get("expected_tool_calls", []) or []
         if expected_tool_calls:
-            tool_call_results = await validate_tool_calls(
-                actual_tool_calls, expected_tool_calls
-            )
+            tool_call_results = await validate_tool_calls(actual_tool_calls, expected_tool_calls)
         else:
             # case 未定义期望工具调用 → 默认通过
             tool_call_results = {

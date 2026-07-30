@@ -91,10 +91,7 @@ class TicketStore:
     def list_user_tickets(self, user_id: str) -> list[Ticket]:
         """列出某用户的所有工单（按创建时间倒序）"""
         index = self._read_index()
-        ticket_ids = [
-            tid for tid, info in index.items()
-            if info.get("user_id") == user_id
-        ]
+        ticket_ids = [tid for tid, info in index.items() if info.get("user_id") == user_id]
         tickets: list[Ticket] = []
         for tid in ticket_ids:
             t = self._read_ticket(tid)
@@ -136,9 +133,7 @@ class TicketStore:
         self._update_index(ticket)
         return reply
 
-    def update_status(
-        self, ticket_id: str, status: str, user_id: str | None = None
-    ) -> bool:
+    def update_status(self, ticket_id: str, status: str, user_id: str | None = None) -> bool:
         """更新工单状态
 
         - 工单不存在返回 False

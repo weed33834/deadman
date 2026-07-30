@@ -95,9 +95,7 @@ class SandboxBackend(Protocol):
         """后端是否可用（如 Docker daemon 是否在跑）"""
         ...
 
-    async def execute(
-        self, code: str, timeout: int | None = None
-    ) -> SandboxResult:
+    async def execute(self, code: str, timeout: int | None = None) -> SandboxResult:
         """执行 Python 代码字符串，返回 SandboxResult
 
         Args:
@@ -164,9 +162,7 @@ class LocalSandbox:
         """本地沙箱始终可用"""
         return True
 
-    async def execute(
-        self, code: str, timeout: int | None = None
-    ) -> SandboxResult:
+    async def execute(self, code: str, timeout: int | None = None) -> SandboxResult:
         """执行 Python 代码字符串
 
         Args:
@@ -407,9 +403,7 @@ class DockerSandbox:
             logger.info("Docker 沙箱不可用，将降级到 LocalSandbox")
         return available
 
-    async def execute(
-        self, code: str, timeout: int | None = None
-    ) -> SandboxResult:
+    async def execute(self, code: str, timeout: int | None = None) -> SandboxResult:
         """在 Docker 容器内执行 Python 代码
 
         Args:
@@ -438,15 +432,24 @@ class DockerSandbox:
         # 用户代码通过 stdin 传入（-i），不作为命令行参数
         # 容器内用 python - 接收 stdin 作为脚本
         docker_cmd: list[str] = [
-            "docker", "run", "--rm", "-i",
-            "--network", "none",  # 禁止网络
-            "--memory", self.memory,  # 内存限制
-            "--cpus", self.cpus,  # CPU 限制
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--network",
+            "none",  # 禁止网络
+            "--memory",
+            self.memory,  # 内存限制
+            "--cpus",
+            self.cpus,  # CPU 限制
             "--read-only",  # 只读根文件系统
-            "--tmpfs", "/tmp:size=64m",  # 临时目录 tmpfs
-            "-w", self.work_dir,
+            "--tmpfs",
+            "/tmp:size=64m",  # 临时目录 tmpfs
+            "-w",
+            self.work_dir,
             self.image,
-            "python", "-",  # 从 stdin 读取脚本
+            "python",
+            "-",  # 从 stdin 读取脚本
         ]
 
         try:
@@ -567,9 +570,7 @@ class SandboxManager:
         self.active_backend = "local"
         return self.local_sandbox
 
-    async def execute(
-        self, code: str, timeout: int | None = None
-    ) -> SandboxResult:
+    async def execute(self, code: str, timeout: int | None = None) -> SandboxResult:
         """执行 Python 代码 - 自动选择后端
 
         Args:

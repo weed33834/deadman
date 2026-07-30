@@ -41,9 +41,9 @@ logger = logging.getLogger(__name__)
 class ReviewSeverity(str, Enum):
     """issue 严重度。"""
 
-    INFO = "info"            # 信息性
-    WARNING = "warning"      # 警告(扣分但不阻塞)
-    CRITICAL = "critical"    # 严重(强制 reject)
+    INFO = "info"  # 信息性
+    WARNING = "warning"  # 警告(扣分但不阻塞)
+    CRITICAL = "critical"  # 严重(强制 reject)
 
 
 class ReviewCheck(str, Enum):
@@ -63,8 +63,8 @@ class ReviewCheck(str, Enum):
 class ReviewIssue:
     """单条审核 issue。"""
 
-    check: str             # ReviewCheck.value
-    severity: str          # ReviewSeverity.value
+    check: str  # ReviewCheck.value
+    severity: str  # ReviewSeverity.value
     message: str
     detail: str = ""
 
@@ -99,10 +99,7 @@ class ReviewResult:
 
     @property
     def has_critical(self) -> bool:
-        return any(
-            i.severity == ReviewSeverity.CRITICAL.value
-            for i in self.issues
-        )
+        return any(i.severity == ReviewSeverity.CRITICAL.value for i in self.issues)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -161,8 +158,16 @@ NETWORK_ACCESS_PATTERNS = [
 
 # shadow tools(不应该被 marketplace agent 重新定义)
 SHADOW_TOOL_NAMES = {
-    "exec", "eval", "system", "shell", "subprocess",
-    "import", "compile", "exit", "quit", "__import__",
+    "exec",
+    "eval",
+    "system",
+    "shell",
+    "subprocess",
+    "import",
+    "compile",
+    "exit",
+    "quit",
+    "__import__",
 }
 
 
@@ -222,13 +227,9 @@ class AgentReviewer:
             # 改进建议(基于 warning issue)
             for issue in issues:
                 if issue.severity == ReviewSeverity.WARNING.value:
-                    recommendations.append(
-                        f"[{issue.check}] {issue.message}"
-                    )
+                    recommendations.append(f"[{issue.check}] {issue.message}")
 
-            has_critical = any(
-                i.severity == ReviewSeverity.CRITICAL.value for i in issues
-            )
+            has_critical = any(i.severity == ReviewSeverity.CRITICAL.value for i in issues)
 
             # 决策
             if has_critical:
@@ -273,34 +274,40 @@ class AgentReviewer:
                 continue
             tool_name = str(skill.get("id", "")) or str(skill.get("name", ""))
             if tool_name.lower() in SHADOW_TOOL_NAMES:
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SECURITY.value,
-                    severity=ReviewSeverity.CRITICAL.value,
-                    message=f"Shadow tool declared: {tool_name}",
-                    detail=f"Skill '{tool_name}' shadows a system built-in",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SECURITY.value,
+                        severity=ReviewSeverity.CRITICAL.value,
+                        message=f"Shadow tool declared: {tool_name}",
+                        detail=f"Skill '{tool_name}' shadows a system built-in",
+                    )
+                )
                 score = 0
 
         # 系统调用
         for pattern in SHADOW_SYSCALL_PATTERNS:
             for m in pattern.finditer(text):
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SECURITY.value,
-                    severity=ReviewSeverity.CRITICAL.value,
-                    message=f"Shadow system call detected: {m.group()}",
-                    detail=f"Pattern {pattern.pattern} matched in agent_card",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SECURITY.value,
+                        severity=ReviewSeverity.CRITICAL.value,
+                        message=f"Shadow system call detected: {m.group()}",
+                        detail=f"Pattern {pattern.pattern} matched in agent_card",
+                    )
+                )
                 score = 0
 
         # 路径穿越
         for pattern in PATH_TRAVERSAL_PATTERNS:
             for m in pattern.finditer(text):
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SECURITY.value,
-                    severity=ReviewSeverity.CRITICAL.value,
-                    message=f"Path traversal pattern: {m.group()}",
-                    detail=f"Pattern {pattern.pattern} matched in agent_card",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SECURITY.value,
+                        severity=ReviewSeverity.CRITICAL.value,
+                        message=f"Path traversal pattern: {m.group()}",
+                        detail=f"Pattern {pattern.pattern} matched in agent_card",
+                    )
+                )
                 score = 0
 
         return issues, score
@@ -323,62 +330,74 @@ class AgentReviewer:
         for field_name in required:
             val = card.get(field_name)
             if not val or not isinstance(val, str):
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SCHEMA.value,
-                    severity=ReviewSeverity.CRITICAL.value,
-                    message=f"Missing required field: {field_name}",
-                    detail=f"agent_card.{field_name} must be non-empty string",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SCHEMA.value,
+                        severity=ReviewSeverity.CRITICAL.value,
+                        message=f"Missing required field: {field_name}",
+                        detail=f"agent_card.{field_name} must be non-empty string",
+                    )
+                )
                 score = 0
 
         # skills 必须是 list 且至少 1 个
         skills = card.get("skills")
         if not isinstance(skills, list) or len(skills) == 0:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.SCHEMA.value,
-                severity=ReviewSeverity.CRITICAL.value,
-                message="skills must be a non-empty list",
-                detail="agent_card.skills required by A2A spec",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.SCHEMA.value,
+                    severity=ReviewSeverity.CRITICAL.value,
+                    message="skills must be a non-empty list",
+                    detail="agent_card.skills required by A2A spec",
+                )
+            )
             score = 0
         else:
             # 每个 skill 必须有 id + name + description
             for i, s in enumerate(skills):
                 if not isinstance(s, dict):
-                    issues.append(ReviewIssue(
-                        check=ReviewCheck.SCHEMA.value,
-                        severity=ReviewSeverity.CRITICAL.value,
-                        message=f"skill[{i}] must be an object",
-                    ))
+                    issues.append(
+                        ReviewIssue(
+                            check=ReviewCheck.SCHEMA.value,
+                            severity=ReviewSeverity.CRITICAL.value,
+                            message=f"skill[{i}] must be an object",
+                        )
+                    )
                     score = 0
                     continue
                 for kf in ("id", "name", "description"):
                     if not s.get(kf):
-                        issues.append(ReviewIssue(
-                            check=ReviewCheck.SCHEMA.value,
-                            severity=ReviewSeverity.WARNING.value,
-                            message=f"skill[{i}].{kf} missing",
-                        ))
+                        issues.append(
+                            ReviewIssue(
+                                check=ReviewCheck.SCHEMA.value,
+                                severity=ReviewSeverity.WARNING.value,
+                                message=f"skill[{i}].{kf} missing",
+                            )
+                        )
                         score = min(score, 10)
 
         # capabilities 必须是 dict
         caps = card.get("capabilities")
         if not isinstance(caps, dict):
-            issues.append(ReviewIssue(
-                check=ReviewCheck.SCHEMA.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="capabilities should be an object",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.SCHEMA.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="capabilities should be an object",
+                )
+            )
             score = min(score, 10)
 
         # tools 可选(若存在必须是 list)
         tools = card.get("tools")
         if tools is not None and not isinstance(tools, list):
-            issues.append(ReviewIssue(
-                check=ReviewCheck.SCHEMA.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="tools must be a list if present",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.SCHEMA.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="tools must be a list if present",
+                )
+            )
             score = min(score, 10)
 
         return issues, score
@@ -400,6 +419,7 @@ class AgentReviewer:
 
         try:
             from ..infrastructure.defense.pii_guard import get_pii_redactor
+
             redactor = get_pii_redactor()
         except Exception as e:
             logger.warning("PIIRedactor unavailable, skip PII check: %s", e)
@@ -410,10 +430,10 @@ class AgentReviewer:
         scan_texts.extend(self._extract_card_strings(listing.agent_card or {}))
         # 也扫描 agent_card 中的 sample_responses / examples
         card = listing.agent_card or {}
-        for sr in (card.get("sample_responses") or []):
+        for sr in card.get("sample_responses") or []:
             if isinstance(sr, str):
                 scan_texts.append(sr)
-        for ex in (card.get("examples") or []):
+        for ex in card.get("examples") or []:
             if isinstance(ex, dict):
                 resp = ex.get("response") or ex.get("output")
                 if isinstance(resp, str):
@@ -432,23 +452,29 @@ class AgentReviewer:
                 for m in result.matches:
                     pii_type = m.pii_type.value
                     if pii_type in (
-                        "china_id_card", "china_bank_card",
-                        "china_passport", "credit_card",
+                        "china_id_card",
+                        "china_bank_card",
+                        "china_passport",
+                        "credit_card",
                     ):
-                        issues.append(ReviewIssue(
-                            check=ReviewCheck.PII.value,
-                            severity=ReviewSeverity.CRITICAL.value,
-                            message=f"High-sensitivity PII leaked: {pii_type}",
-                            detail=f"Original text in listing exposes {pii_type}",
-                        ))
+                        issues.append(
+                            ReviewIssue(
+                                check=ReviewCheck.PII.value,
+                                severity=ReviewSeverity.CRITICAL.value,
+                                message=f"High-sensitivity PII leaked: {pii_type}",
+                                detail=f"Original text in listing exposes {pii_type}",
+                            )
+                        )
                         score = 0
                     else:
-                        issues.append(ReviewIssue(
-                            check=ReviewCheck.PII.value,
-                            severity=ReviewSeverity.WARNING.value,
-                            message=f"PII detected: {pii_type}",
-                            detail=f"Listing contains {pii_type} pattern",
-                        ))
+                        issues.append(
+                            ReviewIssue(
+                                check=ReviewCheck.PII.value,
+                                severity=ReviewSeverity.WARNING.value,
+                                message=f"PII detected: {pii_type}",
+                                detail=f"Listing contains {pii_type} pattern",
+                            )
+                        )
                         score = min(score, 10)
 
         # 即使只有 warning 也再扣一些分
@@ -476,11 +502,13 @@ class AgentReviewer:
         for pattern in FS_ACCESS_PATTERNS:
             for m in pattern.finditer(text):
                 fs_hits += 1
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SAFETY.value,
-                    severity=ReviewSeverity.WARNING.value,
-                    message=f"File system access pattern: {m.group()}",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SAFETY.value,
+                        severity=ReviewSeverity.WARNING.value,
+                        message=f"File system access pattern: {m.group()}",
+                    )
+                )
         if fs_hits:
             score = max(0, score - 5 * min(fs_hits, 3))
 
@@ -489,11 +517,13 @@ class AgentReviewer:
         for pattern in NETWORK_ACCESS_PATTERNS:
             for m in pattern.finditer(text):
                 net_hits += 1
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SAFETY.value,
-                    severity=ReviewSeverity.WARNING.value,
-                    message=f"Network access pattern: {m.group()}",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SAFETY.value,
+                        severity=ReviewSeverity.WARNING.value,
+                        message=f"Network access pattern: {m.group()}",
+                    )
+                )
         if net_hits:
             score = max(0, score - 5 * min(net_hits, 3))
 
@@ -502,11 +532,13 @@ class AgentReviewer:
         for pattern in (re.compile(r"\bexec\s*\("), re.compile(r"\beval\s*\(")):
             for m in pattern.finditer(text):
                 exec_hits += 1
-                issues.append(ReviewIssue(
-                    check=ReviewCheck.SAFETY.value,
-                    severity=ReviewSeverity.CRITICAL.value,
-                    message=f"Dangerous exec/eval pattern: {m.group()}",
-                ))
+                issues.append(
+                    ReviewIssue(
+                        check=ReviewCheck.SAFETY.value,
+                        severity=ReviewSeverity.CRITICAL.value,
+                        message=f"Dangerous exec/eval pattern: {m.group()}",
+                    )
+                )
         if exec_hits:
             score = 0
 
@@ -532,54 +564,64 @@ class AgentReviewer:
         elif desc_len >= 20:
             score += 2
         else:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.QUALITY.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="Description too short (<50 chars)",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.QUALITY.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="Description too short (<50 chars)",
+                )
+            )
 
         # 至少 1 个 skill(+4)
         skills = card.get("skills") or []
         if isinstance(skills, list) and len(skills) >= 1:
             score += 4
         else:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.QUALITY.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="No skills declared",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.QUALITY.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="No skills declared",
+                )
+            )
 
         # 至少 1 个 tag(+4)
         if len(listing.tags) >= 1:
             score += 4
         else:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.QUALITY.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="No tags provided",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.QUALITY.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="No tags provided",
+                )
+            )
 
         # examples(+4)
         examples = card.get("examples") or []
         if isinstance(examples, list) and len(examples) >= 1:
             score += 4
         else:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.QUALITY.value,
-                severity=ReviewSeverity.WARNING.value,
-                message="No examples provided",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.QUALITY.value,
+                    severity=ReviewSeverity.WARNING.value,
+                    message="No examples provided",
+                )
+            )
 
         # tests(+4)
         tests = card.get("tests") or []
         if isinstance(tests, list) and len(tests) >= 1:
             score += 4
         else:
-            issues.append(ReviewIssue(
-                check=ReviewCheck.QUALITY.value,
-                severity=ReviewSeverity.INFO.value,
-                message="No tests provided",
-            ))
+            issues.append(
+                ReviewIssue(
+                    check=ReviewCheck.QUALITY.value,
+                    severity=ReviewSeverity.INFO.value,
+                    message="No tests provided",
+                )
+            )
 
         return issues, min(score, 20)
 
@@ -594,6 +636,7 @@ class AgentReviewer:
         parts: list[str] = []
         try:
             import json as _json
+
             parts.append(_json.dumps(card, ensure_ascii=False, default=str))
         except Exception:
             parts.append(repr(card))

@@ -159,9 +159,7 @@ class TestSlashQuit:
 
         assert rc == 0, "/quit 退出码应为 0（正常退出）"
         # memory_manager.start_session 应被调用过
-        repl.memory_manager.start_session.assert_called_once_with(
-            "test-user", "test-sess"
-        )
+        repl.memory_manager.start_session.assert_called_once_with("test-user", "test-sess")
 
 
 # =====================================================================

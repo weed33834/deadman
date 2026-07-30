@@ -98,8 +98,9 @@ class BudgetAllocation:
 class BudgetExceededError(Exception):
     """budget 超限(应降级而非抛异常,但提供信号)。"""
 
-    def __init__(self, scope: BudgetScope, dimension: BudgetDimension,
-                 used: int, limit: int, consumer: str) -> None:
+    def __init__(
+        self, scope: BudgetScope, dimension: BudgetDimension, used: int, limit: int, consumer: str
+    ) -> None:
         self.scope = scope
         self.dimension = dimension
         self.used = used
@@ -162,28 +163,32 @@ class BudgetCoordinator:
         self._scope_overrides: dict[tuple[str, str], dict[BudgetDimension, int]] = {}
         # 上限配置
         self._limits: dict[BudgetScope, dict[BudgetDimension, int]] = {
-            BudgetScope.GLOBAL: global_limits or {
+            BudgetScope.GLOBAL: global_limits
+            or {
                 BudgetDimension.LLM_TOKENS: 10_000_000,  # 平台每日上限
                 BudgetDimension.TOOL_CALLS: 100_000,
                 BudgetDimension.LLM_CALLS: 50_000,
                 BudgetDimension.MULTI_TURN: 200_000,
                 BudgetDimension.CONCURRENT: 1000,
             },
-            BudgetScope.TENANT: tenant_limits or {
+            BudgetScope.TENANT: tenant_limits
+            or {
                 BudgetDimension.LLM_TOKENS: 1_000_000,
                 BudgetDimension.TOOL_CALLS: 10_000,
                 BudgetDimension.LLM_CALLS: 5_000,
                 BudgetDimension.MULTI_TURN: 20_000,
                 BudgetDimension.CONCURRENT: 100,
             },
-            BudgetScope.USER: user_limits or {
+            BudgetScope.USER: user_limits
+            or {
                 BudgetDimension.LLM_TOKENS: 100_000,
                 BudgetDimension.TOOL_CALLS: 1_000,
                 BudgetDimension.LLM_CALLS: 500,
                 BudgetDimension.MULTI_TURN: 2_000,
                 BudgetDimension.CONCURRENT: 10,
             },
-            BudgetScope.SESSION: session_limits or {
+            BudgetScope.SESSION: session_limits
+            or {
                 BudgetDimension.LLM_TOKENS: 10_000,
                 BudgetDimension.TOOL_CALLS: 100,
                 BudgetDimension.LLM_CALLS: 50,
@@ -234,7 +239,12 @@ class BudgetCoordinator:
                         raise BudgetExceededError(s, dimension, used, limit, consumer)
                     logger.warning(
                         "Budget exceeded(scope=%s/%s, dim=%s, used=%d/%d, consumer=%s) - degrading",
-                        s.value, sid, dimension.value, used, limit, consumer,
+                        s.value,
+                        sid,
+                        dimension.value,
+                        used,
+                        limit,
+                        consumer,
                     )
                     return None  # 返回 None 表示拒绝分配(调用方降级)
 
@@ -288,7 +298,8 @@ class BudgetCoordinator:
                 for s, sid in chain:
                     self._usage[s].setdefault(sid, {}).setdefault(alloc.dimension, 0)
                     self._usage[s][sid][alloc.dimension] = max(
-                        0, self._usage[s][sid][alloc.dimension] - refund,
+                        0,
+                        self._usage[s][sid][alloc.dimension] - refund,
                     )
 
             alloc.released = True
@@ -353,7 +364,8 @@ class BudgetCoordinator:
             self._usage[BudgetScope.SESSION].pop(session_id, None)
             # 清理该 session 的 allocations
             to_remove = [
-                aid for aid, alloc in self._allocations.items()
+                aid
+                for aid, alloc in self._allocations.items()
                 if alloc.scope == BudgetScope.SESSION and alloc.scope_id == session_id
             ]
             for aid in to_remove:
@@ -440,9 +452,7 @@ class BudgetCoordinator:
                     scope = BudgetScope(scope_str)
                     self._usage[scope] = {}
                     for sid, dims in scope_data.items():
-                        self._usage[scope][sid] = {
-                            BudgetDimension(d): v for d, v in dims.items()
-                        }
+                        self._usage[scope][sid] = {BudgetDimension(d): v for d, v in dims.items()}
                 # 加载 allocations
                 self._allocations = {
                     aid: BudgetAllocation(
@@ -464,9 +474,7 @@ class BudgetCoordinator:
                 stored_limits = data.get("limits", {})
                 for scope_str, dim_limits in stored_limits.items():
                     scope = BudgetScope(scope_str)
-                    self._limits[scope] = {
-                        BudgetDimension(d): v for d, v in dim_limits.items()
-                    }
+                    self._limits[scope] = {BudgetDimension(d): v for d, v in dim_limits.items()}
                 # 加载 per-entity 覆盖
                 for key_str, dim_limits in data.get("scope_overrides", {}).items():
                     # key_str 格式: "scope:scope_id"
@@ -491,9 +499,7 @@ class BudgetCoordinator:
                     }
                     for scope, scope_data in self._usage.items()
                 },
-                "allocations": {
-                    aid: a.to_dict() for aid, a in self._allocations.items()
-                },
+                "allocations": {aid: a.to_dict() for aid, a in self._allocations.items()},
                 "limits": {
                     scope.value: {d.value: v for d, v in dims.items()}
                     for scope, dims in self._limits.items()
@@ -504,7 +510,9 @@ class BudgetCoordinator:
                 },
                 "updated_at": time.time(),
             }
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Save budget store failed: %s", e)

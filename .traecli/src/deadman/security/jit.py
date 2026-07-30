@@ -46,9 +46,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-JIT_PERMISSION_ENABLED: bool = os.environ.get(
-    "DEADMAN_JIT_PERMISSION_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+JIT_PERMISSION_ENABLED: bool = os.environ.get("DEADMAN_JIT_PERMISSION_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 持久化文件路径（settings.project_root.parent = /workspace/deadman/）
 DEFAULT_JIT_PATH = Path("data") / "jit_tokens.json"
@@ -125,7 +128,7 @@ class JITPermissionManager:
 
     def __init__(self, persist_path: str | Path | None = None):
         """Args:
-            persist_path: 持久化文件路径；None 用默认 data/jit_tokens.json
+        persist_path: 持久化文件路径；None 用默认 data/jit_tokens.json
         """
         if persist_path is None:
             self._path = settings.project_root.parent / DEFAULT_JIT_PATH
@@ -216,9 +219,7 @@ class JITPermissionManager:
         2. 持久化失败 → 仅内存存储，不抛异常
         """
         if not JIT_PERMISSION_ENABLED:
-            logger.debug(
-                "jit permission disabled (DEADMAN_JIT_PERMISSION_ENABLED=0), skip"
-            )
+            logger.debug("jit permission disabled (DEADMAN_JIT_PERMISSION_ENABLED=0), skip")
             return None
 
         now = time.time()
@@ -235,7 +236,10 @@ class JITPermissionManager:
 
         logger.info(
             "jit token granted: tool=%s scope=%s to=%s ttl=%ss (token=%s...)",
-            tool_name, scope, granted_to or "(anonymous)", ttl_seconds,
+            tool_name,
+            scope,
+            granted_to or "(anonymous)",
+            ttl_seconds,
             token.token[:8],
         )
         return token
@@ -304,9 +308,7 @@ class JITPermissionManager:
         if not JIT_PERMISSION_ENABLED:
             return 0
         now = time.time()
-        expired_tokens = [
-            t for t in self._tokens if self._tokens[t].is_expired(now)
-        ]
+        expired_tokens = [t for t in self._tokens if self._tokens[t].is_expired(now)]
         for t in expired_tokens:
             del self._tokens[t]
         if expired_tokens:

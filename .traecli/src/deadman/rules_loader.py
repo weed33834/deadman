@@ -153,36 +153,42 @@ class RuleChecker:
             matches = re.findall(pattern, output_text)
             if matches:
                 integrity_violations.append(f"疑似编造: {matches}")
-                violations.append({
-                    "rule": "integrity-framework",
-                    "priority": 1,
-                    "violation": f"匹配到编造模式: {pattern}",
-                    "matches": matches,
-                })
+                violations.append(
+                    {
+                        "rule": "integrity-framework",
+                        "priority": 1,
+                        "violation": f"匹配到编造模式: {pattern}",
+                        "matches": matches,
+                    }
+                )
 
         # L2 input-guardrails - Prompt Injection 攻击检测
         # 同时扫描用户输入与 AI 输出（注入可能来自任一侧），不区分大小写
         all_text_lower = all_text.lower()
         for pattern in self.PROMPT_INJECTION_PATTERNS:
             if pattern in all_text_lower:
-                violations.append({
-                    "rule": "L2",
-                    "violation": "prompt_injection_detected",
-                    "severity": "high",
-                    "matched_pattern": pattern,
-                })
+                violations.append(
+                    {
+                        "rule": "L2",
+                        "violation": "prompt_injection_detected",
+                        "severity": "high",
+                        "matched_pattern": pattern,
+                    }
+                )
                 break
 
         # L3 compliance - 合规违规检测（响应中越权代办/代查/法律意见/诊断等）
         # 仅扫描 AI 输出文本
         for pattern in self.COMPLIANCE_VIOLATION_PATTERNS:
             if pattern in output_text:
-                violations.append({
-                    "rule": "L3",
-                    "violation": "compliance_violation",
-                    "severity": "high",
-                    "matched_pattern": pattern,
-                })
+                violations.append(
+                    {
+                        "rule": "L3",
+                        "violation": "compliance_violation",
+                        "severity": "high",
+                        "matched_pattern": pattern,
+                    }
+                )
                 break
 
         # L4 risk-tier - 风险信号检测
@@ -196,11 +202,13 @@ class RuleChecker:
                 for signal in self.R2_SIGNALS:
                     if signal in all_text:
                         risk_tier = RiskTier.R2
-                        violations.append({
-                            "rule": "risk-tier-framework",
-                            "priority": 4,
-                            "violation": f"检测到 R2 信号: {signal}",
-                        })
+                        violations.append(
+                            {
+                                "rule": "risk-tier-framework",
+                                "priority": 4,
+                                "violation": f"检测到 R2 信号: {signal}",
+                            }
+                        )
                         break
 
         return RuleCheckResult(

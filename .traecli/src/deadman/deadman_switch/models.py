@@ -216,7 +216,8 @@ class SwitchRecord:
             state_history=list(d.get("state_history", []) or []),
             pending_actions=list(d.get("pending_actions", []) or []),
             executed_actions=list(d.get("executed_actions", []) or []),
-            created_at=_parse_dt(d.get("created_at")) or datetime.now(timezone.utc).replace(tzinfo=None),
+            created_at=_parse_dt(d.get("created_at"))
+            or datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
     @classmethod

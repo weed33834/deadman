@@ -76,7 +76,10 @@ class TestIsComplexQuery:
 
     def test_long_query_is_complex(self):
         """长度 > 100 视为复杂"""
-        long_query = "亲人去世后需要办理户口注销社保结算公积金提取遗产继承房产过户税务清算等多种手续，请问完整的办理流程和顺序是什么？" * 2
+        long_query = (
+            "亲人去世后需要办理户口注销社保结算公积金提取遗产继承房产过户税务清算等多种手续，请问完整的办理流程和顺序是什么？"
+            * 2
+        )
         assert len(long_query) > COMPLEX_QUERY_MIN_LENGTH
         assert is_complex_query(long_query) is True
 
@@ -164,7 +167,13 @@ class TestPlanCacheHit:
         """精确 query 缓存命中：第二次 plan 不再调 LLM"""
         llm_resp = {
             "steps": [
-                {"step_id": "s1", "action": "动作", "tool_hint": "", "depends_on": [], "expected_output": ""}
+                {
+                    "step_id": "s1",
+                    "action": "动作",
+                    "tool_hint": "",
+                    "depends_on": [],
+                    "expected_output": "",
+                }
             ]
         }
         llm = MockLLMClient(chat_json_resp=llm_resp)
@@ -184,7 +193,13 @@ class TestPlanCacheHit:
         """相似 query（Jaccard > 0.85）缓存命中"""
         llm_resp = {
             "steps": [
-                {"step_id": "s1", "action": "动作", "tool_hint": "", "depends_on": [], "expected_output": ""}
+                {
+                    "step_id": "s1",
+                    "action": "动作",
+                    "tool_hint": "",
+                    "depends_on": [],
+                    "expected_output": "",
+                }
             ]
         }
         llm = MockLLMClient(chat_json_resp=llm_resp)
@@ -304,10 +319,12 @@ class TestPlanExecution:
                 PlanStep(step_id="s2", action="第二步", depends_on=["s1"]),
             ],
         )
+
         # chat 抛异常 → step 失败
         class FailingLLM(MockLLMClient):
             async def chat(self, messages, temperature=0.3, **kwargs):
                 raise RuntimeError("LLM error")
+
         llm = FailingLLM(chat_resp="")
         agent = PlannerAgent(llm=llm, cache=PlanCache())
         result = await agent.execute(plan)

@@ -2,9 +2,9 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
-## v5.1.0（2026-07）编排韧性 + 前端可观测 + 工具 schema 自动化
+## v5.1.0（2026-07）编排韧性 + 前端可观测 + 工具 schema 自动化 + 企业级落地
 
-> 在 v5.0.0 基础上完成 P8/P9/P10 三项工程化任务 + 一个 LangGraph checkpointer 关键 bug 修复 + 前端用户流端到端测试。P10 借鉴 AutoGen `TerminationCondition` 把 P4 硬编码的卡死检测抽成可组合的 `|`（OR 短路）/ `&`（AND 全满足）条件对象；P9 给 Web UI 加 dashboard 概览页，把进程内对话统计（agent 调用次数 / 风险分级 / span 类型 / token 累计 / 终止触发原因）暴露给前端；P8 把 12 个 MCP 工具从手写 `input_schema` 迁移到 `tool_auto` 装饰器，靠 type hints + Google-style docstring 自动生成 JSON Schema。所有改动零新依赖（全用 stdlib + 现有 fastmcp/httpx），向后兼容（`default_termination()` 等价 P4 行为，`_is_stuck()` 保留原签名委托新机制）。
+> 在 v5.0.0 基础上完成 P8/P9/P10 三项工程化任务 + 一个 LangGraph checkpointer 关键 bug 修复 + 前端用户流端到端测试，并追加 P0-3 / P1-1 ~ P1-4 五项企业级落地。P10 借鉴 AutoGen `TerminationCondition` 把 P4 硬编码的卡死检测抽成可组合的 `|`（OR 短路）/ `&`（AND 全满足）条件对象；P9 给 Web UI 加 dashboard 概览页，把进程内对话统计（agent 调用次数 / 风险分级 / span 类型 / token 累计 / 终止触发原因）暴露给前端；P8 把 12 个 MCP 工具从手写 `input_schema` 迁移到 `tool_auto` 装饰器，靠 type hints + Google-style docstring 自动生成 JSON Schema。企业级落地：P0-3 接通 DMS 通知邮件通道；P1-1 handoff 默认开启；P1-2 集成 Sentry 错误监控（可选依赖）；P1-3 密码重置流程；P1-4 CI 三 job 质量门禁。除 Sentry（可选 extra）外零新运行时依赖，向后兼容。
 
 ### P10：可组合终止条件（借鉴 AutoGen TerminationCondition）
 
@@ -94,14 +94,59 @@
   - 启动真实 `ThreadingHTTPServer`（daemon 线程）+ 固定端口 8769，不 mock HTTP 层
   - 无 `LLM_API_KEY` 时后端走降级，但仍推送 SSE event + 累加 dashboard 统计（验证降级路径而非 happy path）
 
+### 企业级落地（P0-3 / P1-1 ~ P1-4）
+
+#### P0-3：Dead Man Switch 通知通道接通
+
+- 修复 [deadman_switch/actions.py](.traecli/src/deadman/deadman_switch/actions.py) `_do_notify_lawyer` / `_do_notify_heirs` 仅记录 `manual_todo` 不实际发邮件的功能契约违背
+- [notification/email_sender.py](.traecli/src/deadman/notification/email_sender.py) 新增 `send_sync()`（stdlib smtplib，无新依赖），与异步 `send()` 共享 `_build_message` 邮件构造逻辑
+- `SwitchActionExecutor` 构造注入 `email_sender` / `user_store`（懒加载默认值）；`_do_notify_lawyer` 解析律师邮箱后真正调用 `send_sync`；`_do_notify_heirs` guardrail 校验 + 邮箱解析 + `send_sync` 三段式
+- 行为矩阵：SMTP 配置+成功 → `notified_via=email`；SMTP 未配置 → 降级 `manual_todo`（不阻塞）；发送失败 → `retryable`；邮箱无法解析 → 降级 `manual_todo`；guardrail 拒绝 → `blocked`
+- 测试：`test_deadman_switch.py` 新增 `TestNotifyEmailChannel` 5 项（发送成功 / 降级 / retryable / user_store 解析）
+
+#### P1-1：Handoff 默认开启
+
+- [orchestration/handoff.py](.traecli/src/deadman/orchestration/handoff.py) `HANDOFF_ENABLED` 默认 `"0"` → `"1"`；[handoff_audit.py](.traecli/src/deadman/orchestration/handoff_audit.py) `HANDOFF_AUDIT_ENABLED` 默认 `"0"` → `"1"`（审计链随 handoff 启用）
+- [feature_flags.py](.traecli/src/deadman/infrastructure/feature_flags.py) `_DEFAULTS["handoff"]` / `["handoff_audit"]` `False` → `True`（统一 FeatureFlagManager 与模块级常量）
+- [conftest.py](.traecli/src/tests/conftest.py) 新增 `_disable_handoff_by_default` autouse fixture 全局关闭 handoff 保证测试隔离；`test_handoff.py` 显式 monkeypatch 开启覆盖本 fixture
+- 降级保证不变：LLM 不可用时压缩消息退化为 `[:500]` 截断；显式 `DEADMAN_HANDOFF_ENABLED=0` 仍可关闭
+
+#### P1-2：Sentry 错误监控集成
+
+- 新增 [observability/sentry_init.py](.traecli/src/deadman/observability/sentry_init.py)：`init_sentry` / `capture_exception` / `capture_message` / `add_request_tag`，全部零依赖降级（SDK 未装 / DSN 空 → no-op）
+- [config.py](.traecli/src/deadman/config.py) 新增 `sentry_dsn` / `sentry_environment` / `sentry_traces_sample_rate` / `sentry_release` 字段（`default_factory` 读 env，便于测试隔离）
+- [web/app.py](.traecli/src/deadman/web/app.py) lifespan 启动时调 `init_sentry`；[web/middleware.py](.traecli/src/deadman/web/middleware.py) 兜底 Exception handler + RequestLoggingMiddleware 自动上报并关联 `request_id`
+- [pyproject.toml](pyproject.toml) 新增 `sentry` optional-extra（`sentry-sdk[fastapi]>=2.0`）；`.env.example` 新增 SENTRY_* 变量
+- PIPL 合规：`send_default_pii=False`，不自动采集个人身份信息
+- 测试：`test_sentry_integration.py` 12 项（降级 / 初始化成功路径 / 配置字段读取）
+
+#### P1-3：密码重置功能
+
+- 新增 [auth/password_reset.py](.traecli/src/deadman/auth/password_reset.py) `PasswordResetTokenStore`：`secrets.token_urlsafe(32)` 256 bit 令牌 + 30 分钟 TTL + 单次使用（consume 即删）+ 原子写入
+- [auth/store.py](.traecli/src/deadman/auth/store.py) 新增 `find_user_by_email`（HMAC 索引，大小写不敏感）/ `update_password`（重新生成 salt，不复用旧 salt）
+- API 端点：`POST /api/auth/password-reset/request`（防枚举：无论邮箱是否存在统一返回成功；SMTP 配置时发邮件，未配置时返回 `dev_reset_token`）/ `POST /api/auth/password-reset/confirm`（消费令牌 + 更新密码）
+- 测试：`test_password_reset.py` 覆盖令牌生成 / 消费 / 过期 / 重放 / 防枚举 / 邮件下发全路径
+
+#### P1-4：CI 质量门禁
+
+- [.github/workflows/tests.yml](.github/workflows/tests.yml) 从单一 test job 升级为三 job 并行：
+  - `test`：pytest 测试套件（原有，保留）
+  - `lint`：`ruff check` 静态分析 + `ruff format --check` 格式检查
+  - `security`：`pip-audit` 依赖漏洞扫描（运行时依赖 + dev/sentry extra），`continue-on-error: true`（漏洞报告不阻断合并，由 branch protection 控制）
+- 全量源码经 `ruff format` 统一格式化（360 文件），`ruff check` 与 `ruff format --check` 均 CI 通过
+
 ### 测试与质量
 
-- 测试总数：873（v5.0.0 后）→ **918 passed + 1 skipped**（+45 net = P10 38 个 + E2E 7 个）
+- 测试总数：873（v5.0.0 后）→ **2742 passed + 1 skipped**（含 P10 / E2E / P0-3 / P1-1 ~ P1-4 全部新增用例）
 - 新增测试文件：
   - `test_p10_termination.py`（38 个）— P10 可组合终止条件
   - `test_e2e_frontend_user_flow.py`（7 个）— 前端用户流端到端（文件名匹配 `test_*.py` 收集模式，被 pytest 默认收集）
+  - `test_sentry_integration.py`（12 个）— P1-2 Sentry 集成降级 / 初始化 / 配置读取
+  - `test_password_reset.py`— P1-3 密码重置令牌生成 / 消费 / 过期 / 重放 / 防枚举
+  - `test_deadman_switch.py` 新增 `TestNotifyEmailChannel`（5 个）— P0-3 通知邮件通道
 - 修改测试文件：
   - `test_orchestration.py` — P10 reason 格式断言适配（2 处文案改动，逻辑零改动）
+  - `conftest.py` — P1-1 `_disable_handoff_by_default` autouse fixture 保证测试隔离
 - 全部测试用 `tmp_path` 隔离数据目录，不污染 `~/.deadman`
 - 全部 LLM 调用走 `mock_llm_client` fixture（conftest.py 注入），不实际调用外部 API
 - E2E 测试用真实 `ThreadingHTTPServer`（daemon 线程）+ httpx SSE 解析，不 mock HTTP 层
@@ -110,7 +155,8 @@
 ### 严格约束遵守
 
 - ✅ 未修改 `agents/*.md` / `rules/*.md` / `skills/*/SKILL.md`（仅引用，不改写）
-- ✅ 未引入新 pip 依赖（P10 用 stdlib `dataclasses` + `abc`；P9 用 stdlib `copy.deepcopy` + 进程内 dict；P8 用现有 fastmcp `tool_auto`；E2E 用现有 `httpx`）
+- ✅ 未引入新运行时依赖（P10 用 stdlib `dataclasses` + `abc`；P9 用 stdlib `copy.deepcopy` + 进程内 dict；P8 用现有 fastmcp `tool_auto`；E2E 用现有 `httpx`；P0-3 用 stdlib `smtplib`；P1-3 用 stdlib `secrets`）
+- ✅ P1-2 Sentry 为可选依赖（`sentry-sdk[fastapi]>=2.0` 走 optional-extra，DSN 空 / SDK 未装时 no-op 降级，不阻塞主流程）
 - ✅ 依赖下限校正（非新增依赖）：`fastmcp>=2.0` → `fastmcp>=3.0`（dependencies + mcp extra）。P8 的 `@mcp.tool_auto` 是 fastmcp 3.0（2026-02-18）引入的特性，2.x 安装会失败，下限必须提到 3.0。实际开发环境用 3.4.4（2026-07-09 发布）
 - ✅ 向后兼容：`default_termination()` 等价 P4 行为；`_is_stuck()` 保留原签名；`SequentialExecutor` 默认 termination 等价 P4
 - ✅ 不编造数据：dashboard 仅展示进程内聚合统计，不持久化不跨会话；token usage 走 state 本轮累计不走 cost_tracker

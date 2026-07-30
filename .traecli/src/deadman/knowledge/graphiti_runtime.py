@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 try:  # pragma: no cover - 可选依赖
     import networkx  # type: ignore
+
     _HAS_NETWORKX = True
 except ImportError:  # pragma: no cover
     networkx = None  # type: ignore
@@ -51,6 +52,7 @@ except ImportError:  # pragma: no cover
 
 try:  # pragma: no cover - 可选依赖
     import graphiti  # type: ignore
+
     _HAS_GRAPHITI = True
 except ImportError:  # pragma: no cover
     graphiti = None  # type: ignore
@@ -60,6 +62,7 @@ except ImportError:  # pragma: no cover
 # =====================================================================
 # 数据模型
 # =====================================================================
+
 
 class EpisodeType(str, Enum):
     """事件类型(Graphiti 风格)。"""
@@ -189,6 +192,7 @@ class KGEdge:
 # GraphitiRuntime - 时序知识图运行时
 # =====================================================================
 
+
 class _InMemoryGraph:
     """纯 Python dict-of-dicts 内存图(networkx 降级后端)。
 
@@ -247,11 +251,7 @@ class _InMemoryGraph:
         return len(self._nodes)
 
     def count_edges(self) -> int:
-        return sum(
-            len(edges)
-            for targets in self._adj.values()
-            for edges in targets.values()
-        )
+        return sum(len(edges) for targets in self._adj.values() for edges in targets.values())
 
     def to_dict(self) -> dict[str, Any]:
         return {

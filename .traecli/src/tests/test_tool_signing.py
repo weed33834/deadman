@@ -135,9 +135,7 @@ class TestSignAndVerify:
     def test_sign_returns_empty_without_cryptography(self, signing_enabled, monkeypatch):
         """cryptography 不可用时 sign_manifest 应返回空字符串（降级）"""
         monkeypatch.setattr(signing_module, "_CRYPTOGRAPHY_AVAILABLE", False)
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="0" * 64, signature=""
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="0" * 64, signature="")
         sig = sign_manifest(manifest, private_key_pem="dummy")
         assert sig == ""
 
@@ -145,14 +143,10 @@ class TestSignAndVerify:
         """公钥未配置时降级到 schema_hash 校验"""
         monkeypatch.setattr(signing_module, "TOOL_SIGNING_PUBLIC_KEY_PEM", "")
         # schema_hash 合法（64 hex）→ 通过
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="a" * 64, signature=""
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="a" * 64, signature="")
         assert verify_manifest(manifest) is True
         # schema_hash 长度不对 → 拒绝
-        bad = ToolManifest(
-            name="x", version="1", schema_hash="short", signature=""
-        )
+        bad = ToolManifest(name="x", version="1", schema_hash="short", signature="")
         assert verify_manifest(bad) is False
 
 
@@ -205,16 +199,12 @@ class TestTamperDetection:
         )
         assert verify_manifest(tampered) is False
 
-    def test_missing_signature_rejected_when_pubkey_set(
-        self, signing_enabled, patched_public_key
-    ):
+    def test_missing_signature_rejected_when_pubkey_set(self, signing_enabled, patched_public_key):
         """公钥已配置但 signature 为空应拒绝"""
         _, _pub_pem = patched_public_key, None
         if not signing_module.TOOL_SIGNING_PUBLIC_KEY_PEM:
             pytest.skip("cryptography 不可用")
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="a" * 64, signature=""
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="a" * 64, signature="")
         assert verify_manifest(manifest) is False
 
     def test_invalid_signature_hex_rejected(self, signing_enabled, patched_public_key):
@@ -236,16 +226,12 @@ class TestTamperDetection:
 
 
 class TestSigningFallback:
-    def test_signing_unavailable_falls_back_to_hash(
-        self, signing_enabled, monkeypatch
-    ):
+    def test_signing_unavailable_falls_back_to_hash(self, signing_enabled, monkeypatch):
         """cryptography 不可用时降级到 schema_hash 校验"""
         monkeypatch.setattr(signing_module, "_CRYPTOGRAPHY_AVAILABLE", False)
         monkeypatch.setattr(signing_module, "TOOL_SIGNING_PUBLIC_KEY_PEM", "")
         # schema_hash 合法 → 通过
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="a" * 64, signature=""
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="a" * 64, signature="")
         assert verify_manifest(manifest) is True
 
     def test_register_manifest_fallback(self, signing_enabled, monkeypatch):
@@ -310,9 +296,7 @@ class TestVerifyToolIntegrity:
 class TestSigningDisabled:
     def test_signing_disabled_passthrough(self, signing_disabled):
         """feature flag 关闭时 verify_manifest 一律 True"""
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="whatever", signature=""
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="whatever", signature="")
         assert verify_manifest(manifest) is True
 
     def test_signing_disabled_integrity_passthrough(self, signing_disabled):
@@ -321,7 +305,5 @@ class TestSigningDisabled:
 
     def test_signing_disabled_tampered_still_passes(self, signing_disabled):
         """feature flag 关闭时即使 manifest 被篡改也放行（保证旧行为不变）"""
-        manifest = ToolManifest(
-            name="x", version="1", schema_hash="tampered", signature="bad"
-        )
+        manifest = ToolManifest(name="x", version="1", schema_hash="tampered", signature="bad")
         assert verify_manifest(manifest) is True

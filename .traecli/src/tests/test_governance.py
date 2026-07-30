@@ -25,6 +25,7 @@ import pytest
 # 全局 fixture - 启用 governance + 重置所有单例
 # =====================================================================
 
+
 @pytest.fixture(autouse=True)
 def enable_governance(monkeypatch, tmp_path):
     """每个测试启用 governance + 重置全局单例 + 隔离数据目录。"""
@@ -37,6 +38,7 @@ def enable_governance(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
 
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
 
@@ -50,6 +52,7 @@ def enable_governance(monkeypatch, tmp_path):
     import deadman.governance.model_card as mc_mod
     import deadman.governance.risk_card as rc_mod
     import deadman.governance.transparency as tr_mod
+
     mc_mod._mcr_instance = None
     dc_mod._dcr_instance = None
     rc_mod._ra_instance = None
@@ -81,9 +84,11 @@ def enable_governance(monkeypatch, tmp_path):
 # 1. ModelCard
 # =====================================================================
 
+
 class TestModelCard:
     def test_register_and_get(self, tmp_path):
         from deadman.governance.model_card import ModelCard, ModelCardRegistry
+
         reg = ModelCardRegistry(store_path=tmp_path / "mc.json")
         card = ModelCard(
             model_id="memorial-v1",
@@ -105,6 +110,7 @@ class TestModelCard:
 
     def test_list_all(self, tmp_path):
         from deadman.governance.model_card import ModelCard, ModelCardRegistry
+
         reg = ModelCardRegistry(store_path=tmp_path / "mc.json")
         reg.register(ModelCard(model_id="m1", name="M1"))
         reg.register(ModelCard(model_id="m2", name="M2"))
@@ -115,6 +121,7 @@ class TestModelCard:
 
     def test_update_fields(self, tmp_path):
         from deadman.governance.model_card import ModelCard, ModelCardRegistry
+
         reg = ModelCardRegistry(store_path=tmp_path / "mc.json")
         reg.register(ModelCard(model_id="m1", name="M1", version="1.0.0"))
         updated = reg.update("m1", version="2.0.0", owner="new-team")
@@ -126,6 +133,7 @@ class TestModelCard:
 
     def test_archive(self, tmp_path):
         from deadman.governance.model_card import ModelCard, ModelCardRegistry
+
         reg = ModelCardRegistry(store_path=tmp_path / "mc.json")
         reg.register(ModelCard(model_id="m1", name="M1"))
         archived = reg.archive("m1")
@@ -138,6 +146,7 @@ class TestModelCard:
 
     def test_persistence(self, tmp_path):
         from deadman.governance.model_card import ModelCard, ModelCardRegistry
+
         store = tmp_path / "mc.json"
         reg1 = ModelCardRegistry(store_path=store)
         reg1.register(ModelCard(model_id="m1", name="M1", version="1.0.0"))
@@ -153,9 +162,11 @@ class TestModelCard:
 # 2. DataCard
 # =====================================================================
 
+
 class TestDataCard:
     def test_register_and_get(self, tmp_path):
         from deadman.governance.data_card import DataCard, DataCardRegistry, SensitivityLevel
+
         reg = DataCardRegistry(store_path=tmp_path / "dc.json")
         card = DataCard(
             dataset_id="user-profiles",
@@ -174,6 +185,7 @@ class TestDataCard:
 
     def test_list_all(self, tmp_path):
         from deadman.governance.data_card import DataCard, DataCardRegistry
+
         reg = DataCardRegistry(store_path=tmp_path / "dc.json")
         reg.register(DataCard(dataset_id="d1", name="D1"))
         reg.register(DataCard(dataset_id="d2", name="D2"))
@@ -185,17 +197,22 @@ class TestDataCard:
             DataCardRegistry,
             SensitivityLevel,
         )
+
         reg = DataCardRegistry(store_path=tmp_path / "dc.json")
-        reg.register(DataCard(
-            dataset_id="public-docs",
-            name="Public Docs",
-            sensitivity_level=SensitivityLevel.PUBLIC,
-        ))
-        reg.register(DataCard(
-            dataset_id="medical-records",
-            name="Medical Records",
-            sensitivity_level=SensitivityLevel.RESTRICTED,
-        ))
+        reg.register(
+            DataCard(
+                dataset_id="public-docs",
+                name="Public Docs",
+                sensitivity_level=SensitivityLevel.PUBLIC,
+            )
+        )
+        reg.register(
+            DataCard(
+                dataset_id="medical-records",
+                name="Medical Records",
+                sensitivity_level=SensitivityLevel.RESTRICTED,
+            )
+        )
         # 仅列出 >= CONFIDENTIAL
         confidential_plus = reg.list_by_sensitivity(SensitivityLevel.CONFIDENTIAL)
         assert len(confidential_plus) == 1
@@ -203,6 +220,7 @@ class TestDataCard:
 
     def test_sensitivity_requires_consent(self):
         from deadman.governance.data_card import SensitivityLevel
+
         assert SensitivityLevel.PUBLIC.requires_consent() is False
         assert SensitivityLevel.INTERNAL.requires_consent() is False
         assert SensitivityLevel.CONFIDENTIAL.requires_consent() is True
@@ -210,13 +228,16 @@ class TestDataCard:
 
     def test_persistence(self, tmp_path):
         from deadman.governance.data_card import DataCard, DataCardRegistry, SensitivityLevel
+
         store = tmp_path / "dc.json"
         reg1 = DataCardRegistry(store_path=store)
-        reg1.register(DataCard(
-            dataset_id="d1",
-            name="D1",
-            sensitivity_level=SensitivityLevel.RESTRICTED,
-        ))
+        reg1.register(
+            DataCard(
+                dataset_id="d1",
+                name="D1",
+                sensitivity_level=SensitivityLevel.RESTRICTED,
+            )
+        )
         reg2 = DataCardRegistry(store_path=store)
         got = reg2.get("d1")
         assert got is not None
@@ -226,6 +247,7 @@ class TestDataCard:
 # =====================================================================
 # 3. RiskCard
 # =====================================================================
+
 
 class TestRiskCard:
     def test_register_and_get(self, tmp_path):
@@ -237,6 +259,7 @@ class TestRiskCard:
             RiskSeverity,
             RiskStatus,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         card = RiskCard(
             risk_id="R-001",
@@ -258,6 +281,7 @@ class TestRiskCard:
             RiskLikelihood,
             RiskSeverity,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         # catastrophic × certain = 5×5 = 25 (max)
         score = ra.assess_risk(
@@ -277,6 +301,7 @@ class TestRiskCard:
             RiskLikelihood,
             RiskSeverity,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         # low × rare = 1×1 = 1
         score = ra.assess_risk(
@@ -298,6 +323,7 @@ class TestRiskCard:
             RiskLikelihood,
             RiskSeverity,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         # high × likely = 3×4 = 12 (medium level, no review)
         score = ra.assess_risk(
@@ -329,19 +355,32 @@ class TestRiskCard:
             RiskLikelihood,
             RiskSeverity,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
-        ra.register(RiskCard(
-            risk_id="R-low", title="low", severity=RiskSeverity.LOW,
-            likelihood=RiskLikelihood.RARE,
-        ))
-        ra.register(RiskCard(
-            risk_id="R-high", title="high", severity=RiskSeverity.HIGH,
-            likelihood=RiskLikelihood.LIKELY,
-        ))
-        ra.register(RiskCard(
-            risk_id="R-crit", title="crit", severity=RiskSeverity.CRITICAL,
-            likelihood=RiskLikelihood.CERTAIN,
-        ))
+        ra.register(
+            RiskCard(
+                risk_id="R-low",
+                title="low",
+                severity=RiskSeverity.LOW,
+                likelihood=RiskLikelihood.RARE,
+            )
+        )
+        ra.register(
+            RiskCard(
+                risk_id="R-high",
+                title="high",
+                severity=RiskSeverity.HIGH,
+                likelihood=RiskLikelihood.LIKELY,
+            )
+        )
+        ra.register(
+            RiskCard(
+                risk_id="R-crit",
+                title="crit",
+                severity=RiskSeverity.CRITICAL,
+                likelihood=RiskLikelihood.CERTAIN,
+            )
+        )
         high_plus = ra.list_by_severity(RiskSeverity.HIGH)
         ids = {c.risk_id for c in high_plus}
         assert ids == {"R-high", "R-crit"}
@@ -352,6 +391,7 @@ class TestRiskCard:
             RiskCard,
             RiskStatus,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         ra.register(RiskCard(risk_id="R1", title="t1", status=RiskStatus.OPEN))
         ra.register(RiskCard(risk_id="R2", title="t2", status=RiskStatus.ACCEPTED))
@@ -365,6 +405,7 @@ class TestRiskCard:
             RiskCard,
             RiskStatus,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         ra.register(RiskCard(risk_id="R1", title="t1"))
         mitigated = ra.mitigate("R1", "added input guard")
@@ -378,6 +419,7 @@ class TestRiskCard:
             RiskCard,
             RiskStatus,
         )
+
         ra = RiskAssessment(store_path=tmp_path / "rc.json")
         ra.register(RiskCard(risk_id="R1", title="t1"))
         # 空 reason 抛异常
@@ -395,12 +437,14 @@ class TestRiskCard:
 # 4. TransparencyReport
 # =====================================================================
 
+
 class TestTransparencyReport:
     def test_generate_report(self, tmp_path):
         from deadman.governance.transparency import (
             ReportPeriod,
             TransparencyReporter,
         )
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(
             period_start=time.time() - 86400,
@@ -413,17 +457,17 @@ class TestTransparencyReport:
 
     def test_add_section(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(time.time() - 100, time.time())
-        updated = reporter.add_section(
-            report.report_id, "executive_summary", "本月无重大事件"
-        )
+        updated = reporter.add_section(report.report_id, "executive_summary", "本月无重大事件")
         assert updated is not None
         assert "executive_summary" in updated.sections
         assert updated.sections["executive_summary"] == "本月无重大事件"
 
     def test_export_json(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(time.time() - 100, time.time())
         exported = reporter.export(report.report_id, format="json")
@@ -434,6 +478,7 @@ class TestTransparencyReport:
 
     def test_export_markdown(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(time.time() - 100, time.time())
         exported = reporter.export(report.report_id, format="markdown")
@@ -444,6 +489,7 @@ class TestTransparencyReport:
 
     def test_export_html(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(time.time() - 100, time.time())
         exported = reporter.export(report.report_id, format="html")
@@ -454,6 +500,7 @@ class TestTransparencyReport:
 
     def test_export_invalid_format(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         report = reporter.generate_report(time.time() - 100, time.time())
         with pytest.raises(ValueError):
@@ -461,6 +508,7 @@ class TestTransparencyReport:
 
     def test_export_nonexistent_report(self, tmp_path):
         from deadman.governance.transparency import TransparencyReporter
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         with pytest.raises(KeyError):
             reporter.export("nonexistent", format="json")
@@ -470,6 +518,7 @@ class TestTransparencyReport:
             ReportPeriod,
             TransparencyReporter,
         )
+
         reporter = TransparencyReporter(store_path=tmp_path / "tr.json")
         reporter.generate_report(time.time() - 100, time.time(), period=ReportPeriod.MONTHLY)
         reporter.generate_report(time.time() - 100, time.time(), period=ReportPeriod.QUARTERLY)
@@ -484,9 +533,11 @@ class TestTransparencyReport:
 # 5. AIRedline
 # =====================================================================
 
+
 class TestAIRedline:
     def test_list_redlines_returns_all_categories(self):
         from deadman.governance.ai_redlines import AIRedline, RedlineCategory
+
         redline = AIRedline()
         rules = redline.list_redlines()
         assert len(rules) == 7
@@ -495,6 +546,7 @@ class TestAIRedline:
 
     def test_sign_will_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("代签遗嘱", context={"role": "user"})
         assert result.allowed is False
@@ -502,18 +554,21 @@ class TestAIRedline:
 
     def test_sign_contract_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("sign_contract", context={"role": "user"})
         assert result.allowed is False
 
     def test_medical_decision_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("medical_decision", context={"role": "user"})
         assert result.allowed is False
 
     def test_legal_decision_advisory_only_allowed(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         # advisory_only context 允许
         result = redline.is_allowed(
@@ -524,6 +579,7 @@ class TestAIRedline:
 
     def test_legal_decision_without_context_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed(
             "legal_decision",
@@ -533,6 +589,7 @@ class TestAIRedline:
 
     def test_financial_transfer_admin_audit_allowed(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed(
             "financial_transfer",
@@ -542,6 +599,7 @@ class TestAIRedline:
 
     def test_financial_transfer_user_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         # 即使有 admin_audit context,user 角色仍禁止
         result = redline.is_allowed(
@@ -552,12 +610,14 @@ class TestAIRedline:
 
     def test_death_determination_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("death_determination", context={"role": "admin"})
         assert result.allowed is False  # 永远禁止
 
     def test_guardian_assignment_blocked(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("guardian_assignment", context={"role": "admin"})
         assert result.allowed is False
@@ -568,6 +628,7 @@ class TestAIRedline:
             RedlineCategory,
             RedlineViolation,
         )
+
         redline = AIRedline()
         with pytest.raises(RedlineViolation) as exc_info:
             redline.enforce("代签遗嘱", context={"role": "user"})
@@ -576,12 +637,14 @@ class TestAIRedline:
 
     def test_enforce_passes_when_allowed(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         # 未命中红线 → 允许,不抛
         redline.enforce("write a memorial letter", context={"role": "user"})
 
     def test_non_redline_action_allowed(self):
         from deadman.governance.ai_redlines import AIRedline
+
         redline = AIRedline()
         result = redline.is_allowed("write a poem", context={"role": "user"})
         assert result.allowed is True
@@ -589,6 +652,7 @@ class TestAIRedline:
 
     def test_bypass_env_only_for_test(self, monkeypatch):
         from deadman.governance.ai_redlines import AIRedline
+
         monkeypatch.setenv("DEADMAN_AI_REDLINE_BYPASS", "1")
         redline = AIRedline()
         result = redline.is_allowed("代签遗嘱", context={"role": "user"})
@@ -599,9 +663,11 @@ class TestAIRedline:
 # 6. Appeals
 # =====================================================================
 
+
 class TestAppeals:
     def test_file_and_get(self, tmp_path):
         from deadman.governance.appeals import AppealsManager, AppealStatus
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         appeal = am.file(user_id="u1", decision_id="d1", reason="content wrong")
         assert appeal.status == AppealStatus.FILED
@@ -617,6 +683,7 @@ class TestAppeals:
             AppealsManager,
             AppealStatus,
         )
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         appeal = am.file("u1", "d1", "wrong")
         reviewed = am.review(
@@ -635,6 +702,7 @@ class TestAppeals:
             AppealsManager,
             AppealStatus,
         )
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         appeal = am.file("u1", "d1", "wrong")
         reviewed = am.review(
@@ -650,6 +718,7 @@ class TestAppeals:
             AppealDecision,
             AppealsManager,
         )
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         a1 = am.file("u1", "d1", "r1")
         a2 = am.file("u2", "d2", "r2")
@@ -660,6 +729,7 @@ class TestAppeals:
 
     def test_list_by_user(self, tmp_path):
         from deadman.governance.appeals import AppealsManager
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         am.file("u1", "d1", "r1")
         am.file("u1", "d2", "r2")
@@ -675,6 +745,7 @@ class TestAppeals:
             AppealsManager,
             AppealStatus,
         )
+
         am = AppealsManager(store_path=tmp_path / "ap.json")
         appeal = am.file("u1", "d1", "r1")
         # 模拟 SLA 超时 - 手动改 filed_at 到 8 天前
@@ -695,6 +766,7 @@ class TestAppeals:
 
     def test_persistence(self, tmp_path):
         from deadman.governance.appeals import AppealsManager
+
         store = tmp_path / "ap.json"
         am1 = AppealsManager(store_path=store)
         appeal = am1.file("u1", "d1", "reason")
@@ -708,27 +780,49 @@ class TestAppeals:
 # 7. EthicsCommittee
 # =====================================================================
 
+
 class TestEthicsCommittee:
     def _setup_committee(self, ec):
         from deadman.governance.ethics_committee import (
             CommitteeMember,
             MemberRole,
         )
-        ec.register_member(CommitteeMember(
-            member_id="chair-1", name="主席", role=MemberRole.CHAIR,
-        ))
-        ec.register_member(CommitteeMember(
-            member_id="lawyer-1", name="律师", role=MemberRole.LAWYER,
-        ))
-        ec.register_member(CommitteeMember(
-            member_id="eth-1", name="伦理学者", role=MemberRole.ETHICIST,
-        ))
-        ec.register_member(CommitteeMember(
-            member_id="eng-1", name="工程师", role=MemberRole.ENGINEER,
-        ))
-        ec.register_member(CommitteeMember(
-            member_id="user-1", name="用户代表", role=MemberRole.USER_REP,
-        ))
+
+        ec.register_member(
+            CommitteeMember(
+                member_id="chair-1",
+                name="主席",
+                role=MemberRole.CHAIR,
+            )
+        )
+        ec.register_member(
+            CommitteeMember(
+                member_id="lawyer-1",
+                name="律师",
+                role=MemberRole.LAWYER,
+            )
+        )
+        ec.register_member(
+            CommitteeMember(
+                member_id="eth-1",
+                name="伦理学者",
+                role=MemberRole.ETHICIST,
+            )
+        )
+        ec.register_member(
+            CommitteeMember(
+                member_id="eng-1",
+                name="工程师",
+                role=MemberRole.ENGINEER,
+            )
+        )
+        ec.register_member(
+            CommitteeMember(
+                member_id="user-1",
+                name="用户代表",
+                role=MemberRole.USER_REP,
+            )
+        )
 
     def test_register_member(self, tmp_path):
         from deadman.governance.ethics_committee import (
@@ -736,10 +830,16 @@ class TestEthicsCommittee:
             EthicsCommittee,
             MemberRole,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
-        ec.register_member(CommitteeMember(
-            member_id="m1", name="张三", role=MemberRole.CHAIR, expertise=["law"],
-        ))
+        ec.register_member(
+            CommitteeMember(
+                member_id="m1",
+                name="张三",
+                role=MemberRole.CHAIR,
+                expertise=["law"],
+            )
+        )
         members = ec.list_members()
         assert len(members) == 1
         assert members[0].role == MemberRole.CHAIR
@@ -749,6 +849,7 @@ class TestEthicsCommittee:
             CaseStatus,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         case = ec.submit_case(
             title="test case",
@@ -767,10 +868,15 @@ class TestEthicsCommittee:
             EthicsCommittee,
             MemberRole,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
-        ec.register_member(CommitteeMember(
-            member_id="m1", name="M1", role=MemberRole.ETHICIST,
-        ))
+        ec.register_member(
+            CommitteeMember(
+                member_id="m1",
+                name="M1",
+                role=MemberRole.ETHICIST,
+            )
+        )
         case = ec.submit_case("low case", "desc", "general", "low")
         assigned = ec.assign(case.case_id, ["m1"])
         assert assigned.status == CaseStatus.ASSIGNED
@@ -779,6 +885,7 @@ class TestEthicsCommittee:
         from deadman.governance.ethics_committee import (
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case("high case", "desc", "bias", "high")
@@ -788,6 +895,7 @@ class TestEthicsCommittee:
 
     def test_assign_high_severity_quorum_lawyer_required(self, tmp_path):
         from deadman.governance.ethics_committee import EthicsCommittee
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case("high case", "desc", "bias", "high")
@@ -797,6 +905,7 @@ class TestEthicsCommittee:
 
     def test_assign_high_severity_quorum_three_members_required(self, tmp_path):
         from deadman.governance.ethics_committee import EthicsCommittee
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case("high case", "desc", "bias", "high")
@@ -809,6 +918,7 @@ class TestEthicsCommittee:
             CaseStatus,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case("high case", "desc", "bias", "high")
@@ -821,6 +931,7 @@ class TestEthicsCommittee:
             CaseStatus,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case("case", "desc", "general", "high")
@@ -839,6 +950,7 @@ class TestEthicsCommittee:
             DIGITAL_TWIN_DECEASED_CATEGORY,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case(
@@ -857,6 +969,7 @@ class TestEthicsCommittee:
             DIGITAL_TWIN_DECEASED_CATEGORY,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case(
@@ -875,6 +988,7 @@ class TestEthicsCommittee:
             CaseDecision,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         self._setup_committee(ec)
         case = ec.submit_case(
@@ -894,6 +1008,7 @@ class TestEthicsCommittee:
             CaseStatus,
             EthicsCommittee,
         )
+
         ec = EthicsCommittee(store_path=tmp_path / "ec.json")
         ec.submit_case("c1", "d1", "general", "low")
         ec.submit_case("c2", "d2", "general", "low")
@@ -905,9 +1020,11 @@ class TestEthicsCommittee:
 # 8. LiabilityInsurance
 # =====================================================================
 
+
 class TestLiabilityInsurance:
     def _make_policy(self, policy_id="P-001", coverage_amount=1_000_000):
         from deadman.governance.liability_insurance import InsurancePolicy
+
         return InsurancePolicy(
             policy_id=policy_id,
             provider="PICC",
@@ -922,6 +1039,7 @@ class TestLiabilityInsurance:
 
     def test_register_policy(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         policy = self._make_policy()
         li.register_policy(policy)
@@ -934,37 +1052,48 @@ class TestLiabilityInsurance:
             ClaimStatus,
             LiabilityInsurance,
         )
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy())
-        claim = li.file_claim({
-            "policy_id": "P-001",
-            "user_id": "u1",
-            "incident_description": "wrong legal advice",
-            "amount_claimed": 50000,
-            "coverage_type": "legal_advice_error",
-        })
+        claim = li.file_claim(
+            {
+                "policy_id": "P-001",
+                "user_id": "u1",
+                "incident_description": "wrong legal advice",
+                "amount_claimed": 50000,
+                "coverage_type": "legal_advice_error",
+            }
+        )
         assert claim.status == ClaimStatus.FILED
         assert claim.amount_claimed == 50000
 
     def test_file_claim_policy_not_found(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         with pytest.raises(ValueError, match="Policy not found"):
-            li.file_claim({
-                "policy_id": "nonexistent",
-                "user_id": "u1",
-            })
+            li.file_claim(
+                {
+                    "policy_id": "nonexistent",
+                    "user_id": "u1",
+                }
+            )
 
     def test_process_claim_approved(self, tmp_path):
         from deadman.governance.liability_insurance import (
             ClaimStatus,
             LiabilityInsurance,
         )
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy())
-        claim = li.file_claim({
-            "policy_id": "P-001", "user_id": "u1", "amount_claimed": 50000,
-        })
+        claim = li.file_claim(
+            {
+                "policy_id": "P-001",
+                "user_id": "u1",
+                "amount_claimed": 50000,
+            }
+        )
         processed = li.process_claim(
             claim.claim_id,
             ClaimStatus.APPROVED,
@@ -981,6 +1110,7 @@ class TestLiabilityInsurance:
             ClaimStatus,
             LiabilityInsurance,
         )
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy())
         claim = li.file_claim({"policy_id": "P-001", "user_id": "u1"})
@@ -992,6 +1122,7 @@ class TestLiabilityInsurance:
 
     def test_get_coverage(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy(coverage_amount=1_000_000))
         summary = li.get_coverage("P-001")
@@ -1003,18 +1134,21 @@ class TestLiabilityInsurance:
 
     def test_get_coverage_nonexistent(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         summary = li.get_coverage("nonexistent")
         assert summary["found"] is False
 
     def test_check_coverage_positive(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy(coverage_amount=1_000_000))
         assert li.check_coverage("data_leak", 100_000) is True
 
     def test_check_coverage_amount_exceeds(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy(coverage_amount=100_000))
         # 索赔金额超过保额 → False
@@ -1022,6 +1156,7 @@ class TestLiabilityInsurance:
 
     def test_check_coverage_wrong_type(self, tmp_path):
         from deadman.governance.liability_insurance import LiabilityInsurance
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         li.register_policy(self._make_policy())
         # ip_infringement 不在覆盖类型内
@@ -1031,6 +1166,7 @@ class TestLiabilityInsurance:
         from deadman.governance.liability_insurance import (
             LiabilityInsurance,
         )
+
         li = LiabilityInsurance(store_path=tmp_path / "li.json")
         # 加排除:data_leak 被 excluded
         policy = self._make_policy()
@@ -1043,11 +1179,13 @@ class TestLiabilityInsurance:
 # 9. GovernanceManager end-to-end
 # =====================================================================
 
+
 class TestGovernanceManager:
     def test_disabled_state_raises(self, monkeypatch, tmp_path):
         # 关闭 governance → 资产注册抛 GovernanceDisabledError
         monkeypatch.setenv("DEADMAN_GOVERNANCE_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
         from deadman.governance import (
@@ -1055,15 +1193,18 @@ class TestGovernanceManager:
             get_governance_manager,
             reset_governance_manager,
         )
+
         reset_governance_manager()
         gm = get_governance_manager()
         from deadman.governance.model_card import ModelCard
+
         with pytest.raises(GovernanceDisabledError):
             gm.register_model(ModelCard(model_id="m1", name="M1"))
 
     def test_register_model_via_manager(self):
         from deadman.governance import get_governance_manager
         from deadman.governance.model_card import ModelCard
+
         gm = get_governance_manager()
         card = gm.register_model(ModelCard(model_id="m1", name="M1"))
         assert card.model_id == "m1"
@@ -1072,11 +1213,15 @@ class TestGovernanceManager:
     def test_register_dataset_via_manager(self):
         from deadman.governance import get_governance_manager
         from deadman.governance.data_card import DataCard, SensitivityLevel
+
         gm = get_governance_manager()
-        card = gm.register_dataset(DataCard(
-            dataset_id="d1", name="D1",
-            sensitivity_level=SensitivityLevel.CONFIDENTIAL,
-        ))
+        card = gm.register_dataset(
+            DataCard(
+                dataset_id="d1",
+                name="D1",
+                sensitivity_level=SensitivityLevel.CONFIDENTIAL,
+            )
+        )
         assert card.dataset_id == "d1"
 
     def test_register_risk_via_manager(self):
@@ -1086,15 +1231,21 @@ class TestGovernanceManager:
             RiskCategory,
             RiskSeverity,
         )
+
         gm = get_governance_manager()
-        card = gm.register_risk(RiskCard(
-            risk_id="R1", title="test",
-            category=RiskCategory.PRIVACY, severity=RiskSeverity.HIGH,
-        ))
+        card = gm.register_risk(
+            RiskCard(
+                risk_id="R1",
+                title="test",
+                category=RiskCategory.PRIVACY,
+                severity=RiskSeverity.HIGH,
+            )
+        )
         assert card.risk_id == "R1"
 
     def test_before_action_allows_normal_action(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
         decision = gm.before_action("write a poem", context={"role": "user"})
         assert decision.allowed is True
@@ -1103,6 +1254,7 @@ class TestGovernanceManager:
 
     def test_before_action_blocks_redline(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
         decision = gm.before_action("代签遗嘱", context={"role": "user"})
         assert decision.allowed is False
@@ -1112,13 +1264,19 @@ class TestGovernanceManager:
     def test_before_action_with_insurance_check(self):
         from deadman.governance import get_governance_manager
         from deadman.governance.liability_insurance import InsurancePolicy
+
         gm = get_governance_manager()
         # 注册保单
-        gm.insurance.register_policy(InsurancePolicy(
-            policy_id="P1", provider="PICC", coverage_amount=1_000_000,
-            coverage_types=["data_leak"],
-            start_date=time.time() - 86400, end_date=time.time() + 86400,
-        ))
+        gm.insurance.register_policy(
+            InsurancePolicy(
+                policy_id="P1",
+                provider="PICC",
+                coverage_amount=1_000_000,
+                coverage_types=["data_leak"],
+                start_date=time.time() - 86400,
+                end_date=time.time() + 86400,
+            )
+        )
         # 调用 before_action 带保险预检
         decision = gm.before_action(
             "data export operation",
@@ -1131,6 +1289,7 @@ class TestGovernanceManager:
 
     def test_after_decision_increments_counters(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
         gm.after_decision("d1", "u1", "AI generated content", model_id="m1", is_ai=True)
         gm.after_decision("d2", "u2", "Human review", is_ai=False)
@@ -1142,6 +1301,7 @@ class TestGovernanceManager:
 
     def test_file_appeal_via_manager(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
         appeal = gm.file_appeal("u1", "d1", "wrong content")
         assert appeal.appeal_id.startswith("appeal-")
@@ -1149,6 +1309,7 @@ class TestGovernanceManager:
 
     def test_generate_transparency_report_via_manager(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
         # 先记录几个决策
         gm.after_decision("d1", "u1", "AI content", model_id="m1", is_ai=True)
@@ -1164,10 +1325,9 @@ class TestGovernanceManager:
 
     def test_submit_ethics_case_via_manager(self):
         from deadman.governance import get_governance_manager
+
         gm = get_governance_manager()
-        case = gm.submit_ethics_case(
-            "test case", "description", "general", "medium"
-        )
+        case = gm.submit_ethics_case("test case", "description", "general", "medium")
         assert case.title == "test case"
         assert case.category == "general"
 
@@ -1187,16 +1347,22 @@ class TestGovernanceManager:
         gm = get_governance_manager()
         # 1. 注册资产
         gm.register_model(ModelCard(model_id="m1", name="Memorial", version="1.0"))
-        gm.register_dataset(DataCard(
-            dataset_id="d1", name="User Data",
-            sensitivity_level=SensitivityLevel.CONFIDENTIAL,
-        ))
-        gm.register_risk(RiskCard(
-            risk_id="R1", title="PII risk",
-            category=RiskCategory.PRIVACY,
-            severity=RiskSeverity.HIGH,
-            likelihood=RiskLikelihood.POSSIBLE,
-        ))
+        gm.register_dataset(
+            DataCard(
+                dataset_id="d1",
+                name="User Data",
+                sensitivity_level=SensitivityLevel.CONFIDENTIAL,
+            )
+        )
+        gm.register_risk(
+            RiskCard(
+                risk_id="R1",
+                title="PII risk",
+                category=RiskCategory.PRIVACY,
+                severity=RiskSeverity.HIGH,
+                likelihood=RiskLikelihood.POSSIBLE,
+            )
+        )
 
         # 2. 决策前检查 (允许)
         decision = gm.before_action("write memorial letter", context={"role": "user"})
@@ -1212,12 +1378,15 @@ class TestGovernanceManager:
         # 5. 用户复议
         appeal = gm.file_appeal("u1", "dec-1", "content not empathetic")
         gm.appeals.review(
-            appeal.appeal_id, "rev1",
-            AppealDecision.APPROVED, "content revised",
+            appeal.appeal_id,
+            "rev1",
+            AppealDecision.APPROVED,
+            "content revised",
         )
 
         # 6. 生成透明度报告
         report = gm.generate_transparency_report(
-            time.time() - 86400, time.time(),
+            time.time() - 86400,
+            time.time(),
         )
         assert report.total_decisions >= 1

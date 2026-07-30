@@ -36,9 +36,9 @@ logger = logging.getLogger(__name__)
 class ImageStyle(str, Enum):
     """图片风格枚举。"""
 
-    MEMORIAL_CARD = "memorial_card"     # 纪念卡片
-    OBITUARY = "obituary"               # 讣告
-    PORTRAIT = "portrait"               # 人物肖像
+    MEMORIAL_CARD = "memorial_card"  # 纪念卡片
+    OBITUARY = "obituary"  # 讣告
+    PORTRAIT = "portrait"  # 人物肖像
     CONDOLENCE_CARD = "condolence_card"  # 吊唁卡
 
 
@@ -129,6 +129,7 @@ class DallEProvider(ImageGenProvider):
             return self._available
         try:
             import openai  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -149,6 +150,7 @@ class DallEProvider(ImageGenProvider):
         )
         # 实际应通过 url 下载,这里简化直接返回 b64
         import base64
+
         data = resp.data[0] if resp.data else None
         b64 = data.b64_json if data else None
         return base64.b64decode(b64) if b64 else b""
@@ -172,6 +174,7 @@ class StableDiffusionProvider(ImageGenProvider):
             return self._available
         try:
             import diffusers  # type: ignore
+
             self._available = True
         except Exception as e:
             logger.debug("diffusers not available: %s", e)
@@ -189,7 +192,9 @@ class StableDiffusionProvider(ImageGenProvider):
             self.model_path or "stabilityai/stable-diffusion-2-1",
             torch_dtype=torch.float16,
         )
-        full_prompt = f"{preset['prompt_template']}. {prompt}. Negative: {preset['negative_prompt']}"
+        full_prompt = (
+            f"{preset['prompt_template']}. {prompt}. Negative: {preset['negative_prompt']}"
+        )
         image = pipe(full_prompt, num_inference_steps=20).images[0]
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -213,6 +218,7 @@ class MidjourneyProvider(ImageGenProvider):
             return self._available
         try:
             import midjourney  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("midjourney not available: %s", e)
@@ -341,7 +347,10 @@ class ImageGenerator:
                 img_bytes = provider.generate(prompt, style, size)
                 logger.info(
                     "ImageGen generated via %s (style=%s, size=%s, bytes=%d)",
-                    provider.name, style.value, size.value, len(img_bytes),
+                    provider.name,
+                    style.value,
+                    size.value,
+                    len(img_bytes),
                 )
                 return img_bytes
             except Exception as e:

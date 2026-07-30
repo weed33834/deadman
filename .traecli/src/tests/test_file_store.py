@@ -152,9 +152,7 @@ class TestAppendEpisode:
     def test_append_episode_multiline_summary_flattened(self, tmp_path: Path):
         # summary 含换行应被强制单行化，不破坏 EPISODES.md 行格式
         store = FileMemoryStore(memory_dir=tmp_path)
-        store.append_episode(
-            "sess-x", "第一行\n第二行\n第三行", datetime(2024, 1, 1, 10, 0)
-        )
+        store.append_episode("sess-x", "第一行\n第二行\n第三行", datetime(2024, 1, 1, 10, 0))
 
         episodes = store.load_episodes()
         assert len(episodes) == 1

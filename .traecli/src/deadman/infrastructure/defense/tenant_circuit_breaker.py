@@ -125,10 +125,7 @@ class TenantCircuitBreaker:
     def list_tenant_states(self) -> dict[str, dict]:
         """列出所有租户的熔断器状态(看板用)。"""
         with self._lock:
-            return {
-                tid: cb.get_metrics()
-                for tid, cb in self._tenant_breakers.items()
-            }
+            return {tid: cb.get_metrics() for tid, cb in self._tenant_breakers.items()}
 
     # ==================================================================
     # 内部
@@ -140,7 +137,8 @@ class TenantCircuitBreaker:
                 # 命名约定:<base>:<tenant_id>
                 cb_name = f"{self.base_name}:{tenant_id}"
                 self._tenant_breakers[tenant_id] = cb_registry.get_or_create(
-                    cb_name, self.config,
+                    cb_name,
+                    self.config,
                 )
             return self._tenant_breakers[tenant_id]
 

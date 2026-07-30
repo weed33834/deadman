@@ -311,7 +311,8 @@ class Anonymizer:
         # l-diversity 校验:本节点至少有 1 个敏感属性,且应与共享池其他节点
         # 至少 l 个不同值(本期简化:仅校验节点本身有 SENSITIVE_ATTRIBUTES)
         sensitive_values = [
-            node.properties.get(k) for k in node.properties
+            node.properties.get(k)
+            for k in node.properties
             if k in SENSITIVE_ATTRIBUTES and node.properties.get(k) is not None
         ]
         return not (l_diversity > 1 and len(set(sensitive_values)) < l_diversity)

@@ -46,9 +46,9 @@ logger = logging.getLogger(__name__)
 class DegradationLevel(str, Enum):
     """降级级别(从轻到重)。"""
 
-    NONE = "none"        # 无降级
-    SOFT = "soft"        # 软降级(模型降级 / 跳过非核心功能)
-    HARD = "hard"        # 硬降级(限速 / 禁用功能 / 简化回复)
+    NONE = "none"  # 无降级
+    SOFT = "soft"  # 软降级(模型降级 / 跳过非核心功能)
+    HARD = "hard"  # 硬降级(限速 / 禁用功能 / 简化回复)
     CRITICAL = "critical"  # 关键降级(拒绝服务)
 
 
@@ -161,7 +161,8 @@ class DegradationGuard:
             if critical_count > 0:
                 logger.warning(
                     "Cannot degrade %s (scope=%s): CRITICAL active",
-                    mechanism, scope,
+                    mechanism,
+                    scope,
                 )
                 return False
 
@@ -169,7 +170,9 @@ class DegradationGuard:
             if global_count >= self.max_global_active:
                 logger.warning(
                     "Cannot degrade %s: global active=%d (max=%d)",
-                    mechanism, global_count, self.max_global_active,
+                    mechanism,
+                    global_count,
+                    self.max_global_active,
                 )
                 return False
 
@@ -177,7 +180,10 @@ class DegradationGuard:
             if actual_level == DegradationLevel.HARD and hard_count >= self.max_hard_per_scope:
                 logger.warning(
                     "Cannot degrade %s to HARD (scope=%s): hard active=%d (max=%d)",
-                    mechanism, scope, hard_count, self.max_hard_per_scope,
+                    mechanism,
+                    scope,
+                    hard_count,
+                    self.max_hard_per_scope,
                 )
                 return False
 
@@ -185,7 +191,10 @@ class DegradationGuard:
             if actual_level == DegradationLevel.SOFT and soft_count >= self.max_soft_per_scope:
                 logger.warning(
                     "Cannot degrade %s to SOFT (scope=%s): soft active=%d (max=%d)",
-                    mechanism, scope, soft_count, self.max_soft_per_scope,
+                    mechanism,
+                    scope,
+                    soft_count,
+                    self.max_soft_per_scope,
                 )
                 return False
 
@@ -220,9 +229,7 @@ class DegradationGuard:
         with self._lock:
             events = self._active.get(scope, [])
             before = len(events)
-            self._active[scope] = [
-                e for e in events if e.mechanism != mechanism
-            ]
+            self._active[scope] = [e for e in events if e.mechanism != mechanism]
             after = len(self._active[scope])
             if not self._active[scope]:
                 del self._active[scope]
@@ -293,7 +300,8 @@ class DegradationGuard:
         cutoff = now - self.event_retention_seconds
         for scope in list(self._active.keys()):
             self._active[scope] = [
-                e for e in self._active[scope]
+                e
+                for e in self._active[scope]
                 if e.expected_recovery_at is None or e.expected_recovery_at > cutoff
             ]
             if not self._active[scope]:

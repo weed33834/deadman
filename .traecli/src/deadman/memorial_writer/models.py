@@ -100,23 +100,15 @@ class MemorialRequest:
         """
         errors: list[str] = []
         if self.doc_type not in DOC_TYPES:
-            errors.append(
-                f"doc_type 必须是 {list(DOC_TYPES.keys())} 之一，当前: {self.doc_type}"
-            )
+            errors.append(f"doc_type 必须是 {list(DOC_TYPES.keys())} 之一，当前: {self.doc_type}")
         if not self.decedent_name or not self.decedent_name.strip():
             errors.append("decedent_name 不能为空")
         if self.tone not in VALID_TONES:
-            errors.append(
-                f"tone 必须是 {list(VALID_TONES)} 之一，当前: {self.tone}"
-            )
+            errors.append(f"tone 必须是 {list(VALID_TONES)} 之一，当前: {self.tone}")
         if self.faith not in VALID_FAITHS:
-            errors.append(
-                f"faith 必须是 {list(VALID_FAITHS)} 之一，当前: {self.faith}"
-            )
+            errors.append(f"faith 必须是 {list(VALID_FAITHS)} 之一，当前: {self.faith}")
         if self.language not in VALID_LANGUAGES:
-            errors.append(
-                f"language 必须是 {list(VALID_LANGUAGES)} 之一，当前: {self.language}"
-            )
+            errors.append(f"language 必须是 {list(VALID_LANGUAGES)} 之一，当前: {self.language}")
         if self.word_limit < 0:
             errors.append("word_limit 不能为负数")
         return errors

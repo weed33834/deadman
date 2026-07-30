@@ -18,7 +18,9 @@ from typing import Any
 # 默认数据库路径（包内自带）
 _DEFAULT_DB_PATH = (
     Path(__file__).resolve().parent.parent.parent.parent
-    / "knowledge" / "hotlines" / "database.json"
+    / "knowledge"
+    / "hotlines"
+    / "database.json"
 )
 
 
@@ -73,14 +75,16 @@ class HotlineLookup:
             if function is not None and func != function:
                 continue
             source = entry.get("source", "")
-            results.append({
-                "phone": entry["phone"],
-                "note": entry.get("note", ""),
-                "source": source,
-                "confidence": self._confidence(source),
-                "scope": "national",
-                "function": func,
-            })
+            results.append(
+                {
+                    "phone": entry["phone"],
+                    "note": entry.get("note", ""),
+                    "source": source,
+                    "confidence": self._confidence(source),
+                    "scope": "national",
+                    "function": func,
+                }
+            )
 
         # 省级热线（指定 province 时）
         if province is not None:
@@ -89,15 +93,17 @@ class HotlineLookup:
                 if function is not None and func != function:
                     continue
                 source = entry.get("source", "")
-                results.append({
-                    "phone": entry["phone"],
-                    "note": entry.get("note", ""),
-                    "source": source,
-                    "confidence": self._confidence(source),
-                    "scope": "provincial",
-                    "function": func,
-                    "province": province,
-                })
+                results.append(
+                    {
+                        "phone": entry["phone"],
+                        "note": entry.get("note", ""),
+                        "source": source,
+                        "confidence": self._confidence(source),
+                        "scope": "provincial",
+                        "function": func,
+                        "province": province,
+                    }
+                )
 
         return results
 
@@ -124,15 +130,17 @@ class HotlineLookup:
             if function is not None and func != function:
                 continue
             source = entry.get("source", "")
-            results.append({
-                "phone": entry["phone"],
-                "note": entry.get("note", ""),
-                "source": source,
-                "confidence": self._confidence(source),
-                "scope": "provincial",
-                "function": func,
-                "province": province,
-            })
+            results.append(
+                {
+                    "phone": entry["phone"],
+                    "note": entry.get("note", ""),
+                    "source": source,
+                    "confidence": self._confidence(source),
+                    "scope": "provincial",
+                    "function": func,
+                    "province": province,
+                }
+            )
         return results
 
     def list_functions(self) -> list[str]:

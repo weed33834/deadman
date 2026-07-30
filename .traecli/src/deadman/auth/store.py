@@ -253,9 +253,7 @@ class UserStore:
     # 内部工具
     # ================================================================
 
-    def _hash_password(
-        self, password: str, salt: bytes | None = None
-    ) -> tuple[bytes, bytes]:
+    def _hash_password(self, password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
         """PBKDF2-HMAC-SHA256, 100000 iterations
 
         返回 (salt, password_hash)

@@ -127,13 +127,21 @@ class TestJitVerifyExpiredTokenFails:
         """JITToken.is_expired 正确判断"""
         now = time.time()
         t = JITToken(
-            token="abc", tool_name="t", scope="s",
-            granted_at=now - 10, expires_at=now - 1, granted_to="",
+            token="abc",
+            tool_name="t",
+            scope="s",
+            granted_at=now - 10,
+            expires_at=now - 1,
+            granted_to="",
         )
         assert t.is_expired() is True
         t2 = JITToken(
-            token="abc", tool_name="t", scope="s",
-            granted_at=now, expires_at=now + 100, granted_to="",
+            token="abc",
+            tool_name="t",
+            scope="s",
+            granted_at=now,
+            expires_at=now + 100,
+            granted_to="",
         )
         assert t2.is_expired() is False
 

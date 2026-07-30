@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import importlib
 from unittest.mock import MagicMock, patch
 
 # =====================================================================
@@ -201,10 +200,16 @@ class TestSentryConfigFields:
     def test_settings_defaults(self, monkeypatch):
         """未设环境变量时使用合理默认值"""
         # 清除可能的环境变量
-        for var in ("SENTRY_DSN", "SENTRY_ENVIRONMENT", "SENTRY_TRACES_SAMPLE_RATE", "SENTRY_RELEASE"):
+        for var in (
+            "SENTRY_DSN",
+            "SENTRY_ENVIRONMENT",
+            "SENTRY_TRACES_SAMPLE_RATE",
+            "SENTRY_RELEASE",
+        ):
             monkeypatch.delenv(var, raising=False)
 
         from deadman.config import Settings
+
         s = Settings()
         assert s.sentry_dsn == ""
         assert s.sentry_environment == "production"
@@ -212,28 +217,20 @@ class TestSentryConfigFields:
         assert s.sentry_release == ""
 
     def test_settings_reads_env_vars(self, monkeypatch):
-        """环境变量正确注入 Settings（重新加载模块以触发 dataclass 字段求值）
+        """环境变量正确注入 Settings（Sentry 字段用 default_factory 在实例化时读 env）
 
-        注意：Settings dataclass 字段默认值用 os.getenv(...) 在类定义时求值，
-        不是 __init__ 时，所以必须 reload 模块才能读到测试设置的环境变量。
+        注意：Sentry 字段用 field(default_factory=lambda: os.getenv(...)) 定义，
+        每次 Settings() 都会读最新 env var，无需 reload 模块。
         """
         monkeypatch.setenv("SENTRY_DSN", "https://key@sentry.io/42")
         monkeypatch.setenv("SENTRY_ENVIRONMENT", "staging")
         monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "0.25")
         monkeypatch.setenv("SENTRY_RELEASE", "v2.0.0-rc1")
 
-        import deadman.config as config_module
-        importlib.reload(config_module)
-        try:
-            s = config_module.Settings()
-            assert s.sentry_dsn == "https://key@sentry.io/42"
-            assert s.sentry_environment == "staging"
-            assert s.sentry_traces_sample_rate == 0.25
-            assert s.sentry_release == "v2.0.0-rc1"
-        finally:
-            # 恢复模块原始状态，避免污染后续测试
-            monkeypatch.delenv("SENTRY_DSN", raising=False)
-            monkeypatch.delenv("SENTRY_ENVIRONMENT", raising=False)
-            monkeypatch.delenv("SENTRY_TRACES_SAMPLE_RATE", raising=False)
-            monkeypatch.delenv("SENTRY_RELEASE", raising=False)
-            importlib.reload(config_module)
+        from deadman.config import Settings
+
+        s = Settings()
+        assert s.sentry_dsn == "https://key@sentry.io/42"
+        assert s.sentry_environment == "staging"
+        assert s.sentry_traces_sample_rate == 0.25
+        assert s.sentry_release == "v2.0.0-rc1"

@@ -25,6 +25,7 @@ from deadman.memory.vector_store import (
 # 1. InMemoryVectorStore add + query
 # =====================================================================
 
+
 class TestInMemoryVectorStoreAddQuery:
     def test_in_memory_vector_store_add_query(self):
         store = InMemoryVectorStore()
@@ -58,6 +59,7 @@ class TestInMemoryVectorStoreAddQuery:
 # 2. 余弦相似度
 # =====================================================================
 
+
 class TestCosineSimilarity:
     def test_in_memory_cosine_similarity(self):
         # 相同向量 → 1.0
@@ -89,6 +91,7 @@ class TestCosineSimilarity:
 # 3. Chroma 不可用降级
 # =====================================================================
 
+
 class TestChromaFallback:
     def test_chroma_unavailable_falls_back(self, monkeypatch):
         # 模拟 chromadb 未安装,工厂应降级到 InMemoryVectorStore
@@ -119,6 +122,7 @@ class TestChromaFallback:
 # 4. Embedding 降级到 hash
 # =====================================================================
 
+
 class TestEmbeddingFallback:
     def test_embedding_fallback_to_hash(self, monkeypatch):
         # sentence-transformers 不可用时,_EmbeddingFunc 应回退到 hash
@@ -140,6 +144,7 @@ class TestEmbeddingFallback:
 # =====================================================================
 # 5. 工厂函数
 # =====================================================================
+
 
 class TestVectorStoreFactory:
     def test_vector_store_factory_disabled_returns_none(self, monkeypatch):
@@ -173,6 +178,7 @@ class TestVectorStoreFactory:
 # =====================================================================
 # 6. delete
 # =====================================================================
+
 
 class TestVectorStoreDelete:
     def test_delete_removes_entry(self):

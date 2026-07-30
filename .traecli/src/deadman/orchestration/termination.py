@@ -81,9 +81,7 @@ class TerminationCondition(ABC):
 class _OrTerminationCondition(TerminationCondition):
     """A | B：A 或 B 任一终止即终止（短路）"""
 
-    def __init__(
-        self, left: TerminationCondition, right: TerminationCondition
-    ) -> None:
+    def __init__(self, left: TerminationCondition, right: TerminationCondition) -> None:
         self._left = left
         self._right = right
 
@@ -100,9 +98,7 @@ class _OrTerminationCondition(TerminationCondition):
 class _AndTerminationCondition(TerminationCondition):
     """A & B：A 和 B 都终止才终止"""
 
-    def __init__(
-        self, left: TerminationCondition, right: TerminationCondition
-    ) -> None:
+    def __init__(self, left: TerminationCondition, right: TerminationCondition) -> None:
         self._left = left
         self._right = right
 
@@ -187,9 +183,7 @@ class TokenUsageTermination(TerminationCondition):
         field: 比较字段，"total_tokens" / "prompt_tokens" / "completion_tokens"
     """
 
-    def __init__(
-        self, token_limit: int, field: str = "total_tokens"
-    ) -> None:
+    def __init__(self, token_limit: int, field: str = "total_tokens") -> None:
         self.token_limit = token_limit
         self.field = field
 
@@ -305,6 +299,4 @@ def default_termination() -> TerminationCondition:
     # 延迟 import 避免循环依赖（graph.py 反向 import termination 的情况）
     from .graph import MAX_STEPS, STUCK_AGENT_REPEAT_LIMIT
 
-    return MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(
-        STUCK_AGENT_REPEAT_LIMIT
-    )
+    return MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(STUCK_AGENT_REPEAT_LIMIT)

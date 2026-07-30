@@ -76,20 +76,21 @@ class TestIsHoneypotDetectsFakeTools:
     def test_is_honeypot_detects_fake_tools(self, manager):
         """HONEYPOT_TOOLS 中的工具名都识别为蜜罐"""
         for tool_name in HONEYPOT_TOOLS:
-            assert manager.is_honeypot(tool_name) is True, (
-                f"{tool_name} 应被识别为蜜罐"
-            )
+            assert manager.is_honeypot(tool_name) is True, f"{tool_name} 应被识别为蜜罐"
 
     def test_is_honeypot_rejects_real_tools(self, manager):
         """真实工具名不识别为蜜罐"""
         real_tools = [
-            "web_search", "file_read", "write_file", "report_incident",
-            "execute_code", "initiate_debate", "call_external_agent",
+            "web_search",
+            "file_read",
+            "write_file",
+            "report_incident",
+            "execute_code",
+            "initiate_debate",
+            "call_external_agent",
         ]
         for tool_name in real_tools:
-            assert manager.is_honeypot(tool_name) is False, (
-                f"{tool_name} 不应被识别为蜜罐"
-            )
+            assert manager.is_honeypot(tool_name) is False, f"{tool_name} 不应被识别为蜜罐"
 
     def test_is_honeypot_empty_string(self, manager):
         """空字符串不是蜜罐"""
@@ -145,15 +146,15 @@ class TestTriggerRecordsAlert:
         """trigger 时若审计链启用，写入 security_alert 事件"""
         # 启用审计链
         import deadman.security.audit as audit_module
+
         monkeypatch.setattr(audit_module, "AUDIT_CHAIN_ENABLED", True)
         audit_module.reset_audit_chain()
         from deadman.security.audit import AuditChain
+
         audit_chain = AuditChain(persist_path=tmp_path / "audit.jsonl")
 
         # patch get_audit_chain 返回我们的临时 audit chain
-        monkeypatch.setattr(
-            "deadman.security.audit.get_audit_chain", lambda: audit_chain
-        )
+        monkeypatch.setattr("deadman.security.audit.get_audit_chain", lambda: audit_chain)
 
         mgr = HoneypotManager()
         mgr.trigger("delete_all_files", "agent.evil")

@@ -135,8 +135,13 @@ _HARDCODED_RULES: list[RedlineRule] = [
     RedlineRule(
         category=RedlineCategory.MEDICAL_DECISION,
         action_keywords=[
-            "medical_decision", "医疗决策", "诊断", "开具处方",
-            "治疗方案", "停药", "手术决定",
+            "medical_decision",
+            "医疗决策",
+            "诊断",
+            "开具处方",
+            "治疗方案",
+            "停药",
+            "手术决定",
         ],
         allowed_contexts=[],  # 涉及生命健康,绝对禁止 AI 决策
         reason_text="医疗决策涉及生命健康,必须由执业医师决定 (执业医师法)",
@@ -144,7 +149,10 @@ _HARDCODED_RULES: list[RedlineRule] = [
     RedlineRule(
         category=RedlineCategory.LEGAL_DECISION,
         action_keywords=[
-            "legal_decision", "代理诉讼", "出庭", "法律意见书",
+            "legal_decision",
+            "代理诉讼",
+            "出庭",
+            "法律意见书",
             "诉讼策略决定",
         ],
         allowed_contexts=["advisory_only"],  # 仅允许咨询性意见
@@ -154,8 +162,12 @@ _HARDCODED_RULES: list[RedlineRule] = [
     RedlineRule(
         category=RedlineCategory.FINANCIAL_TRANSFER,
         action_keywords=[
-            "financial_transfer", "转账", "汇款", "财产处分",
-            "继承财产分配", "资金转移",
+            "financial_transfer",
+            "转账",
+            "汇款",
+            "财产处分",
+            "继承财产分配",
+            "资金转移",
         ],
         allowed_contexts=["admin_audit"],  # 仅 admin 审计场景
         exception_role="admin",
@@ -244,9 +256,7 @@ class AIRedline:
         # 3. 检查 allowed_contexts
         if matched.allowed_contexts:
             # 检查 context 是否满足任一 allowed_contexts
-            ctx_satisfied = any(
-                self._context_matches(ctx, ac) for ac in matched.allowed_contexts
-            )
+            ctx_satisfied = any(self._context_matches(ctx, ac) for ac in matched.allowed_contexts)
             if ctx_satisfied:
                 # 进一步检查 exception_role
                 role = ctx.get("role", "user")

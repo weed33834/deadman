@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import copy
 import json
 import logging
@@ -94,6 +95,7 @@ class LoginRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     """密码重置请求（P1-3）"""
+
     email: str = Field(..., description="注册邮箱")
 
     model_config = {"extra": "ignore"}
@@ -101,10 +103,9 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     """密码重置确认（P1-3）"""
+
     token: str = Field(..., description="重置令牌（请求端点返回或邮件下发）")
-    new_password: str = Field(
-        ..., min_length=8, max_length=128, description="新密码（8-128 位）"
-    )
+    new_password: str = Field(..., min_length=8, max_length=128, description="新密码（8-128 位）")
 
     model_config = {"extra": "ignore"}
 
@@ -191,7 +192,7 @@ class _WfileAdapter:
         self.queue.put_nowait(bytes(data))
         return len(data)
 
-    def flush(self) -> None:  # noqa: D401 - 兼容接口
+    def flush(self) -> None:
         pass
 
     def close(self) -> None:
@@ -217,6 +218,7 @@ async def lifespan(app: FastAPI):
     # P1-2: Sentry 错误监控初始化（DSN 留空 / sdk 未装时 no-op，不阻塞启动）
     try:
         from ..observability.sentry_init import init_sentry
+
         init_sentry(
             dsn=settings.sentry_dsn,
             environment=settings.sentry_environment,
@@ -364,9 +366,7 @@ async def manifest_json():
 
 @app.get("/sw.js", include_in_schema=False)
 async def sw_js():
-    return FileResponse(
-        _STATIC_DIR / "sw.js", media_type="application/javascript; charset=utf-8"
-    )
+    return FileResponse(_STATIC_DIR / "sw.js", media_type="application/javascript; charset=utf-8")
 
 
 @app.get("/mobile.js", include_in_schema=False)
@@ -378,8 +378,7 @@ async def mobile_js():
 
 
 _DOCS_DISCLAIMER = (
-    "本页面内容由 deadman 平台整理，不替代法律/医疗/财务专业意见。"
-    "具体条款以最新版本为准。"
+    "本页面内容由 deadman 平台整理，不替代法律/医疗/财务专业意见。具体条款以最新版本为准。"
 )
 
 
@@ -393,9 +392,7 @@ def _render_docs_page(name: str) -> HTMLResponse:
         raw = md_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"读取失败: {exc}") from exc
-    escaped = (
-        raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    )
+    escaped = raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     html = (
         "<!DOCTYPE html><html lang='zh-CN'><head>"
         "<meta charset='UTF-8'>"
@@ -684,9 +681,7 @@ async def auth_password_reset_request(req: PasswordResetRequest):
             logger.warning("密码重置邮件发送失败 email=%s: %s", req.email, exc)
 
     # 统一响应（防枚举）：不暴露用户是否存在
-    response: dict[str, Any] = {
-        "message": "如该邮箱已注册，重置链接已发送（30 分钟内有效）"
-    }
+    response: dict[str, Any] = {"message": "如该邮箱已注册，重置链接已发送（30 分钟内有效）"}
     # 仅当 SMTP 未配置且用户存在时，返回令牌供开发测试
     # 生产环境配好 SMTP 后此字段不会出现
     if reset_token is not None:
@@ -824,10 +819,8 @@ async def api_stream(
         finally:
             if not task.done():
                 task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
-            except (asyncio.CancelledError, Exception):
-                pass
 
     return StreamingResponse(
         event_stream(),
@@ -866,7 +859,7 @@ async def metrics():
         from ..observability.metrics import metrics_collector
 
         quality_body = metrics_collector.export_prometheus()
-    except Exception as exc:  # noqa: BLE001 - 质量指标失败不影响 HTTP 指标
+    except Exception as exc:
         logger.warning("导出质量指标失败（不影响 HTTP 指标）: %s", exc)
 
     merged = http_body
@@ -975,8 +968,7 @@ async def deploy_check():
         ("healthcheck.py", docker_dir / "healthcheck.py"),
     ]
     results = [
-        {"name": name, "exists": path.exists(), "path": str(path)}
-        for name, path in artifacts
+        {"name": name, "exists": path.exists(), "path": str(path)} for name, path in artifacts
     ]
     compose_path = project_root / "docker-compose.yml"
     compose_ok = False
@@ -1001,9 +993,20 @@ async def health_all():
     """全领域健康汇总（读取所有 data/*_health.json）"""
     data_dir = settings.project_root / "data"
     domains = [
-        "llm", "prompt", "rule", "agent", "knowledge",
-        "eval", "tool", "mcp", "obs", "memory",
-        "a2a", "deploy", "reflexion", "skill",
+        "llm",
+        "prompt",
+        "rule",
+        "agent",
+        "knowledge",
+        "eval",
+        "tool",
+        "mcp",
+        "obs",
+        "memory",
+        "a2a",
+        "deploy",
+        "reflexion",
+        "skill",
     ]
     summary: dict[str, Any] = {}
     for domain in domains:
@@ -1149,9 +1152,7 @@ class EndingNoteShareRequest(BaseModel):
 
 
 @app.post("/api/ending-note/share", tags=["ending-note"])
-async def ending_note_share(
-    req: EndingNoteShareRequest, user: dict = Depends(get_current_user)
-):
+async def ending_note_share(req: EndingNoteShareRequest, user: dict = Depends(get_current_user)):
     """POST /api/ending-note/share - 共享给家庭成员"""
     from ..ending_note.store import EndingNoteStore
 
@@ -1307,7 +1308,7 @@ async def vault_item_add(req: VaultItemAddRequest, user: dict = Depends(get_curr
         store = VaultStore()
         content: Any = req.content or ""
         if isinstance(content, str) and content.startswith("base64:"):
-            content = base64.b64decode(content[len("base64:"):])
+            content = base64.b64decode(content[len("base64:") :])
         delivery_date = None
         if req.delivery_date:
             try:
@@ -1353,19 +1354,18 @@ async def vault_item_update(
         updates: dict[str, Any] = {}
         raw = req.model_dump(exclude_none=True)
         for field in (
-            "title", "content", "metadata",
-            "beneficiary_user_ids", "delivery_trigger",
+            "title",
+            "content",
+            "metadata",
+            "beneficiary_user_ids",
+            "delivery_trigger",
             "delivery_date",
         ):
             if field in raw:
                 updates[field] = raw[field]
         if updates.get("delivery_date"):
-            try:
-                updates["delivery_date"] = datetime.fromisoformat(
-                    str(updates["delivery_date"])
-                )
-            except (TypeError, ValueError):
-                pass
+            with contextlib.suppress(TypeError, ValueError):
+                updates["delivery_date"] = datetime.fromisoformat(str(updates["delivery_date"]))
         item = store.update_item(item_id, user["user_id"], updates)
         if item is None:
             raise HTTPException(status_code=404, detail="条目不存在或无权限")
@@ -1722,9 +1722,7 @@ async def switch_verify_contact(
     from ..deadman_switch.store import SwitchStore
 
     store = SwitchStore()
-    record, msg = store.verify_emergency_contact(
-        user["user_id"], str(req.contact_id), req.confirm
-    )
+    record, msg = store.verify_emergency_contact(user["user_id"], str(req.contact_id), req.confirm)
     if record is None:
         raise HTTPException(status_code=404, detail=msg)
     return {"message": msg, "record": record.to_dict()}
@@ -1736,9 +1734,7 @@ class SwitchVerifyHeirRequest(BaseModel):
 
 
 @app.post("/api/switch/verify-heir", tags=["switch"])
-async def switch_verify_heir(
-    req: SwitchVerifyHeirRequest, user: dict = Depends(get_current_user)
-):
+async def switch_verify_heir(req: SwitchVerifyHeirRequest, user: dict = Depends(get_current_user)):
     """POST /api/switch/verify-heir"""
     from ..deadman_switch.store import SwitchStore
 
@@ -1815,9 +1811,7 @@ async def letters_types(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/letters/template", tags=["letters"])
-async def letters_template(
-    type: str = Query(default=""), user: dict = Depends(get_current_user)
-):
+async def letters_template(type: str = Query(default=""), user: dict = Depends(get_current_user)):
     """GET /api/letters/template?type=xxx - 返回原始模板"""
     from ..notification_letters.models import DEFAULT_DISCLAIMER
     from ..notification_letters.templates import (
@@ -1898,10 +1892,7 @@ async def letters_generate(req: LetterGenerateRequest, user: dict = Depends(get_
     return result.to_dict()
 
 
-_PLAN_SCORE_DISCLAIMER = (
-    "评分仅反映信息完整度，不代表法律效力；"
-    "建议结合律师/公证处专业意见。"
-)
+_PLAN_SCORE_DISCLAIMER = "评分仅反映信息完整度，不代表法律效力；建议结合律师/公证处专业意见。"
 
 
 @app.get("/api/plan-score", tags=["plan-score"])
@@ -1944,13 +1935,15 @@ async def memorial_types(user: dict = Depends(get_current_user)):
     types_list = []
     for key, meta in DOC_TYPES.items():
         word_lo, word_hi = meta["word_range"]
-        types_list.append({
-            "key": key,
-            "name": meta["name"],
-            "name_en": meta["name_en"],
-            "description": meta["description"],
-            "word_range": [word_lo, word_hi],
-        })
+        types_list.append(
+            {
+                "key": key,
+                "name": meta["name"],
+                "name_en": meta["name_en"],
+                "description": meta["description"],
+                "word_range": [word_lo, word_hi],
+            }
+        )
     return {
         "types": types_list,
         "tones": list(VALID_TONES),
@@ -1961,9 +1954,7 @@ async def memorial_types(user: dict = Depends(get_current_user)):
 
 
 @app.post("/api/memorial/generate", tags=["memorial"])
-async def memorial_generate(
-    request: Request, user: dict = Depends(get_current_user)
-):
+async def memorial_generate(request: Request, user: dict = Depends(get_current_user)):
     """POST /api/memorial/generate - 生成悼文/讣告/答谢词/墓志铭/追思会致辞
 
     入参为 MemorialRequest 字段（dict），由 ``MemorialRequest.from_dict`` 解析。
@@ -2468,9 +2459,7 @@ async def billing_status(user: dict | None = Depends(get_optional_user)):
             "plan_name": sub.plan_name if sub else "free",
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"billing module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"billing module unavailable: {exc}") from exc
     except Exception as exc:
         logger.exception("billing status failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc
@@ -2513,9 +2502,7 @@ async def billing_usage(
             },
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"billing module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"billing module unavailable: {exc}") from exc
     except Exception as exc:
         logger.exception("billing usage failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc
@@ -2564,9 +2551,7 @@ async def billing_plans():
             ],
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"billing module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"billing module unavailable: {exc}") from exc
     except Exception as exc:
         logger.exception("billing plans failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc
@@ -2579,9 +2564,7 @@ class BillingSubscribeRequest(BaseModel):
 
 
 @app.post("/api/billing/subscribe", tags=["billing"], status_code=201)
-async def billing_subscribe(
-    req: BillingSubscribeRequest, user: dict = Depends(get_current_user)
-):
+async def billing_subscribe(req: BillingSubscribeRequest, user: dict = Depends(get_current_user)):
     """POST /api/billing/subscribe - 订阅计划"""
     try:
         from ..billing import get_subscription_manager
@@ -2608,9 +2591,7 @@ async def billing_subscribe(
             "is_active": sub.is_active(),
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"billing module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"billing module unavailable: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -2678,8 +2659,7 @@ async def compliance_status(user: dict | None = Depends(get_optional_user)):
         return {
             "enabled": True,
             "user_consents": {
-                k: v.value if hasattr(v, "value") else str(v)
-                for k, v in consents.items()
+                k: v.value if hasattr(v, "value") else str(v) for k, v in consents.items()
             },
             "recent_reports": [r.to_dict() for r in reports],
             "report_count": len(reports),
@@ -2719,9 +2699,7 @@ async def i18n_messages(locale: str = Query(default="zh-CN")):
             "key_count": len(messages),
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"i18n module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"i18n module unavailable: {exc}") from exc
     except Exception as exc:
         logger.exception("i18n messages failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc
@@ -2760,9 +2738,7 @@ async def i18n_currency():
             "currencies": currencies,
         }
     except ImportError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"i18n module unavailable: {exc}"
-        ) from exc
+        raise HTTPException(status_code=503, detail=f"i18n module unavailable: {exc}") from exc
     except Exception as exc:
         logger.exception("i18n currency failed")
         raise HTTPException(status_code=500, detail=f"server error: {exc}") from exc

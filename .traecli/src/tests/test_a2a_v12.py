@@ -70,6 +70,7 @@ def v12_server_with_llm(v12_server, monkeypatch):
     mock_llm.chat = AsyncMock(side_effect=_mock_chat)
     # patch llm_client 全局单例
     import deadman.llm as llm_module
+
     monkeypatch.setattr(llm_module, "llm_client", mock_llm)
     return v12_server
 
@@ -130,17 +131,17 @@ class TestSendSubscribeSse:
         assert sse_text.endswith("\n")
 
     @pytest.mark.asyncio
-    async def test_send_subscribe_llm_unavailable_emits_failed(
-        self, v12_server, monkeypatch
-    ):
+    async def test_send_subscribe_llm_unavailable_emits_failed(self, v12_server, monkeypatch):
         """LLM 不可用时 sendSubscribe 仍返回 working + failed 事件"""
         # mock LLM api_key 为空 → graph 降级 → fallback LLM 也失败 → failed
         mock_llm = MagicMock()
         mock_llm.api_key = ""
         import deadman.llm as llm_module
+
         monkeypatch.setattr(llm_module, "llm_client", mock_llm)
         # graph 在模块级导入了 llm_client，需要同步 patch
         import deadman.orchestration.nodes as nodes_module
+
         monkeypatch.setattr(nodes_module, "llm_client", mock_llm, raising=False)
 
         req = {
@@ -171,7 +172,9 @@ class TestSendPushWebhook:
         server = v12_server_with_llm
         # 先创建一个任务
         send_req = {
-            "jsonrpc": "2.0", "id": "s1", "method": "tasks/send",
+            "jsonrpc": "2.0",
+            "id": "s1",
+            "method": "tasks/send",
             "params": {
                 "skill_id": "test-skill",
                 "message": {"role": "user", "parts": [{"type": "text", "content": "hi"}]},
@@ -190,7 +193,9 @@ class TestSendPushWebhook:
 
         with patch("deadman.a2a.server.httpx.AsyncClient", return_value=mock_client):
             push_req = {
-                "jsonrpc": "2.0", "id": "p1", "method": "tasks/sendPush",
+                "jsonrpc": "2.0",
+                "id": "p1",
+                "method": "tasks/sendPush",
                 "params": {
                     "task_id": task_id,
                     "webhook_url": "http://example.com/hook",
@@ -213,7 +218,9 @@ class TestSendPushWebhook:
     async def test_send_push_task_not_found(self, v12_server):
         """task 不存在时返回 -32602 错误"""
         push_req = {
-            "jsonrpc": "2.0", "id": "p2", "method": "tasks/sendPush",
+            "jsonrpc": "2.0",
+            "id": "p2",
+            "method": "tasks/sendPush",
             "params": {
                 "task_id": "nonexistent",
                 "webhook_url": "http://example.com/hook",
@@ -229,7 +236,9 @@ class TestSendPushWebhook:
         server = v12_server_with_llm
         # 创建任务
         send_req = {
-            "jsonrpc": "2.0", "id": "s1", "method": "tasks/send",
+            "jsonrpc": "2.0",
+            "id": "s1",
+            "method": "tasks/send",
             "params": {
                 "skill_id": "test-skill",
                 "message": {"role": "user", "parts": [{"type": "text", "content": "hi"}]},
@@ -246,7 +255,9 @@ class TestSendPushWebhook:
 
         with patch("deadman.a2a.server.httpx.AsyncClient", return_value=mock_client):
             push_req = {
-                "jsonrpc": "2.0", "id": "p3", "method": "tasks/sendPush",
+                "jsonrpc": "2.0",
+                "id": "p3",
+                "method": "tasks/sendPush",
                 "params": {
                     "task_id": task_id,
                     "webhook_url": "http://example.com/hook",
@@ -297,7 +308,10 @@ class TestAgentCardPushNotificationsFlag:
         """v1.2 开启 + card 有 push_notification_config 时 to_dict 包含该字段"""
         cfg = PushNotificationConfig(url="http://hook.example.com")
         card = AgentCard(
-            name="x", description="", version="1", url="http://x",
+            name="x",
+            description="",
+            version="1",
+            url="http://x",
             push_notification_config=cfg,
         )
         d = card.to_dict()
@@ -309,7 +323,10 @@ class TestAgentCardPushNotificationsFlag:
         monkeypatch.setattr(a2a_models, "A2A_V12_ENABLED", False)
         cfg = PushNotificationConfig(url="http://hook.example.com")
         card = AgentCard(
-            name="x", description="", version="1", url="http://x",
+            name="x",
+            description="",
+            version="1",
+            url="http://x",
             push_notification_config=cfg,
         )
         d = card.to_dict()
@@ -329,7 +346,9 @@ class TestDisabledReturnsV1:
         monkeypatch.setattr(a2a_server_module, "A2A_V12_ENABLED", False)
         server = A2AServer()
         req = {
-            "jsonrpc": "2.0", "id": "x", "method": "tasks/sendSubscribe",
+            "jsonrpc": "2.0",
+            "id": "x",
+            "method": "tasks/sendSubscribe",
             "params": {},
         }
         resp = await server.handle_jsonrpc(req)
@@ -344,7 +363,9 @@ class TestDisabledReturnsV1:
         monkeypatch.setattr(a2a_server_module, "A2A_V12_ENABLED", False)
         server = A2AServer()
         req = {
-            "jsonrpc": "2.0", "id": "x", "method": "tasks/sendPush",
+            "jsonrpc": "2.0",
+            "id": "x",
+            "method": "tasks/sendPush",
             "params": {},
         }
         resp = await server.handle_jsonrpc(req)
@@ -359,7 +380,9 @@ class TestDisabledReturnsV1:
         server = A2AServer()
         # tasks/get 对不存在的 task 返回 -32602（证明路由正常）
         req = {
-            "jsonrpc": "2.0", "id": "x", "method": "tasks/get",
+            "jsonrpc": "2.0",
+            "id": "x",
+            "method": "tasks/get",
             "params": {"task_id": "nonexistent"},
         }
         resp = await server.handle_jsonrpc(req)
@@ -397,10 +420,14 @@ class TestAgentCardSignature:
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption(),
         ).decode("utf-8")
-        public_pem = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        ).decode("utf-8")
+        public_pem = (
+            private_key.public_key()
+            .public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            .decode("utf-8")
+        )
 
         signature = server.sign_agent_card(private_key_pem=private_pem)
         assert signature is not None

@@ -31,9 +31,7 @@ def mock_llm_client():
     client.api_key = "test-key-not-real"  # 标记为可用，避免触发降级分支
     client.chat = AsyncMock(return_value="mock-response")
     client.chat_json = AsyncMock(return_value={"status": "ok"})
-    client.sample_multiple = AsyncMock(
-        return_value=["sample-1", "sample-2", "sample-3"]
-    )
+    client.sample_multiple = AsyncMock(return_value=["sample-1", "sample-2", "sample-3"])
     client.provider = "openai"
     client.model = "gpt-4o-mock"
     return client
@@ -50,9 +48,7 @@ def patch_llm(monkeypatch, mock_llm_client):
 
     monkeypatch.setattr(llm_module, "llm_client", mock_llm_client)
     # P7: get_llm_for_use_case 对任何 use_case 都返回 mock
-    monkeypatch.setattr(
-        llm_module, "get_llm_for_use_case", lambda use_case: mock_llm_client
-    )
+    monkeypatch.setattr(llm_module, "get_llm_for_use_case", lambda use_case: mock_llm_client)
     # 清空 use_case 缓存避免污染后续测试
     llm_module._llm_client_cache.clear()
     # 同步替换已经导入到各模块的 llm_client 引用（仍直接持有 llm_client 的模块）

@@ -59,9 +59,7 @@ def _make_scorer(tmp_path: Path) -> PlanScorer:
     )
 
 
-def _fill_ending_note_all_sections(
-    store, user_id: str, has_will: bool = True
-) -> None:
+def _fill_ending_note_all_sections(store, user_id: str, has_will: bool = True) -> None:
     """填充 9 章节终活笔记"""
     from deadman.ending_note.models import EndingNote
 
@@ -74,9 +72,7 @@ def _fill_ending_note_all_sections(
     note.digital_legacy = [{"platform": "微信", "account_masked": "138****1234"}]
     note.messages = [{"recipient": "配偶", "content": "感谢"}]
     note.emergency_contacts = [{"role": "律师", "name_masked": "王**"}]
-    note.will_intent = (
-        {"has_formal_will": True} if has_will else {"intent_to_create": True}
-    )
+    note.will_intent = {"has_formal_will": True} if has_will else {"intent_to_create": True}
     store.save(note)
 
 
@@ -182,9 +178,7 @@ def test_only_ending_note_scored(tmp_path: Path):
     result = scorer.score("u1")
 
     # 找到 ENDING_NOTE 维度
-    en_score = next(
-        s for s in result.category_scores if s.category == Category.ENDING_NOTE
-    )
+    en_score = next(s for s in result.category_scores if s.category == Category.ENDING_NOTE)
     assert en_score.score == 100, f"9 章节+will_intent 应满分，实际 {en_score.score}"
     assert len(en_score.completed_items) >= 9
     assert len(en_score.missing_items) == 0
@@ -214,9 +208,7 @@ def test_only_vault_scored(tmp_path: Path):
     _fill_vault_full(scorer._vault_store, "u2")
     result = scorer.score("u2")
 
-    vault_score = next(
-        s for s in result.category_scores if s.category == Category.VAULT
-    )
+    vault_score = next(s for s in result.category_scores if s.category == Category.VAULT)
     assert vault_score.score == 100, f"4 项全填应满分，实际 {vault_score.score}"
     assert len(vault_score.completed_items) == 4
     assert len(vault_score.missing_items) == 0
@@ -260,9 +252,7 @@ def test_weighted_total_calculation(tmp_path: Path):
     scorer = _make_scorer(tmp_path)
     # 仅填 ending_note（100）+ basic_info（部分）
     # 注册一个用户（默认 created_at 是 now，basic_info 不会满分）
-    user = scorer._user_store.register(
-        "weighted@example.com", "password123", "Weighted"
-    )
+    user = scorer._user_store.register("weighted@example.com", "password123", "Weighted")
     user_id = user["user_id"]
     _fill_ending_note_all_sections(scorer._ending_note_store, user_id)
     result = scorer.score(user_id)
@@ -295,9 +285,7 @@ def test_suggestions_match_missing_items(tmp_path: Path):
     has_suggestion = False
     for sub in result.category_scores:
         if sub.missing_items:
-            assert len(sub.suggestions) > 0, (
-                f"{sub.category} 有缺失项但无建议"
-            )
+            assert len(sub.suggestions) > 0, f"{sub.category} 有缺失项但无建议"
             has_suggestion = True
     assert has_suggestion, "至少一个维度应有建议"
 
@@ -443,15 +431,22 @@ def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
 
 def _register_and_get_token(port: int) -> str:
     """通过 HTTP 注册并拿 token"""
-    body = json.dumps({
-        "email": "webtest@example.com",
-        "password": "password123",
-        "display_name": "WebTest",
-    })
+    body = json.dumps(
+        {
+            "email": "webtest@example.com",
+            "password": "password123",
+            "display_name": "WebTest",
+        }
+    )
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request("POST", "/api/auth/register", body=body, headers={
-        "Content-Type": "application/json",
-    })
+    conn.request(
+        "POST",
+        "/api/auth/register",
+        body=body,
+        headers={
+            "Content-Type": "application/json",
+        },
+    )
     resp = conn.getresponse()
     data = json.loads(resp.read().decode("utf-8"))
     conn.close()
@@ -462,6 +457,7 @@ def test_web_endpoint_unauthorized_401(tmp_path: Path, monkeypatch):
     """未认证访问 /api/plan-score 返回 401"""
     # 重要：monkeypatch settings 的 auth_data_dir，避免污染 ~/.deadman
     from deadman.config import settings
+
     monkeypatch.setattr(settings, "auth_data_dir", tmp_path / "auth")
     monkeypatch.setattr(settings, "jwt_secret", "")
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
@@ -469,6 +465,7 @@ def test_web_endpoint_unauthorized_401(tmp_path: Path, monkeypatch):
 
     port = _get_free_port()
     from deadman.web.server import WebServer
+
     server = WebServer()
     thread = threading.Thread(
         target=server.run,
@@ -496,6 +493,7 @@ def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
     import secrets as _secrets
 
     from deadman.config import settings
+
     unique_dir = tmp_path / f"auth-{_secrets.token_hex(4)}"
     monkeypatch.setattr(settings, "auth_data_dir", unique_dir)
     monkeypatch.setattr(settings, "jwt_secret", "")
@@ -504,6 +502,7 @@ def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
 
     port = _get_free_port()
     from deadman.web.server import WebServer
+
     server = WebServer()
     thread = threading.Thread(
         target=server.run,
@@ -519,9 +518,13 @@ def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
 
         # 带 token 访问 /api/plan-score
         conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request("GET", "/api/plan-score", headers={
-            "Authorization": f"Bearer {token}",
-        })
+        conn.request(
+            "GET",
+            "/api/plan-score",
+            headers={
+                "Authorization": f"Bearer {token}",
+            },
+        )
         resp = conn.getresponse()
         assert resp.status == 200, f"认证后应 200，实际 {resp.status}"
         body = json.loads(resp.read().decode("utf-8"))
@@ -534,9 +537,13 @@ def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
 
         # 带 token 访问 /api/plan-score/detail
         conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request("GET", "/api/plan-score/detail", headers={
-            "Authorization": f"Bearer {token}",
-        })
+        conn.request(
+            "GET",
+            "/api/plan-score/detail",
+            headers={
+                "Authorization": f"Bearer {token}",
+            },
+        )
         resp = conn.getresponse()
         assert resp.status == 200
         body = json.loads(resp.read().decode("utf-8"))
@@ -614,14 +621,14 @@ def test_no_fabrication_based_on_real_data(tmp_path: Path):
         assert len(sub.missing_items) > 0
         for missing in sub.missing_items:
             # 缺失项描述应含"未"/"缺少"/"无"等否定语义
-            assert any(
-                kw in missing for kw in ["未", "缺少", "无", "不足"]
-            ), f"{sub.category} 缺失项描述不含否定语义: {missing}"
+            assert any(kw in missing for kw in ["未", "缺少", "无", "不足"]), (
+                f"{sub.category} 缺失项描述不含否定语义: {missing}"
+            )
         # 建议应是引导用户去填，不是断言已完成
         for sug in sub.suggestions:
-            assert any(
-                kw in sug for kw in ["建议", "请"]
-            ), f"{sub.category} 建议不含引导语义: {sug}"
+            assert any(kw in sug for kw in ["建议", "请"]), (
+                f"{sub.category} 建议不含引导语义: {sug}"
+            )
 
 
 # =====================================================================

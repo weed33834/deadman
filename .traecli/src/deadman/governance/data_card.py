@@ -185,7 +185,8 @@ class DataCardRegistry:
             self._load()
             min_rank = min_level.sensitivity_rank()
             return [
-                c for c in self._cache.values()
+                c
+                for c in self._cache.values()
                 if c.sensitivity_level.sensitivity_rank() >= min_rank
             ]
 

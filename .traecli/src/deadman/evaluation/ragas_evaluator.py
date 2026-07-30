@@ -74,8 +74,10 @@ try:  # pragma: no cover
     from ragas import (
         evaluate as _ragas_evaluate_async_module,  # noqa: F401  探测 ragas.evaluate 可用性
     )
+
     try:
         from ragas import aevaluate as _ragas_aevaluate  # type: ignore
+
         _HAS_AEVALUATE = True
     except ImportError:
         _ragas_aevaluate = None  # type: ignore
@@ -97,6 +99,7 @@ if _RAGAS_AVAILABLE:
             context_recall,
             faithfulness,
         )
+
         _METRIC_OBJS = {
             "faithfulness": faithfulness,
             "answer_relevancy": answer_relevancy,
@@ -113,6 +116,7 @@ if _RAGAS_AVAILABLE:
 # datasets 用于构造 Dataset(0.2 兼容);0.4 推荐 EvaluationDataset
 try:  # pragma: no cover
     from datasets import Dataset  # type: ignore
+
     _HAS_DATASETS = True
 except Exception:  # pragma: no cover
     Dataset = None  # type: ignore
@@ -121,6 +125,7 @@ except Exception:  # pragma: no cover
 # BaseRagasLLM 用于自定义 LLM 适配器
 try:  # pragma: no cover
     from ragas.llms.base import BaseRagasLLM  # type: ignore
+
     _HAS_BASE_RAGAS_LLM = True
 except Exception:  # pragma: no cover
     BaseRagasLLM = object  # type: ignore  # 降级为 object,避免继承报错
@@ -130,6 +135,7 @@ except Exception:  # pragma: no cover
 try:  # pragma: no cover
     from langchain_core.outputs import Generation, LLMResult  # type: ignore
     from langchain_core.prompt_values import StringPromptValue  # type: ignore
+
     _HAS_LANGCHAIN_CORE = True
 except Exception:  # pragma: no cover
     LLMResult = None  # type: ignore
@@ -196,6 +202,7 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         # 懒加载全局 llm_client
         try:
             from ..llm import llm_client as _global
+
             self._client = _global
             return _global
         except Exception as exc:  # pragma: no cover
@@ -219,7 +226,10 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
         messages = getattr(prompt, "messages", None)
         if messages:
             try:
-                return "\n".join(m.get("content", "") if isinstance(m, dict) else str(getattr(m, "content", "")) for m in messages)
+                return "\n".join(
+                    m.get("content", "") if isinstance(m, dict) else str(getattr(m, "content", ""))
+                    for m in messages
+                )
             except Exception as e:
                 logger.debug("提取 prompt messages 失败: %s", e)
         return str(prompt)
@@ -263,9 +273,7 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
     ) -> Any:
         return await self._agenerate(prompt, n, temperature if temperature is not None else 0.01)
 
-    async def _agenerate(
-        self, prompt: Any, n: int, temperature: float
-    ) -> Any:
+    async def _agenerate(self, prompt: Any, n: int, temperature: float) -> Any:
         text = self._extract_prompt_text(prompt)
         # cache 命中
         cache_key = f"{text[:200]}|n={n}|t={temperature}"
@@ -278,9 +286,7 @@ class DeadmanRagasLLM(BaseRagasLLM):  # type: ignore[misc]
 
         messages = [{"role": "user", "content": text}]
         try:
-            result = await client.chat(
-                messages, temperature=temperature, max_tokens=2048
-            )
+            result = await client.chat(messages, temperature=temperature, max_tokens=2048)
         except Exception as exc:
             raise RuntimeError(f"RAGAS LLM 调用失败: {exc}") from exc
 
@@ -472,9 +478,7 @@ class RAGASEvaluator:
             dataset = self._build_dataset(question, answer, contexts, ground_truth)
             # 仅选取 RAGAS 原生可用的指标
             ragas_metrics_objs = [
-                _METRIC_OBJS[name]
-                for name in metrics_names
-                if name in _METRIC_OBJS
+                _METRIC_OBJS[name] for name in metrics_names if name in _METRIC_OBJS
             ]
             if not ragas_metrics_objs:
                 raise RuntimeError("无可用 RAGAS 指标对象")
@@ -523,9 +527,7 @@ class RAGASEvaluator:
         # 5. 质量门判断
         faithfulness_score = result.metrics.get("faithfulness")
         if faithfulness_score is not None:
-            result.quality_gate_passed = (
-                faithfulness_score >= self.quality_gate_threshold
-            )
+            result.quality_gate_passed = faithfulness_score >= self.quality_gate_threshold
         else:
             # faithfulness 未算出 → 视为未通过(降级)
             result.quality_gate_passed = None
@@ -568,9 +570,7 @@ class RAGASEvaluator:
                     scores[k] = float(v)
         return scores
 
-    def _compute_completeness(
-        self, answer: str, expected_keywords: list[str] | None
-    ) -> float:
+    def _compute_completeness(self, answer: str, expected_keywords: list[str] | None) -> float:
         """计算完整性:期望关键词命中率(0-1)
 
         无 expected_keywords 时返回 1.0(无校验目标)
@@ -748,11 +748,13 @@ async def run_ragas_batch(
                         provided = await provided
                     answer, contexts = provided if isinstance(provided, tuple) else (provided, [])
                 except Exception as exc:
-                    results.append({
-                        "case_id": case_data["case_id"],
-                        "error": f"answer provider 失败: {exc}",
-                        "degraded": True,
-                    })
+                    results.append(
+                        {
+                            "case_id": case_data["case_id"],
+                            "error": f"answer provider 失败: {exc}",
+                            "degraded": True,
+                        }
+                    )
                     degraded_count += 1
                     continue
             else:

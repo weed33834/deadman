@@ -66,22 +66,26 @@ class MockLLMClient:
 
 def _final_answer_response(answer: str) -> str:
     """构造 FINAL_ANSWER JSON 响应"""
-    return json.dumps({
-        "thought": "直接作答",
-        "action": "FINAL_ANSWER",
-        "action_input": {},
-        "final_answer": answer,
-    })
+    return json.dumps(
+        {
+            "thought": "直接作答",
+            "action": "FINAL_ANSWER",
+            "action_input": {},
+            "final_answer": answer,
+        }
+    )
 
 
 def _non_final_response(action: str = "web_search", query: str = "x") -> str:
     """构造非 FINAL_ANSWER 的 ReAct JSON 响应（调工具）"""
-    return json.dumps({
-        "thought": "继续搜索",
-        "action": action,
-        "action_input": {"query": query},
-        "final_answer": "",
-    })
+    return json.dumps(
+        {
+            "thought": "继续搜索",
+            "action": action,
+            "action_input": {"query": query},
+            "final_answer": "",
+        }
+    )
 
 
 def make_mock_reflexion_engine(
@@ -104,7 +108,8 @@ def make_mock_reflexion_engine(
         engine._reflect = AsyncMock(return_value=return_value)
     else:
         engine._reflect = AsyncMock(
-            return_value=reflection or {
+            return_value=reflection
+            or {
                 "failure_type": "max_iterations",
                 "failure_reason": "达到最大迭代次数",
                 "adjustment_strategy": "简化推理直接作答",
@@ -217,10 +222,12 @@ class TestReflexionNotTriggered:
         # reflexion_engine=None 时即使 flag 开启也不触发
         monkeypatch.setattr(react_module, "REACT_REFLEXION_ENABLED", True)
 
-        llm = MockLLMClient(responses=[
-            "",  # iter1: NO_ACTION
-            "综合:建议",  # summarize
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",  # iter1: NO_ACTION
+                "综合:建议",  # summarize
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -249,12 +256,14 @@ class TestReflexionTriggered:
         engine = make_mock_reflexion_engine()
 
         # 第一轮失败(max_iterations)，第二轮也失败 → 1 次 reflect
-        llm = MockLLMClient(responses=[
-            "",  # iter1 of first _run_core (NO_ACTION)
-            "综合:建议",  # summarize of first _run_core
-            "",  # iter1 of second _run_core (round 1)
-            "综合:建议2",  # summarize of second _run_core
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",  # iter1 of first _run_core (NO_ACTION)
+                "综合:建议",  # summarize of first _run_core
+                "",  # iter1 of second _run_core (round 1)
+                "综合:建议2",  # summarize of second _run_core
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -275,9 +284,14 @@ class TestReflexionTriggered:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 1)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合:建议", "", "综合:建议2",
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:建议",
+                "",
+                "综合:建议2",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -309,11 +323,13 @@ class TestReflexionRetrySucceeds:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 2)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "",  # iter1 of first _run_core (NO_ACTION)
-            "综合:失败",  # summarize of first _run_core
-            _final_answer_response("反思后成功"),  # iter1 of second _run_core
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",  # iter1 of first _run_core (NO_ACTION)
+                "综合:失败",  # summarize of first _run_core
+                _final_answer_response("反思后成功"),  # iter1 of second _run_core
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -336,9 +352,13 @@ class TestReflexionRetrySucceeds:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 2)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合:失败", _final_answer_response("成功"),
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",
+                _final_answer_response("成功"),
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -366,11 +386,16 @@ class TestReflexionRoundLimit:
         engine = make_mock_reflexion_engine()
 
         # 3 次 _run_core (1 initial + 2 rounds)，每次都 max_iterations
-        llm = MockLLMClient(responses=[
-            "", "综合1",  # initial _run_core
-            "", "综合2",  # round 1 _run_core
-            "", "综合3",  # round 2 _run_core
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合1",  # initial _run_core
+                "",
+                "综合2",  # round 1 _run_core
+                "",
+                "综合3",  # round 2 _run_core
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -393,9 +418,16 @@ class TestReflexionRoundLimit:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 2)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合1", "", "综合2", "", "综合3",
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合1",
+                "",
+                "综合2",
+                "",
+                "综合3",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -418,10 +450,14 @@ class TestReflexionRoundLimit:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 1)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合1",  # initial
-            "", "综合2",  # round 1
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合1",  # initial
+                "",
+                "综合2",  # round 1
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -450,9 +486,12 @@ class TestReflexionDegradation:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 3)
         engine = make_mock_reflexion_engine(return_value=None)
 
-        llm = MockLLMClient(responses=[
-            "", "综合:失败",  # initial _run_core
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",  # initial _run_core
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",
@@ -529,10 +568,13 @@ class TestReflexionPromptAugmentation:
         }
         engine = make_mock_reflexion_engine(reflection=reflection)
 
-        llm = MockLLMClient(responses=[
-            "", "综合:失败",  # first _run_core
-            _final_answer_response("成功"),  # second _run_core
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",  # first _run_core
+                _final_answer_response("成功"),  # second _run_core
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="原始 system prompt",
@@ -559,9 +601,13 @@ class TestReflexionPromptAugmentation:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 2)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合:失败", _final_answer_response("成功"),
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",
+                _final_answer_response("成功"),
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="原始 prompt",
@@ -583,9 +629,14 @@ class TestReflexionPromptAugmentation:
         engine = make_mock_reflexion_engine()
 
         original_prompt = "原始 prompt"
-        llm = MockLLMClient(responses=[
-            "", "综合:失败", "", "综合:失败2",
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",
+                "",
+                "综合:失败2",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt=original_prompt,
@@ -634,9 +685,13 @@ class TestReflexionTraceSpan:
         monkeypatch.setattr(react_module, "REACT_REFLEXION_MAX_ROUNDS", 2)
         engine = make_mock_reflexion_engine()
 
-        llm = MockLLMClient(responses=[
-            "", "综合:失败", _final_answer_response("成功"),
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合:失败",
+                _final_answer_response("成功"),
+            ]
+        )
         spans: list[tuple[str, dict]] = []
 
         def cb(name, attrs):
@@ -690,9 +745,16 @@ class TestReflexionTraceSpan:
         engine = make_mock_reflexion_engine()
 
         # 所有轮次都失败 → 2 个 span
-        llm = MockLLMClient(responses=[
-            "", "综合1", "", "综合2", "", "综合3",
-        ])
+        llm = MockLLMClient(
+            responses=[
+                "",
+                "综合1",
+                "",
+                "综合2",
+                "",
+                "综合3",
+            ]
+        )
         spans: list[tuple[str, dict]] = []
 
         def cb(name, attrs):
@@ -738,10 +800,16 @@ class TestReflexionTriggerTypes:
 
         # 第一轮: iter1 + iter2 (stuck) + summarize
         # 第二轮 (round 1): 同样 stuck
-        llm = MockLLMClient(responses=[
-            non_final, non_final, "综合:stuck",
-            non_final, non_final, "综合:stuck2",
-        ])
+        llm = MockLLMClient(
+            responses=[
+                non_final,
+                non_final,
+                "综合:stuck",
+                non_final,
+                non_final,
+                "综合:stuck2",
+            ]
+        )
         loop = ReActLoop(
             llm=llm,
             system_prompt="sys",

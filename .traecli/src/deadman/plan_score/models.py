@@ -31,11 +31,11 @@ class Category(str, Enum):
     str 子类便于 JSON 序列化（与 SwitchState 设计一致）。
     """
 
-    ENDING_NOTE = "ENDING_NOTE"          # 终活笔记（9 章节完整度）
-    VAULT = "VAULT"                      # 数字遗产保险库（条目类型与配置）
-    DECEDENT_CASE = "DECEDENT_CASE"      # 遗码通案例（创建/事件/归档）
-    DEADMAN_SWITCH = "DEADMAN_SWITCH"    # 失联开关（联系人/律师/继承人）
-    BASIC_INFO = "BASIC_INFO"            # 用户基础信息（邮箱/昵称/留存）
+    ENDING_NOTE = "ENDING_NOTE"  # 终活笔记（9 章节完整度）
+    VAULT = "VAULT"  # 数字遗产保险库（条目类型与配置）
+    DECEDENT_CASE = "DECEDENT_CASE"  # 遗码通案例（创建/事件/归档）
+    DEADMAN_SWITCH = "DEADMAN_SWITCH"  # 失联开关（联系人/律师/继承人）
+    BASIC_INFO = "BASIC_INFO"  # 用户基础信息（邮箱/昵称/留存）
 
 
 @dataclass

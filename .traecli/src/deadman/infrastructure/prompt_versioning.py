@@ -42,9 +42,7 @@ from .feature_flags import is_enabled
 logger = logging.getLogger(__name__)
 
 # Prompt 仓库根目录
-PROMPTS_REPO_ROOT = Path(
-    os.environ.get("DEADMAN_PROMPTS_REPO", "data/prompts")
-)
+PROMPTS_REPO_ROOT = Path(os.environ.get("DEADMAN_PROMPTS_REPO", "data/prompts"))
 
 
 @dataclass
@@ -164,7 +162,9 @@ class PromptVersionManager:
                 self._active[name] = version
 
             self._save_prompt(pv)
-            logger.info("Prompt published: %s@%s by=%s active=%s", name, version, created_by, set_active)
+            logger.info(
+                "Prompt published: %s@%s by=%s active=%s", name, version, created_by, set_active
+            )
             return pv
 
     def resolve(
@@ -279,7 +279,7 @@ class PromptVersionManager:
             self._active[name] = to_version
             # 更新 active 标记
             for v, pv in versions.items():
-                pv.is_active = (v == to_version)
+                pv.is_active = v == to_version
             self._save_active_state(name)
             logger.info(
                 "Prompt rollback: %s → %s by=%s reason=%s",
@@ -408,6 +408,7 @@ class PromptVersionManager:
     def _extract_variables(self, template: str) -> list[str]:
         """从 Jinja2 模板提取 {{ var }} 变量(简单正则)。"""
         import re
+
         matches = re.findall(r"{{\s*(\w+)\s*}}", template)
         return sorted(set(matches))
 
@@ -447,6 +448,7 @@ class PromptVersionManager:
                 for ef in exp_dir.glob("*.json"):
                     try:
                         import json
+
                         data = json.loads(ef.read_text(encoding="utf-8"))
                         exp = ABExperiment(
                             name=data["name"],
@@ -485,7 +487,9 @@ class PromptVersionManager:
                 "metadata": pv.metadata,
             }
             tmp = file_path.with_suffix(".tmp")
-            tmp.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            tmp.write_text(
+                yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"
+            )
             os.replace(tmp, file_path)
         except Exception as e:
             logger.error("Failed to save prompt %s@%s: %s", pv.name, pv.version, e)
@@ -495,12 +499,13 @@ class PromptVersionManager:
         """更新某 prompt 的所有版本的 is_active 标记。"""
         versions = self._cache.get(name, {})
         for v, pv in versions.items():
-            pv.is_active = (v == self._active.get(name))
+            pv.is_active = v == self._active.get(name)
             self._save_prompt(pv)
 
     def _save_experiment(self, exp: ABExperiment) -> None:
         try:
             import json
+
             exp_dir = self.repo_root / "_experiments"
             exp_dir.mkdir(parents=True, exist_ok=True)
             file_path = exp_dir / f"{exp.name}.json"

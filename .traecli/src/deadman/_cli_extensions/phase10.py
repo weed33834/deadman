@@ -223,9 +223,7 @@ def register_subparsers(subparsers: Any) -> None:
         "ending-note-show",
         help="显示我的终活笔记内容（解密后输出）",
     )
-    show_parser.add_argument(
-        "--user-id", default="default-user", help="用户 ID"
-    )
+    show_parser.add_argument("--user-id", default="default-user", help="用户 ID")
     show_parser.set_defaults(func=cmd_ending_note_show)
 
     # ending-note-guide
@@ -233,9 +231,7 @@ def register_subparsers(subparsers: Any) -> None:
         "ending-note-guide",
         help="获取终活笔记引导问题（AI 引导填写）",
     )
-    guide_parser.add_argument(
-        "--user-id", default="default-user", help="用户 ID"
-    )
+    guide_parser.add_argument("--user-id", default="default-user", help="用户 ID")
     guide_parser.add_argument(
         "--section",
         help="指定章节 key（如 personal_info）；缺省 = 下一未填章节",
@@ -247,12 +243,8 @@ def register_subparsers(subparsers: Any) -> None:
         "ending-note-share",
         help="共享终活笔记给家庭成员",
     )
-    share_parser.add_argument(
-        "--user-id", required=True, help="笔记所有者用户 ID"
-    )
-    share_parser.add_argument(
-        "--target-user-id", required=True, help="接收方用户 ID"
-    )
+    share_parser.add_argument("--user-id", required=True, help="笔记所有者用户 ID")
+    share_parser.add_argument("--target-user-id", required=True, help="接收方用户 ID")
     share_parser.add_argument(
         "--sections",
         help="共享章节（逗号分隔，如 personal_info,family_relations）；缺省 = 全部",
@@ -264,9 +256,7 @@ def register_subparsers(subparsers: Any) -> None:
         "ending-note-completion",
         help="显示终活笔记填写完整度",
     )
-    completion_parser.add_argument(
-        "--user-id", default="default-user", help="用户 ID"
-    )
+    completion_parser.add_argument("--user-id", default="default-user", help="用户 ID")
     completion_parser.set_defaults(func=cmd_ending_note_completion)
 
 

@@ -28,9 +28,12 @@ logger = logging.getLogger(__name__)
 #   - LLM 评估 episode 重要性 0.0-1.0,< 0.3 归档不召回,> 0.8 提升召回优先级
 #   - 检测"创伤"记忆(L0 安全触发 / 法律纠纷 / 用户情绪崩溃)→ pinned=True 永不压缩
 # 关闭时:走旧的 user_input[:80] + assistant_response[:80] 截断摘要(保证不破坏现有测试)
-MEMORY_COMPRESS_ENABLED: bool = os.environ.get(
-    "DEADMAN_MEMORY_COMPRESS", "0"
-).lower() in ("1", "true", "yes", "on")
+MEMORY_COMPRESS_ENABLED: bool = os.environ.get("DEADMAN_MEMORY_COMPRESS", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 重要性阈值:< LOW 自动归档不召回,> HIGH 提升召回优先级
 IMPORTANCE_LOW_THRESHOLD: float = 0.3
@@ -81,6 +84,7 @@ def _init_file_store() -> Any:
     """
     try:
         from .file_store import FileMemoryStore
+
         return FileMemoryStore()
     except Exception as exc:  # pragma: no cover - 极端情况
         logger.warning("FileMemoryStore 初始化失败: %s", exc)
@@ -89,12 +93,27 @@ def _init_file_store() -> Any:
 
 # 需要 PII 脱敏的字段集合（含中英文别名，与 mcp_server._redact_pii 对齐）
 PII_FIELDS = {
-    "identifier", "name", "phone", "address", "account_number",
+    "identifier",
+    "name",
+    "phone",
+    "address",
+    "account_number",
     # 中文别名
-    "姓名", "电话", "手机", "地址", "住址", "身份证", "证件号",
-    "账号", "账户号", "卡号",
+    "姓名",
+    "电话",
+    "手机",
+    "地址",
+    "住址",
+    "身份证",
+    "证件号",
+    "账号",
+    "账户号",
+    "卡号",
     # 常见英文变体
-    "tel", "mobile", "id_card", "account",
+    "tel",
+    "mobile",
+    "id_card",
+    "account",
 }
 
 
@@ -112,8 +131,7 @@ def sanitize_before_store(data: dict) -> dict:
             sanitized[key] = sanitize_before_store(value)
         elif isinstance(value, list):
             sanitized[key] = [
-                sanitize_before_store(item) if isinstance(item, dict) else item
-                for item in value
+                sanitize_before_store(item) if isinstance(item, dict) else item for item in value
             ]
         else:
             sanitized[key] = value
@@ -162,9 +180,7 @@ class MemoryManager:
         self.semantic = semantic_memory or SemanticMemory(
             graphiti_client=self.graphiti, lightrag_client=self.lightrag
         )
-        self.procedural = procedural_memory or ProceduralMemory(
-            graphiti_client=self.graphiti
-        )
+        self.procedural = procedural_memory or ProceduralMemory(graphiti_client=self.graphiti)
 
         # 注入层间引用：
         # - working 溢出时归档到 episodic
@@ -241,12 +257,14 @@ class MemoryManager:
             for proc in procedures:
                 progress = self.procedural.get_user_progress(user_id, proc.procedure_id)
                 if progress:
-                    resumed.append({
-                        "procedure": proc.procedure_name,
-                        "procedure_id": proc.procedure_id,
-                        "current_step": progress.current_step,
-                        "completed_steps": list(progress.completed_steps),
-                    })
+                    resumed.append(
+                        {
+                            "procedure": proc.procedure_name,
+                            "procedure_id": proc.procedure_id,
+                            "current_step": progress.current_step,
+                            "completed_steps": list(progress.completed_steps),
+                        }
+                    )
             if resumed:
                 self.working.temp_vars["resumed_progress"] = resumed
 
@@ -347,9 +365,7 @@ class MemoryManager:
         step_completed = kwargs.get("step_completed")
         procedure_id = kwargs.get("procedure_id")
         if step_completed is not None and procedure_id:
-            self.procedural.update_user_progress(
-                user_id, procedure_id, step_completed
-            )
+            self.procedural.update_user_progress(user_id, procedure_id, step_completed)
 
         # 4. 降级路径：若 graphiti 和 lightrag 都不可用，把更新的 profile 和
         #    新 episode 写入 FileMemoryStore（~/.deadman/memory/）
@@ -374,9 +390,7 @@ class MemoryManager:
                         user_input, assistant_response, rule_check_result, risk_tier
                     )
                 else:
-                    summary_text = (
-                        f"用户: {user_input[:80]} | 助手: {assistant_response[:80]}"
-                    )
+                    summary_text = f"用户: {user_input[:80]} | 助手: {assistant_response[:80]}"
                     importance = None
                     pinned = False
                 # session_id 优先取 working.session_id，其次从 kwargs 提取
@@ -499,7 +513,7 @@ class MemoryManager:
         if not llm_client.api_key:
             return heuristic
         prompt = (
-            "评估以下对话的长期重要性,输出 JSON {\"importance\": 0.0-1.0}。\n"
+            '评估以下对话的长期重要性,输出 JSON {"importance": 0.0-1.0}。\n'
             "评分依据:\n"
             "- 0.9+: 涉及法律纠纷/安全危机/不可恢复决策\n"
             "- 0.7-0.9: 涉及关键事实(逝者身份/资产/家庭关系)\n"
@@ -562,8 +576,14 @@ class MemoryManager:
             return True
         # 3. 用户情绪崩溃信号(关键词检测)
         distress_keywords = (
-            "自杀", "想不开", "撑不下去", "不想活", "活不下去",
-            "结束生命", "轻生", "绝望",
+            "自杀",
+            "想不开",
+            "撑不下去",
+            "不想活",
+            "活不下去",
+            "结束生命",
+            "轻生",
+            "绝望",
         )
         text = (user_input or "") + " " + (assistant_response or "")
         for kw in distress_keywords:
@@ -586,10 +606,7 @@ class MemoryManager:
             lines.append(f"地点：{city or profile.location}")
         if profile.deceased_info:
             d = profile.deceased_info
-            lines.append(
-                f"逝者：{d.get('name', '未知')}, "
-                f"去世日期：{d.get('death_date', '未知')}"
-            )
+            lines.append(f"逝者：{d.get('name', '未知')}, 去世日期：{d.get('death_date', '未知')}")
         if profile.family_structure:
             lines.append(f"家庭：{profile.family_structure}")
         if profile.current_stage:
@@ -709,7 +726,9 @@ class MemoryManager:
             if total >= 10 and total % 5 == 0:
                 logger.info(
                     "反思压缩触发: agent=%s failure_type=%s total=%d,待 LLM 压缩",
-                    agent_name, failure_type, total,
+                    agent_name,
+                    failure_type,
+                    total,
                 )
 
         except Exception as exc:
@@ -732,7 +751,7 @@ class MemoryManager:
         try:
             fact = (
                 f"agent={agent_name} failure_type={failure_type} "
-                f"strategy=\"{strategy}\" success_rate={success_rate:.2f}"
+                f'strategy="{strategy}" success_rate={success_rate:.2f}'
             )
 
             # 降级到 FileMemoryStore.append_fact

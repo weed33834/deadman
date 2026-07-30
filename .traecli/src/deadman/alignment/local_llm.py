@@ -37,12 +37,12 @@ logger = logging.getLogger(__name__)
 class LocalLLMProvider(str, Enum):
     """本地 LLM 推理后端类型。"""
 
-    QWEN = "qwen"          # 通义千问
+    QWEN = "qwen"  # 通义千问
     DEEPSEEK = "deepseek"  # DeepSeek
-    LLAMA = "llama"        # Meta Llama
-    OLLAMA = "ollama"      # Ollama 本地服务
-    VLLM = "vllm"          # vLLM 推理服务器
-    CUSTOM = "custom"      # 自定义 OpenAI-compatible
+    LLAMA = "llama"  # Meta Llama
+    OLLAMA = "ollama"  # Ollama 本地服务
+    VLLM = "vllm"  # vLLM 推理服务器
+    CUSTOM = "custom"  # 自定义 OpenAI-compatible
 
 
 # 各 provider 默认端口
@@ -112,8 +112,9 @@ class LocalLLMConfig:
 # =====================================================================
 # HTTP 客户端(惰性导入,优先级 requests > httpx > urllib)
 # =====================================================================
-def _post_json(url: str, payload: dict[str, Any], timeout: float,
-               headers: dict[str, str] | None = None) -> tuple[int, dict[str, Any]]:
+def _post_json(
+    url: str, payload: dict[str, Any], timeout: float, headers: dict[str, str] | None = None
+) -> tuple[int, dict[str, Any]]:
     """POST JSON,返回 (status_code, response_json)。
 
     优先级:
@@ -129,6 +130,7 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
     # 1. requests
     try:
         import requests  # type: ignore
+
         resp: Any = requests.post(url, data=body, headers=hdrs, timeout=timeout)
         try:
             return resp.status_code, resp.json()
@@ -140,6 +142,7 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
     # 2. httpx
     try:
         import httpx  # type: ignore
+
         with httpx.Client(timeout=timeout) as client:
             resp = client.post(url, content=body, headers=hdrs)
             try:
@@ -152,6 +155,7 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
     # 3. urllib(标准库)
     import urllib.error
     import urllib.request
+
     req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -167,8 +171,9 @@ def _post_json(url: str, payload: dict[str, Any], timeout: float,
         return 0, {"_error": str(e)}
 
 
-def _get_json(url: str, timeout: float,
-              headers: dict[str, str] | None = None) -> tuple[int, dict[str, Any]]:
+def _get_json(
+    url: str, timeout: float, headers: dict[str, str] | None = None
+) -> tuple[int, dict[str, Any]]:
     """GET JSON。"""
     hdrs = {"Accept": "application/json"}
     if headers:
@@ -176,6 +181,7 @@ def _get_json(url: str, timeout: float,
 
     try:
         import requests  # type: ignore
+
         resp: Any = requests.get(url, headers=hdrs, timeout=timeout)
         try:
             return resp.status_code, resp.json()
@@ -186,6 +192,7 @@ def _get_json(url: str, timeout: float,
 
     try:
         import httpx  # type: ignore
+
         with httpx.Client(timeout=timeout) as client:
             resp = client.get(url, headers=hdrs)
             try:
@@ -197,6 +204,7 @@ def _get_json(url: str, timeout: float,
 
     import urllib.error
     import urllib.request
+
     req = urllib.request.Request(url, headers=hdrs, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -319,7 +327,8 @@ class LocalLLMClient:
         if not (200 <= status < 300):
             logger.warning(
                 "LocalLLM chat non-2xx status=%s, fallback to mock. body=%s",
-                status, str(data)[:200],
+                status,
+                str(data)[:200],
             )
             with self._lock:
                 self._failed_calls += 1
@@ -357,7 +366,8 @@ class LocalLLMClient:
             self._model_loaded = True
             logger.info(
                 "LocalLLM model loaded: %s (provider=%s, gpu_mem=%dMB)",
-                self.config.model_path, self.config.provider.value,
+                self.config.model_path,
+                self.config.provider.value,
                 self._gpu_memory_mb,
             )
             return True
@@ -396,7 +406,11 @@ class LocalLLMClient:
         with self._lock:
             elapsed = max(1e-6, time.time() - (self._last_call_at or time.time()))
             # 吞吐:粗略估算(总 token / 总调用数 × 1/s avg_latency)
-            throughput = self._total_tokens / max(1, self._total_calls) / max(0.001, elapsed) if self._total_calls else 0.0
+            throughput = (
+                self._total_tokens / max(1, self._total_calls) / max(0.001, elapsed)
+                if self._total_calls
+                else 0.0
+            )
             return {
                 "provider": self.config.provider.value,
                 "model_path": self.config.model_path,
@@ -463,7 +477,4 @@ class LocalLLMClient:
             if m.get("role") == "user":
                 last_user = m.get("content", "")
                 break
-        return (
-            f"[mock-{self.config.provider.value}] "
-            f"Reply to: {last_user[:80]}"
-        )
+        return f"[mock-{self.config.provider.value}] Reply to: {last_user[:80]}"

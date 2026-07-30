@@ -34,6 +34,7 @@ def cmd_version(args):
 def cmd_mcp_server(args):
     """启动 MCP Server"""
     from .mcp_server.server import main as server_main
+
     server_main()
 
 
@@ -220,10 +221,7 @@ def cmd_eval_ragas(args):
             metrics_str = ", ".join(
                 f"{k}={v:.2f}" for k, v in metrics.items() if isinstance(v, (int, float))
             )
-            print(
-                f"  case-{case_id}: degraded={degraded}, gate={gate}, "
-                f"metrics={metrics_str}"
-            )
+            print(f"  case-{case_id}: degraded={degraded}, gate={gate}, metrics={metrics_str}")
 
     # 写 health 文件
     data_dir = settings.project_root / "data"
@@ -263,9 +261,7 @@ def cmd_eval_ragas(args):
     passed = summary["quality_gate_passed"]
     pass_rate = passed / evaluated if evaluated else 0
     if pass_rate < 1.0 and args.fail_fast:
-        print(
-            f"\n[质量门] 通过率 {pass_rate:.1%} < 100%,faithfulness 阈值 {threshold}"
-        )
+        print(f"\n[质量门] 通过率 {pass_rate:.1%} < 100%,faithfulness 阈值 {threshold}")
         raise SystemExit(2)
 
 
@@ -388,9 +384,7 @@ def cmd_llm_test(args):
     async def _run_all() -> list[dict]:
         # 收集测试目标
         targets: list[tuple[str, str]] = []
-        providers_to_test = (
-            [args.provider] if args.provider else list(PROVIDER_MODELS.keys())
-        )
+        providers_to_test = [args.provider] if args.provider else list(PROVIDER_MODELS.keys())
         for provider in providers_to_test:
             if provider not in PROVIDER_MODELS:
                 print(f"[警告] 未知 provider: {provider},跳过")
@@ -889,7 +883,9 @@ def cmd_agent_ping(args):
 
     for r in results:
         tags = {"base_url": r["base_url"], "reachable": str(r["reachable"])}
-        metrics_collector.record_metric("interop.a2a_call_success_rate", 1.0 if r["reachable"] else 0.0, tags=tags)
+        metrics_collector.record_metric(
+            "interop.a2a_call_success_rate", 1.0 if r["reachable"] else 0.0, tags=tags
+        )
         metrics_collector.record_metric("interop.a2a_avg_latency_ms", r["latency_ms"], tags=tags)
 
 
@@ -909,8 +905,7 @@ def cmd_knowledge_list(args):
     print("-" * 80)
     for f in files:
         print(
-            f"{f.country:<6} {f.region:<14} {f.trust_level:<8} "
-            f"{f.last_updated or '-':<14} {f.path}"
+            f"{f.country:<6} {f.region:<14} {f.trust_level:<8} {f.last_updated or '-':<14} {f.path}"
         )
     print(f"\n知识库文件总数: {len(files)}")
 
@@ -1004,9 +999,7 @@ def cmd_knowledge_freshness(args):
     except OSError as e:
         print(f"[警告] 写入失败: {e}")
 
-    metrics_collector.record_metric(
-        "knowledge.stale_file_rate_6m", result["stale_rate"]
-    )
+    metrics_collector.record_metric("knowledge.stale_file_rate_6m", result["stale_rate"])
 
 
 # ====================================================================
@@ -1162,8 +1155,7 @@ def cmd_mcp_ping(args):
     for r in results:
         reach = "✓" if r["reachable"] else "✗"
         print(
-            f"{r['url']:<40} {reach:<6} {r['status_code']:>6} "
-            f"{r['latency_ms']:>8.1f} {r['error']}"
+            f"{r['url']:<40} {reach:<6} {r['status_code']:>6} {r['latency_ms']:>8.1f} {r['error']}"
         )
 
     data_dir = settings.project_root / "data"
@@ -1361,9 +1353,7 @@ def cmd_obs_test(args):
 
     # === 4. 表格化打印 ===
     print("\n=== 可观测性接入测试 ===")
-    print(
-        f"{'目标':<32} {'类型':<8} {'状态':<9} {'延迟ms':>8} 详情"
-    )
+    print(f"{'目标':<32} {'类型':<8} {'状态':<9} {'延迟ms':>8} 详情")
     print("-" * 90)
     status_map = {"ok": "✓ ok", "fail": "✗ fail", "skip": "○ skip"}
     for r in results:
@@ -1569,10 +1559,7 @@ def cmd_memory_test(args):
     print("-" * 80)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
 
     # === 4. 反馈闭环 ===
     data_dir = settings.project_root / "data"
@@ -1749,7 +1736,9 @@ def cmd_a2a_card(args):
     auth = card_dict.get("authentication", {})
     print(f"  authentication: {auth.get('schemes', [])}")
     caps = card_dict.get("capabilities", {})
-    print(f"  capabilities:   streaming={caps.get('streaming')} push={caps.get('pushNotifications')}")
+    print(
+        f"  capabilities:   streaming={caps.get('streaming')} push={caps.get('pushNotifications')}"
+    )
 
     skills = card_dict.get("skills", []) or []
     print(f"\n=== Skills ({len(skills)}) ===")
@@ -1810,10 +1799,7 @@ def cmd_a2a_test(args):
         {
             "target": "card:completeness",
             "status": "ok" if not missing else "fail",
-            "detail": (
-                f"skills={len(card_dict.get('skills', []))} "
-                f"missing={missing or 'none'}"
-            ),
+            "detail": (f"skills={len(card_dict.get('skills', []))} missing={missing or 'none'}"),
         }
     )
 
@@ -1890,10 +1876,7 @@ def cmd_a2a_test(args):
     print("-" * 80)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
 
     data_dir = settings.project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -2085,7 +2068,7 @@ def cmd_deploy_check(args):
     if entry_path.exists():
         try:
             content = entry_path.read_text(encoding="utf-8")
-            has_mode_dispatch = "case \"$MODE\"" in content or "case \"$1\"" in content
+            has_mode_dispatch = 'case "$MODE"' in content or 'case "$1"' in content
             has_set_eu = "set -euo pipefail" in content or "set -eu" in content
             ok = has_mode_dispatch and has_set_eu
             results.append(
@@ -2136,10 +2119,7 @@ def cmd_deploy_check(args):
     print("-" * 80)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['target']:<28} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['target']:<28} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
 
     data_dir = settings.project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -2374,8 +2354,7 @@ def cmd_reflexion_test(args):
                 "target": f"strategy:{ftype}",
                 "status": "ok" if ok else "fail",
                 "detail": (
-                    f"命中={'是' if actual_hit else '否'} "
-                    f"期望={'是' if expect_hit else '否'}"
+                    f"命中={'是' if actual_hit else '否'} 期望={'是' if expect_hit else '否'}"
                 ),
             }
         )
@@ -2468,10 +2447,7 @@ def cmd_reflexion_test(args):
     print("-" * 85)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['target']:<34} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['target']:<34} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
 
     data_dir = settings.project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -2737,9 +2713,7 @@ def cmd_skill_test(args):
         {
             "target": "refs:document_exists",
             "status": "ok" if not missing_refs else "fail",
-            "detail": (
-                f"引用={len(referenced)} 缺失={missing_refs or 'none'}"
-            ),
+            "detail": (f"引用={len(referenced)} 缺失={missing_refs or 'none'}"),
         }
     )
 
@@ -2776,10 +2750,7 @@ def _print_skill_results(results: list[dict[str, Any]]) -> None:
     print("-" * 80)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['target']:<32} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
     ok = sum(1 for r in results if r["status"] == "ok")
     print(f"[汇总] ok={ok}/{len(results)}")
 
@@ -2833,10 +2804,7 @@ def cmd_skill_validate(args):
                 {
                     "skill": d.name,
                     "status": "ok" if not missing else "fail",
-                    "detail": (
-                        f"name={front.get('name', '✗')} "
-                        f"missing={missing or 'none'}"
-                    ),
+                    "detail": (f"name={front.get('name', '✗')} missing={missing or 'none'}"),
                 }
             )
         except Exception as e:
@@ -2853,10 +2821,7 @@ def cmd_skill_validate(args):
     print("-" * 80)
     status_map = {"ok": "✓ ok", "fail": "✗ fail"}
     for r in results:
-        print(
-            f"{r['skill']:<28} {status_map.get(r['status'], r['status']):<9} "
-            f"{r['detail']}"
-        )
+        print(f"{r['skill']:<28} {status_map.get(r['status'], r['status']):<9} {r['detail']}")
 
     data_dir = settings.project_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -2957,9 +2922,7 @@ def cmd_cron_list(args):
         return
 
     print(f"\n=== 用户 {args.user} 的 Cron 任务（共 {len(jobs)} 条）===")
-    print(
-        f"{'Job ID':<14} {'状态':<10} {'调度':<16} {'过期时间':<20} 内容(前30字)"
-    )
+    print(f"{'Job ID':<14} {'状态':<10} {'调度':<16} {'过期时间':<20} 内容(前30字)")
     print("-" * 100)
     for j in jobs:
         if j.pending_confirmation:
@@ -2972,10 +2935,7 @@ def cmd_cron_list(args):
             state = "已激活"
         expires = j.expires_at.strftime("%Y-%m-%d %H:%M")
         content = (j.content or "").replace("\n", " ")[:30]
-        print(
-            f"{j.job_id:<14} {state:<10} {j.schedule:<16} "
-            f"{expires:<20} {content}"
-        )
+        print(f"{j.job_id:<14} {state:<10} {j.schedule:<16} {expires:<20} {content}")
 
 
 def cmd_cron_propose(args):
@@ -2985,9 +2945,7 @@ def cmd_cron_propose(args):
     scheduler = CronScheduler()
     try:
         result = asyncio.run(
-            scheduler.propose_job(
-                user_id=args.user, schedule=args.schedule, content=args.content
-            )
+            scheduler.propose_job(user_id=args.user, schedule=args.schedule, content=args.content)
         )
     except ValueError as e:
         print(f"[错误] 提议失败: {e}")
@@ -3002,9 +2960,7 @@ def cmd_cron_confirm(args):
 
     scheduler = CronScheduler()
     try:
-        result = asyncio.run(
-            scheduler.confirm_job(user_id=args.user, job_id=args.job_id)
-        )
+        result = asyncio.run(scheduler.confirm_job(user_id=args.user, job_id=args.job_id))
     except ValueError as e:
         print(f"[错误] 确认失败: {e}")
         raise SystemExit(1) from None
@@ -3019,9 +2975,7 @@ def cmd_cron_cancel(args):
     from .cron.scheduler import CronScheduler
 
     scheduler = CronScheduler()
-    ok = asyncio.run(
-        scheduler.cancel_job(user_id=args.user, job_id=args.job_id)
-    )
+    ok = asyncio.run(scheduler.cancel_job(user_id=args.user, job_id=args.job_id))
     if ok:
         print(f"\n[已取消] job_id={args.job_id}")
     else:
@@ -3034,10 +2988,7 @@ def cmd_cron_run(args):
     from .cron.scheduler import CronScheduler
 
     scheduler = CronScheduler()
-    print(
-        f"启动 Cron 调度器主循环 interval={args.interval}s "
-        f"jobs_file={scheduler.jobs_file}"
-    )
+    print(f"启动 Cron 调度器主循环 interval={args.interval}s jobs_file={scheduler.jobs_file}")
     print("按 Ctrl+C 退出")
     asyncio.run(scheduler.run_forever(interval_seconds=args.interval))
 
@@ -3053,9 +3004,7 @@ def cmd_cron_tick(args):
     print("-" * 80)
     for r in results:
         fired = "✓" if r["fired"] else "✗"
-        print(
-            f"{r['job_id']:<14} {r['user_id']:<14} {fired:<6} {r['reason']}"
-        )
+        print(f"{r['job_id']:<14} {r['user_id']:<14} {fired:<6} {r['reason']}")
 
 
 def cmd_cron_validate(args):
@@ -3304,11 +3253,13 @@ def cmd_gateway_start(args):
     memory_manager = None
     try:
         from .orchestration.graph import build_main_graph
+
         graph = build_main_graph()
     except Exception as exc:
         print(f"[警告] graph 初始化失败，handle_inbound 将返回错误提示: {exc}")
     try:
         from .memory.manager import MemoryManager
+
         memory_manager = MemoryManager()
     except Exception as exc:
         print(f"[警告] MemoryManager 初始化失败: {exc}")
@@ -3384,6 +3335,7 @@ def cmd_gateway_pair(args):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(pairing_tokens, f, ensure_ascii=False, indent=2)
     import os as _os
+
     _os.replace(tmp, pair_file)
 
     print("已生成配对 token：")
@@ -3415,6 +3367,7 @@ def cmd_notify_test(args):
     from datetime import datetime, timedelta
 
     from .notification.guardrail import NotificationGuardrail
+
     tmp_dir = Path(tempfile.mkdtemp(prefix="deadman-notify-test-"))
     guard = NotificationGuardrail(data_dir=tmp_dir)
 
@@ -3424,12 +3377,14 @@ def cmd_notify_test(args):
     # === 1. 静默时段 ===
     night = datetime(2026, 7, 21, 23, 30)
     allowed, reason = guard.can_send(user_id, night)
-    results.append({
-        "scenario": "silent_hours (23:30)",
-        "allowed": allowed,
-        "reason": reason,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "silent_hours (23:30)",
+            "allowed": allowed,
+            "reason": reason,
+            "expect_allowed": False,
+        }
+    )
 
     # === 2. 频率上限 - 单日 1 条超限 ===
     guard.record_consent(user_id, "是的，明天 9 点提醒我", "reminder:test-daily")
@@ -3440,12 +3395,14 @@ def cmd_notify_test(args):
     if allowed1:
         guard.record_send(user_id, "测试内容", "telegram")
     allowed2, reason2 = guard.can_send(user_id, morning)
-    results.append({
-        "scenario": "frequency_daily_limit (第 2 条应拦截)",
-        "allowed": allowed2,
-        "reason": reason2,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "frequency_daily_limit (第 2 条应拦截)",
+            "allowed": allowed2,
+            "reason": reason2,
+            "expect_allowed": False,
+        }
+    )
 
     # === 3. 频率上限 - 单周 3 条超限 ===
     user2 = "test-weekly-user"
@@ -3455,12 +3412,14 @@ def cmd_notify_test(args):
         base - timedelta(days=i)
         guard.record_send(user2, f"测试 {i}", "telegram")
     allowed_w, reason_w = guard.can_send(user2, base)
-    results.append({
-        "scenario": "frequency_weekly_limit (4 条已发应拦截)",
-        "allowed": allowed_w,
-        "reason": reason_w,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "frequency_weekly_limit (4 条已发应拦截)",
+            "allowed": allowed_w,
+            "reason": reason_w,
+            "expect_allowed": False,
+        }
+    )
 
     # === 4. 频率上限 - 单月 8 条超限 ===
     user3 = "test-monthly-user"
@@ -3469,133 +3428,167 @@ def cmd_notify_test(args):
         base - timedelta(days=i)
         guard.record_send(user3, f"测试 {i}", "telegram")
     allowed_m, reason_m = guard.can_send(user3, base)
-    results.append({
-        "scenario": "frequency_monthly_limit (8 条已发应拦截)",
-        "allowed": allowed_m,
-        "reason": reason_m,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "frequency_monthly_limit (8 条已发应拦截)",
+            "allowed": allowed_m,
+            "reason": reason_m,
+            "expect_allowed": False,
+        }
+    )
 
     # === 5. 敏感日期 - 清明 ===
     qingming = datetime(2026, 4, 5, 10, 0)
     user4 = "test-qingming-user"
     guard.record_consent(user4, "请提醒我", "reminder:test-qm")
     allowed_qm, reason_qm = guard.can_send(user4, qingming)
-    results.append({
-        "scenario": "sensitive_date_qingming (4-5 应拦截)",
-        "allowed": allowed_qm,
-        "reason": reason_qm,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "sensitive_date_qingming (4-5 应拦截)",
+            "allowed": allowed_qm,
+            "reason": reason_qm,
+            "expect_allowed": False,
+        }
+    )
 
     # === 6. 敏感日期 - 中元 ===
     zhongyuan = datetime(2026, 8, 15, 10, 0)
     user5 = "test-zhongyuan-user"
     guard.record_consent(user5, "请提醒我", "reminder:test-zy")
     allowed_zy, reason_zy = guard.can_send(user5, zhongyuan)
-    results.append({
-        "scenario": "sensitive_date_zhongyuan (8-15 应拦截)",
-        "allowed": allowed_zy,
-        "reason": reason_zy,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "sensitive_date_zhongyuan (8-15 应拦截)",
+            "allowed": allowed_zy,
+            "reason": reason_zy,
+            "expect_allowed": False,
+        }
+    )
 
     # === 7. opt-in 缺失拦截 ===
     user6 = "test-no-optin-user"
     allowed_no, reason_no = guard.can_send(user6, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "optin_missing (无 opt-in 应拦截)",
-        "allowed": allowed_no,
-        "reason": reason_no,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "optin_missing (无 opt-in 应拦截)",
+            "allowed": allowed_no,
+            "reason": reason_no,
+            "expect_allowed": False,
+        }
+    )
 
     # === 8. opt-in 存在允许 ===
     user7 = "test-optin-ok-user"
     guard.record_consent(user7, "请提醒我", "reminder:ok")
     allowed_ok, reason_ok = guard.can_send(user7, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "optin_present (有 opt-in 应允许)",
-        "allowed": allowed_ok,
-        "reason": reason_ok,
-        "expect_allowed": True,
-    })
+    results.append(
+        {
+            "scenario": "optin_present (有 opt-in 应允许)",
+            "allowed": allowed_ok,
+            "reason": reason_ok,
+            "expect_allowed": True,
+        }
+    )
 
     # === 9. 退订立即生效 ===
     user8 = "test-unsub-user"
     guard.record_consent(user8, "请提醒我", "reminder:unsub")
     guard.record_unsubscribe(user8, scope="all")
     allowed_unsub, reason_unsub = guard.can_send(user8, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "unsubscribe_immediate (退订后应拦截)",
-        "allowed": allowed_unsub,
-        "reason": reason_unsub,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "unsubscribe_immediate (退订后应拦截)",
+            "allowed": allowed_unsub,
+            "reason": reason_unsub,
+            "expect_allowed": False,
+        }
+    )
 
     # === 10. 72h 静默期 ===
     user9 = "test-72h-user"
     guard.record_consent(user9, "请提醒我", "reminder:72h")
-    guard.record_session_end(user9, safety_triggered=False, emotion_intensity="低", involved_sensitive_death=False)
+    guard.record_session_end(
+        user9, safety_triggered=False, emotion_intensity="低", involved_sensitive_death=False
+    )
     # 把 ended_at 改为 12 小时前
     last_session = guard._read_json(guard.last_session_file, {})
-    last_session[user9]["ended_at"] = (datetime(2026, 7, 21, 10, 0) - timedelta(hours=12)).isoformat()
+    last_session[user9]["ended_at"] = (
+        datetime(2026, 7, 21, 10, 0) - timedelta(hours=12)
+    ).isoformat()
     guard._write_json(guard.last_session_file, last_session)
     allowed_72, reason_72 = guard.can_send(user9, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "72h_silence_after_session (12h 后应拦截)",
-        "allowed": allowed_72,
-        "reason": reason_72,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "72h_silence_after_session (12h 后应拦截)",
+            "allowed": allowed_72,
+            "reason": reason_72,
+            "expect_allowed": False,
+        }
+    )
 
     # === 11. R3 触发后 14 天静默 ===
     user10 = "test-r3-user"
     guard.record_consent(user10, "请提醒我", "reminder:r3")
-    guard.record_session_end(user10, safety_triggered=True, emotion_intensity="中", involved_sensitive_death=False)
+    guard.record_session_end(
+        user10, safety_triggered=True, emotion_intensity="中", involved_sensitive_death=False
+    )
     last_session = guard._read_json(guard.last_session_file, {})
-    last_session[user10]["ended_at"] = (datetime(2026, 7, 21, 10, 0) - timedelta(days=5)).isoformat()
+    last_session[user10]["ended_at"] = (
+        datetime(2026, 7, 21, 10, 0) - timedelta(days=5)
+    ).isoformat()
     guard._write_json(guard.last_session_file, last_session)
     allowed_r3, reason_r3 = guard.can_send(user10, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "r3_14d_silence (R3 后 5 天应拦截)",
-        "allowed": allowed_r3,
-        "reason": reason_r3,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "r3_14d_silence (R3 后 5 天应拦截)",
+            "allowed": allowed_r3,
+            "reason": reason_r3,
+            "expect_allowed": False,
+        }
+    )
 
     # === 12. 高情绪后 7 天静默 ===
     user11 = "test-emotion-user"
     guard.record_consent(user11, "请提醒我", "reminder:emotion")
-    guard.record_session_end(user11, safety_triggered=False, emotion_intensity="高", involved_sensitive_death=False)
+    guard.record_session_end(
+        user11, safety_triggered=False, emotion_intensity="高", involved_sensitive_death=False
+    )
     last_session = guard._read_json(guard.last_session_file, {})
-    last_session[user11]["ended_at"] = (datetime(2026, 7, 21, 10, 0) - timedelta(days=3)).isoformat()
+    last_session[user11]["ended_at"] = (
+        datetime(2026, 7, 21, 10, 0) - timedelta(days=3)
+    ).isoformat()
     guard._write_json(guard.last_session_file, last_session)
     allowed_em, reason_em = guard.can_send(user11, datetime(2026, 7, 21, 10, 0))
-    results.append({
-        "scenario": "high_emotion_7d_silence (高情绪后 3 天应拦截)",
-        "allowed": allowed_em,
-        "reason": reason_em,
-        "expect_allowed": False,
-    })
+    results.append(
+        {
+            "scenario": "high_emotion_7d_silence (高情绪后 3 天应拦截)",
+            "allowed": allowed_em,
+            "reason": reason_em,
+            "expect_allowed": False,
+        }
+    )
 
     # === 13. 内容脱敏 - 替换禁用词 ===
     sanitized = guard.sanitize_content("提醒：今天该去办死亡证明了")
-    results.append({
-        "scenario": "sanitize_replaces (死亡→待办事项)",
-        "allowed": "死亡" not in sanitized and "待办事项" in sanitized,
-        "reason": sanitized,
-        "expect_allowed": True,
-    })
+    results.append(
+        {
+            "scenario": "sanitize_replaces (死亡→待办事项)",
+            "allowed": "死亡" not in sanitized and "待办事项" in sanitized,
+            "reason": sanitized,
+            "expect_allowed": True,
+        }
+    )
 
     # === 14. 内容脱敏 - 完全不推送关键词 ===
     blocked = guard.sanitize_content("今天是逝者的忌日")
-    results.append({
-        "scenario": "sanitize_blocks (含'忌日'返回空串)",
-        "allowed": blocked == "",
-        "reason": blocked,
-        "expect_allowed": True,
-    })
+    results.append(
+        {
+            "scenario": "sanitize_blocks (含'忌日'返回空串)",
+            "allowed": blocked == "",
+            "reason": blocked,
+            "expect_allowed": True,
+        }
+    )
 
     # === 表格化打印 ===
     print("\n=== NotificationGuardrail 测试报告 ===")
@@ -3609,13 +3602,12 @@ def cmd_notify_test(args):
         mark = "✓" if passed else "✗"
         if passed:
             pass_count += 1
-        print(
-            f"{r['scenario']:<48} {expected:<8} {actual:<8} {mark:<6} {r['reason']}"
-        )
+        print(f"{r['scenario']:<48} {expected:<8} {actual:<8} {mark:<6} {r['reason']}")
     print(f"\n[汇总] 通过 {pass_count}/{len(results)}")
 
     # 清理临时目录
     import shutil
+
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
     if pass_count < len(results) and getattr(args, "fail_fast", False):
@@ -3741,10 +3733,14 @@ def cmd_governance_status(args):
     print(f"  偏见事件数:     {gm._bias_incidents}")
     # 复议
     appeals = gm.appeals
-    print(f"  复议待处理:     {len(appeals.list_pending()) if hasattr(appeals, 'list_pending') else 'N/A'}")
+    print(
+        f"  复议待处理:     {len(appeals.list_pending()) if hasattr(appeals, 'list_pending') else 'N/A'}"
+    )
     # 伦理委员会
     ethics = gm.ethics
-    print(f"  伦理案例数:     {len(ethics.list_cases()) if hasattr(ethics, 'list_cases') else 'N/A'}")
+    print(
+        f"  伦理案例数:     {len(ethics.list_cases()) if hasattr(ethics, 'list_cases') else 'N/A'}"
+    )
 
 
 # ====================================================================
@@ -3829,8 +3825,10 @@ def cmd_multimodal_status(args):
     if audit:
         print(f"\n  最近审计记录 ({len(audit)} 条):")
         for entry in audit:
-            print(f"    [{entry.get('capability')}] provider={entry.get('provider')} "
-                  f"success={entry.get('success')} duration={entry.get('duration_ms', 0):.0f}ms")
+            print(
+                f"    [{entry.get('capability')}] provider={entry.get('provider')} "
+                f"success={entry.get('success')} duration={entry.get('duration_ms', 0):.0f}ms"
+            )
     else:
         print("\n  审计记录: (无)")
 
@@ -3870,24 +3868,29 @@ def cmd_multimodal_test(args):
             text="测试语音合成：愿逝者安息。",
             user_id="cli-test",
         )
-        results.append({
-            "test": "tts_synthesize",
-            "status": "ok",
-            "detail": f"provider={tts_result.provider} bytes={len(tts_result.audio_bytes)}",
-        })
-        print(f"  [TTS 合成] OK - provider={tts_result.provider} "
-              f"bytes={len(tts_result.audio_bytes)}")
+        results.append(
+            {
+                "test": "tts_synthesize",
+                "status": "ok",
+                "detail": f"provider={tts_result.provider} bytes={len(tts_result.audio_bytes)}",
+            }
+        )
+        print(
+            f"  [TTS 合成] OK - provider={tts_result.provider} bytes={len(tts_result.audio_bytes)}"
+        )
     except Exception as e:
         results.append({"test": "tts_synthesize", "status": "fail", "detail": str(e)})
         print(f"  [TTS 合成] FAIL - {e}")
 
     # 3. 审计日志验证
     audit = pipe.get_audit_log(limit=3)
-    results.append({
-        "test": "audit_log",
-        "status": "ok" if audit else "empty",
-        "detail": f"最近 {len(audit)} 条记录",
-    })
+    results.append(
+        {
+            "test": "audit_log",
+            "status": "ok" if audit else "empty",
+            "detail": f"最近 {len(audit)} 条记录",
+        }
+    )
     print(f"  [审计日志] {len(audit)} 条记录")
 
     # 汇总
@@ -3965,9 +3968,7 @@ def main():
         "--provider",
         help="只测试指定 provider(openai/anthropic/zhipu/ollama/vllm/llama_cpp)",
     )
-    llm_test_parser.add_argument(
-        "--model", help="指定模型(默认取该 provider 首个模型)"
-    )
+    llm_test_parser.add_argument("--model", help="指定模型(默认取该 provider 首个模型)")
     llm_test_parser.add_argument(
         "--timeout",
         type=int,
@@ -3988,113 +3989,71 @@ def main():
     sync_parser.add_argument("--provider", help="只同步指定 provider")
 
     # llm-cost 子命令 - 成本与配额汇总
-    cost_parser = subparsers.add_parser(
-        "llm-cost", help="汇总 token 用量与成本(配额追踪)"
-    )
-    cost_parser.add_argument(
-        "--clear", action="store_true", help="清空成本记录"
-    )
+    cost_parser = subparsers.add_parser("llm-cost", help="汇总 token 用量与成本(配额追踪)")
+    cost_parser.add_argument("--clear", action="store_true", help="清空成本记录")
 
     # prompt-list 子命令 - 列出本地提示词
     subparsers.add_parser("prompt-list", help="列出本地提示词模板")
 
     # prompt-test 子命令 - 提示词渲染+发 LLM 测试
-    pt_parser = subparsers.add_parser(
-        "prompt-test", help="渲染提示词并发 LLM 测试(真实反馈)"
-    )
+    pt_parser = subparsers.add_parser("prompt-test", help="渲染提示词并发 LLM 测试(真实反馈)")
     pt_parser.add_argument("name", help="提示词名称")
-    pt_parser.add_argument(
-        "--var", action="append", help="变量 key=value(可重复)"
-    )
+    pt_parser.add_argument("--var", action="append", help="变量 key=value(可重复)")
     pt_parser.add_argument("--provider", help="LLM provider")
     pt_parser.add_argument("--model", help="覆盖提示词里的 model")
     pt_parser.add_argument("--max-tokens", type=int, default=512)
-    pt_parser.add_argument(
-        "--allow-missing", action="store_true", help="允许缺变量渲染"
-    )
-    pt_parser.add_argument(
-        "--dry-run", action="store_true", help="只渲染不发 LLM"
-    )
-    pt_parser.add_argument(
-        "--fail-fast", action="store_true", help="失败时退出码非零"
-    )
+    pt_parser.add_argument("--allow-missing", action="store_true", help="允许缺变量渲染")
+    pt_parser.add_argument("--dry-run", action="store_true", help="只渲染不发 LLM")
+    pt_parser.add_argument("--fail-fast", action="store_true", help="失败时退出码非零")
 
     # prompt-sync 子命令 - 同步线上提示词清单
-    ps_parser = subparsers.add_parser(
-        "prompt-sync", help="同步线上提示词仓库(LangSmith/deepset)"
-    )
+    ps_parser = subparsers.add_parser("prompt-sync", help="同步线上提示词仓库(LangSmith/deepset)")
     ps_parser.add_argument("--query", help="LangSmith 搜索关键词")
 
     # rule-test 子命令 - 对文本跑规则校验
-    rt_parser = subparsers.add_parser(
-        "rule-test", help="对文本跑 L0-L8 规则校验(手动测试)"
-    )
+    rt_parser = subparsers.add_parser("rule-test", help="对文本跑 L0-L8 规则校验(手动测试)")
     rt_parser.add_argument("text", help="待校验文本")
 
     # rule-validate 子命令 - 规则文件完整性校验
-    rv_parser = subparsers.add_parser(
-        "rule-validate", help="校验规则文件完整性与优先级链"
-    )
-    rv_parser.add_argument(
-        "--fail-fast", action="store_true", help="校验失败退出码非零"
-    )
+    rv_parser = subparsers.add_parser("rule-validate", help="校验规则文件完整性与优先级链")
+    rv_parser.add_argument("--fail-fast", action="store_true", help="校验失败退出码非零")
 
     # agent-list 子命令 - 列出本地智能体配置
     subparsers.add_parser("agent-list", help="列出本地智能体配置(agents/*.md)")
 
     # agent-ping 子命令 - 测试远端 A2A agent 可达性
-    ap_parser = subparsers.add_parser(
-        "agent-ping", help="ping 远端 A2A agent(真实反馈可达性/延迟)"
-    )
-    ap_parser.add_argument(
-        "--url", action="append", help="远端 agent base URL(可重复)"
-    )
+    ap_parser = subparsers.add_parser("agent-ping", help="ping 远端 A2A agent(真实反馈可达性/延迟)")
+    ap_parser.add_argument("--url", action="append", help="远端 agent base URL(可重复)")
     ap_parser.add_argument("--timeout", type=float, default=10.0, help="超时秒")
 
     # knowledge-list 子命令 - 列出本地知识库文件
     subparsers.add_parser("knowledge-list", help="列出本地知识库文件")
 
     # knowledge-search 子命令 - 知识库检索测试
-    ks_parser = subparsers.add_parser(
-        "knowledge-search", help="知识库检索测试(真实反馈命中)"
-    )
+    ks_parser = subparsers.add_parser("knowledge-search", help="知识库检索测试(真实反馈命中)")
     ks_parser.add_argument("query", help="查询词")
     ks_parser.add_argument("--country", help="国家过滤(CN/US/JP)")
     ks_parser.add_argument("--region", help="地区过滤")
 
     # knowledge-freshness 子命令 - 知识库新鲜度检查
-    subparsers.add_parser(
-        "knowledge-freshness", help="检查知识库文件新鲜度(过期检测)"
-    )
+    subparsers.add_parser("knowledge-freshness", help="检查知识库文件新鲜度(过期检测)")
 
     # tool-list 子命令 - 列出本地 MCP 工具
     subparsers.add_parser("tool-list", help="列出本地注册的 MCP 工具")
 
     # tool-test 子命令 - 测试单个 MCP 工具调用
-    tt_parser = subparsers.add_parser(
-        "tool-test", help="测试单个 MCP 工具调用(真实反馈)"
-    )
+    tt_parser = subparsers.add_parser("tool-test", help="测试单个 MCP 工具调用(真实反馈)")
     tt_parser.add_argument("name", help="工具名")
-    tt_parser.add_argument(
-        "--arg", action="append", help="参数 key=value(可重复,值支持 JSON)"
-    )
-    tt_parser.add_argument(
-        "--fail-fast", action="store_true", help="失败时退出码非零"
-    )
+    tt_parser.add_argument("--arg", action="append", help="参数 key=value(可重复,值支持 JSON)")
+    tt_parser.add_argument("--fail-fast", action="store_true", help="失败时退出码非零")
 
     # mcp-ping 子命令 - 测试外部 MCP server 可达性
-    mp_parser = subparsers.add_parser(
-        "mcp-ping", help="ping 外部 MCP server(可达性检测)"
-    )
-    mp_parser.add_argument(
-        "--url", action="append", help="外部 MCP server URL(可重复)"
-    )
+    mp_parser = subparsers.add_parser("mcp-ping", help="ping 外部 MCP server(可达性检测)")
+    mp_parser.add_argument("--url", action="append", help="外部 MCP server URL(可重复)")
     mp_parser.add_argument("--timeout", type=float, default=10.0, help="超时秒")
 
     # obs-dashboard 子命令 - 显示可观测性看板
-    obsd_parser = subparsers.add_parser(
-        "obs-dashboard", help="显示 11 大类指标看板当前值"
-    )
+    obsd_parser = subparsers.add_parser("obs-dashboard", help="显示 11 大类指标看板当前值")
     obsd_parser.add_argument("--category", help="只看某分类(quality/efficiency/...)")
 
     # obs-test 子命令 - 可观测性接入测试
@@ -4107,7 +4066,9 @@ def main():
     subparsers.add_parser("obs-export", help="导出 Prometheus 格式指标")
 
     # memory-list 子命令 - 列出分层记忆状态
-    subparsers.add_parser("memory-list", help="列出 4 层记忆状态(working/episodic/semantic/procedural)")
+    subparsers.add_parser(
+        "memory-list", help="列出 4 层记忆状态(working/episodic/semantic/procedural)"
+    )
 
     # memory-test 子命令 - 记忆写入+召回测试
     subparsers.add_parser("memory-test", help="记忆系统写入+召回测试(真实反馈)")
@@ -4119,18 +4080,14 @@ def main():
     memp_parser.add_argument("--timeout", type=float, default=5.0, help="超时秒")
 
     # a2a-card 子命令 - 显示本地 AgentCard
-    ac_parser = subparsers.add_parser(
-        "a2a-card", help="显示本地 A2A AgentCard(自名片+完整性校验)"
-    )
+    ac_parser = subparsers.add_parser("a2a-card", help="显示本地 A2A AgentCard(自名片+完整性校验)")
     ac_parser.add_argument("--json", action="store_true", help="输出原始 JSON")
 
     # a2a-test 子命令 - A2A 协议自测
     subparsers.add_parser("a2a-test", help="A2A 协议自测(card+JSON-RPC,真实反馈)")
 
     # a2a-registry 子命令 - A2A registry 可达性
-    ar_parser = subparsers.add_parser(
-        "a2a-registry", help="A2A registry 可达性探测(线上源)"
-    )
+    ar_parser = subparsers.add_parser("a2a-registry", help="A2A registry 可达性探测(线上源)")
     ar_parser.add_argument("--timeout", type=float, default=5.0, help="超时秒")
 
     # deploy-check 子命令 - 部署工件校验
@@ -4146,19 +4103,13 @@ def main():
     dt_parser.add_argument("--timeout", type=float, default=10.0, help="超时秒")
 
     # reflexion-list 子命令 - 列出预定义调整策略
-    subparsers.add_parser(
-        "reflexion-list", help="列出 Reflexion 预定义调整策略(10 种快速路径)"
-    )
+    subparsers.add_parser("reflexion-list", help="列出 Reflexion 预定义调整策略(10 种快速路径)")
 
     # reflexion-test 子命令 - 反思重试测试
-    subparsers.add_parser(
-        "reflexion-test", help="Reflexion 反思重试测试(mock 操作,真实反馈)"
-    )
+    subparsers.add_parser("reflexion-test", help="Reflexion 反思重试测试(mock 操作,真实反馈)")
 
     # reflexion-ping 子命令 - LLM 反思路径可达性
-    subparsers.add_parser(
-        "reflexion-ping", help="LLM 反思路径可达性(慢速路径依赖 LLM)"
-    )
+    subparsers.add_parser("reflexion-ping", help="LLM 反思路径可达性(慢速路径依赖 LLM)")
 
     # skill-list 子命令 - 列出本地技能
     subparsers.add_parser("skill-list", help="列出本地技能清单(skills/*/SKILL.md)")
@@ -4170,31 +4121,19 @@ def main():
     st_parser.add_argument("name", help="技能目录名")
 
     # skill-validate 子命令 - 全量校验所有技能
-    sv_parser = subparsers.add_parser(
-        "skill-validate", help="全量校验所有技能完整性"
-    )
+    sv_parser = subparsers.add_parser("skill-validate", help="全量校验所有技能完整性")
     sv_parser.add_argument("--fail-fast", action="store_true", help="校验失败退出码非零")
 
     # chat 子命令 - 交互式对话 REPL（借鉴 Hermes Agent MIT 设计）
-    chat_parser = subparsers.add_parser(
-        "chat", help="交互式对话 REPL（借鉴 Hermes MIT 设计）"
-    )
-    chat_parser.add_argument(
-        "--user-id", default="default-user", help="用户 ID（记忆恢复用）"
-    )
-    chat_parser.add_argument(
-        "--session-id", default=None, help="会话 ID（默认自动生成 uuid4）"
-    )
+    chat_parser = subparsers.add_parser("chat", help="交互式对话 REPL（借鉴 Hermes MIT 设计）")
+    chat_parser.add_argument("--user-id", default="default-user", help="用户 ID（记忆恢复用）")
+    chat_parser.add_argument("--session-id", default=None, help="会话 ID（默认自动生成 uuid4）")
 
     # memory-export 子命令 - 导出 FileMemoryStore 为 markdown
-    subparsers.add_parser(
-        "memory-export", help="导出文件记忆层为 markdown（USER+MEMORY+EPISODES）"
-    )
+    subparsers.add_parser("memory-export", help="导出文件记忆层为 markdown（USER+MEMORY+EPISODES）")
 
     # soul-show 子命令 - 显示当前 SOUL.md
-    subparsers.add_parser(
-        "soul-show", help="显示当前 SOUL.md（用户级或默认）"
-    )
+    subparsers.add_parser("soul-show", help="显示当前 SOUL.md（用户级或默认）")
 
     # web-search 子命令 - 联网搜索测试（借鉴 Hermes MIT 设计，httpx 直连 DuckDuckGo）
     web_search_parser = subparsers.add_parser(
@@ -4202,9 +4141,7 @@ def main():
         help="联网搜索测试（DuckDuckGo HTML，真实反馈，借鉴 Hermes MIT 设计）",
     )
     web_search_parser.add_argument("query", help="搜索查询语句")
-    web_search_parser.add_argument(
-        "--max", type=int, default=5, help="最大结果数（默认 5）"
-    )
+    web_search_parser.add_argument("--max", type=int, default=5, help="最大结果数（默认 5）")
     web_search_parser.add_argument(
         "--fail-fast", action="store_true", help="搜索失败时退出码非零（CI 用）"
     )
@@ -4221,9 +4158,7 @@ def main():
     # ====================================================================
     # cron 系列子命令 - 借鉴 Hermes cron/scheduler.py，遵守 notification-guardrails 第三章
     # ====================================================================
-    cron_list_parser = subparsers.add_parser(
-        "cron-list", help="列出用户的所有 cron 任务"
-    )
+    cron_list_parser = subparsers.add_parser("cron-list", help="列出用户的所有 cron 任务")
     cron_list_parser.add_argument("--user", default="default-user", help="用户 ID")
 
     cron_propose_parser = subparsers.add_parser(
@@ -4239,18 +4174,14 @@ def main():
     cron_confirm_parser.add_argument("--job-id", required=True, help="任务 ID")
     cron_confirm_parser.add_argument("--user", default="default-user", help="用户 ID")
 
-    cron_cancel_parser = subparsers.add_parser(
-        "cron-cancel", help="取消（删除）cron 任务"
-    )
+    cron_cancel_parser = subparsers.add_parser("cron-cancel", help="取消（删除）cron 任务")
     cron_cancel_parser.add_argument("--job-id", required=True, help="任务 ID")
     cron_cancel_parser.add_argument("--user", default="default-user", help="用户 ID")
 
     cron_run_parser = subparsers.add_parser(
         "cron-run", help="启动 cron 调度器主循环（前台运行，Ctrl+C 退出）"
     )
-    cron_run_parser.add_argument(
-        "--interval", type=int, default=60, help="tick 间隔秒（默认 60）"
-    )
+    cron_run_parser.add_argument("--interval", type=int, default=60, help="tick 间隔秒（默认 60）")
 
     subparsers.add_parser("cron-tick", help="执行单次 tick（调试用）")
 
@@ -4267,12 +4198,8 @@ def main():
         help="启动消息平台 Gateway（借鉴 Hermes，主动推送受 NotificationGuardrail 约束）",
     )
 
-    gateway_pair_parser = subparsers.add_parser(
-        "gateway-pair", help="生成 Telegram 配对 token"
-    )
-    gateway_pair_parser.add_argument(
-        "--user-id", default="default-user", help="deadman 用户 ID"
-    )
+    gateway_pair_parser = subparsers.add_parser("gateway-pair", help="生成 Telegram 配对 token")
+    gateway_pair_parser.add_argument("--user-id", default="default-user", help="deadman 用户 ID")
 
     notify_test_parser = subparsers.add_parser(
         "notify-test", help="测试 NotificationGuardrail 各种场景"
@@ -4299,9 +4226,7 @@ def main():
     )
 
     # alignment-train 子命令 - 触发训练流水线
-    subparsers.add_parser(
-        "alignment-train", help="触发 Alignment SFT → DPO 训练流水线(mock)"
-    )
+    subparsers.add_parser("alignment-train", help="触发 Alignment SFT → DPO 训练流水线(mock)")
 
     # governance-status 子命令 - 显示治理框架状态
     subparsers.add_parser(
@@ -4322,9 +4247,7 @@ def main():
     )
 
     # multimodal-test 子命令 - 测试多模态管道
-    subparsers.add_parser(
-        "multimodal-test", help="测试 Multimodal 多模态管道(TTS 合成 + 能力验证)"
-    )
+    subparsers.add_parser("multimodal-test", help="测试 Multimodal 多模态管道(TTS 合成 + 能力验证)")
 
     # === Phase 7+ 扩展模块子命令注册（自动加载）===
     # 各 Phase 通过 _cli_extensions/phaseN.py 提供 register_subparsers(subparsers)
@@ -4340,6 +4263,7 @@ def main():
             phase15_switch,
             phase16,
         )
+
         phase8.register_subparsers(subparsers)
         phase9.register_subparsers(subparsers)
         phase10.register_subparsers(subparsers)
@@ -4354,6 +4278,7 @@ def main():
     # === Phase 15 (Memorial Writer): AI 悼文撰写 ===
     try:
         from ._cli_extensions import phase15_memorial
+
         phase15_memorial.register_subparsers(subparsers)
     except ImportError as exc:
         logging.getLogger(__name__).warning(f"Phase 15 Memorial Writer 扩展加载失败: {exc}")

@@ -58,9 +58,7 @@ class TicketReply:
     created_at: str  # ISO 时间戳
 
     @classmethod
-    def new(
-        cls, author: str, content: str, created_at: str | None = None
-    ) -> TicketReply:
+    def new(cls, author: str, content: str, created_at: str | None = None) -> TicketReply:
         """创建一条新回复
 
         author 校验：必须是 TicketReplyAuthor 枚举值之一

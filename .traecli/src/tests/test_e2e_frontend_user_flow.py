@@ -191,9 +191,14 @@ def test_dashboard_empty_state(server_base_url: str):
     assert r.status_code == 200
     data = r.json()
     required_keys = [
-        "agent_calls", "risk_tier_counts", "span_type_counts",
-        "token_usage_total", "termination_triggers",
-        "total_conversations", "degraded_count", "recent_spans",
+        "agent_calls",
+        "risk_tier_counts",
+        "span_type_counts",
+        "token_usage_total",
+        "termination_triggers",
+        "total_conversations",
+        "degraded_count",
+        "recent_spans",
     ]
     for k in required_keys:
         assert k in data, f"dashboard 缺字段：{k}"
@@ -230,7 +235,9 @@ def test_user_send_complex_tasks(server_base_url: str):
         error_data = None
 
         # SSE 流式接收（graph 跑完 + SSE 推送可能耗时，用 60s read 超时）
-        with httpx.stream("GET", url, params=params, timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5)) as r:
+        with httpx.stream(
+            "GET", url, params=params, timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5)
+        ) as r:
             assert r.status_code == 200, f"SSE 应返回 200，实际 {r.status_code}"
             buffer = ""
             for chunk in r.iter_text():
@@ -265,8 +272,9 @@ def test_user_send_complex_tasks(server_base_url: str):
         print(f"  收到 {len(events_received)} 个 SSE 事件，类型分布：{type_counts}")
 
         # 必有终止事件：done 或 error 二者有其一
-        assert "done" in event_types or "error" in event_types, \
+        assert "done" in event_types or "error" in event_types, (
             f"任务 {i} 缺终止事件（done 或 error）"
+        )
         print(f"  ✓ 终止事件就位：{'done' if done_data else 'error'}")
 
         if done_data:
@@ -274,7 +282,9 @@ def test_user_send_complex_tasks(server_base_url: str):
             assert "has_trace" in done_data, "done 事件缺 has_trace 标记"
             assert "agent" in done_data, "done 事件缺 agent 字段"
             assert "degraded" in done_data, "done 事件缺 degraded 字段"
-            print(f"  ✓ done 事件字段完整: agent={done_data.get('agent')}, degraded={done_data.get('degraded')}, has_trace={done_data.get('has_trace')}")
+            print(
+                f"  ✓ done 事件字段完整: agent={done_data.get('agent')}, degraded={done_data.get('degraded')}, has_trace={done_data.get('has_trace')}"
+            )
             # graph 跑通时响应文本应非空（agent_node 降级响应也有内容）
             if full_response:
                 print(f"  ✓ 响应文本 {len(full_response)} 字符: {full_response[:80]}...")
@@ -283,25 +293,33 @@ def test_user_send_complex_tasks(server_base_url: str):
         elif error_data:
             print(f"  ✓ error 事件: {error_data}")
 
-        task_results.append({
-            "name": task["name"],
-            "events": events_received,
-            "response": full_response,
-            "trace": trace_data,
-            "done": done_data,
-            "error": error_data,
-        })
+        task_results.append(
+            {
+                "name": task["name"],
+                "events": events_received,
+                "response": full_response,
+                "trace": trace_data,
+                "done": done_data,
+                "error": error_data,
+            }
+        )
 
     # 验证 dashboard 累加（done 路径才累加，error 路径不累加）
     print("\n  --- 验证 dashboard 累加 ---")
     dashboard_after = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
     done_count = sum(1 for t in task_results if t["done"])
-    print(f"  发送后 dashboard: total_conversations={dashboard_after['total_conversations']}, done 路径 {done_count} 个")
+    print(
+        f"  发送后 dashboard: total_conversations={dashboard_after['total_conversations']}, done 路径 {done_count} 个"
+    )
 
     if done_count > 0:
-        assert dashboard_after["total_conversations"] == dashboard_before["total_conversations"] + done_count, \
-            f"total_conversations 应增加 {done_count}（done 路径数）"
-        print(f"  ✓ total_conversations 累加正确：{dashboard_before['total_conversations']} → {dashboard_after['total_conversations']}")
+        assert (
+            dashboard_after["total_conversations"]
+            == dashboard_before["total_conversations"] + done_count
+        ), f"total_conversations 应增加 {done_count}（done 路径数）"
+        print(
+            f"  ✓ total_conversations 累加正确：{dashboard_before['total_conversations']} → {dashboard_after['total_conversations']}"
+        )
 
         assert len(dashboard_after["recent_spans"]) >= done_count
         print(f"  ✓ recent_spans 累加正确：{len(dashboard_after['recent_spans'])} 条")
@@ -347,7 +365,12 @@ def test_concurrent_users(server_base_url: str):
         try:
             url = f"{server_base_url}/api/stream"
             params = {"query": query, "agent": agent}
-            with httpx.stream("GET", url, params=params, timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5)) as r:
+            with httpx.stream(
+                "GET",
+                url,
+                params=params,
+                timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5),
+            ) as r:
                 buffer = ""
                 for chunk in r.iter_text():
                     buffer += chunk
@@ -381,7 +404,9 @@ def test_concurrent_users(server_base_url: str):
 
     dashboard_after = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
     assert dashboard_after["total_conversations"] == dashboard_before["total_conversations"] + 2
-    print(f"  ✓ 2 个并发请求完成，dashboard 累加正确：{dashboard_before['total_conversations']} → {dashboard_after['total_conversations']}")
+    print(
+        f"  ✓ 2 个并发请求完成，dashboard 累加正确：{dashboard_before['total_conversations']} → {dashboard_after['total_conversations']}"
+    )
 
 
 if __name__ == "__main__":

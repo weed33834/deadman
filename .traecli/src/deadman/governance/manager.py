@@ -135,8 +135,7 @@ class GovernanceManager:
         """
         if not is_enabled("governance"):
             raise GovernanceDisabledError(
-                "AI governance framework is disabled "
-                "(set DEADMAN_GOVERNANCE_ENABLED=1 to enable)"
+                "AI governance framework is disabled (set DEADMAN_GOVERNANCE_ENABLED=1 to enable)"
             )
 
     # ==================================================================
@@ -244,7 +243,10 @@ class GovernanceManager:
                 self._model_usage[model_id] = self._model_usage.get(model_id, 0) + 1
             logger.debug(
                 "Decision recorded: %s (user=%s ai=%s model=%s)",
-                decision_id, user_id, is_ai, model_id,
+                decision_id,
+                user_id,
+                is_ai,
+                model_id,
             )
 
     def record_bias_incident(self, description: str = "") -> None:
@@ -294,9 +296,7 @@ class GovernanceManager:
             report.human_review_count = max(report.human_review_count, self._human_review_count)
             report.bias_incidents_count = max(report.bias_incidents_count, self._bias_incidents)
             for mid, count in self._model_usage.items():
-                report.model_usage_stats[mid] = max(
-                    report.model_usage_stats.get(mid, 0), count
-                )
+                report.model_usage_stats[mid] = max(report.model_usage_stats.get(mid, 0), count)
             for cat, count in self._user_feedback.items():
                 report.user_feedback_summary[cat] = max(
                     report.user_feedback_summary.get(cat, 0), count

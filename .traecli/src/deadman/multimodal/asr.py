@@ -42,7 +42,7 @@ class ASRSegment:
 
     text: str
     start: float  # 秒
-    end: float    # 秒
+    end: float  # 秒
     confidence: float = 1.0
 
 
@@ -138,6 +138,7 @@ class OpenAIWhisperProvider(ASRProvider):
             return self._available
         try:
             import openai  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai package not available: %s", e)
@@ -191,6 +192,7 @@ class WhisperCppProvider(ASRProvider):
             return self._available
         try:
             import pywhispercpp  # type: ignore
+
             self._available = True
         except Exception as e:
             logger.debug("pywhispercpp not available: %s", e)
@@ -200,7 +202,11 @@ class WhisperCppProvider(ASRProvider):
     def transcribe(self, audio_path: Path, language: str) -> ASRResult:
         import pywhispercpp  # type: ignore
 
-        model = pywhispercpp.Whisper(model_path=self.model_path) if self.model_path else pywhispercpp.Whisper()
+        model = (
+            pywhispercpp.Whisper(model_path=self.model_path)
+            if self.model_path
+            else pywhispercpp.Whisper()
+        )
         segments = model.transcribe(str(audio_path))
         text_parts = [s.text for s in segments]
         seg_list = [
@@ -311,7 +317,9 @@ class ASRService:
                 result = provider.transcribe(audio_path, language)
                 logger.info(
                     "ASR transcribed via %s (lang=%s, confidence=%.2f)",
-                    provider.name, result.language, result.confidence,
+                    provider.name,
+                    result.language,
+                    result.confidence,
                 )
                 return result
             except Exception as e:

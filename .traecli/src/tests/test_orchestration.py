@@ -78,12 +78,25 @@ class TestCreateInitialState:
         # 所有预期字段都存在
         state = create_initial_state("x")
         expected_fields = {
-            "user_input", "user_profile", "session_id", "turn_count",
-            "current_agent", "agent_history", "pending_transfer",
-            "transfer_confirmed", "transfer_history", "subagent_results",
-            "rule_check", "safety_override", "knowledge_results",
-            "web_search_results", "draft_response", "final_response",
-            "confidence_labels", "trace_spans", "metrics",
+            "user_input",
+            "user_profile",
+            "session_id",
+            "turn_count",
+            "current_agent",
+            "agent_history",
+            "pending_transfer",
+            "transfer_confirmed",
+            "transfer_history",
+            "subagent_results",
+            "rule_check",
+            "safety_override",
+            "knowledge_results",
+            "web_search_results",
+            "draft_response",
+            "final_response",
+            "confidence_labels",
+            "trace_spans",
+            "metrics",
         }
         assert expected_fields.issubset(set(state.keys()))
 
@@ -214,10 +227,14 @@ class TestSequentialExecutor:
         executor.add_node("path_a", path_a)
         executor.add_node("path_b", path_b)
         executor.set_entry_point("start")
-        executor.add_conditional_edges("start", router, {
-            "go_a": "path_a",
-            "go_b": "path_b",
-        })
+        executor.add_conditional_edges(
+            "start",
+            router,
+            {
+                "go_a": "path_a",
+                "go_b": "path_b",
+            },
+        )
 
         # 路径 A
         state_a = create_initial_state("A")
@@ -391,6 +408,7 @@ class TestStuckDetection:
     def test_is_stuck_step_count_exceeded(self):
         """step_count 超过 MAX_STEPS=25 时判定为卡死"""
         from deadman.orchestration.graph import MAX_STEPS, _is_stuck
+
         assert MAX_STEPS == 25
         state = create_initial_state("x")
         state["step_count"] = 26
@@ -403,6 +421,7 @@ class TestStuckDetection:
     def test_is_stuck_agent_repeat_exceeded(self):
         """stuck_count >= STUCK_AGENT_REPEAT_LIMIT=3 时判定为卡死"""
         from deadman.orchestration.graph import STUCK_AGENT_REPEAT_LIMIT, _is_stuck
+
         assert STUCK_AGENT_REPEAT_LIMIT == 3
         state = create_initial_state("x")
         state["stuck_count"] = 3
@@ -416,6 +435,7 @@ class TestStuckDetection:
     def test_is_stuck_not_triggered_normal(self):
         """正常状态下不触发卡死"""
         from deadman.orchestration.graph import _is_stuck
+
         state = create_initial_state("x")
         state["step_count"] = 5
         state["stuck_count"] = 1
@@ -426,6 +446,7 @@ class TestStuckDetection:
     def test_route_to_agent_force_terminate_on_stuck(self):
         """route_to_agent 在卡死时应返回 'force_terminate'"""
         from deadman.orchestration.nodes import route_to_agent
+
         state = create_initial_state("x")
         state["step_count"] = 30  # 超限
         result = route_to_agent(state)
@@ -437,6 +458,7 @@ class TestStuckDetection:
     def test_route_to_agent_force_terminate_on_repeat(self):
         """route_to_agent 在连续重复 agent 时应返回 'force_terminate'"""
         from deadman.orchestration.nodes import route_to_agent
+
         state = create_initial_state("x")
         state["stuck_count"] = 3
         state["last_agent_for_stuck"] = "legal_advisor"
@@ -446,6 +468,7 @@ class TestStuckDetection:
     def test_route_to_agent_normal_when_not_stuck(self):
         """正常状态下 route_to_agent 应正常路由"""
         from deadman.orchestration.nodes import route_to_agent
+
         state = create_initial_state("x")
         state["current_agent"] = "death_aftercare"
         result = route_to_agent(state)
@@ -455,11 +478,17 @@ class TestStuckDetection:
     async def test_sequential_executor_terminates_on_stuck(self):
         """SequentialExecutor 在卡死时应强制跳到 respond 节点而非无限循环"""
         from deadman.orchestration.nodes import respond_node
+
         graph = SequentialExecutor()
+
         # 注册一个会无限自循环的节点（模拟 router 失灵）
         async def fake_router(state):
             # 永远返回同一 agent，模拟卡死
-            return {"current_agent": "death_aftercare", "step_count": state.get("step_count", 0) + 1}
+            return {
+                "current_agent": "death_aftercare",
+                "step_count": state.get("step_count", 0) + 1,
+            }
+
         # 让 stuck_count 直接涨到 4，触发卡死
         async def stuck_agent(state):
             return {
@@ -468,13 +497,16 @@ class TestStuckDetection:
                 "step_count": state.get("step_count", 0) + 1,
                 "draft_response": "mock",
             }
+
         graph.add_node("input_guard", fake_router)
         graph.add_node("router", stuck_agent)
         graph.add_node("death_aftercare", stuck_agent)
         graph.add_node("respond", respond_node)
         graph.set_entry_point("input_guard")
         graph.add_edge("input_guard", "router")
-        graph.add_conditional_edges("router", lambda s: "death_aftercare", {"death_aftercare": "death_aftercare"})
+        graph.add_conditional_edges(
+            "router", lambda s: "death_aftercare", {"death_aftercare": "death_aftercare"}
+        )
         graph.add_edge("death_aftercare", "router")  # 死循环
         graph.add_edge("respond", None)  # END
 

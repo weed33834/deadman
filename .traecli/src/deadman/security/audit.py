@@ -50,9 +50,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-AUDIT_CHAIN_ENABLED: bool = os.environ.get(
-    "DEADMAN_AUDIT_CHAIN_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+AUDIT_CHAIN_ENABLED: bool = os.environ.get("DEADMAN_AUDIT_CHAIN_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 持久化文件路径：
 # settings.project_root 是 .traecli/，其 parent 是 /workspace/deadman/，
@@ -72,14 +75,16 @@ _HASH_FIELD_ORDER: tuple[str, ...] = (
 )
 
 # 支持的事件类型（开放枚举，未列出的事件类型仍可写入，仅用于文档/校验提示）
-AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
-    "tool_call",
-    "rule_triggered",
-    "transfer",
-    "handoff",
-    "pii_sanitized",
-    "security_alert",
-})
+AUDIT_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "tool_call",
+        "rule_triggered",
+        "transfer",
+        "handoff",
+        "pii_sanitized",
+        "security_alert",
+    }
+)
 
 # 链起始 prev_hash（64 个 0，对齐 SHA-256 hex 长度）
 GENESIS_HASH = "0" * 64
@@ -170,9 +175,7 @@ def compute_hash(event: AuditEvent) -> str:
         64 字符 hex 字符串
     """
     try:
-        metadata_json = json.dumps(
-            event.metadata, sort_keys=True, ensure_ascii=False, default=str
-        )
+        metadata_json = json.dumps(event.metadata, sort_keys=True, ensure_ascii=False, default=str)
     except (TypeError, ValueError) as e:
         logger.debug("metadata 序列化失败，退化为空: %s", e)
         metadata_json = ""
@@ -204,8 +207,8 @@ class AuditChain:
 
     def __init__(self, persist_path: str | Path | None = None):
         """Args:
-            persist_path: 持久化文件路径；None 用默认 data/audit.jsonl
-                          （相对 settings.project_root.parent，即 /workspace/deadman/）
+        persist_path: 持久化文件路径；None 用默认 data/audit.jsonl
+                      （相对 settings.project_root.parent，即 /workspace/deadman/）
         """
         if persist_path is None:
             # settings.project_root 是 .traecli/，parent 是 /workspace/deadman/
@@ -302,9 +305,7 @@ class AuditChain:
         3. metadata 不可序列化 → compute_hash 内部用 default=str 兜底
         """
         if not AUDIT_CHAIN_ENABLED:
-            logger.debug(
-                "audit chain disabled (DEADMAN_AUDIT_CHAIN_ENABLED=0), skip"
-            )
+            logger.debug("audit chain disabled (DEADMAN_AUDIT_CHAIN_ENABLED=0), skip")
             return None
 
         event = AuditEvent(
@@ -327,8 +328,11 @@ class AuditChain:
 
         logger.info(
             "audit event appended: type=%s actor=%s action=%s (event_id=%s, curr_hash=%s...)",
-            event.event_type, event.actor, event.action,
-            event.event_id, event.curr_hash[:8],
+            event.event_type,
+            event.actor,
+            event.action,
+            event.event_id,
+            event.curr_hash[:8],
         )
         return event
 
@@ -379,7 +383,9 @@ class AuditChain:
                 logger.warning(
                     "audit chain broken at index %d: prev_hash mismatch "
                     "(expected %s..., got %s...)",
-                    i, prev_hash[:8], event.prev_hash[:8],
+                    i,
+                    prev_hash[:8],
+                    event.prev_hash[:8],
                 )
                 return False
             # 2. curr_hash 重算校验
@@ -388,7 +394,9 @@ class AuditChain:
                 logger.warning(
                     "audit chain broken at index %d: curr_hash mismatch "
                     "(expected %s..., got %s...)",
-                    i, recomputed[:8], event.curr_hash[:8],
+                    i,
+                    recomputed[:8],
+                    event.curr_hash[:8],
                 )
                 return False
             prev_hash = event.curr_hash

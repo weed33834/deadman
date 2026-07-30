@@ -140,7 +140,8 @@ class CrossSessionLinker:
             self._save()
             logger.info(
                 "Cross-session link consent granted for user %s (strategy=%s)",
-                user_id, strategy.value,
+                user_id,
+                strategy.value,
             )
             return consent
 
@@ -205,10 +206,7 @@ class CrossSessionLinker:
         with self._lock:
             self._load()
             # 首次或过期 → 生成新 salt
-            if (
-                not self._salt
-                or now - self._salt_generated_at > SALT_ROTATION_SECONDS
-            ):
+            if not self._salt or now - self._salt_generated_at > SALT_ROTATION_SECONDS:
                 self._salt = os.urandom(32).hex()
                 self._salt_generated_at = now
                 self._save()
@@ -224,6 +222,7 @@ class CrossSessionLinker:
         try:
             import json
             from pathlib import Path
+
             path: Path | str = self.store_path
             if isinstance(path, str):
                 path = Path(path)
@@ -247,6 +246,7 @@ class CrossSessionLinker:
         try:
             import json
             from pathlib import Path
+
             path = Path(self.store_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             data = {
@@ -318,19 +318,13 @@ class BehaviorAggregator:
     def get_patterns(self, min_count: int = 5) -> list[BehaviorPattern]:
         """获取模式列表(过滤低 count,防止稀疏样本反推)。"""
         with self._lock:
-            return [
-                p for p in self._patterns.values()
-                if p.occurrence_count >= min_count
-            ]
+            return [p for p in self._patterns.values() if p.occurrence_count >= min_count]
 
     def purge_expired(self, max_age_seconds: int = 90 * 86400) -> int:
         """清理过期模式。"""
         now = time.time()
         with self._lock:
-            expired = [
-                h for h, p in self._patterns.items()
-                if now - p.last_seen > max_age_seconds
-            ]
+            expired = [h for h, p in self._patterns.items() if now - p.last_seen > max_age_seconds]
             for h in expired:
                 del self._patterns[h]
             return len(expired)
@@ -347,10 +341,21 @@ class TraceAnonymizer:
 
     # trace 中需脱敏的字段(常见 PII / 敏感数据)
     SENSITIVE_FIELDS = {
-        "user_id", "user_email", "user_phone", "user_name",
-        "session_id", "ip_address", "device_id", "location",
-        "query", "input", "user_input", "message",
-        "tool_args", "tool_result", "llm_response",
+        "user_id",
+        "user_email",
+        "user_phone",
+        "user_name",
+        "session_id",
+        "ip_address",
+        "device_id",
+        "location",
+        "query",
+        "input",
+        "user_input",
+        "message",
+        "tool_args",
+        "tool_result",
+        "llm_response",
     }
 
     def __init__(
@@ -410,6 +415,7 @@ class TraceAnonymizer:
     def _hash_value(self, value: str) -> str:
         """hash 敏感值(不可逆)。"""
         import hashlib
+
         return "h:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
     def _extract_pattern(self, trace_record: dict[str, Any]) -> str:
@@ -423,6 +429,7 @@ class TraceAnonymizer:
         status = trace_record.get("status", "")
         pattern = f"{span_type}.{tool_name}.{status}"
         import hashlib
+
         return hashlib.sha256(pattern.encode("utf-8")).hexdigest()[:16]
 
 

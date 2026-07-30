@@ -24,10 +24,7 @@ import argparse
 import sys
 from typing import Any
 
-_DISCLAIMER = (
-    "【边界告知】信函仅为草稿，具体格式请以办理机构要求为准；"
-    "占位符 [xxx] 需手动填写。"
-)
+_DISCLAIMER = "【边界告知】信函仅为草稿，具体格式请以办理机构要求为准；占位符 [xxx] 需手动填写。"
 
 
 # ====================================================================
@@ -125,9 +122,7 @@ def cmd_letter_template(args: argparse.Namespace) -> None:
         print(f"支持的类型: {', '.join(names)}")
         sys.exit(1)
 
-    meta = next(
-        (t for t in LETTER_TYPES if t["type"] == letter_type), None
-    )
+    meta = next((t for t in LETTER_TYPES if t["type"] == letter_type), None)
     if meta:
         print(f"=== {meta['name']} 原始模板 ===")
         print(f"type: {letter_type}")
@@ -151,39 +146,49 @@ def register_subparsers(subparsers: Any) -> None:
         help="生成通知信函（8 类之一）",
     )
     gen_parser.add_argument(
-        "--type", required=True,
+        "--type",
+        required=True,
         help="信函类型（如 household_cancellation）",
     )
     gen_parser.add_argument(
-        "--name", required=True,
+        "--name",
+        required=True,
         help="逝者姓名（建议脱敏，如 '张**'）",
     )
     gen_parser.add_argument(
-        "--id-masked", required=True,
+        "--id-masked",
+        required=True,
         help="已脱敏的逝者身份证号（如 110101********1234）",
     )
     gen_parser.add_argument(
-        "--death-date", required=True,
+        "--death-date",
+        required=True,
         help="死亡日期（YYYY-MM-DD）",
     )
     gen_parser.add_argument(
-        "--applicant", required=True,
+        "--applicant",
+        required=True,
         help="申请人姓名",
     )
     gen_parser.add_argument(
-        "--relationship", required=True,
+        "--relationship",
+        required=True,
         help="申请人与逝者关系（配偶/子女/父母/兄弟姐妹/其他）",
     )
     gen_parser.add_argument(
-        "--recipient", required=True,
+        "--recipient",
+        required=True,
         help="收件机构（如 '户籍所在地派出所'）",
     )
     gen_parser.add_argument(
-        "--extra", action="append", default=[],
+        "--extra",
+        action="append",
+        default=[],
         help="类型特定字段，格式 key=val（可重复）",
     )
     gen_parser.add_argument(
-        "--use-llm", action="store_true",
+        "--use-llm",
+        action="store_true",
         help="启用 LLM 语气优化（默认禁用，纯模板填充）",
     )
     gen_parser.set_defaults(func=cmd_letter_generate)
@@ -201,7 +206,8 @@ def register_subparsers(subparsers: Any) -> None:
         help="打印原始信函模板（不填充）",
     )
     tpl_parser.add_argument(
-        "--type", required=True,
+        "--type",
+        required=True,
         help="信函类型（如 household_cancellation）",
     )
     tpl_parser.set_defaults(func=cmd_letter_template)

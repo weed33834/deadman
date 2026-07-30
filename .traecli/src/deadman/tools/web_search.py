@@ -227,7 +227,9 @@ class DuckDuckGoSearchProvider:
         try:
             raw_results = self._parse_html(html, max_results)
         except Exception as exc:
-            logger.warning("DuckDuckGo HTML 解析失败（返回空列表）: %s: %s", type(exc).__name__, exc)
+            logger.warning(
+                "DuckDuckGo HTML 解析失败（返回空列表）: %s: %s", type(exc).__name__, exc
+            )
             return []
 
         # 对每个结果判定 source_type 和 confidence
@@ -365,14 +367,25 @@ class DuckDuckGoSearchProvider:
 
         # 1. 政府域名 → official, 0.9
         #    .gov.cn / .gov / .gov.uk / .gov.au / *.gov
-        if host.endswith(".gov.cn") or host.endswith(".gov") or host.endswith(".gov.uk") or host.endswith(".gov.au"):
+        if (
+            host.endswith(".gov.cn")
+            or host.endswith(".gov")
+            or host.endswith(".gov.uk")
+            or host.endswith(".gov.au")
+        ):
             return ("official", 0.9)
         # 兜底 gov 子域名
         if ".gov." in host or host == "gov.cn":
             return ("official", 0.9)
 
         # 2. 教育域名 → official, 0.85
-        if host.endswith(".edu") or host.endswith(".edu.cn") or host.endswith(".edu.tw") or host.endswith(".ac.jp") or host.endswith(".ac.uk"):
+        if (
+            host.endswith(".edu")
+            or host.endswith(".edu.cn")
+            or host.endswith(".edu.tw")
+            or host.endswith(".ac.jp")
+            or host.endswith(".ac.uk")
+        ):
             return ("official", 0.85)
 
         # 3. 已知新闻域名 → news, 0.7
@@ -392,7 +405,16 @@ class DuckDuckGoSearchProvider:
                 return ("blog", 0.4)
 
         # 6. forum / 社区 → forum, 0.4
-        forum_indicators = ("bbs.", ".bbs.", "forum.", "zhihu.com", "reddit.com", "tieba.baidu.com", "douban.com", "quora.com")
+        forum_indicators = (
+            "bbs.",
+            ".bbs.",
+            "forum.",
+            "zhihu.com",
+            "reddit.com",
+            "tieba.baidu.com",
+            "douban.com",
+            "quora.com",
+        )
         for indicator in forum_indicators:
             if host.startswith(indicator) or host.endswith(indicator) or indicator in host:
                 return ("forum", 0.4)
@@ -536,9 +558,7 @@ class WebSearchTool:
 
         # 只保留 official + confidence ≥ min_confidence
         official_results = [
-            r
-            for r in all_results
-            if r.source_type == "official" and r.confidence >= min_confidence
+            r for r in all_results if r.source_type == "official" and r.confidence >= min_confidence
         ][:max_results]
 
         note = (
@@ -914,7 +934,9 @@ def get_provider(name: str) -> WebSearchProvider:
     raise ValueError(f"未知 web search provider: {name!r}（支持 duckduckgo/baidu/bing-cn）")
 
 
-async def search(query: str, provider: str | None = None, max_results: int = 5) -> list[SearchResult]:
+async def search(
+    query: str, provider: str | None = None, max_results: int = 5
+) -> list[SearchResult]:
     """顶层便捷搜索函数
 
     根据 settings.web_search_provider 配置选择 provider（若 config 无此字段则 fallback 到 duckduckgo）。

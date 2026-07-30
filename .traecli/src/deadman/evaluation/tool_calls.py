@@ -258,9 +258,7 @@ async def validate_tool_calls(
 
     # === 1. Tool Selection Accuracy ===
     # 必须调用的工具中，实际调用了多少
-    required_calls = [
-        (i, ec) for i, ec in enumerate(expected_calls) if ec.get("required") is True
-    ]
+    required_calls = [(i, ec) for i, ec in enumerate(expected_calls) if ec.get("required") is True]
     required_hit = sum(1 for i, _ in required_calls if matches.get(i) is not None)
     selection_accuracy = required_hit / len(required_calls) if required_calls else 1.0
 
@@ -288,11 +286,7 @@ async def validate_tool_calls(
 
     # === 3. Tool Call Order Match ===
     # 必须调用工具的期望顺序是否为 actual 顺序的子序列
-    expected_order = [
-        ec.get("tool", "")
-        for ec in expected_calls
-        if ec.get("required") is True
-    ]
+    expected_order = [ec.get("tool", "") for ec in expected_calls if ec.get("required") is True]
     actual_order = [c.get("tool", "") for c in actual_calls]
     order_ok = _is_subsequence(expected_order, actual_order)
 

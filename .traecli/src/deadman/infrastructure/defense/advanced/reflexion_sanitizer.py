@@ -154,9 +154,7 @@ class ReflexionSanitizer:
         if not text:
             return SanitizationResult(sanitized="", original_length=0)
         if not is_enabled("defense"):
-            return SanitizationResult(
-                sanitized=text, original_length=len(text)
-            )
+            return SanitizationResult(sanitized=text, original_length=len(text))
         redacted, count, types_found = self._redact_pii(text)
         # 还要检测姓名(在反思语境下,姓名常出现)
         redacted, name_count = self._redact_names(redacted)
@@ -198,7 +196,8 @@ class ReflexionSanitizer:
 
         # 允许共享的字段(策略相关,无 PII)
         SAFE_FIELDS = {
-            "failure_type", "failure_reason",  # LLM 生成,但需脱敏
+            "failure_type",
+            "failure_reason",  # LLM 生成,但需脱敏
             "adjustment_strategy",  # 已脱敏的策略
             "adjusted_params",  # 参数(数字 / 枚举)
             "success",  # bool
@@ -208,10 +207,18 @@ class ReflexionSanitizer:
         }
         # 强制移除的字段(含用户数据)
         REMOVED_FIELDS = {
-            "input_summary", "input", "user_input", "original_input",
-            "output_summary", "output", "raw_output",
-            "tool_args", "tool_result",
-            "user_id", "session_id", "tenant_id",
+            "input_summary",
+            "input",
+            "user_input",
+            "original_input",
+            "output_summary",
+            "output",
+            "raw_output",
+            "tool_args",
+            "tool_result",
+            "user_id",
+            "session_id",
+            "tenant_id",
         }
         cleaned = {}
         for k, v in reflection_record.items():

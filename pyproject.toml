@@ -58,7 +58,6 @@ dependencies = [
     # Web 框架（FastAPI + uvicorn，替代 stdlib http.server）
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "pydantic>=2.5",
     # Prometheus 指标（HTTP RED 指标：请求计数/延迟直方图，官方客户端）
     "prometheus_client>=0.20",
 ]
@@ -74,7 +73,7 @@ lightrag = ["lightrag-hku>=1.0"]
 graphiti = ["graphiti-core>=0.5"]
 langfuse = ["langfuse>=4.0"]
 sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
-mcp = ["fastmcp>=3.0", "duckduckgo-search>=8.0"]
+mcp = ["duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
 # P1-2: Sentry 错误监控（sentry-sdk[fastapi] 含 ASGI auto-instrumentation）
 sentry = ["sentry-sdk[fastapi]>=2.0"]
@@ -140,8 +139,9 @@ ignore = [
 #   try: import openai / pywhispercpp / diffusers / azure.cognitiveservices.speech ...
 # 模式探测可选依赖是否安装，import 本身即为副作用，变量未在文件内引用是预期行为。
 ".traecli/src/deadman/multimodal/*" = ["F401"]
-# web/app.py: FastAPI Depends() 在参数默认值是框架标准模式，B008 误报
+# web/app.py + web/deps.py: FastAPI Depends() 在参数默认值是框架标准模式，B008 误报
 ".traecli/src/deadman/web/app.py" = ["B008"]
+".traecli/src/deadman/web/deps.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

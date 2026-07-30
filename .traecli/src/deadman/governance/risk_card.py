@@ -257,12 +257,15 @@ class RiskAssessment:
             score = card.compute_score()
             logger.info(
                 "Risk registered: %s (score=%d, level=%s)",
-                card.risk_id, score.score, score.level,
+                card.risk_id,
+                score.score,
+                score.level,
             )
             if score.requires_ethics_committee:
                 logger.warning(
                     "Risk %s requires ethics committee review (score=%d)",
-                    card.risk_id, score.score,
+                    card.risk_id,
+                    score.score,
                 )
             return card
 
@@ -283,10 +286,7 @@ class RiskAssessment:
         with self._lock:
             self._load()
             min_rank = min_severity.rank()
-            return [
-                c for c in self._cache.values()
-                if c.severity.rank() >= min_rank
-            ]
+            return [c for c in self._cache.values() if c.severity.rank() >= min_rank]
 
     def list_by_status(self, status: RiskStatus) -> list[RiskCard]:
         """按状态过滤。"""

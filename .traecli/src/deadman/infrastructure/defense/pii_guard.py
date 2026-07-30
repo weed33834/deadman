@@ -46,11 +46,11 @@ class PIIType(str, Enum):
     """PII 类型(按敏感度排序)。"""
 
     # 中国 PII(PIPL)
-    CHINA_ID_CARD = "china_id_card"          # 身份证(18 位)
-    CHINA_PHONE = "china_phone"              # 手机号(11 位)
-    CHINA_BANK_CARD = "china_bank_card"      # 银行卡号(16-19 位)
-    CHINA_LICENSE = "china_license"          # 营业执照号
-    CHINA_PASSPORT = "china_passport"        # 护照号
+    CHINA_ID_CARD = "china_id_card"  # 身份证(18 位)
+    CHINA_PHONE = "china_phone"  # 手机号(11 位)
+    CHINA_BANK_CARD = "china_bank_card"  # 银行卡号(16-19 位)
+    CHINA_LICENSE = "china_license"  # 营业执照号
+    CHINA_PASSPORT = "china_passport"  # 护照号
     CHINA_HEALTH_CARD = "china_health_card"  # 医保卡
 
     # 通用 PII
@@ -59,25 +59,27 @@ class PIIType(str, Enum):
     CREDIT_CARD = "credit_card"  # 国际信用卡
 
     # 业务 PII(deadman 场景)
-    NAME = "name"                  # 中文姓名
-    ADDRESS = "address"            # 详细地址
-    BIRTHDATE = "birthdate"        # 出生日期
-    DEATH_DATE = "death_date"      # 死亡日期(死亡证明场景)
+    NAME = "name"  # 中文姓名
+    ADDRESS = "address"  # 详细地址
+    BIRTHDATE = "birthdate"  # 出生日期
+    DEATH_DATE = "death_date"  # 死亡日期(死亡证明场景)
 
 
 class RedactStrategy(str, Enum):
     """脱敏策略。"""
 
-    REDACT = "redact"      # 全替换 [REDACTED-PII:type]
-    HASH = "hash"          # 哈希(SHA-256 前 12 位)
-    PARTIAL = "partial"    # 部分保留(头尾保留,中间 *)
-    KEEP = "keep"          # 保留(用户已同意 / 法规要求)
+    REDACT = "redact"  # 全替换 [REDACTED-PII:type]
+    HASH = "hash"  # 哈希(SHA-256 前 12 位)
+    PARTIAL = "partial"  # 部分保留(头尾保留,中间 *)
+    KEEP = "keep"  # 保留(用户已同意 / 法规要求)
 
 
 # PII 正则模式库(按类型)
 PII_PATTERNS: dict[PIIType, list[re.Pattern]] = {
     PIIType.CHINA_ID_CARD: [
-        re.compile(r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"),
+        re.compile(
+            r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"
+        ),
     ],
     PIIType.CHINA_PHONE: [
         re.compile(r"\b1[3-9]\d{9}\b"),
@@ -109,8 +111,21 @@ CHINESE_SURNAMES = (
 
 # 详细地址关键词
 ADDRESS_KEYWORDS = (
-    "省", "市", "区", "县", "镇", "乡", "村", "街道", "路", "号",
-    "楼", "室", "栋", "单元", "层",
+    "省",
+    "市",
+    "区",
+    "县",
+    "镇",
+    "乡",
+    "村",
+    "街道",
+    "路",
+    "号",
+    "楼",
+    "室",
+    "栋",
+    "单元",
+    "层",
 )
 
 # 出生日期 / 死亡日期模式
@@ -192,13 +207,15 @@ class PIIRedactor:
         for pii_type, patterns in PII_PATTERNS.items():
             for pattern in patterns:
                 for match in pattern.finditer(text):
-                    matches.append(PIIMatch(
-                        pii_type=pii_type,
-                        original=match.group(),
-                        start=match.start(),
-                        end=match.end(),
-                        confidence=1.0,
-                    ))
+                    matches.append(
+                        PIIMatch(
+                            pii_type=pii_type,
+                            original=match.group(),
+                            start=match.start(),
+                            end=match.end(),
+                            confidence=1.0,
+                        )
+                    )
                     pii_count[pii_type.value] = pii_count.get(pii_type.value, 0) + 1
 
         # 2. 启发式:中文姓名检测
@@ -211,17 +228,23 @@ class PIIRedactor:
         for pattern in DATE_PATTERNS:
             for match in pattern.finditer(text):
                 # 区分生日 / 忌日(基于上下文关键词)
-                pii_type = PIIType.DEATH_DATE if any(
-                    kw in text[max(0, match.start()-10):match.start()]
-                    for kw in ("死亡", "去世", "逝世", "忌日", "亡")
-                ) else PIIType.BIRTHDATE
-                matches.append(PIIMatch(
-                    pii_type=pii_type,
-                    original=match.group(),
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=0.7,
-                ))
+                pii_type = (
+                    PIIType.DEATH_DATE
+                    if any(
+                        kw in text[max(0, match.start() - 10) : match.start()]
+                        for kw in ("死亡", "去世", "逝世", "忌日", "亡")
+                    )
+                    else PIIType.BIRTHDATE
+                )
+                matches.append(
+                    PIIMatch(
+                        pii_type=pii_type,
+                        original=match.group(),
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=0.7,
+                    )
+                )
                 pii_count[pii_type.value] = pii_count.get(pii_type.value, 0) + 1
 
         # 按位置排序
@@ -257,7 +280,7 @@ class PIIRedactor:
             redacted = self._apply_strategy(match.original, match.pii_type, strategy)
             match.redacted = redacted
             match.strategy = strategy
-            redacted_text = redacted_text[:match.start] + redacted + redacted_text[match.end:]
+            redacted_text = redacted_text[: match.start] + redacted + redacted_text[match.end :]
 
         result.redacted_text = redacted_text
         return result
@@ -308,13 +331,15 @@ class PIIRedactor:
             r"(?=\s|$|先生|女士|同志|小姐|博士|教授|律师|医生)"
         )
         for m in pattern.finditer(text):
-            matches.append(PIIMatch(
-                pii_type=PIIType.NAME,
-                original=m.group(),
-                start=m.start(),
-                end=m.end(),
-                confidence=0.6,  # 启发式,可信度较低
-            ))
+            matches.append(
+                PIIMatch(
+                    pii_type=PIIType.NAME,
+                    original=m.group(),
+                    start=m.start(),
+                    end=m.end(),
+                    confidence=0.6,  # 启发式,可信度较低
+                )
+            )
         return matches
 
     def _apply_strategy(

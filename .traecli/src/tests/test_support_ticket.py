@@ -275,6 +275,7 @@ class TestListTickets:
 
     def test_list_user_tickets_sorted_desc_by_created(self, store: TicketStore):
         import time
+
         _make_ticket(store, user_id="alice", subject="第一")
         time.sleep(0.01)
         _make_ticket(store, user_id="alice", subject="第二")

@@ -96,6 +96,7 @@ class GPT4VisionProvider(VisionProvider):
             return self._available
         try:
             import openai  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("openai not available: %s", e)
@@ -112,13 +113,18 @@ class GPT4VisionProvider(VisionProvider):
         client = openai.OpenAI(api_key=self.api_key)
         resp = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                        },
+                    ],
+                }
+            ],
         )
         text = resp.choices[0].message.content or ""
         return VisionDescription(text=text, confidence=0.9, provider=self.name)
@@ -146,6 +152,7 @@ class ClaudeVisionProvider(VisionProvider):
             return self._available
         try:
             import anthropic  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("anthropic not available: %s", e)
@@ -163,15 +170,22 @@ class ClaudeVisionProvider(VisionProvider):
         resp = client.messages.create(
             model="claude-3-5-sonnet-20240620",
             max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image", "source": {
-                        "type": "base64", "media_type": "image/jpeg", "data": b64,
-                    }},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": b64,
+                            },
+                        },
+                    ],
+                }
+            ],
         )
         block = resp.content[0] if resp.content else None
         text = getattr(block, "text", "") or ""
@@ -199,6 +213,7 @@ class QwenVLProvider(VisionProvider):
             return self._available
         try:
             import dashscope  # type: ignore
+
             self._available = bool(self.api_key)
         except Exception as e:
             logger.debug("dashscope not available: %s", e)
@@ -211,13 +226,15 @@ class QwenVLProvider(VisionProvider):
         resp = dashscope.MultiModalConversation.call(
             api_key=self.api_key,
             model="qwen-vl-max",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"image": str(image_path)},
-                    {"text": prompt},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"image": str(image_path)},
+                        {"text": prompt},
+                    ],
+                }
+            ],
         )
         text = ""
         if resp.status_code == 200 and resp.output.choices:
@@ -339,7 +356,8 @@ class VisionService:
                 desc = provider.describe(image_path, prompt)
                 logger.info(
                     "Vision describe via %s (confidence=%.2f)",
-                    provider.name, desc.confidence,
+                    provider.name,
+                    desc.confidence,
                 )
                 return desc.text
             except Exception as e:
@@ -378,7 +396,8 @@ class VisionService:
                 objs = provider.extract_objects(image_path)
                 logger.info(
                     "Vision extract_objects via %s (count=%d)",
-                    provider.name, len(objs),
+                    provider.name,
+                    len(objs),
                 )
                 return [o.to_dict() for o in objs]
             except Exception as e:

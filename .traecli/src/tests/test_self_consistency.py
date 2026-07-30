@@ -172,6 +172,7 @@ class TestSelfConsistencySolve:
                 if self.chat_count == 2:
                     raise RuntimeError("fail on 2nd")
                 return "A"
+
         llm = PartialFailLLM()
         sc = SelfConsistency(llm=llm)
         result = await sc.solve("问题", n=3)
@@ -207,6 +208,7 @@ class TestSelfConsistencyFeatureFlag:
     def test_consistency_result_to_dict_serializable(self):
         """ConsistencyResult.to_dict 可序列化"""
         import json
+
         result = ConsistencyResult(
             final_answer="答案",
             votes={"答案": 3},

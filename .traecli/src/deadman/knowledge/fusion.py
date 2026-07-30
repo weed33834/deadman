@@ -146,9 +146,14 @@ class KnowledgeFusion:
                 for n in kg_nodes:
                     src = n.properties.get("source", "unknown")
                     trust = self.trust_scorer.score(src)
-                    candidates.append(_SourceCandidate(
-                        node=n, source=src, trust=trust, score=1.0,
-                    ))
+                    candidates.append(
+                        _SourceCandidate(
+                            node=n,
+                            source=src,
+                            trust=trust,
+                            score=1.0,
+                        )
+                    )
 
             # 2. 从 LightRAGRuntime 拉候选
             if self.lightrag is not None:
@@ -167,9 +172,14 @@ class KnowledgeFusion:
                     )
                     src = r.node.source or "unknown"
                     trust = self.trust_scorer.score(src)
-                    candidates.append(_SourceCandidate(
-                        node=kg_node, source=src, trust=trust, score=r.score,
-                    ))
+                    candidates.append(
+                        _SourceCandidate(
+                            node=kg_node,
+                            source=src,
+                            trust=trust,
+                            score=r.score,
+                        )
+                    )
 
             if not candidates:
                 return FusionResult(answer="", confidence=0.0)
@@ -180,7 +190,7 @@ class KnowledgeFusion:
             candidates.sort(key=lambda x: x.score, reverse=True)
 
             # 4. 选 top_n(默认全部,实际可截断)
-            top_n = candidates[:max(top_k, 1)]
+            top_n = candidates[: max(top_k, 1)]
 
             # 5. 构建答案 + 贡献源
             answer_parts: list[str] = []
@@ -243,11 +253,13 @@ class KnowledgeFusion:
         unique_contents = set(category_positions.values())
         if len(unique_contents) >= 2:
             # 存在不同立场 → 冲突
-            conflicts.append(ConflictItem(
-                fact="content_disagreement",
-                sources_with_values=dict(category_positions),
-                resolution="highest_trust",
-            ))
+            conflicts.append(
+                ConflictItem(
+                    fact="content_disagreement",
+                    sources_with_values=dict(category_positions),
+                    resolution="highest_trust",
+                )
+            )
 
         return conflicts
 
@@ -258,12 +270,18 @@ class KnowledgeFusion:
             return "unverified"
         s = source.lower()
         for prefix in (
-            "official_law:", "law:",
-            "government_doc:", "gov:",
-            "court_case:", "case:",
-            "lawyer_verified:", "lawyer:",
-            "user_experience:", "user:",
-            "ai_generated:", "ai:",
+            "official_law:",
+            "law:",
+            "government_doc:",
+            "gov:",
+            "court_case:",
+            "case:",
+            "lawyer_verified:",
+            "lawyer:",
+            "user_experience:",
+            "user:",
+            "ai_generated:",
+            "ai:",
         ):
             if s.startswith(prefix):
                 # 返回类别名(去掉冒号后内容)

@@ -20,6 +20,7 @@ def enable_circuit_breaker(monkeypatch):
     monkeypatch.setenv("DEADMAN_CIRCUIT_BREAKER_ENABLED", "1")
     # 清缓存
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -327,6 +328,7 @@ class TestFeatureFlagBypass:
     def test_disabled_flag_bypasses_circuit(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_CIRCUIT_BREAKER_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 

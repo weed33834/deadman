@@ -387,6 +387,7 @@ class TestTopLevelSearch:
         import deadman.tools.web_search as ws_module
 
         original_get_provider = ws_module.get_provider
+
         # 模拟 get_provider：对 "unknown-xyz" 抛 ValueError，对 "duckduckgo" 返回 mock 的 ddg
         def fake_get_provider(name):
             if name == "unknown-xyz":

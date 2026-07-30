@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 try:  # pragma: no cover - 可选依赖
     import chromadb  # type: ignore
+
     _HAS_CHROMADB = True
 except Exception:  # pragma: no cover
     chromadb = None  # type: ignore
@@ -50,6 +51,7 @@ except Exception:  # pragma: no cover
 
 try:  # pragma: no cover - 可选依赖
     from sentence_transformers import SentenceTransformer  # type: ignore
+
     _HAS_ST = True
 except Exception:  # pragma: no cover
     SentenceTransformer = None  # type: ignore
@@ -95,6 +97,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 # =====================================================================
 # 数据模型(复用 graphiti_runtime 的 KGNode,避免循环导入,这里独立定义 LightNode)
 # =====================================================================
+
 
 @dataclass
 class LightNode:
@@ -147,6 +150,7 @@ class SearchResult:
 # =====================================================================
 # LightRAGRuntime - 向量检索运行时
 # =====================================================================
+
 
 class LightRAGRuntime:
     """LightRAG 风格向量检索运行时(轻量替代 Graphiti)。
@@ -335,11 +339,7 @@ class LightRAGRuntime:
                 score = _cosine_similarity(qvec, node.embedding)
                 scored.append((score, node))
             scored.sort(key=lambda x: x[0], reverse=True)
-            return [
-                SearchResult(node=n, score=s)
-                for s, n in scored[:top_k]
-                if s >= min_score
-            ]
+            return [SearchResult(node=n, score=s) for s, n in scored[:top_k] if s >= min_score]
 
     # ==================================================================
     # 工具方法

@@ -33,6 +33,7 @@ async def _wrap_web_search(query: str, max_results: int = 5, **_: Any) -> Any:
     ReAct action_input 可能多塞字段(如 tool / thought),用 **_ 吃掉。
     """
     from ..mcp_server import server as mcp_server
+
     return await mcp_server.web_search(query=query, max_results=max_results)
 
 
@@ -41,6 +42,7 @@ async def _wrap_read_file(
 ) -> Any:
     """包装 read_file。"""
     from ..mcp_server import server as mcp_server
+
     return await mcp_server.read_file(path=path, encoding=encoding, max_bytes=max_bytes)
 
 
@@ -57,6 +59,7 @@ async def _wrap_query_knowledge(
     支持宽松输入:LLM 可能只给 query 字符串,这里尝试拆分国家/主题。
     """
     from ..mcp_server import server as mcp_server
+
     fn = getattr(mcp_server, "query_knowledge", None)
     if fn is None:
         return {"ok": False, "error": "query_knowledge not available"}
@@ -77,6 +80,7 @@ async def _wrap_query_knowledge(
 async def _wrap_web_search_official(query: str, max_results: int = 5, **_: Any) -> Any:
     """包装 web_search_official。"""
     from ..mcp_server import server as mcp_server
+
     fn = getattr(mcp_server, "web_search_official", None)
     if fn is None:
         return {"ok": False, "error": "web_search_official not available"}

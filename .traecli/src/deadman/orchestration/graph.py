@@ -193,13 +193,17 @@ class SequentialExecutor:
         """
         self._nodes: dict[str, Callable[[ConversationState], Awaitable[dict[str, Any]]]] = {}
         self._edges: dict[str, str] = {}  # 固定边：source -> target
-        self._conditional_edges: dict[str, tuple[Callable[[ConversationState], str], dict[str, str]]] = {}
+        self._conditional_edges: dict[
+            str, tuple[Callable[[ConversationState], str], dict[str, str]]
+        ] = {}
         self._entry: str = ""
         self._interrupt_before: list[str] = []
         # P10：可注入的终止条件（默认等价 P4 行为）
         self._termination: TerminationCondition = termination or _default_termination
 
-    def add_node(self, name: str, fn: Callable[[ConversationState], Awaitable[dict[str, Any]]]) -> None:
+    def add_node(
+        self, name: str, fn: Callable[[ConversationState], Awaitable[dict[str, Any]]]
+    ) -> None:
         """注册一个节点"""
         self._nodes[name] = fn
 
@@ -276,11 +280,16 @@ class SequentialExecutor:
                     )
                 # 追加 trace span 便于排查
                 spans = state.get("trace_spans", [])
-                spans.append({
-                    "span_type": "system",
-                    "name": "forced_terminate",
-                    "attributes": {"reason": stuck_reason, "step_count": state.get("step_count", 0)},
-                })
+                spans.append(
+                    {
+                        "span_type": "system",
+                        "name": "forced_terminate",
+                        "attributes": {
+                            "reason": stuck_reason,
+                            "step_count": state.get("step_count", 0),
+                        },
+                    }
+                )
                 state["trace_spans"] = spans
                 current = NODE_RESPOND
                 continue
@@ -320,7 +329,9 @@ class SequentialExecutor:
         state.pop("_seq_executor_next", None)  # type: ignore[typeddict-item]
         return state
 
-    def invoke(self, state: ConversationState, config: dict[str, Any] | None = None) -> ConversationState:
+    def invoke(
+        self, state: ConversationState, config: dict[str, Any] | None = None
+    ) -> ConversationState:
         """同步执行图（包装 ainvoke，用 asyncio.run）
 
         便捷方法，内部调用 asyncio.run(self.ainvoke(state, config))。
@@ -366,21 +377,29 @@ def _build_sequential_executor() -> SequentialExecutor:
     executor.add_conditional_edges(NODE_ROUTER, route_to_agent, route_mapping)
 
     # === 用户确认转介后 ===
-    executor.add_conditional_edges(NODE_USER_CONFIRM, after_user_confirm, {
-        ROUTE_PROCEED_TRANSFER: NODE_ROUTER,    # 用户同意，回到 router 路由到目标智能体
-        ROUTE_DECLINE_TRANSFER: NODE_RESPOND,   # 用户拒绝，直接响应
-    })
+    executor.add_conditional_edges(
+        NODE_USER_CONFIRM,
+        after_user_confirm,
+        {
+            ROUTE_PROCEED_TRANSFER: NODE_ROUTER,  # 用户同意，回到 router 路由到目标智能体
+            ROUTE_DECLINE_TRANSFER: NODE_RESPOND,  # 用户拒绝，直接响应
+        },
+    )
 
     # === 智能体执行后 → 规则校验 ===
     for agent_name in AGENT_NAMES:
         executor.add_edge(agent_name, NODE_RULE_CHECK)
 
     # === 规则校验后 ===
-    executor.add_conditional_edges(NODE_RULE_CHECK, after_rule_check, {
-        ROUTE_SAFETY_OVERRIDE: NODE_RESPOND,           # L0 触发，直接响应
-        ROUTE_NEEDS_INTEGRITY: NODE_INTEGRITY_CHECK,    # 需要 5 关事实复核
-        ROUTE_PASS_THROUGH: NODE_OUTPUT_GUARD,          # 直接通过
-    })
+    executor.add_conditional_edges(
+        NODE_RULE_CHECK,
+        after_rule_check,
+        {
+            ROUTE_SAFETY_OVERRIDE: NODE_RESPOND,  # L0 触发，直接响应
+            ROUTE_NEEDS_INTEGRITY: NODE_INTEGRITY_CHECK,  # 需要 5 关事实复核
+            ROUTE_PASS_THROUGH: NODE_OUTPUT_GUARD,  # 直接通过
+        },
+    )
 
     # === 事实复核 → 输出校验 → 响应 ===
     executor.add_edge(NODE_INTEGRITY_CHECK, NODE_OUTPUT_GUARD)
@@ -425,21 +444,29 @@ def _build_langgraph():
     graph.add_conditional_edges(NODE_ROUTER, route_to_agent, route_mapping)
 
     # === 用户确认转介后 ===
-    graph.add_conditional_edges(NODE_USER_CONFIRM, after_user_confirm, {
-        ROUTE_PROCEED_TRANSFER: NODE_ROUTER,    # 用户同意，回到 router 路由到目标智能体
-        ROUTE_DECLINE_TRANSFER: NODE_RESPOND,   # 用户拒绝，直接响应
-    })
+    graph.add_conditional_edges(
+        NODE_USER_CONFIRM,
+        after_user_confirm,
+        {
+            ROUTE_PROCEED_TRANSFER: NODE_ROUTER,  # 用户同意，回到 router 路由到目标智能体
+            ROUTE_DECLINE_TRANSFER: NODE_RESPOND,  # 用户拒绝，直接响应
+        },
+    )
 
     # === 智能体执行后 → 规则校验 ===
     for agent_name in AGENT_NAMES:
         graph.add_edge(agent_name, NODE_RULE_CHECK)
 
     # === 规则校验后 ===
-    graph.add_conditional_edges(NODE_RULE_CHECK, after_rule_check, {
-        ROUTE_SAFETY_OVERRIDE: NODE_RESPOND,           # L0 触发，直接响应
-        ROUTE_NEEDS_INTEGRITY: NODE_INTEGRITY_CHECK,    # 需要 5 关事实复核
-        ROUTE_PASS_THROUGH: NODE_OUTPUT_GUARD,          # 直接通过
-    })
+    graph.add_conditional_edges(
+        NODE_RULE_CHECK,
+        after_rule_check,
+        {
+            ROUTE_SAFETY_OVERRIDE: NODE_RESPOND,  # L0 触发，直接响应
+            ROUTE_NEEDS_INTEGRITY: NODE_INTEGRITY_CHECK,  # 需要 5 关事实复核
+            ROUTE_PASS_THROUGH: NODE_OUTPUT_GUARD,  # 直接通过
+        },
+    )
 
     # === 事实复核 → 输出校验 → 响应 ===
     graph.add_edge(NODE_INTEGRITY_CHECK, NODE_OUTPUT_GUARD)
@@ -460,7 +487,9 @@ def _build_langgraph():
     if MemorySaver is not None:
         try:
             checkpointer = MemorySaver()
-            logger.info("checkpointer 使用 MemorySaver（兼容 sync+async，跨会话状态由 MemoryManager 负责）")
+            logger.info(
+                "checkpointer 使用 MemorySaver（兼容 sync+async，跨会话状态由 MemoryManager 负责）"
+            )
         except Exception as e:
             logger.warning("MemorySaver 初始化失败，编译无 checkpointer: %s", e)
 
@@ -493,7 +522,5 @@ def build_main_graph():
         try:
             return _build_langgraph()
         except Exception as e:
-            logger.error(
-                "LangGraph 构建失败，降级到 SequentialExecutor: %s", e, exc_info=True
-            )
+            logger.error("LangGraph 构建失败，降级到 SequentialExecutor: %s", e, exc_info=True)
     return _build_sequential_executor()

@@ -210,7 +210,9 @@ class ShamirSecretSharing:
                 # 项 = yi * num / den
                 if den == 0:
                     raise ValueError("duplicate share index")
-                term = ShamirSecretSharing._gf_mul(yi, ShamirSecretSharing._gf_mul(num, ShamirSecretSharing._gf_inv(den)))
+                term = ShamirSecretSharing._gf_mul(
+                    yi, ShamirSecretSharing._gf_mul(num, ShamirSecretSharing._gf_inv(den))
+                )
                 secret_byte ^= term
             result.append(secret_byte)
         return bytes(result)
@@ -269,20 +271,28 @@ class MasterKeyBackup:
             now = time.time()
             self._shares = []
             for idx, (share_index, share_value) in enumerate(raw_shares):
-                recipient = recipients[idx] if recipients and idx < len(recipients) else f"recipient_{idx + 1}"
-                self._shares.append(KeyShare(
-                    share_id=f"share-{idx + 1:02d}",
-                    share_index=share_index,
-                    share_value=share_value.hex(),
-                    recipient=recipient,
-                    distributed_at=now,
-                ))
+                recipient = (
+                    recipients[idx]
+                    if recipients and idx < len(recipients)
+                    else f"recipient_{idx + 1}"
+                )
+                self._shares.append(
+                    KeyShare(
+                        share_id=f"share-{idx + 1:02d}",
+                        share_index=share_index,
+                        share_value=share_value.hex(),
+                        recipient=recipient,
+                        distributed_at=now,
+                    )
+                )
             self._status = BackupStatus.BACKED_UP
             self._last_rotated_at = now
             self._save()
             logger.info(
                 "Master key backed up: %d shares (threshold=%d), fingerprint=%s...",
-                n, k, self._master_key_fingerprint[:8],
+                n,
+                k,
+                self._master_key_fingerprint[:8],
             )
             return list(self._shares)
 
@@ -301,10 +311,7 @@ class MasterKeyBackup:
 
         with self._lock:
             self._load()
-            raw_shares = [
-                (s.share_index, bytes.fromhex(s.share_value))
-                for s in shares
-            ]
+            raw_shares = [(s.share_index, bytes.fromhex(s.share_value)) for s in shares]
             master_key = ShamirSecretSharing.reconstruct(raw_shares)
 
             # 指纹验证(防止分片伪造 / 损坏)
@@ -401,14 +408,13 @@ class MasterKeyBackup:
             # 旧分片作废(保留历史审计,但不可用于重建)
             old_shares = list(self._shares)
             # 创建新备份(覆盖)
-            new_shares = self.create_backup(
-                new_master_key, n=n, k=k, recipients=recipients
-            )
+            new_shares = self.create_backup(new_master_key, n=n, k=k, recipients=recipients)
             self._status = BackupStatus.ROTATED
             self._save()
             logger.info(
                 "Master key rotated: %d old shares invalidated, %d new shares distributed",
-                len(old_shares), len(new_shares),
+                len(old_shares),
+                len(new_shares),
             )
             return new_shares
 
@@ -455,6 +461,7 @@ class MasterKeyBackup:
             return
         try:
             import json
+
             state_file = self.store_path / "state.json"
             if state_file.exists():
                 data = json.loads(state_file.read_text(encoding="utf-8"))
@@ -462,24 +469,28 @@ class MasterKeyBackup:
                 self._master_key_fingerprint = data.get("master_key_fingerprint", "")
                 self._last_rotated_at = data.get("last_rotated_at", 0.0)
                 for s in data.get("shares", []):
-                    self._shares.append(KeyShare(
-                        share_id=s["share_id"],
-                        share_index=s["share_index"],
-                        share_value=s.get("share_value", ""),  # 分片值可单独加密存储
-                        recipient=s.get("recipient", ""),
-                        distributed_at=s.get("distributed_at", 0.0),
-                        received_back_at=s.get("received_back_at"),
-                    ))
+                    self._shares.append(
+                        KeyShare(
+                            share_id=s["share_id"],
+                            share_index=s["share_index"],
+                            share_value=s.get("share_value", ""),  # 分片值可单独加密存储
+                            recipient=s.get("recipient", ""),
+                            distributed_at=s.get("distributed_at", 0.0),
+                            received_back_at=s.get("received_back_at"),
+                        )
+                    )
                 for d in data.get("drills", []):
-                    self._drills.append(DrillRecord(
-                        drill_id=d["drill_id"],
-                        started_at=d.get("started_at", 0.0),
-                        completed_at=d.get("completed_at", 0.0),
-                        success=d.get("success", False),
-                        shares_collected=d.get("shares_collected", 0),
-                        reconstructed=d.get("reconstructed", False),
-                        notes=d.get("notes", ""),
-                    ))
+                    self._drills.append(
+                        DrillRecord(
+                            drill_id=d["drill_id"],
+                            started_at=d.get("started_at", 0.0),
+                            completed_at=d.get("completed_at", 0.0),
+                            success=d.get("success", False),
+                            shares_collected=d.get("shares_collected", 0),
+                            reconstructed=d.get("reconstructed", False),
+                            notes=d.get("notes", ""),
+                        )
+                    )
         except Exception as e:
             logger.warning("MasterKeyBackup load failed: %s", e)
         self._loaded = True
@@ -487,6 +498,7 @@ class MasterKeyBackup:
     def _save(self) -> None:
         try:
             import json
+
             self.store_path.mkdir(parents=True, exist_ok=True)
             state_file = self.store_path / "state.json"
             data = {

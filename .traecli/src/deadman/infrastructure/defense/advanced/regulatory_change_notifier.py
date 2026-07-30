@@ -285,7 +285,10 @@ class RegulatoryChangeDetector:
 
         logger.warning(
             "Regulatory change detected: domain=%s, severity=%s, hash=%s->%s",
-            domain, severity.value, old_hash, new_hash,
+            domain,
+            severity.value,
+            old_hash,
+            new_hash,
         )
         return change
 
@@ -323,15 +326,18 @@ class RegulatoryChangeDetector:
             try:
                 # 找出真正要通知的订阅者列表
                 subs_to_notify = [
-                    s for s in self._subscribers.values()
-                    if s.active and s.domain == change.domain
+                    s
+                    for s in self._subscribers.values()
+                    if s.active
+                    and s.domain == change.domain
                     and severity_at_least(change.severity, s.min_severity)
                 ]
                 self._notifier(change, subs_to_notify)
                 self._notified.add(change.change_id)
                 logger.info(
                     "Notified %d subscribers about change %s",
-                    notified_count, change.change_id,
+                    notified_count,
+                    change.change_id,
                 )
             except Exception as e:
                 logger.error("Failed to notify subscribers: %s", e)
@@ -407,7 +413,9 @@ class RegulatoryChangeDetector:
                         change_ratio = abs(new_v - old_v) / abs(old_v)
                         if change_ratio > 0.5:
                             severity = ChangeSeverity.MAJOR
-                        elif change_ratio > 0.1 and not severity_at_least(severity, ChangeSeverity.MAJOR):
+                        elif change_ratio > 0.1 and not severity_at_least(
+                            severity, ChangeSeverity.MAJOR
+                        ):
                             # 仍低于 MAJOR → 提升到 MINOR
                             if not severity_at_least(severity, ChangeSeverity.MINOR):
                                 severity = ChangeSeverity.MINOR
@@ -426,13 +434,8 @@ class RegulatoryChangeDetector:
         try:
             os.makedirs(os.path.dirname(self.store_path) or ".", exist_ok=True)
             data = {
-                "snapshots": {
-                    k: {"rules": v[0], "hash": v[1]}
-                    for k, v in self._snapshots.items()
-                },
-                "subscribers": {
-                    k: v.to_dict() for k, v in self._subscribers.items()
-                },
+                "snapshots": {k: {"rules": v[0], "hash": v[1]} for k, v in self._snapshots.items()},
+                "subscribers": {k: v.to_dict() for k, v in self._subscribers.items()},
                 "changes": [c.to_dict() for c in self._changes],
                 "notified": list(self._notified),
             }
@@ -450,8 +453,7 @@ class RegulatoryChangeDetector:
             with open(self.store_path, encoding="utf-8") as f:
                 data = json.load(f)
             self._snapshots = {
-                k: (v["rules"], v["hash"])
-                for k, v in data.get("snapshots", {}).items()
+                k: (v["rules"], v["hash"]) for k, v in data.get("snapshots", {}).items()
             }
             for k, v in data.get("subscribers", {}).items():
                 self._subscribers[k] = Subscriber(
@@ -464,20 +466,22 @@ class RegulatoryChangeDetector:
                     active=v.get("active", True),
                 )
             for c in data.get("changes", []):
-                self._changes.append(RegulatoryChange(
-                    change_id=c["change_id"],
-                    jurisdiction=c["jurisdiction"],
-                    domain=c["domain"],
-                    severity=ChangeSeverity(c["severity"]),
-                    title=c["title"],
-                    summary=c["summary"],
-                    source_url=c.get("source_url", ""),
-                    effective_date=c.get("effective_date", ""),
-                    detected_at=c.get("detected_at", time.time()),
-                    old_version_hash=c.get("old_version_hash", ""),
-                    new_version_hash=c.get("new_version_hash", ""),
-                    diff_summary=c.get("diff_summary", ""),
-                ))
+                self._changes.append(
+                    RegulatoryChange(
+                        change_id=c["change_id"],
+                        jurisdiction=c["jurisdiction"],
+                        domain=c["domain"],
+                        severity=ChangeSeverity(c["severity"]),
+                        title=c["title"],
+                        summary=c["summary"],
+                        source_url=c.get("source_url", ""),
+                        effective_date=c.get("effective_date", ""),
+                        detected_at=c.get("detected_at", time.time()),
+                        old_version_hash=c.get("old_version_hash", ""),
+                        new_version_hash=c.get("new_version_hash", ""),
+                        diff_summary=c.get("diff_summary", ""),
+                    )
+                )
             self._notified = set(data.get("notified", []))
         except Exception as e:
             logger.error("Failed to load regulatory change store: %s", e)
@@ -487,7 +491,9 @@ def _default_notifier(change: RegulatoryChange, subscribers: list[Subscriber]) -
     """默认通知器(仅 log,生产环境注入 IM / 邮件 / webhook 实现)。"""
     logger.info(
         "Regulatory change notification: %s (severity=%s, affected=%d subscribers)",
-        change.title, change.severity.value, len(subscribers),
+        change.title,
+        change.severity.value,
+        len(subscribers),
     )
 
 

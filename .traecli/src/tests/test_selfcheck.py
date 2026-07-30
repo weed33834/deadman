@@ -238,9 +238,9 @@ class TestSelfCheckMain:
         checker = SelfCheckChecker()
         mock_llm = AsyncMock()
         # mock 采样返回包含 30天 的响应
-        mock_llm.sample_multiple = AsyncMock(return_value=[
-            "办理需要 30天", "办理需要 30天", "办理需要 30天"
-        ])
+        mock_llm.sample_multiple = AsyncMock(
+            return_value=["办理需要 30天", "办理需要 30天", "办理需要 30天"]
+        )
         result = await checker.check(
             "办理需要 30天",
             [{"role": "user", "content": "问题"}],
@@ -254,9 +254,9 @@ class TestSelfCheckMain:
         checker = SelfCheckChecker()
         mock_llm = AsyncMock()
         # mock 采样返回不含 30天 的响应
-        mock_llm.sample_multiple = AsyncMock(return_value=[
-            "办理需要 15天", "办理需要 7天", "办理需要 45天"
-        ])
+        mock_llm.sample_multiple = AsyncMock(
+            return_value=["办理需要 15天", "办理需要 7天", "办理需要 45天"]
+        )
         result = await checker.check(
             "办理需要 30天",
             [{"role": "user", "content": "问题"}],

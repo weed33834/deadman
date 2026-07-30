@@ -200,17 +200,12 @@ class DebateOrchestrator:
         positions: list[DebatePosition] = []
 
         # 并发提取所有初始回答的核心立场
-        tasks = [
-            _extract_position(self.llm, r.get("response", ""))
-            for r in initial_responses
-        ]
+        tasks = [_extract_position(self.llm, r.get("response", "")) for r in initial_responses]
         position_texts = await asyncio.gather(*tasks, return_exceptions=True)
 
         for r, pos_text in zip(initial_responses, position_texts, strict=True):
             agent_id = r.get("agent", "")
-            position_text = (
-                pos_text if isinstance(pos_text, str) else r.get("response", "")[:100]
-            )
+            position_text = pos_text if isinstance(pos_text, str) else r.get("response", "")[:100]
             positions.append(
                 DebatePosition(
                     agent_id=agent_id,
@@ -230,9 +225,7 @@ class DebateOrchestrator:
 
     async def _opening_round(self, debate: Debate) -> None:
         """Round 1: 各方陈述立场 + 引用法规/政策（并行）"""
-        tasks = [
-            self._agent_opening(debate, pos) for pos in debate.positions
-        ]
+        tasks = [self._agent_opening(debate, pos) for pos in debate.positions]
         await asyncio.gather(*tasks, return_exceptions=True)
         # 不直接 await 防止一个失败导致全部失败
 
@@ -252,10 +245,7 @@ class DebateOrchestrator:
         """Round 2: 交叉质询 - 每个 agent 反驳其他方的 opening"""
         # 收集所有 opening 陈词
         openings = [r for r in debate.rounds if r.get("type") == "opening"]
-        tasks = [
-            self._agent_rebuttal(debate, pos, openings)
-            for pos in debate.positions
-        ]
+        tasks = [self._agent_rebuttal(debate, pos, openings) for pos in debate.positions]
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _agent_rebuttal(
@@ -277,9 +267,7 @@ class DebateOrchestrator:
 
     async def _closing_round(self, debate: Debate) -> None:
         """Round 3: 总结陈词 - 各方可修正立场"""
-        tasks = [
-            self._agent_closing(debate, pos) for pos in debate.positions
-        ]
+        tasks = [self._agent_closing(debate, pos) for pos in debate.positions]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 把 closing 中 LLM 输出的 final_position/confidence 更新回 position
@@ -340,13 +328,13 @@ class DebateOrchestrator:
             debate.state = DebateState.ARBITRATION
         else:
             winner = verdict["winner"]
-            winning_pos = next(
-                (p for p in debate.positions if p.agent_id == winner), None
-            )
+            winning_pos = next((p for p in debate.positions if p.agent_id == winner), None)
             debate.final_resolution = {
                 "winner": winner,
                 "position": winning_pos.position if winning_pos else None,
-                "vote_counts": verdict.get("votes") or verdict.get("weighted_votes") or verdict.get("scores"),
+                "vote_counts": verdict.get("votes")
+                or verdict.get("weighted_votes")
+                or verdict.get("scores"),
                 "confidence": winning_pos.confidence if winning_pos else 0.5,
                 "strategy": self.voting_strategy_name,
                 "needs_professional_referral": winning_pos is None or winning_pos.confidence < 0.6,
@@ -409,7 +397,7 @@ class DebateOrchestrator:
 {position.position}
 
 ## 你的支持证据
-{json.dumps(position.supporting_evidence, ensure_ascii=False) if position.supporting_evidence else '（暂无显式证据，请基于你已有的知识陈述）'}
+{json.dumps(position.supporting_evidence, ensure_ascii=False) if position.supporting_evidence else "（暂无显式证据，请基于你已有的知识陈述）"}
 
 ## 任务
 陈述你的立场和理由。要求：
@@ -491,8 +479,7 @@ class DebateOrchestrator:
 
     def _build_voting_prompt(self, debate: Debate, voter_id: str) -> str:
         positions_text = "\n".join(
-            f"- {p.agent_id}: {p.position}（confidence={p.confidence}）"
-            for p in debate.positions
+            f"- {p.agent_id}: {p.position}（confidence={p.confidence}）" for p in debate.positions
         )
         rounds_summary = "\n".join(
             f"[Round {r.get('round')} - {r.get('type')}] {r.get('agent')}: {r.get('statement', '')[:400]}"
@@ -669,6 +656,7 @@ class DebateOrchestrator:
 # =================================================================
 # 模块级辅助：从初始回答提取核心立场
 # =================================================================
+
 
 async def _extract_position(llm: Any, response: str) -> str:
     """用 LLM 从初始回答提取一句话核心立场。

@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 try:
     from cryptography.hazmat.primitives import padding as sym_padding
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
     _HAS_CRYPTOGRAPHY = True
 except ImportError:
     _HAS_CRYPTOGRAPHY = False
@@ -209,10 +210,7 @@ class WeChatConnector:
         loop = asyncio.get_event_loop()
         now = loop.time()
         # 缓存命中且未临近过期
-        if (
-            self._access_token
-            and now < self._access_token_expires_at - _ACCESS_TOKEN_REFRESH_AHEAD
-        ):
+        if self._access_token and now < self._access_token_expires_at - _ACCESS_TOKEN_REFRESH_AHEAD:
             return self._access_token
 
         try:
@@ -240,9 +238,7 @@ class WeChatConnector:
                 if not token:
                     errcode = data.get("errcode")
                     errmsg = data.get("errmsg")
-                    logger.warning(
-                        "WeChat token 获取失败 errcode=%s errmsg=%s", errcode, errmsg
-                    )
+                    logger.warning("WeChat token 获取失败 errcode=%s errmsg=%s", errcode, errmsg)
                     return ""
                 self._access_token = token
                 self._access_token_expires_at = now + float(expires_in)
@@ -271,9 +267,7 @@ class WeChatConnector:
         """
         if not self.verify_token:
             # 未配置 verify_token 视为不校验（开发模式），生产必须配置
-            logger.warning(
-                "WeChat verify_token 未配置，跳过签名校验（仅开发环境允许）"
-            )
+            logger.warning("WeChat verify_token 未配置，跳过签名校验（仅开发环境允许）")
             return True
         if not signature or not timestamp or not nonce:
             return False
@@ -474,9 +468,7 @@ class WeChatConnector:
         # 普通消息：未配对用户提示配对；已配对用户注入队列
         user_id = self._paired.get(from_openid)
         if user_id is None:
-            await self._send_custom_text(
-                from_openid, "请先用 /start <token> 完成配对。"
-            )
+            await self._send_custom_text(from_openid, "请先用 /start <token> 完成配对。")
             return b"success"
 
         await self._queue.put((user_id, content))
@@ -504,9 +496,7 @@ class WeChatConnector:
             # 配对成功
             self._paired[openid] = user_id
             self._user_to_openid[user_id] = openid
-            await self._send_custom_text(
-                openid, f"配对成功，deadman 用户 ID：{user_id}"
-            )
+            await self._send_custom_text(openid, f"配对成功，deadman 用户 ID：{user_id}")
             logger.info("WeChat 用户配对成功 openid=%s user_id=%s", openid, user_id)
             return True
 
@@ -521,9 +511,7 @@ class WeChatConnector:
                 )
                 logger.info("WeChat 用户退订 user_id=%s", user_id)
             else:
-                await self._send_custom_text(
-                    openid, "退订请求已收到（当前未配对或无 guard）。"
-                )
+                await self._send_custom_text(openid, "退订请求已收到（当前未配对或无 guard）。")
             return True
 
         # /help
@@ -670,9 +658,7 @@ class WeChatConnector:
             try:
                 # 带 1 秒超时的 get，避免在 stop() 时永久阻塞
                 try:
-                    user_id, text = await asyncio.wait_for(
-                        self._queue.get(), timeout=1.0
-                    )
+                    user_id, text = await asyncio.wait_for(self._queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
                     if not self._running:
                         break

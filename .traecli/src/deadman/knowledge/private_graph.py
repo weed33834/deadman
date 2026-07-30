@@ -122,8 +122,7 @@ class PrivateGraph:
         """跨用户访问检查(同租户内不同用户也隔离)。"""
         if attempted_user_id and attempted_user_id != self.user_id:
             raise TenantIsolationError(
-                f"跨用户访问被拒: 当前 user={self.user_id}, "
-                f"试图访问 user={attempted_user_id}",
+                f"跨用户访问被拒: 当前 user={self.user_id}, 试图访问 user={attempted_user_id}",
                 current_tenant_id=self.tenant_id,
                 attempted_tenant_id=self.tenant_id,
             )
@@ -193,7 +192,11 @@ class PrivateGraph:
                     continue
                 if node.properties.get("_user_id") != self.user_id:
                     continue
-                if not q_lower or q_lower in (node.content or "").lower() or q_lower in str(node.properties.get("source", "")).lower():
+                if (
+                    not q_lower
+                    or q_lower in (node.content or "").lower()
+                    or q_lower in str(node.properties.get("source", "")).lower()
+                ):
                     out.append(node)
                 if len(out) >= top_k:
                     break
@@ -203,7 +206,8 @@ class PrivateGraph:
         """列出所有节点(仅供当前用户)。"""
         with self._lock:
             return [
-                n for n in self._graph.all_nodes()
+                n
+                for n in self._graph.all_nodes()
                 if n.properties.get("_tenant_id") == self.tenant_id
                 and n.properties.get("_user_id") == self.user_id
             ]

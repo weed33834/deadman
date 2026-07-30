@@ -41,9 +41,12 @@ slog = structlog.get_logger(__name__)
 # 启用后：input_guard_node 检测到 user_input 包含外部内容（http://、文件内容标志）
 #         时，用随机 GUID 包裹外部内容，并构造 GUID 沙箱 preamble 注入 system_prompt。
 # 关闭时：input_guard_node 行为完全不变（保证不破坏现有测试）。
-GUID_SANDBOX_ENABLED: bool = os.environ.get(
-    "DEADMAN_GUID_SANDBOX_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+GUID_SANDBOX_ENABLED: bool = os.environ.get("DEADMAN_GUID_SANDBOX_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # =====================================================================
 # 常量定义
@@ -133,7 +136,7 @@ def _extract_agent_description(agent_name: str) -> str:
     for line in lines:
         if line.startswith("description:"):
             in_desc = True
-            rest = line[len("description:"):].strip()
+            rest = line[len("description:") :].strip()
             # 去除 YAML 的 | / > / |- / >- 标记
             if rest and rest not in ("|", ">", "|-", ">-"):
                 desc_lines.append(rest)
@@ -173,14 +176,18 @@ def _detect_transfer_signals(response: str, current_agent: str) -> str | None:
     return None
 
 
-def _append_trace_span(state: ConversationState, span_type: str, name: str, attributes: dict[str, Any] | None = None) -> None:
+def _append_trace_span(
+    state: ConversationState, span_type: str, name: str, attributes: dict[str, Any] | None = None
+) -> None:
     """向 state["trace_spans"] 追加一条 span 记录"""
     spans = state.get("trace_spans", [])
-    spans.append({
-        "span_type": span_type,
-        "name": name,
-        "attributes": attributes or {},
-    })
+    spans.append(
+        {
+            "span_type": span_type,
+            "name": name,
+            "attributes": attributes or {},
+        }
+    )
     state["trace_spans"] = spans
 
 
@@ -191,9 +198,7 @@ def _append_metric(state: ConversationState, key: str, value: Any) -> None:
     state["metrics"] = metrics
 
 
-def _accumulate_token_usage(
-    state: ConversationState, usage: dict[str, Any]
-) -> None:
+def _accumulate_token_usage(state: ConversationState, usage: dict[str, Any]) -> None:
     """把单次 LLM 调用的 usage 累加到 state["metrics"]["token_usage"]
 
     P10：供 TokenUsageTermination 评估本轮是否 token 超限。
@@ -210,15 +215,11 @@ def _accumulate_token_usage(
         "token_usage",
         {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     )
-    cur["prompt_tokens"] = int(cur.get("prompt_tokens", 0)) + int(
-        usage.get("prompt_tokens", 0)
-    )
+    cur["prompt_tokens"] = int(cur.get("prompt_tokens", 0)) + int(usage.get("prompt_tokens", 0))
     cur["completion_tokens"] = int(cur.get("completion_tokens", 0)) + int(
         usage.get("completion_tokens", 0)
     )
-    cur["total_tokens"] = int(cur.get("total_tokens", 0)) + int(
-        usage.get("total_tokens", 0)
-    )
+    cur["total_tokens"] = int(cur.get("total_tokens", 0)) + int(usage.get("total_tokens", 0))
     metrics["token_usage"] = cur
     state["metrics"] = metrics
 
@@ -372,12 +373,17 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
         except Exception as e:  # pragma: no cover - 防御性
             logger.warning("GUID 沙箱包裹失败，降级到原输入: %s", e)
 
-    _append_trace_span(state, "rule", "node.input_guard", {
-        "injection_detected": injection_detected,
-        "pii_detected": pii_detected,
-        "patterns": detected_patterns,
-        "guid_sandbox_applied": guid_sandbox_applied,
-    })
+    _append_trace_span(
+        state,
+        "rule",
+        "node.input_guard",
+        {
+            "injection_detected": injection_detected,
+            "pii_detected": pii_detected,
+            "patterns": detected_patterns,
+            "guid_sandbox_applied": guid_sandbox_applied,
+        },
+    )
 
     updates: dict[str, Any] = {
         "safety_override": safety_override,
@@ -389,7 +395,10 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
         # 注入时直接设置 rule_check，跳过后续正常校验
         updates["rule_check"] = RuleCheckResult(
             passed=False,
-            violations=[{"rule": "input-guardrails", "priority": 2, "violation": p} for p in detected_patterns],
+            violations=[
+                {"rule": "input-guardrails", "priority": 2, "violation": p}
+                for p in detected_patterns
+            ],
             risk_tier=RiskTier.R3,
             safety_triggered=True,
         )
@@ -418,18 +427,28 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
     # 若已有 pending_transfer 且用户已确认，不重新分类（由 route_to_agent 处理）
     pending = state.get("pending_transfer")
     if pending and state.get("transfer_confirmed") is True:
-        _append_trace_span(state, "rule", "node.router", {
-            "skipped": True,
-            "reason": "pending_transfer_confirmed",
-        })
+        _append_trace_span(
+            state,
+            "rule",
+            "node.router",
+            {
+                "skipped": True,
+                "reason": "pending_transfer_confirmed",
+            },
+        )
         return {"trace_spans": state.get("trace_spans", [])}
 
     # 若 safety_override 已触发，强制路由到 death_aftercare
     if state.get("safety_override"):
-        _append_trace_span(state, "rule", "node.router", {
-            "selected_agent": DEFAULT_AGENT,
-            "reason": "safety_override",
-        })
+        _append_trace_span(
+            state,
+            "rule",
+            "node.router",
+            {
+                "selected_agent": DEFAULT_AGENT,
+                "reason": "safety_override",
+            },
+        )
         return {
             "current_agent": DEFAULT_AGENT,
             "trace_spans": state.get("trace_spans", []),
@@ -440,10 +459,15 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
     # 避免路由器无条件覆盖外部已确定的路由意图。
     preset_agent = (state.get("current_agent") or "").strip()
     if preset_agent and preset_agent in AGENT_NAMES:
-        _append_trace_span(state, "rule", "node.router", {
-            "selected_agent": preset_agent,
-            "reason": "external_preset",
-        })
+        _append_trace_span(
+            state,
+            "rule",
+            "node.router",
+            {
+                "selected_agent": preset_agent,
+                "reason": "external_preset",
+            },
+        )
         return {
             "current_agent": preset_agent,
             "router_source": "external_preset",
@@ -473,7 +497,7 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
                 "5. 若提到跨境/跨国，选择 cross_border_specialist\n"
                 "6. 若需要搜索地方政策，选择 policy_researcher\n"
                 "7. 默认选择 death_aftercare\n\n"
-                "输出 JSON：{\"agent\": \"智能体名\", \"reason\": \"简短理由\", \"confidence\": 0.0-1.0}"
+                '输出 JSON：{"agent": "智能体名", "reason": "简短理由", "confidence": 0.0-1.0}'
             )
             result = await router_llm.chat_json(
                 [{"role": "user", "content": prompt}],
@@ -493,10 +517,15 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
     else:
         reason = "llm_unavailable"
 
-    _append_trace_span(state, "rule", "node.router", {
-        "selected_agent": selected_agent,
-        "reason": reason,
-    })
+    _append_trace_span(
+        state,
+        "rule",
+        "node.router",
+        {
+            "selected_agent": selected_agent,
+            "reason": reason,
+        },
+    )
 
     return {
         "current_agent": selected_agent,
@@ -520,9 +549,14 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
     transfer = state.get("pending_transfer")
     if transfer is None:
         # 没有待确认的转介，直接通过
-        _append_trace_span(state, "transfer", "node.user_confirm", {
-            "had_pending_transfer": False,
-        })
+        _append_trace_span(
+            state,
+            "transfer",
+            "node.user_confirm",
+            {
+                "had_pending_transfer": False,
+            },
+        )
         return {"trace_spans": state.get("trace_spans", [])}
 
     # 若用户已确认/拒绝，处理确认结果
@@ -532,10 +566,15 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
         if confirmed:
             # 用户同意转介：记录历史，切换智能体
             transfer_history.append(transfer)
-            _append_trace_span(state, "transfer", "node.user_confirm", {
-                "confirmed": True,
-                "to_agent": transfer.to_agent,
-            })
+            _append_trace_span(
+                state,
+                "transfer",
+                "node.user_confirm",
+                {
+                    "confirmed": True,
+                    "to_agent": transfer.to_agent,
+                },
+            )
             updates: dict[str, Any] = {
                 "current_agent": transfer.to_agent,
                 "agent_history": [*state.get("agent_history", []), transfer.to_agent],
@@ -590,10 +629,15 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
             return updates
         else:
             # 用户拒绝转介
-            _append_trace_span(state, "transfer", "node.user_confirm", {
-                "confirmed": False,
-                "declined_to": transfer.to_agent,
-            })
+            _append_trace_span(
+                state,
+                "transfer",
+                "node.user_confirm",
+                {
+                    "confirmed": False,
+                    "declined_to": transfer.to_agent,
+                },
+            )
             return {
                 "pending_transfer": None,
                 "trace_spans": state.get("trace_spans", []),
@@ -617,7 +661,7 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
                 "1. 简短说明为什么建议转介\n"
                 "2. 说明目标智能体能提供什么帮助\n"
                 "3. 尊重用户自主权（不强制）\n"
-                "4. 提供明确的\"是/否\"选择\n"
+                '4. 提供明确的"是/否"选择\n'
                 "5. 语气温和克制（tone-framework）"
             )
             transfer_message = await respond_llm.chat(
@@ -636,13 +680,18 @@ async def user_confirm_node(state: ConversationState) -> dict[str, Any]:
             f"根据您的情况，我建议您咨询我们的{transfer.to_agent}智能体，"
             f"它更擅长处理此类问题。\n\n"
             f"转介原因：{transfer.reason}\n\n"
-            f"您是否同意转介？（请回复\"是\"或\"否\"）"
+            f'您是否同意转介？（请回复"是"或"否"）'
         )
 
-    _append_trace_span(state, "transfer", "node.user_confirm", {
-        "generated_message": True,
-        "to_agent": transfer.to_agent,
-    })
+    _append_trace_span(
+        state,
+        "transfer",
+        "node.user_confirm",
+        {
+            "generated_message": True,
+            "to_agent": transfer.to_agent,
+        },
+    )
 
     return {
         "draft_response": transfer_message,
@@ -701,9 +750,7 @@ async def _reflexion_retry_llm_call(
             # 1. 反思失败原因并调整输入（_adjust_input 会注入历史反思上下文）
             reflection = await engine._reflect(failure_info, "tool")
             engine.reflections.append(reflection)
-            adjusted_input = await engine._adjust_input(
-                dict(current_input), reflection
-            )
+            adjusted_input = await engine._adjust_input(dict(current_input), reflection)
             # adjusted_input 的 prompt 字段为调整后的 user_input
             retry_user_input = adjusted_input.get("prompt", user_input)
 
@@ -721,7 +768,10 @@ async def _reflexion_retry_llm_call(
             except Exception as e:
                 logger.warning(
                     "Reflexion 重试 %d/%d 失败 [%s]: %s",
-                    attempt, max_retries, current_agent, e,
+                    attempt,
+                    max_retries,
+                    current_agent,
+                    e,
                 )
                 next_failure_message = f"{type(e).__name__}: {e}"
 
@@ -776,11 +826,16 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
     # 则不覆盖已有响应，直接透传（安全优先，跳过智能体生成）
     if state.get("safety_override") and state.get("draft_response"):
         node_log.info("agent_node.skipped", reason="safety_override_with_existing_response")
-        _append_trace_span(state, "agent", f"node.agent.{current_agent}", {
-            "agent": current_agent,
-            "skipped": True,
-            "reason": "safety_override_with_existing_response",
-        })
+        _append_trace_span(
+            state,
+            "agent",
+            f"node.agent.{current_agent}",
+            {
+                "agent": current_agent,
+                "skipped": True,
+                "reason": "safety_override_with_existing_response",
+            },
+        )
         return {"trace_spans": state.get("trace_spans", [])}
 
     # 记录智能体历史
@@ -879,12 +934,17 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
             else:
                 draft_response = react_result.final_answer
                 react_used = True
-                _append_trace_span(state, "agent", "node.agent.react_summary", {
-                    "agent": current_agent,
-                    "iterations": len(react_result.steps),
-                    "terminated_by": react_result.terminated_by,
-                    "total_tokens": react_result.total_tokens,
-                })
+                _append_trace_span(
+                    state,
+                    "agent",
+                    "node.agent.react_summary",
+                    {
+                        "agent": current_agent,
+                        "iterations": len(react_result.steps),
+                        "terminated_by": react_result.terminated_by,
+                        "total_tokens": react_result.total_tokens,
+                    },
+                )
         except Exception as e:
             logger.warning("ReAct 循环异常，回退到单次 LLM 调用 [%s]: %s", current_agent, e)
 
@@ -912,9 +972,9 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
                     llm_failed = True
                     failure_reason = "LLM 返回空响应"
                     fallback_message = (
-                        f"抱歉，我在处理您的请求时遇到了技术问题。"
-                        f"请稍后重试，或直接联系相关机构获取帮助。\n"
-                        f"（错误信息：EmptyResponse）"
+                        "抱歉，我在处理您的请求时遇到了技术问题。"
+                        "请稍后重试，或直接联系相关机构获取帮助。\n"
+                        "（错误信息：EmptyResponse）"
                     )
             except Exception as e:
                 logger.warning("智能体 LLM 调用失败 [%s]: %s", current_agent, e)
@@ -999,16 +1059,26 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
         )
         updates["pending_transfer"] = pending_transfer
         updates["transfer_confirmed"] = None  # 重置确认状态
-        _append_trace_span(state, "transfer", "agent.detect_transfer", {
-            "from_agent": current_agent,
-            "to_agent": transfer_target,
-        })
+        _append_trace_span(
+            state,
+            "transfer",
+            "agent.detect_transfer",
+            {
+                "from_agent": current_agent,
+                "to_agent": transfer_target,
+            },
+        )
 
-    _append_trace_span(state, "agent", f"node.agent.{current_agent}", {
-        "agent": current_agent,
-        "response_length": len(draft_response),
-        "transfer_detected": transfer_target is not None,
-    })
+    _append_trace_span(
+        state,
+        "agent",
+        f"node.agent.{current_agent}",
+        {
+            "agent": current_agent,
+            "response_length": len(draft_response),
+            "transfer_detected": transfer_target is not None,
+        },
+    )
     # 结构化日志：节点完成摘要（响应长度/是否转介/ReAct 是否启用）
     node_log.info(
         "agent_node.complete",
@@ -1026,8 +1096,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
             scratchpad_mgr = ScratchpadManager(state=dict(state))
             scratchpad_mgr.add(
                 current_agent,
-                f"检测到 {transfer_target} 相关信号，已触发转介；"
-                f"用户问题: {user_input[:200]}",
+                f"检测到 {transfer_target} 相关信号，已触发转介；用户问题: {user_input[:200]}",
             )
         except Exception as e:  # pragma: no cover - 防御性
             logger.warning("写入 scratchpad 失败，跳过: %s", e)
@@ -1076,10 +1145,15 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
         existing_rc = state.get("rule_check")
         if existing_rc and existing_rc.safety_triggered:
             rule_log.info("rule_check.skipped", reason="safety_override_already_set")
-            _append_trace_span(state, "rule", "node.rule_check", {
-                "skipped": True,
-                "reason": "safety_override_already_set",
-            })
+            _append_trace_span(
+                state,
+                "rule",
+                "node.rule_check",
+                {
+                    "skipped": True,
+                    "reason": "safety_override_already_set",
+                },
+            )
             return {"trace_spans": state.get("trace_spans", [])}
 
     # 执行规则校验
@@ -1101,13 +1175,18 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
             safety_triggered=False,
         )
 
-    _append_trace_span(state, "rule", "node.rule_check", {
-        "passed": result.passed,
-        "violations_count": len(result.violations),
-        "risk_tier": result.risk_tier.value,
-        "safety_triggered": result.safety_triggered,
-        "integrity_violations_count": len(result.integrity_violations),
-    })
+    _append_trace_span(
+        state,
+        "rule",
+        "node.rule_check",
+        {
+            "passed": result.passed,
+            "violations_count": len(result.violations),
+            "risk_tier": result.risk_tier.value,
+            "safety_triggered": result.safety_triggered,
+            "integrity_violations_count": len(result.integrity_violations),
+        },
+    )
 
     updates: dict[str, Any] = {
         "rule_check": result,
@@ -1166,38 +1245,50 @@ async def integrity_check_node(state: ConversationState) -> dict[str, Any]:
     # 构造 claims_to_verify（从 draft_response 提取关键 claim）
     claims: list[dict[str, Any]] = []
     # 将整个响应作为一个通用 claim
-    claims.append({
-        "claim": draft_response[:500],
-        "source": None,
-        "claim_type": "fact",
-    })
+    claims.append(
+        {
+            "claim": draft_response[:500],
+            "source": None,
+            "claim_type": "fact",
+        }
+    )
     # 从知识库结果中提取来源
     for kr in knowledge_results:
         if isinstance(kr, dict):
             source = kr.get("full_file") or kr.get("source")
             if source:
-                claims.append({
-                    "claim": str(kr.get("content", ""))[:200],
-                    "source": source,
-                    "claim_type": "fact",
-                })
+                claims.append(
+                    {
+                        "claim": str(kr.get("content", ""))[:200],
+                        "source": source,
+                        "claim_type": "fact",
+                    }
+                )
 
     # 调用 MCP check_integrity 工具
     try:
         from ..mcp_server.server import mcp
 
-        result = await mcp.call_tool("check_integrity", {
-            "output_text": draft_response,
-            "claims_to_verify": claims,
-            "selfcheck_enabled": True,
-            "selfcheck_sample_count": settings.selfcheck_sample_count,
-        })
+        result = await mcp.call_tool(
+            "check_integrity",
+            {
+                "output_text": draft_response,
+                "claims_to_verify": claims,
+                "selfcheck_enabled": True,
+                "selfcheck_sample_count": settings.selfcheck_sample_count,
+            },
+        )
     except Exception as e:
         logger.warning("check_integrity 调用失败: %s", e)
-        _append_trace_span(state, "rule", "node.integrity_check", {
-            "error": str(e),
-            "passed": True,
-        })
+        _append_trace_span(
+            state,
+            "rule",
+            "node.integrity_check",
+            {
+                "error": str(e),
+                "passed": True,
+            },
+        )
         return {
             "confidence_labels": state.get("confidence_labels", []),
             "trace_spans": state.get("trace_spans", []),
@@ -1217,12 +1308,17 @@ async def integrity_check_node(state: ConversationState) -> dict[str, Any]:
         )
         draft_response = draft_response + warning
 
-    _append_trace_span(state, "rule", "node.integrity_check", {
-        "passed": passed,
-        "five_gate_passed": result.get("five_gate_passed", True),
-        "confidence_labels_count": len(confidence_labels),
-        "hallucination_issues": len(hallucination.get("issues", [])),
-    })
+    _append_trace_span(
+        state,
+        "rule",
+        "node.integrity_check",
+        {
+            "passed": passed,
+            "five_gate_passed": result.get("five_gate_passed", True),
+            "confidence_labels_count": len(confidence_labels),
+            "hallucination_issues": len(hallucination.get("issues", [])),
+        },
+    )
 
     return {
         "draft_response": draft_response,
@@ -1277,11 +1373,16 @@ async def output_guard_node(state: ConversationState) -> dict[str, Any]:
                 draft_response = draft_response.replace(match, masked)
             logger.warning("输出中检测到 PII，已脱敏处理")
 
-    _append_trace_span(state, "rule", "node.output_guard", {
-        "response_length": len(draft_response),
-        "has_disclosure": "身份告知" in draft_response,
-        "confidence_labels_count": len(confidence_labels),
-    })
+    _append_trace_span(
+        state,
+        "rule",
+        "node.output_guard",
+        {
+            "response_length": len(draft_response),
+            "has_disclosure": "身份告知" in draft_response,
+            "confidence_labels_count": len(confidence_labels),
+        },
+    )
 
     return {
         "draft_response": draft_response,
@@ -1317,10 +1418,15 @@ async def respond_node(state: ConversationState) -> dict[str, Any]:
     metrics["transfer_triggered"] = state.get("pending_transfer") is not None
     metrics["trace_spans_count"] = len(state.get("trace_spans", []))
 
-    _append_trace_span(state, "root", "node.respond", {
-        "final_response_length": len(final_response),
-        "metrics_keys": list(metrics.keys()),
-    })
+    _append_trace_span(
+        state,
+        "root",
+        "node.respond",
+        {
+            "final_response_length": len(final_response),
+            "metrics_keys": list(metrics.keys()),
+        },
+    )
 
     return {
         "final_response": final_response,
@@ -1365,8 +1471,7 @@ def route_to_agent(state: ConversationState) -> str:
                 "或拆分为更具体的小问题逐个询问。"
             )
         logger.warning(
-            "route_to_agent 检测到卡死 step_count=%s stuck_count=%s，"
-            "强制路由到 respond",
+            "route_to_agent 检测到卡死 step_count=%s stuck_count=%s，强制路由到 respond",
             step_count,
             stuck_count,
         )

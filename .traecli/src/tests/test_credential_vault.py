@@ -16,15 +16,14 @@ from deadman.infrastructure.credential_vault import (
 )
 
 # cryptography 未安装时 vault 硬性阻断，整个模块 skip
-pytestmark = pytest.mark.skipif(
-    not _HAS_CRYPTO, reason="cryptography 未安装，凭证保险柜不可用"
-)
+pytestmark = pytest.mark.skipif(not _HAS_CRYPTO, reason="cryptography 未安装，凭证保险柜不可用")
 
 
 @pytest.fixture(autouse=True)
 def enable_credential_vault(monkeypatch):
     monkeypatch.setenv("DEADMAN_CREDENTIAL_VAULT_ENABLED", "1")
     from deadman.infrastructure.feature_flags import get_flags
+
     get_flags()._cache.clear()
     get_flags()._cache_loaded_at = 0.0
     yield
@@ -35,6 +34,7 @@ def fresh_master_key(monkeypatch, tmp_path):
     """生成临时主密钥(避免污染全局)。"""
     import base64
     import secrets
+
     if _HAS_CRYPTO:
         key = secrets.token_bytes(32)
         monkeypatch.setenv("DEADMAN_VAULT_MASTER_KEY", base64.b64encode(key).decode())
@@ -70,6 +70,7 @@ class TestEncryptDecrypt:
         import secrets
 
         from cryptography.exceptions import InvalidTag
+
         key1 = _derive_master_key()
         key2 = secrets.token_bytes(32)
         encrypted = _encrypt("secret", key1)
@@ -255,6 +256,7 @@ class TestFeatureFlagDisabled:
         monkeypatch.setenv("DEADMAN_CREDENTIAL_VAULT_ENABLED", "0")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 
@@ -265,6 +267,7 @@ class TestFeatureFlagDisabled:
     def test_disabled_unknown_raises(self, monkeypatch, tmp_path):
         monkeypatch.setenv("DEADMAN_CREDENTIAL_VAULT_ENABLED", "0")
         from deadman.infrastructure.feature_flags import get_flags
+
         get_flags()._cache.clear()
         get_flags()._cache_loaded_at = 0.0
 

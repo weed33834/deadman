@@ -37,13 +37,13 @@ logger = logging.getLogger(__name__)
 # 默认分账配置
 # =====================================================================
 DEFAULT_PLATFORM_SHARE = 0.30  # 30%
-DEFAULT_AUTHOR_SHARE = 0.70    # 70%
+DEFAULT_AUTHOR_SHARE = 0.70  # 70%
 
 # 按 plan 覆盖的 platform_share(pro / enterprise 优惠)
 PLAN_PLATFORM_SHARE: dict[str, float] = {
     "free": 0.30,
-    "pro": 0.20,        # pro author 平台少抽
-    "enterprise": 0.10, # enterprise author 平台最少抽
+    "pro": 0.20,  # pro author 平台少抽
+    "enterprise": 0.10,  # enterprise author 平台最少抽
 }
 
 
@@ -220,11 +220,10 @@ class RevenueShare:
             now = time.time()
             price = self._lookup_price(agent_id)
             cost = price * call_count
-            record_id = f"usage:{agent_id}:{user_id}:{int(now*1000)}"
+            record_id = f"usage:{agent_id}:{user_id}:{int(now * 1000)}"
             # 同一 user 对同一 agent 已有记录则累加(便于分账)
             existing = next(
-                (r for r in self._usage
-                 if r.agent_id == agent_id and r.user_id == user_id),
+                (r for r in self._usage if r.agent_id == agent_id and r.user_id == user_id),
                 None,
             )
             if existing is not None:
@@ -295,9 +294,9 @@ class RevenueShare:
             self._load()
             # 聚合周期内用量
             period_records = [
-                r for r in self._usage
-                if r.agent_id == agent_id
-                and period_start <= r.timestamp < period_end
+                r
+                for r in self._usage
+                if r.agent_id == agent_id and period_start <= r.timestamp < period_end
             ]
             total_revenue = sum(r.cost for r in period_records)
             call_count = sum(r.call_count for r in period_records)
@@ -373,7 +372,10 @@ class RevenueShare:
             self._save()
             logger.info(
                 "Payout generated: author=%s period=%s amount=%.2f agents=%d",
-                author_id, period, total_amount, len(agent_ids),
+                author_id,
+                period,
+                total_amount,
+                len(agent_ids),
             )
             return record
 
@@ -424,10 +426,7 @@ class RevenueShare:
             # 简化: 直接访问 _cache(若可用)
             cache = getattr(self._registry, "_cache", {})
             if cache:
-                return [
-                    aid for aid, listing in cache.items()
-                    if listing.author == author_id
-                ]
+                return [aid for aid, listing in cache.items() if listing.author == author_id]
         except Exception as e:
             logger.debug("按作者查找列表失败: %s", e)
         return []
@@ -440,6 +439,7 @@ class RevenueShare:
         """
         try:
             import datetime as _dt
+
             year, month = (int(x) for x in period.split("-"))
             start = _dt.datetime(year, month, 1, tzinfo=_dt.timezone.utc).timestamp()
             if month == 12:

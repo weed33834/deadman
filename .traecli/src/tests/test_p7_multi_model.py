@@ -25,6 +25,7 @@ class TestGetLLMForUseCase:
     def setup_method(self):
         """每个测试前清空 use_case 缓存，避免相互污染"""
         from deadman.llm import _llm_client_cache
+
         _llm_client_cache.clear()
 
     def test_unconfigured_falls_back_to_main_llm(self, monkeypatch):
@@ -167,11 +168,13 @@ class TestNodesIntegration:
 
         mock_client = MagicMock()
         mock_client.api_key = "sk-test"
-        mock_client.chat_json = AsyncMock(return_value={
-            "agent": "death_aftercare",
-            "reason": "test",
-            "confidence": 0.9,
-        })
+        mock_client.chat_json = AsyncMock(
+            return_value={
+                "agent": "death_aftercare",
+                "reason": "test",
+                "confidence": 0.9,
+            }
+        )
         captured_use_cases: list[str] = []
 
         def fake_get_llm(use_case: str):
@@ -182,6 +185,7 @@ class TestNodesIntegration:
 
         state = create_initial_state("我想咨询身后事")
         import asyncio
+
         asyncio.run(nodes.router_node(state))
 
         assert "router" in captured_use_cases
@@ -205,6 +209,7 @@ class TestNodesIntegration:
         state = create_initial_state("咨询身后事")
         state["current_agent"] = "death_aftercare"
         import asyncio
+
         asyncio.run(nodes.agent_node(state))
 
         assert "respond" in captured_use_cases
@@ -240,6 +245,7 @@ class TestNodesIntegration:
         state["transfer_confirmed"] = None
 
         import asyncio
+
         asyncio.run(nodes.user_confirm_node(state))
 
         assert "respond" in captured_use_cases
@@ -268,9 +274,11 @@ class TestEpisodicIntegration:
 
         # episodic 通过 from ..llm import get_llm_for_use_case 导入
         import deadman.llm as llm_module
+
         monkeypatch.setattr(llm_module, "get_llm_for_use_case", fake_get_llm)
         # episodic 模块内的 get_llm_for_use_case 引用也要替换
         import deadman.memory.episodic as ep
+
         monkeypatch.setattr(ep, "get_llm_for_use_case", fake_get_llm)
         _llm_client_cache.clear()
 
@@ -278,6 +286,7 @@ class TestEpisodicIntegration:
         turn = {"role": "user", "content": "测试内容", "agent": "death_aftercare"}
 
         import asyncio
+
         result = asyncio.run(memory._summarize_turn(turn))
 
         assert "summarizer" in captured_use_cases

@@ -164,8 +164,7 @@ class TenantVectorStore:
             results = store.query(text=text, top_k=top_k, filter=merged_filter)
             # 双重防护:即使底层不支持 filter,也在 Python 层过滤
             results = [
-                r for r in results
-                if r.get("metadata", {}).get(_TENANT_METADATA_KEY) == tenant_id
+                r for r in results if r.get("metadata", {}).get(_TENANT_METADATA_KEY) == tenant_id
             ]
 
         # 永远做最后一层防御:Python 层过滤
@@ -191,11 +190,11 @@ class TenantVectorStore:
                 logger.error(
                     "Tenant isolation violation: tenant=%s tried to delete id=%s "
                     "owned by tenant=%s",
-                    tenant_id, id, owner,
+                    tenant_id,
+                    id,
+                    owner,
                 )
-                raise TenantIsolationError(
-                    f"id '{id}' does not belong to tenant '{tenant_id}'"
-                )
+                raise TenantIsolationError(f"id '{id}' does not belong to tenant '{tenant_id}'")
 
         store = self._get_store_for_tenant(tenant_id)
         deleted = store.delete(id=id)
@@ -216,12 +215,14 @@ class TenantVectorStore:
         with self._lock:
             stats = []
             for tid, store in self._tenant_stores.items():
-                stats.append(TenantVectorStats(
-                    tenant_id=tid,
-                    collection_name=self._collection_name_for(tid),
-                    vector_count=store.count(),
-                    isolation_mode=self._mode,
-                ))
+                stats.append(
+                    TenantVectorStats(
+                        tenant_id=tid,
+                        collection_name=self._collection_name_for(tid),
+                        vector_count=store.count(),
+                        isolation_mode=self._mode,
+                    )
+                )
             return stats
 
     def drop_tenant(self, tenant_id: str) -> int:
@@ -239,10 +240,7 @@ class TenantVectorStore:
                 return 0
             count = store.count()
             # 删除所有权记录中属于此租户的
-            ids_to_remove = [
-                id for id, owner in self._id_ownership.items()
-                if owner == tenant_id
-            ]
+            ids_to_remove = [id for id, owner in self._id_ownership.items() if owner == tenant_id]
             for id in ids_to_remove:
                 self._id_ownership.pop(id, None)
 
@@ -280,10 +278,7 @@ class TenantVectorStore:
         - 仅保留字母数字 / 下划线 / 短横线
         - 防止 collection 名注入攻击
         """
-        safe = "".join(
-            c if c.isalnum() or c in ("_", "-") else "_"
-            for c in tenant_id
-        )
+        safe = "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in tenant_id)
         return f"{self._base_collection_name}_{safe}"
 
 

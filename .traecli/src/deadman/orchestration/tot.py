@@ -45,16 +45,17 @@ logger = logging.getLogger(__name__)
 
 # ToT 总开关：默认关闭（触发由外部调用方决定，避免成本爆炸）
 TOT_ENABLED: bool = os.environ.get("DEADMAN_TOT_ENABLED", "0").lower() in (
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
 # 默认路径数
 TOT_DEFAULT_PATHS: int = int(os.environ.get("DEADMAN_TOT_DEFAULT_PATHS", "3"))
 
 # fact-check 失败阈值（score < 此值剪枝）— 当前实现用 passed=False 直接剪枝
-TOT_FACT_CHECK_THRESHOLD: float = float(
-    os.environ.get("DEADMAN_TOT_FACT_CHECK_THRESHOLD", "0.5")
-)
+TOT_FACT_CHECK_THRESHOLD: float = float(os.environ.get("DEADMAN_TOT_FACT_CHECK_THRESHOLD", "0.5"))
 
 
 # =====================================================================
@@ -166,9 +167,7 @@ class TreeOfThought:
         self.default_paths = max(1, default_paths)
         self._nodes: dict[str, ThoughtNode] = {}
 
-    async def generate_paths(
-        self, query: str, n: int = 3
-    ) -> list[ThoughtNode]:
+    async def generate_paths(self, query: str, n: int = 3) -> list[ThoughtNode]:
         """生成 N 条候选推理路径（独立 LLM 调用，温度递增增多样性）
 
         Args:
@@ -291,10 +290,7 @@ class TreeOfThought:
             await self.fact_check(node, query=query)
 
         # 3. 选最优：fact_check 通过的最高分节点
-        candidates = [
-            n for n in nodes
-            if not n.pruned and n.fact_check_passed is not False
-        ]
+        candidates = [n for n in nodes if not n.pruned and n.fact_check_passed is not False]
         if not candidates:
             # 全部剪枝 → 返回最高分（即便被剪枝）
             candidates = nodes

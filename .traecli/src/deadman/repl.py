@@ -239,6 +239,7 @@ class ChatREPL:
         """显示当前 session token 用量估算（从 metrics_collector 拉）"""
         try:
             from .observability import metrics_collector
+
             # 拉取本轮 session 相关指标
             input_tokens = metrics_collector.get_metric(
                 "efficiency.token_input_count",
@@ -278,9 +279,7 @@ class ChatREPL:
         self._print("=== 分层记忆状态 ===")
         # working
         wm_turns = len(mgr.working.recent_turns)
-        self._print(
-            f"  working    条目={wm_turns}  session={mgr.working.session_id or '(无)'}"
-        )
+        self._print(f"  working    条目={wm_turns}  session={mgr.working.session_id or '(无)'}")
         # episodic
         ep_count = len(mgr.episodic._store) if hasattr(mgr.episodic, "_store") else 0
         self._print(f"  episodic   条目={ep_count}")
@@ -292,9 +291,7 @@ class ChatREPL:
         )
         # procedural
         proc_count = (
-            len(mgr.procedural._procedures)
-            if hasattr(mgr.procedural, "_procedures")
-            else 0
+            len(mgr.procedural._procedures) if hasattr(mgr.procedural, "_procedures") else 0
         )
         self._print(f"  procedural 流程定义={proc_count}")
         # 后端
@@ -361,7 +358,9 @@ class ChatREPL:
                 risk_tier=risk_tier,
                 rule_check_result=rule_check,
                 transfer_triggered=bool(result.get("pending_transfer")),
-                subagents_called=[r.get("agent", "") for r in result.get("subagent_results", [])] if isinstance(result.get("subagent_results"), list) else [],
+                subagents_called=[r.get("agent", "") for r in result.get("subagent_results", [])]
+                if isinstance(result.get("subagent_results"), list)
+                else [],
             )
         except Exception as e:
             logger.warning("after_turn 更新记忆失败: %s", e)
@@ -403,9 +402,7 @@ class ChatREPL:
         self._print(f"  输入字符数（估算）：{self.total_input_chars}")
         self._print(f"  输出字符数（估算）：{self.total_output_chars}")
         # 粗略 token 估算：中文 1 字 ≈ 1 token，英文 4 字符 ≈ 1 token
-        est_tokens = (
-            self.total_input_chars + self.total_output_chars
-        )  # 保守上界
+        est_tokens = self.total_input_chars + self.total_output_chars  # 保守上界
         self._print(f"  token 估算（粗略上界）：{est_tokens}")
         if self.last_agent:
             self._print(f"  最后 agent：{self.last_agent}  risk：{self.last_risk_tier}")

@@ -40,9 +40,7 @@ def dry_run_disabled(monkeypatch):
 
 
 class TestWriteFileDryRun:
-    async def test_write_file_dry_run_no_actual_write(
-        self, dry_run_enabled, tmp_path, monkeypatch
-    ):
+    async def test_write_file_dry_run_no_actual_write(self, dry_run_enabled, tmp_path, monkeypatch):
         """dry_run=True 时只返回预览，不实际写文件"""
         # 让 settings.project_root 指向临时目录，确保文件不会真被写
         from deadman.config import Settings
@@ -148,9 +146,7 @@ class TestExecuteCodeDryRun:
         assert result["backend"] == "dry_run"
         assert result["code_size"] > 0
 
-    async def test_execute_code_dry_run_detects_syntax_error(
-        self, dry_run_enabled
-    ):
+    async def test_execute_code_dry_run_detects_syntax_error(self, dry_run_enabled):
         """dry-run 应检测语法错误"""
         result = await mcp.call_tool(
             "execute_code",
@@ -177,9 +173,7 @@ class TestExecuteCodeDryRun:
 
 
 class TestDryRunDisabled:
-    async def test_dry_run_disabled_ignores_flag(
-        self, dry_run_disabled, tmp_path, monkeypatch
-    ):
+    async def test_dry_run_disabled_ignores_flag(self, dry_run_disabled, tmp_path, monkeypatch):
         """DRY_RUN_ENABLED=False 时 dry_run=True 应被忽略，走真实路径"""
         from deadman.config import Settings
 
@@ -202,9 +196,7 @@ class TestDryRunDisabled:
         assert (tmp_path / "data" / "real_write.txt").exists()
         assert (tmp_path / "data" / "real_write.txt").read_text() == "actual write"
 
-    async def test_dry_run_disabled_init_transfer_normal(
-        self, dry_run_disabled
-    ):
+    async def test_dry_run_disabled_init_transfer_normal(self, dry_run_disabled):
         """DRY_RUN_ENABLED=False 时 init_transfer 应返回 pending_confirmation"""
         result = await mcp.call_tool(
             "init_transfer",

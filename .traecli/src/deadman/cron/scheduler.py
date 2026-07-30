@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 try:
     # Phase 3 已就绪时直接用真实 guardrail
     from deadman.notification.guardrail import NotificationGuardrail  # type: ignore
+
     _GUARD_AVAILABLE = True
 except ImportError:  # pragma: no cover - Phase 3 未落地时的降级路径
     logger.warning(
@@ -62,22 +63,16 @@ except ImportError:  # pragma: no cover - Phase 3 未落地时的降级路径
         确保未就绪环境下 cron 不会绕过护栏误推。测试应注入 mock guard。
         """
 
-        def can_send(
-            self, user_id: str, scheduled_time: datetime
-        ) -> tuple[bool, str]:
+        def can_send(self, user_id: str, scheduled_time: datetime) -> tuple[bool, str]:
             return False, "NotificationGuardrail 未就绪（Phase 3 未完成）"
 
-        def record_consent(
-            self, user_id: str, content: str, scope: str
-        ) -> None:
+        def record_consent(self, user_id: str, content: str, scope: str) -> None:
             pass
 
         def sanitize_content(self, content: str) -> str:
             return content
 
-        def record_send(
-            self, user_id: str, content: str, channel: str
-        ) -> None:
+        def record_send(self, user_id: str, content: str, channel: str) -> None:
             pass
 
         def record_unsubscribe(self, user_id: str, scope: str) -> None:
@@ -118,6 +113,7 @@ class CronJob:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> CronJob:
         """从 dict 反序列化"""
+
         def _parse_dt(v: Any) -> datetime | None:
             if v is None or v == "":
                 return None
@@ -197,9 +193,7 @@ class CronScheduler:
     # 任务生命周期：propose → confirm → tick → cancel
     # ============================================================
 
-    async def propose_job(
-        self, user_id: str, schedule: str, content: str
-    ) -> dict[str, Any]:
+    async def propose_job(self, user_id: str, schedule: str, content: str) -> dict[str, Any]:
         """提议创建任务（pending_confirmation=True，enabled=False）
 
         第一阶段：仅校验 cron 表达式合法 + 内容非空，入暂存。
@@ -242,7 +236,9 @@ class CronScheduler:
 
         logger.info(
             "Cron 任务已提议 user=%s job=%s schedule=%s（待确认）",
-            user_id, job.job_id, job.schedule,
+            user_id,
+            job.job_id,
+            job.schedule,
         )
         return {
             "job_id": job.job_id,
@@ -274,25 +270,19 @@ class CronScheduler:
                 break
 
         if target is None:
-            raise ValueError(
-                f"未找到待确认任务 job_id={job_id} user_id={user_id}"
-            )
+            raise ValueError(f"未找到待确认任务 job_id={job_id} user_id={user_id}")
 
         if not target.pending_confirmation:
-            raise ValueError(
-                f"任务 {job_id} 已确认或非待确认状态"
-            )
+            raise ValueError(f"任务 {job_id} 已确认或非待确认状态")
 
         # 上限校验：已激活 + 待确认都算占名额，但只统计 enabled=True 的活跃任务
         # （notification-guardrails.md §三.2 "单用户 Cron 任务数上限：5 条"）
         active_count = sum(
-            1 for j in jobs
-            if j.user_id == user_id and j.enabled and not j.pending_confirmation
+            1 for j in jobs if j.user_id == user_id and j.enabled and not j.pending_confirmation
         )
         if active_count >= self.MAX_JOBS_PER_USER:
             raise ValueError(
-                f"用户 {user_id} 已有 {active_count} 条活跃任务，"
-                f"超过上限 {self.MAX_JOBS_PER_USER}"
+                f"用户 {user_id} 已有 {active_count} 条活跃任务，超过上限 {self.MAX_JOBS_PER_USER}"
             )
 
         # 持续时长校验：expires_at 不能晚于 now + MAX_DURATION_DAYS
@@ -301,9 +291,7 @@ class CronScheduler:
         if target.expires_at > max_expires:
             # 自动收敛到最大值（容错：propose 后过了几天才 confirm）
             target.expires_at = max_expires
-            logger.info(
-                "任务 %s expires_at 收敛到最大值 %s", job_id, max_expires
-            )
+            logger.info("任务 %s expires_at 收敛到最大值 %s", job_id, max_expires)
 
         # 间隔校验
         ok, reason = self._validate_schedule(target.schedule)
@@ -325,7 +313,10 @@ class CronScheduler:
 
         logger.info(
             "Cron 任务已确认激活 user=%s job=%s schedule=%s expires=%s",
-            user_id, job_id, target.schedule, target.expires_at,
+            user_id,
+            job_id,
+            target.schedule,
+            target.expires_at,
         )
         return {
             "job_id": job_id,
@@ -341,9 +332,7 @@ class CronScheduler:
         before = len(jobs)
         jobs = [j for j in jobs if not (j.job_id == job_id and j.user_id == user_id)]
         if len(jobs) == before:
-            logger.info(
-                "取消失败：未找到任务 job=%s user=%s", job_id, user_id
-            )
+            logger.info("取消失败：未找到任务 job=%s user=%s", job_id, user_id)
             return False
         self._save_jobs(jobs)
         logger.info("Cron 任务已取消 user=%s job=%s", user_id, job_id)
@@ -387,9 +376,7 @@ class CronScheduler:
                 fired, attempted, reason = await self._try_fire(job, now)
             except Exception as e:
                 # 单个任务异常不影响其他任务
-                logger.exception(
-                    "tick 处理任务异常 job=%s: %s", job.job_id, e
-                )
+                logger.exception("tick 处理任务异常 job=%s: %s", job.job_id, e)
                 fired, attempted, reason = False, False, f"tick 异常: {e}"
 
             # 成功或失败都更新 last_fired（失败不重试，但本分钟内不再触发）；
@@ -398,21 +385,21 @@ class CronScheduler:
                 job.last_fired = now
                 dirty = True
 
-            results.append({
-                "job_id": job.job_id,
-                "user_id": job.user_id,
-                "fired": fired,
-                "reason": reason,
-            })
+            results.append(
+                {
+                    "job_id": job.job_id,
+                    "user_id": job.user_id,
+                    "fired": fired,
+                    "reason": reason,
+                }
+            )
 
         if dirty:
             self._save_jobs(jobs)
 
         return results
 
-    async def _try_fire(
-        self, job: CronJob, now: datetime
-    ) -> tuple[bool, bool, str]:
+    async def _try_fire(self, job: CronJob, now: datetime) -> tuple[bool, bool, str]:
         """单任务触发判定 + 执行
 
         Returns:
@@ -475,16 +462,17 @@ class CronScheduler:
                 self.guard.record_send(job.user_id, sanitized, channel="cron")
             except Exception as e:
                 logger.warning("guard.record_send 异常 job=%s: %s", job.job_id, e)
-            logger.info(
-                "Cron 任务触发成功 user=%s job=%s", job.user_id, job.job_id
-            )
+            logger.info("Cron 任务触发成功 user=%s job=%s", job.user_id, job.job_id)
             return True, True, "fired"
         except Exception as e:
             # 失败不重试，仅记日志；attempted=True 让 tick 更新 last_fired
             # 避免本分钟内重试（notification-guardrails.md §三.4）
             logger.error(
                 "Cron 任务触发失败 user=%s job=%s error=%s",
-                job.user_id, job.job_id, e, exc_info=True,
+                job.user_id,
+                job.job_id,
+                e,
+                exc_info=True,
             )
             return False, True, f"fire_failed: {e}"
 
@@ -495,7 +483,8 @@ class CronScheduler:
         """
         logger.info(
             "CronScheduler 主循环启动 interval=%ss jobs_file=%s",
-            interval_seconds, self.jobs_file,
+            interval_seconds,
+            self.jobs_file,
         )
         try:
             while True:
@@ -563,7 +552,8 @@ class CronScheduler:
         except (OSError, json.JSONDecodeError) as e:
             logger.error(
                 "jobs.json 读取失败 (%s)：将视为空列表。请检查文件 %s",
-                e, self.jobs_file,
+                e,
+                self.jobs_file,
             )
             return []
 
@@ -598,9 +588,7 @@ class CronScheduler:
         }
 
         # 原子写入：临时文件 + os.replace
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(self.data_dir), suffix=".tmp", prefix=".jobs_"
-        )
+        fd, tmp_path = tempfile.mkstemp(dir=str(self.data_dir), suffix=".tmp", prefix=".jobs_")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -639,5 +627,7 @@ async def _default_fire_handler(job: CronJob, sanitized_content: str) -> None:
     """
     logger.info(
         "[默认 fire_handler] job=%s user=%s content=%r（未注入真实处理器）",
-        job.job_id, job.user_id, sanitized_content[:80],
+        job.job_id,
+        job.user_id,
+        sanitized_content[:80],
     )

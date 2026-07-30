@@ -60,11 +60,16 @@ class Currency(str, Enum):
         except ValueError:
             # 常见别名(¥ / $ / € 等)
             alias_map = {
-                "￥": cls.CNY, "¥": cls.CNY, "RMB": cls.CNY,
-                "$": cls.USD, "US$": cls.USD,
+                "￥": cls.CNY,
+                "¥": cls.CNY,
+                "RMB": cls.CNY,
+                "$": cls.USD,
+                "US$": cls.USD,
                 "€": cls.EUR,
-                "JP¥": cls.JPY, "円": cls.JPY,  # 円 日元
-                "₩": cls.KRW, "원": cls.KRW,
+                "JP¥": cls.JPY,
+                "円": cls.JPY,  # 円 日元
+                "₩": cls.KRW,
+                "원": cls.KRW,
                 "£": cls.GBP,
                 "HK$": cls.HKD,
             }
@@ -111,13 +116,13 @@ class Currency(str, Enum):
 # =====================================================================
 # 单位: 1 单位该货币 = X 单位 CNY
 _DEFAULT_RATES_TO_CNY: dict[Currency, float] = {
-    Currency.CNY: 1.0,         # 基准
-    Currency.USD: 7.20,       # 美元 → 人民币
-    Currency.EUR: 7.85,       # 欧元 → 人民币
-    Currency.JPY: 0.048,      # 日元 → 人民币(100 JPY ≈ 4.8 CNY)
-    Currency.KRW: 0.0054,     # 韩元 → 人民币(100 KRW ≈ 0.54 CNY)
-    Currency.GBP: 9.15,       # 英镑 → 人民币
-    Currency.HKD: 0.92,       # 港币 → 人民币
+    Currency.CNY: 1.0,  # 基准
+    Currency.USD: 7.20,  # 美元 → 人民币
+    Currency.EUR: 7.85,  # 欧元 → 人民币
+    Currency.JPY: 0.048,  # 日元 → 人民币(100 JPY ≈ 4.8 CNY)
+    Currency.KRW: 0.0054,  # 韩元 → 人民币(100 KRW ≈ 0.54 CNY)
+    Currency.GBP: 9.15,  # 英镑 → 人民币
+    Currency.HKD: 0.92,  # 港币 → 人民币
 }
 
 
@@ -191,10 +196,16 @@ class CurrencyConverter:
         if not is_enabled("i18n"):
             return 1.0
 
-        fc = from_currency if isinstance(from_currency, Currency) else \
-            Currency.from_string(str(from_currency))
-        tc = to_currency if isinstance(to_currency, Currency) else \
-            Currency.from_string(str(to_currency))
+        fc = (
+            from_currency
+            if isinstance(from_currency, Currency)
+            else Currency.from_string(str(from_currency))
+        )
+        tc = (
+            to_currency
+            if isinstance(to_currency, Currency)
+            else Currency.from_string(str(to_currency))
+        )
 
         if fc == tc:
             return 1.0
@@ -228,10 +239,16 @@ class CurrencyConverter:
         Returns:
             ConvertedAmount(amount, from, to, rate, ...)
         """
-        fc = from_currency if isinstance(from_currency, Currency) else \
-            Currency.from_string(str(from_currency))
-        tc = to_currency if isinstance(to_currency, Currency) else \
-            Currency.from_string(str(to_currency))
+        fc = (
+            from_currency
+            if isinstance(from_currency, Currency)
+            else Currency.from_string(str(from_currency))
+        )
+        tc = (
+            to_currency
+            if isinstance(to_currency, Currency)
+            else Currency.from_string(str(to_currency))
+        )
 
         if not is_enabled("i18n"):
             # 关闭:直接返回原值(汇率 1)
@@ -369,7 +386,9 @@ class CurrencyConverter:
                     except (ValueError, TypeError):
                         continue
 
-                logger.info("在线汇率获取成功（source=%s），共 %d 种货币", api_url, len(rates_to_cny))
+                logger.info(
+                    "在线汇率获取成功（source=%s），共 %d 种货币", api_url, len(rates_to_cny)
+                )
                 return rates_to_cny
 
             except Exception as e:

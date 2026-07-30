@@ -159,9 +159,7 @@ def _decrypt_v1(envelope: dict[str, Any]) -> bytes:
     out = bytearray()
     counter = 0
     while len(out) < len(ct):
-        block = hmac.new(
-            enc_key, nonce + counter.to_bytes(8, "big"), hashlib.sha256
-        ).digest()
+        block = hmac.new(enc_key, nonce + counter.to_bytes(8, "big"), hashlib.sha256).digest()
         out.extend(block)
         counter += 1
     keystream = bytes(out[: len(ct)])
@@ -424,9 +422,7 @@ class EndingNoteStore:
     # 投递触发
     # ------------------------------------------------------------------
 
-    def trigger_delivery(
-        self, owner_user_id: str, trigger_type: str
-    ) -> dict[str, Any]:
+    def trigger_delivery(self, owner_user_id: str, trigger_type: str) -> dict[str, Any]:
         """触发投递
 
         Args:

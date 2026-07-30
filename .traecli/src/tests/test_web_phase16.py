@@ -67,6 +67,7 @@ def http_server(tmp_path: Path, monkeypatch) -> int:
     - onboarding.store._DEFAULT_DATA_DIR → tmp_path/onboarding
     """
     from deadman.config import settings
+
     monkeypatch.setattr(settings, "auth_data_dir", tmp_path / "auth")
     monkeypatch.setattr(settings, "jwt_secret", "")
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
@@ -75,6 +76,7 @@ def http_server(tmp_path: Path, monkeypatch) -> int:
     # 重定向 TicketStore / OnboardingStore 默认路径
     import deadman.onboarding.store as obs
     import deadman.support.store as ssm
+
     monkeypatch.setattr(ssm, "_DEFAULT_DATA_DIR", tmp_path / "support")
     monkeypatch.setattr(obs, "_DEFAULT_DATA_DIR", tmp_path / "onboarding")
 
@@ -91,7 +93,9 @@ def http_server(tmp_path: Path, monkeypatch) -> int:
     # daemon 线程会随进程退出
 
 
-def _register_user(tmp_path: Path, email: str = "alice@example.com", password: str = "password123") -> dict:
+def _register_user(
+    tmp_path: Path, email: str = "alice@example.com", password: str = "password123"
+) -> dict:
     """直接用 UserStore 注册一个用户
 
     注意：UserStore 写入 tmp_path/auth/{users.json, jwt_secret}。
@@ -112,12 +116,15 @@ def _issue_token(tmp_path: Path, user: dict) -> str:
     本 helper 必须镜像该逻辑，否则 token 验证会失败（401）。
     """
     from deadman.config import settings
+
     secret = settings.jwt_secret or None
     mgr = JWTManager(secret=secret, expiry_days=settings.jwt_expiry_days)
     return mgr.issue(user)
 
 
-def _request(port: int, method: str, path: str, body: dict | None = None, token: str | None = None) -> tuple[int, dict | str, dict]:
+def _request(
+    port: int, method: str, path: str, body: dict | None = None, token: str | None = None
+) -> tuple[int, dict | str, dict]:
     """发 HTTP 请求，返回 (status, body_dict_or_text, headers)"""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
     headers = {}
@@ -226,24 +233,35 @@ class TestSupportTicketCreate:
 
     def test_create_ticket_without_token_returns_401(self, http_server):
         port = http_server
-        status, _body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "测试工单",
-            "description": "测试描述",
-        })
+        status, _body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "测试工单",
+                "description": "测试描述",
+            },
+        )
         assert status == 401
 
     def test_create_ticket_with_token_returns_201(self, http_server, tmp_path):
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "如何办理户口注销？",
-            "description": "需要哪些材料？",
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "如何办理户口注销？",
+                "description": "需要哪些材料？",
+            },
+            token=token,
+        )
         assert status == 201
         assert "ticket" in body
         t = body["ticket"]
@@ -257,12 +275,18 @@ class TestSupportTicketCreate:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "无效类别",
-            "priority": "普通",
-            "subject": "x",
-            "description": "y",
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "无效类别",
+                "priority": "普通",
+                "subject": "x",
+                "description": "y",
+            },
+            token=token,
+        )
         assert status == 400
         assert "error" in body
         assert "category" in body["error"]
@@ -271,12 +295,18 @@ class TestSupportTicketCreate:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, _body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "",
-            "description": "y",
-        }, token=token)
+        status, _body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "",
+                "description": "y",
+            },
+            token=token,
+        )
         assert status == 400
 
 
@@ -293,12 +323,18 @@ class TestSupportTicketGet:
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
         # 先创建
-        _, create_body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "测试",
-            "description": "测试描述",
-        }, token=token)
+        _, create_body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "测试",
+                "description": "测试描述",
+            },
+            token=token,
+        )
         ticket_id = create_body["ticket"]["ticket_id"]
         # 再查详情
         status, body, _ = _request(port, "GET", f"/api/support/tickets/{ticket_id}", token=token)
@@ -314,12 +350,18 @@ class TestSupportTicketGet:
         token1 = _issue_token(tmp_path, user1)
         token2 = _issue_token(tmp_path, user2)
         # user1 创建
-        _, create_body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "私密",
-            "description": "私密内容",
-        }, token=token1)
+        _, create_body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "私密",
+                "description": "私密内容",
+            },
+            token=token1,
+        )
         ticket_id = create_body["ticket"]["ticket_id"]
         # user2 试图读取
         status, body, _ = _request(port, "GET", f"/api/support/tickets/{ticket_id}", token=token2)
@@ -343,17 +385,29 @@ class TestSupportTicketReply:
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
         # 创建工单
-        _, create_body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "测试",
-            "description": "测试描述",
-        }, token=token)
+        _, create_body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "测试",
+                "description": "测试描述",
+            },
+            token=token,
+        )
         ticket_id = create_body["ticket"]["ticket_id"]
         # 追加回复
-        status, body, _ = _request(port, "POST", f"/api/support/tickets/{ticket_id}/replies", body={
-            "content": "补充：逝者在北京",
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            f"/api/support/tickets/{ticket_id}/replies",
+            body={
+                "content": "补充：逝者在北京",
+            },
+            token=token,
+        )
         assert status == 200
         assert body["reply"]["content"] == "补充：逝者在北京"
         assert body["reply"]["author"] == "user"
@@ -364,16 +418,28 @@ class TestSupportTicketReply:
         user2 = _register_user(tmp_path, "bob@example.com")
         token1 = _issue_token(tmp_path, user1)
         token2 = _issue_token(tmp_path, user2)
-        _, create_body, _ = _request(port, "POST", "/api/support/tickets", body={
-            "category": "咨询",
-            "priority": "普通",
-            "subject": "x",
-            "description": "y",
-        }, token=token1)
+        _, create_body, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={
+                "category": "咨询",
+                "priority": "普通",
+                "subject": "x",
+                "description": "y",
+            },
+            token=token1,
+        )
         ticket_id = create_body["ticket"]["ticket_id"]
-        status, _body, _ = _request(port, "POST", f"/api/support/tickets/{ticket_id}/replies", body={
-            "content": "恶意回复",
-        }, token=token2)
+        status, _body, _ = _request(
+            port,
+            "POST",
+            f"/api/support/tickets/{ticket_id}/replies",
+            body={
+                "content": "恶意回复",
+            },
+            token=token2,
+        )
         assert status == 404
 
 
@@ -409,13 +475,19 @@ class TestOnboardingSave:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/onboarding", body={
-            "relationship": "亲属",
-            "location": "北京",
-            "death_date": "2024-01-15",
-            "current_stage": ["死亡证明"],
-            "consent": True,
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={
+                "relationship": "亲属",
+                "location": "北京",
+                "death_date": "2024-01-15",
+                "current_stage": ["死亡证明"],
+                "consent": True,
+            },
+            token=token,
+        )
         assert status == 200
         assert body["completed"] is True
         assert body["profile"]["relationship"] == "亲属"
@@ -427,13 +499,19 @@ class TestOnboardingSave:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/onboarding", body={
-            "relationship": "陌生人",  # 非法
-            "location": "北京",
-            "death_date": "",
-            "current_stage": [],
-            "consent": True,
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={
+                "relationship": "陌生人",  # 非法
+                "location": "北京",
+                "death_date": "",
+                "current_stage": [],
+                "consent": True,
+            },
+            token=token,
+        )
         assert status == 400
         assert "error" in body
 
@@ -441,25 +519,36 @@ class TestOnboardingSave:
         port = http_server
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
-        status, body, _ = _request(port, "POST", "/api/onboarding", body={
-            "relationship": "亲属",
-            "location": "北京",
-            "death_date": "",
-            "current_stage": [],
-            "consent": False,  # 未同意
-        }, token=token)
+        status, body, _ = _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={
+                "relationship": "亲属",
+                "location": "北京",
+                "death_date": "",
+                "current_stage": [],
+                "consent": False,  # 未同意
+            },
+            token=token,
+        )
         assert status == 400
         assert "consent" in body["error"]
 
     def test_save_onboarding_without_token_returns_401(self, http_server):
         port = http_server
-        status, _body, _ = _request(port, "POST", "/api/onboarding", body={
-            "relationship": "亲属",
-            "location": "北京",
-            "death_date": "",
-            "current_stage": [],
-            "consent": True,
-        })
+        status, _body, _ = _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={
+                "relationship": "亲属",
+                "location": "北京",
+                "death_date": "",
+                "current_stage": [],
+                "consent": True,
+            },
+        )
         assert status == 401
 
     def test_save_then_get_returns_saved_profile(self, http_server, tmp_path):
@@ -467,13 +556,19 @@ class TestOnboardingSave:
         user = _register_user(tmp_path)
         token = _issue_token(tmp_path, user)
         # 保存
-        _request(port, "POST", "/api/onboarding", body={
-            "relationship": "朋友",
-            "location": "上海",
-            "death_date": "2024-06-01",
-            "current_stage": [],
-            "consent": True,
-        }, token=token)
+        _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={
+                "relationship": "朋友",
+                "location": "上海",
+                "death_date": "2024-06-01",
+                "current_stage": [],
+                "consent": True,
+            },
+            token=token,
+        )
         # 再 GET
         status, body, _ = _request(port, "GET", "/api/onboarding", token=token)
         assert status == 200
@@ -522,15 +617,27 @@ class TestUnauthorizedAccess:
 
     def test_post_support_tickets_unauthorized(self, http_server):
         port = http_server
-        status, _, _ = _request(port, "POST", "/api/support/tickets", body={"category": "咨询", "priority": "普通", "subject": "x", "description": "y"})
+        status, _, _ = _request(
+            port,
+            "POST",
+            "/api/support/tickets",
+            body={"category": "咨询", "priority": "普通", "subject": "x", "description": "y"},
+        )
         assert status == 401
 
     def test_post_onboarding_unauthorized(self, http_server):
         port = http_server
-        status, _, _ = _request(port, "POST", "/api/onboarding", body={"relationship": "亲属", "location": "北京", "consent": True})
+        status, _, _ = _request(
+            port,
+            "POST",
+            "/api/onboarding",
+            body={"relationship": "亲属", "location": "北京", "consent": True},
+        )
         assert status == 401
 
     def test_post_reply_unauthorized(self, http_server):
         port = http_server
-        status, _, _ = _request(port, "POST", "/api/support/tickets/tkt-nonexistent/replies", body={"content": "x"})
+        status, _, _ = _request(
+            port, "POST", "/api/support/tickets/tkt-nonexistent/replies", body={"content": "x"}
+        )
         assert status == 401

@@ -74,8 +74,8 @@ class SandboxConfig:
 class ResourceUsage:
     """沙盒资源使用统计。"""
 
-    cpu_time: float = 0.0       # 秒
-    memory_peak: int = 0        # bytes
+    cpu_time: float = 0.0  # 秒
+    memory_peak: int = 0  # bytes
     network_calls: int = 0
     tool_calls: int = 0
 
@@ -240,7 +240,11 @@ class MarketplaceSandbox:
 
         # 6. 执行(资源限制 + 异常捕获)
         output, error = self._run_with_limits(
-            handler, redacted_input, env, config, usage,
+            handler,
+            redacted_input,
+            env,
+            config,
+            usage,
         )
 
         # 7. 释放 budget(actual_used)
@@ -288,6 +292,7 @@ class MarketplaceSandbox:
         """
         try:
             from ..infrastructure.defense.pii_guard import get_pii_redactor
+
             redactor = get_pii_redactor()
         except Exception as e:
             logger.debug("PIIRedactor unavailable: %s", e)
@@ -335,6 +340,7 @@ class MarketplaceSandbox:
                 BudgetScope,
                 get_budget_coordinator,
             )
+
             bc: BudgetCoordinator = get_budget_coordinator()
             # scope_id 格式: "session-{user}-sandbox-{ts}"
             scope_id = f"session-{user_id}-sandbox-{int(time.time())}"
@@ -359,6 +365,7 @@ class MarketplaceSandbox:
             from ..infrastructure.defense.budget_coordinator import (
                 get_budget_coordinator,
             )
+
             bc = get_budget_coordinator()
             allocation_id = getattr(alloc, "allocation_id", "")
             if allocation_id and allocation_id != "disabled":
@@ -396,6 +403,7 @@ class MarketplaceSandbox:
         old_rlimit = None
         try:
             import resource as _resource
+
             mem_bytes = config.max_memory_mb * 1024 * 1024
             old_rlimit = _resource.getrlimit(_resource.RLIMIT_AS)
             # soft limit = mem_bytes; hard limit 保持原值(不收紧)
@@ -411,6 +419,7 @@ class MarketplaceSandbox:
             # 读内存 peak
             try:
                 import resource as _resource
+
                 usage.memory_peak = _resource.getrusage(_resource.RUSAGE_SELF).ru_maxrss * 1024
             except Exception:
                 usage.memory_peak = 0
@@ -436,6 +445,7 @@ class MarketplaceSandbox:
             if old_rlimit is not None:
                 try:
                     import resource as _resource
+
                     _resource.setrlimit(_resource.RLIMIT_AS, old_rlimit)
                 except (ValueError, OSError):
                     pass
@@ -453,6 +463,7 @@ class MarketplaceSandbox:
             return data
         try:
             import json as _json
+
             return _json.dumps(data, ensure_ascii=False, default=str)
         except Exception:
             return repr(data)

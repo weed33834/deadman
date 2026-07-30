@@ -116,8 +116,7 @@ class Invoice:
     def from_dict(cls, data: dict) -> Invoice:
         line_items_data = data.get("line_items", [])
         line_items = [
-            InvoiceLineItem(**li) if isinstance(li, dict) else li
-            for li in line_items_data
+            InvoiceLineItem(**li) if isinstance(li, dict) else li for li in line_items_data
         ]
         return cls(
             invoice_id=data["invoice_id"],
@@ -291,7 +290,12 @@ class InvoiceGenerator:
             self._invoices[invoice.invoice_id] = invoice
             self._save()
 
-        logger.info("Generated invoice %s for user %s (total=¥%.2f)", invoice.invoice_id, user_id, invoice.total)
+        logger.info(
+            "Generated invoice %s for user %s (total=¥%.2f)",
+            invoice.invoice_id,
+            user_id,
+            invoice.total,
+        )
         return invoice
 
     # ==================================================================
@@ -309,7 +313,9 @@ class InvoiceGenerator:
             return None
 
         if format == "json":
-            return (json.dumps(invoice.to_dict(), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+            return (json.dumps(invoice.to_dict(), ensure_ascii=False, indent=2) + "\n").encode(
+                "utf-8"
+            )
 
         if format == "csv":
             lines = ["description,quantity,unit_price,amount,dimension,overage"]
@@ -451,16 +457,20 @@ th {{ background: #f5f5f5; text-align: left; }}
             if invoice.status not in (InvoiceStatus.PAID, InvoiceStatus.COMPLETED):
                 return None
 
-            refund_amount = amount if amount is not None else (invoice.total - invoice.refunded_amount)
+            refund_amount = (
+                amount if amount is not None else (invoice.total - invoice.refunded_amount)
+            )
             if refund_amount <= 0:
                 return None
 
             invoice.refunded_amount += refund_amount
-            invoice.refund_history.append({
-                "at": time.time(),
-                "amount": refund_amount,
-                "reason": reason,
-            })
+            invoice.refund_history.append(
+                {
+                    "at": time.time(),
+                    "amount": refund_amount,
+                    "reason": reason,
+                }
+            )
 
             # 全额退款 → 状态变 REFUNDED
             if invoice.refunded_amount >= invoice.total:
@@ -532,7 +542,9 @@ th {{ background: #f5f5f5; text-align: left; }}
                 "invoices": {inv_id: inv.to_dict() for inv_id, inv in self._invoices.items()},
             }
             tmp = self.store_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+            )
             os.replace(tmp, self.store_path)
         except Exception as e:
             logger.error("Invoice store save failed: %s", e)

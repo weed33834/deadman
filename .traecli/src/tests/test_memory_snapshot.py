@@ -27,27 +27,37 @@ def enabled_store(tmp_path: Path, monkeypatch):
 
 def _seed_files(store: FileMemoryStore) -> None:
     """向 store 写入测试用文件内容"""
-    store.save_profile("user-001", UserProfile(
-        user_id="user-001",
-        name="测试用户",
-        relationship_to_deceased="子女",
-        location={"city": "北京"},
-    ))
+    store.save_profile(
+        "user-001",
+        UserProfile(
+            user_id="user-001",
+            name="测试用户",
+            relationship_to_deceased="子女",
+            location={"city": "北京"},
+        ),
+    )
     store.append_fact("用户事实", "name=测试用户")
     store.append_episode(
         episode_id="sess-1",
         summary="用户咨询户口注销",
         importance=0.7,
     )
-    store.save_reflexion({"agents": {"death_aftercare": {
-        "failure_patterns": {"timeout": {"count": 1}},
-        "successful_adjustments": {},
-    }}})
+    store.save_reflexion(
+        {
+            "agents": {
+                "death_aftercare": {
+                    "failure_patterns": {"timeout": {"count": 1}},
+                    "successful_adjustments": {},
+                }
+            }
+        }
+    )
 
 
 # =====================================================================
 # 1. 导出返回 bytes
 # =====================================================================
+
 
 class TestExportSnapshot:
     def test_export_snapshot_returns_bytes(self, enabled_store):
@@ -76,6 +86,7 @@ class TestExportSnapshot:
 # =====================================================================
 # 2. 导入恢复
 # =====================================================================
+
 
 class TestImportSnapshot:
     def test_import_snapshot_restores(self, tmp_path, monkeypatch):
@@ -122,6 +133,7 @@ class TestImportSnapshot:
 # 3. 往返一致
 # =====================================================================
 
+
 class TestRoundtrip:
     def test_export_import_roundtrip(self, tmp_path, monkeypatch):
         # 导出 → 导入 → 再导出,内容应一致
@@ -144,12 +156,15 @@ class TestRoundtrip:
         assert len(data1) > 0
         assert len(data2) > 0
         # 两边文件内容应可读且语义一致
-        assert src_store.user_file.read_text(encoding="utf-8") == \
-               dst_store.user_file.read_text(encoding="utf-8")
-        assert src_store.memory_file.read_text(encoding="utf-8") == \
-               dst_store.memory_file.read_text(encoding="utf-8")
-        assert src_store.episodes_file.read_text(encoding="utf-8") == \
-               dst_store.episodes_file.read_text(encoding="utf-8")
+        assert src_store.user_file.read_text(encoding="utf-8") == dst_store.user_file.read_text(
+            encoding="utf-8"
+        )
+        assert src_store.memory_file.read_text(encoding="utf-8") == dst_store.memory_file.read_text(
+            encoding="utf-8"
+        )
+        assert src_store.episodes_file.read_text(
+            encoding="utf-8"
+        ) == dst_store.episodes_file.read_text(encoding="utf-8")
 
     def test_roundtrip_with_aes_key(self, tmp_path, monkeypatch):
         # 若 cryptography 可用,验证加密往返;不可用时降级到明文,仍应可往返
@@ -177,14 +192,21 @@ class TestRoundtrip:
 # 4. 无效数据返回 False
 # =====================================================================
 
+
 class TestImportInvalidData:
     def test_import_invalid_data_returns_false(self, enabled_store):
         # 各种无效数据
         assert enabled_store.import_snapshot(b"") is False
         assert enabled_store.import_snapshot(b"short") is False
-        assert enabled_store.import_snapshot(b"XXXX" + b"\x01\x00" + b"payload") is False  # 错误魔数
-        assert enabled_store.import_snapshot(b"DMSP" + b"\x99\x00" + b"payload") is False  # 错误版本
-        assert enabled_store.import_snapshot(b"DMSP" + b"\x01\x05" + b"payload") is False  # 未知 flag
+        assert (
+            enabled_store.import_snapshot(b"XXXX" + b"\x01\x00" + b"payload") is False
+        )  # 错误魔数
+        assert (
+            enabled_store.import_snapshot(b"DMSP" + b"\x99\x00" + b"payload") is False
+        )  # 错误版本
+        assert (
+            enabled_store.import_snapshot(b"DMSP" + b"\x01\x05" + b"payload") is False
+        )  # 未知 flag
 
     def test_import_corrupt_gzip_returns_false(self, enabled_store):
         # 正确 header + 损坏 payload

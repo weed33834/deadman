@@ -37,9 +37,12 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # Feature flag - 默认关闭
 # =====================================================================
-AGENT_REGISTRY_ENABLED: bool = os.environ.get(
-    "DEADMAN_AGENT_REGISTRY_ENABLED", "0"
-).lower() in ("1", "true", "yes", "on")
+AGENT_REGISTRY_ENABLED: bool = os.environ.get("DEADMAN_AGENT_REGISTRY_ENABLED", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # 心跳超时阈值（秒）- 超过此值未心跳的 agent 标记为 unhealthy
 HEARTBEAT_TIMEOUT_SECONDS: int = int(
@@ -152,7 +155,7 @@ class AgentRegistry:
 
     def __init__(self, persist_path: str | Path | None = None):
         """Args:
-            persist_path: 持久化文件路径；None 用默认 data/agent_registry.json
+        persist_path: 持久化文件路径；None 用默认 data/agent_registry.json
         """
         if persist_path is None:
             self._path = settings.project_root / DEFAULT_REGISTRY_PATH
@@ -212,9 +215,7 @@ class AgentRegistry:
     # 公开 API
     # ------------------------------------------------------------------
 
-    def register(
-        self, card: AgentCard, capabilities: list[str] | None = None
-    ) -> bool:
+    def register(self, card: AgentCard, capabilities: list[str] | None = None) -> bool:
         """注册一个 agent
 
         Args:
