@@ -34,6 +34,8 @@ dependencies = [
     "opentelemetry-api>=1.30",
     "opentelemetry-sdk>=1.30",
     "opentelemetry-exporter-otlp>=1.30",
+    # 结构化日志（structlog 与 stdlib logging 集成；orchestration/nodes.py 等核心模块无条件依赖）
+    "structlog>=24.0",
     # 知识图谱
     # lightrag 和 graphiti 按需安装，不强制
     # 评估
