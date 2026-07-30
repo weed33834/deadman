@@ -68,7 +68,7 @@ jobs:
         run: echo "image=ghcr.io/${{ github.repository }}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Trivy 漏洞扫描（HIGH/CRITICAL 阻断）
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ steps.scanref.outputs.image }}
           severity: HIGH,CRITICAL
