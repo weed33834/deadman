@@ -148,21 +148,18 @@ def _is_stuck(state: ConversationState) -> tuple[bool, str]:
 
 
 def _increment_step(state: ConversationState) -> None:
-    """递增 step_count 并更新 stuck_count（在节点执行后调用）
+    """递增 step_count（在节点执行后调用）。
 
-    stuck_count 逻辑：
-    - 若当前 agent == last_agent_for_stuck：stuck_count += 1
-    - 否则：stuck_count = 1（重置但记录新 agent）
+    stuck_count / last_agent_for_stuck 不在此处更新——由 agent_node 专门维护
+    （仅当 agent 实际执行时才递增 stuck_count）。此前此处对每个节点（含
+    rule_check / output_guard 等非 agent 节点）都递增 stuck_count，导致
+    正常单趟流程（router→agent→rule_check→output_guard）在到达 output_guard
+    前 stuck_count 就累到 3，误触发假卡死强制终止，跳过 output_guard 的
+    置信度标注与 PII 掩码。修复后 stuck_count 仅在 agent 反复路由同一智能体
+    时增长，符合 P4 设计意图（借鉴 OpenManus is_stuck）。
     """
     step_count = state.get("step_count", 0) + 1
     state["step_count"] = step_count
-    current = state.get("current_agent", "")
-    last = state.get("last_agent_for_stuck", "")
-    if current and current == last:
-        state["stuck_count"] = state.get("stuck_count", 0) + 1
-    elif current:
-        state["stuck_count"] = 1
-        state["last_agent_for_stuck"] = current
 
 
 # =====================================================================
@@ -524,3 +521,22 @@ def build_main_graph():
         except Exception as e:
             logger.error("LangGraph 构建失败，降级到 SequentialExecutor: %s", e, exc_info=True)
     return _build_sequential_executor()
+
+
+def default_graph_config(session_id: str = "") -> dict[str, Any]:
+    """生成 graph.ainvoke() 所需的默认 config。
+
+    LangGraph 模式下 checkpointer（MemorySaver）要求 config.configurable.thread_id，
+    否则抛 ``ValueError: Checkpointer requires one or more of the following
+    'configurable' keys: thread_id``。SequentialExecutor 模式忽略此参数。
+
+    Args:
+        session_id: 会话 ID；为空时自动生成临时 thread_id。
+
+    Returns:
+        ``{"configurable": {"thread_id": ...}}``
+    """
+    import uuid
+
+    thread_id = session_id or f"deadman-thread-{uuid.uuid4().hex[:12]}"
+    return {"configurable": {"thread_id": thread_id}}

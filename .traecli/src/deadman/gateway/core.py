@@ -162,7 +162,9 @@ class Gateway:
 
         state = create_initial_state(user_input=text)
         try:
-            result = await self.graph.ainvoke(state)
+            from ..orchestration.graph import default_graph_config
+
+            result = await self.graph.ainvoke(state, config=default_graph_config())
         except Exception as exc:
             logger.exception("graph.ainvoke 失败: %s", exc)
             return "[deadman] 处理请求时出错，请稍后重试"

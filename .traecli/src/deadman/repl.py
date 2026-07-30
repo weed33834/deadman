@@ -337,7 +337,9 @@ class ChatREPL:
         )
 
         # 调用 graph（可能抛异常，由上层捕获）
-        result = await graph.ainvoke(state)
+        from .orchestration.graph import default_graph_config
+
+        result = await graph.ainvoke(state, config=default_graph_config(self.session_id))
 
         # 提取响应
         response = result.get("final_response", "") or "(无响应)"

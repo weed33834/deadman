@@ -267,13 +267,13 @@ def cmd_eval_ragas(args):
 
 def cmd_run(args):
     """运行单次对话"""
-    from .orchestration.graph import build_main_graph
+    from .orchestration.graph import build_main_graph, default_graph_config
     from .orchestration.state import create_initial_state
 
     graph = build_main_graph()
     state = create_initial_state(user_input=args.input)
 
-    result = asyncio.run(graph.ainvoke(state))
+    result = asyncio.run(graph.ainvoke(state, config=default_graph_config()))
 
     print("\n=== 响应 ===")
     print(result.get("final_response", "(无响应)"))
