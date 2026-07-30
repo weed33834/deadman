@@ -140,6 +140,8 @@ ignore = [
 #   try: import openai / pywhispercpp / diffusers / azure.cognitiveservices.speech ...
 # 模式探测可选依赖是否安装，import 本身即为副作用，变量未在文件内引用是预期行为。
 ".traecli/src/deadman/multimodal/*" = ["F401"]
+# web/app.py: FastAPI Depends() 在参数默认值是框架标准模式，B008 误报
+".traecli/src/deadman/web/app.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

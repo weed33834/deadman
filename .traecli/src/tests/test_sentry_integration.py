@@ -12,11 +12,7 @@
 from __future__ import annotations
 
 import importlib
-import logging
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # =====================================================================
 # 1. 零依赖降级：sentry-sdk 未安装时所有函数 no-op

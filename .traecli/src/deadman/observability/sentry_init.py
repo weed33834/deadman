@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -32,7 +33,7 @@ def _get_sentry() -> Any:
         return None
     try:
         import sentry_sdk  # type: ignore[import-not-found]
-        from sentry_sdk.integrations.logging import LoggingIntegration  # type: ignore[import-not-found]
+
         _sentry_available = True
         return sentry_sdk
     except ImportError as exc:
@@ -67,7 +68,9 @@ def init_sentry(
         return False
 
     try:
-        from sentry_sdk.integrations.logging import LoggingIntegration  # type: ignore[import-not-found]
+        from sentry_sdk.integrations.logging import (
+            LoggingIntegration,  # type: ignore[import-not-found]
+        )
 
         # 日志集成：WARNING 以上自动上报为 Sentry event，ERROR 以上附带完整栈
         logging_integration = LoggingIntegration(
@@ -153,10 +156,8 @@ def add_request_tag(key: str, value: str) -> None:
     sentry_sdk = _get_sentry()
     if sentry_sdk is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         sentry_sdk.set_tag(key, value)
-    except Exception:
-        pass
 
 
 def is_initialized() -> bool:
