@@ -412,3 +412,113 @@ class TestUrlMasking:
         from deadman.db.engine import _mask_url
 
         assert _mask_url("plainstring") == "plainstring"
+
+
+# =====================================================================
+# 7. CronScheduler DB 双写
+# =====================================================================
+
+class TestCronSchedulerDualWrite:
+    """验证 CronScheduler 在 DB 启用时双写文件 + DB。"""
+
+    @staticmethod
+    async def _await_bg_sync():
+        """等待 fire-and-forget DB 同步后台任务完成。"""
+        import asyncio
+
+        await asyncio.sleep(0.15)
+
+    async def test_propose_job_syncs_to_db(self, initialized_db, tmp_path, monkeypatch):
+        """propose_job 后任务应同时存在于文件和 DB。"""
+        from deadman.cron.scheduler import CronScheduler
+        from deadman.db.models import CronJob as CronJobORM
+
+        monkeypatch.setenv("DEADMAN_NOTIFICATION_DATA_DIR", str(tmp_path / "notif"))
+        scheduler = CronScheduler(data_dir=tmp_path / "cron")
+
+        result = await scheduler.propose_job("user-001", "0 8 * * *", "每日提醒")
+        job_id = result["job_id"]
+
+        # 文件有记录
+        jobs_file = tmp_path / "cron" / "jobs.json"
+        assert jobs_file.exists()
+
+        # DB 有记录（_sync_jobs_to_db 在 async 上下文中 fire-and-forget，
+        # 等待后台任务完成后再验证）
+        await self._await_bg_sync()
+        factory = db_engine_mod.get_async_session_factory()
+        async with factory() as session:
+            db_job = await session.get(CronJobORM, job_id)
+            assert db_job is not None
+            assert db_job.user_id == "user-001"
+            assert db_job.schedule == "0 8 * * *"
+            assert db_job.content == "每日提醒"
+            assert db_job.pending_confirmation is True
+            assert db_job.enabled is False
+
+    async def test_confirm_job_updates_db(self, initialized_db, tmp_path, monkeypatch):
+        """confirm_job 后 DB 中 enabled/pending_confirmation 应更新。"""
+        from deadman.cron.scheduler import CronScheduler
+        from deadman.db.models import CronJob as CronJobORM
+
+        monkeypatch.setenv("DEADMAN_NOTIFICATION_DATA_DIR", str(tmp_path / "notif"))
+        scheduler = CronScheduler(data_dir=tmp_path / "cron")
+
+        result = await scheduler.propose_job("user-002", "0 9 * * *", "确认测试")
+        job_id = result["job_id"]
+
+        await self._await_bg_sync()
+        await scheduler.confirm_job("user-002", job_id)
+        await self._await_bg_sync()
+
+        factory = db_engine_mod.get_async_session_factory()
+        async with factory() as session:
+            db_job = await session.get(CronJobORM, job_id)
+            assert db_job is not None
+            assert db_job.enabled is True
+            assert db_job.pending_confirmation is False
+
+    async def test_cancel_job_removes_from_db(self, initialized_db, tmp_path, monkeypatch):
+        """cancel_job 后 DB 中记录应被删除。"""
+        from deadman.cron.scheduler import CronScheduler
+        from deadman.db.models import CronJob as CronJobORM
+
+        monkeypatch.setenv("DEADMAN_NOTIFICATION_DATA_DIR", str(tmp_path / "notif"))
+        scheduler = CronScheduler(data_dir=tmp_path / "cron")
+
+        result = await scheduler.propose_job("user-003", "0 10 * * *", "取消测试")
+        job_id = result["job_id"]
+        await self._await_bg_sync()
+        await scheduler.confirm_job("user-003", job_id)
+        await self._await_bg_sync()
+        await scheduler.cancel_job("user-003", job_id)
+        await self._await_bg_sync()
+
+        factory = db_engine_mod.get_async_session_factory()
+        async with factory() as session:
+            db_job = await session.get(CronJobORM, job_id)
+            assert db_job is None
+
+    async def test_file_fallback_when_db_disabled(self, tmp_path, monkeypatch):
+        """DB 未启用时纯文件存储，不报错。"""
+        from deadman.config import settings
+        from deadman.cron.scheduler import CronScheduler
+
+        old = settings.database_url
+        try:
+            settings.database_url = ""
+            await dispose_engine()
+
+            monkeypatch.setenv("DEADMAN_NOTIFICATION_DATA_DIR", str(tmp_path / "notif"))
+            scheduler = CronScheduler(data_dir=tmp_path / "cron")
+
+            result = await scheduler.propose_job("user-004", "0 11 * * *", "降级测试")
+            assert result["needs_confirmation"] is True
+
+            # 验证文件存储正常工作
+            jobs = scheduler._load_jobs()
+            assert len(jobs) == 1
+            assert jobs[0].user_id == "user-004"
+        finally:
+            settings.database_url = old
+            await dispose_engine()

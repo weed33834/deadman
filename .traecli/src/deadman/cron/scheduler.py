@@ -536,14 +536,31 @@ class CronScheduler:
             return False, str(e)
 
     # ============================================================
-    # 持久化
+    # 持久化（DB 优先 / 文件回退双写）
     # ============================================================
 
-    def _load_jobs(self) -> list[CronJob]:
-        """从 jobs.json 加载任务列表
+    @staticmethod
+    def _db_enabled() -> bool:
+        """是否启用主数据库（惰性检查，避免 import 时耦合）。"""
+        try:
+            from ..db.engine import db_enabled
 
-        文件不存在/损坏时返回空列表（韧性优先，不抛异常打断主循环）。
+            return db_enabled()
+        except ImportError:
+            return False
+
+    def _load_jobs(self) -> list[CronJob]:
+        """加载任务列表 - DB 优先，回退文件（韧性优先，不抛异常打断主循环）。
+
+        企业级扩展④：DATABASE_URL 配置时优先从 DB 加载（行级查询，无全文件扫描），
+        DB 未启用或为空时回退 jobs.json。
         """
+        # DB 优先
+        if self._db_enabled():
+            db_jobs = self._load_jobs_from_db()
+            if db_jobs is not None:
+                return db_jobs
+
         if not self.jobs_file.exists():
             return []
         try:
@@ -577,9 +594,10 @@ class CronScheduler:
         return jobs
 
     def _save_jobs(self, jobs: list[CronJob]) -> None:
-        """原子写入 jobs.json
+        """原子写入 jobs.json + DB 同步（双写）
 
         先写临时文件 → fsync → os.replace，确保写入原子性。
+        企业级扩展④：DB 启用时同步到 cron_jobs 表（best-effort，失败仅记日志）。
         """
         self.data_dir.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -603,6 +621,138 @@ class CronScheduler:
             with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
             raise
+
+        # DB 同步（best-effort，不阻断文件写入结果）
+        if self._db_enabled():
+            try:
+                self._sync_jobs_to_db(jobs)
+            except Exception as exc:
+                logger.warning("Cron 任务 DB 同步失败（best-effort，不阻断）: %s", exc)
+
+    # ==================================================================
+    # DB 双写辅助方法（企业级扩展④）
+    # ==================================================================
+
+    def _load_jobs_from_db(self) -> list[CronJob] | None:
+        """从 DB 加载所有 cron 任务。
+
+        Returns:
+            CronJob 列表；DB 为空时返回 None（触发文件回退）；
+            DB 异常时返回 None（触发文件回退）。
+        """
+        try:
+            import asyncio
+
+            from sqlalchemy import select
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import CronJob as CronJobORM
+
+            async def _load():
+                factory = get_async_session_factory()
+                async with factory() as session:
+                    stmt = select(CronJobORM)
+                    result = await session.execute(stmt)
+                    rows = result.scalars().all()
+                    if not rows:
+                        return None  # DB 空 → 回退文件
+                    return [
+                        CronJob(
+                            job_id=r.job_id,
+                            user_id=r.user_id,
+                            schedule=r.schedule,
+                            content=r.content,
+                            scope=r.scope,
+                            created_at=r.created_at,
+                            expires_at=r.expires_at,
+                            last_fired=r.last_fired,
+                            enabled=r.enabled,
+                            pending_confirmation=r.pending_confirmation,
+                        )
+                        for r in rows
+                    ]
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop is not None:
+                # 已在事件循环中（async 上下文）- 不能用 asyncio.run
+                # 返回 None 走文件回退，DB 读取留给异步路径后续优化
+                return None
+            return asyncio.run(_load())
+        except Exception as exc:
+            logger.warning("从 DB 加载 cron 任务失败，回退文件: %s", exc)
+            return None
+
+    def _sync_jobs_to_db(self, jobs: list[CronJob]) -> None:
+        """同步任务列表到 DB（全量 upsert）。
+
+        策略：删除 DB 中不存在于当前列表的 job，upsert 当前列表中的 job。
+        同步是 best-effort，调用方已 try/except 包裹。
+        """
+        import asyncio
+
+        from sqlalchemy import delete, select
+
+        from ..db.engine import get_async_session_factory
+        from ..db.models import CronJob as CronJobORM
+
+        async def _sync():
+            factory = get_async_session_factory()
+            current_ids = {j.job_id for j in jobs}
+            async with factory() as session:
+                # 删除 DB 中不在当前列表的 job
+                existing_stmt = select(CronJobORM.job_id)
+                existing_ids = {r[0] for r in (await session.execute(existing_stmt)).all()}
+                to_delete = existing_ids - current_ids
+                if to_delete:
+                    await session.execute(
+                        delete(CronJobORM).where(CronJobORM.job_id.in_(to_delete))
+                    )
+
+                # upsert 当前列表
+                now = datetime.now()
+                for j in jobs:
+                    existing = await session.get(CronJobORM, j.job_id)
+                    if existing is not None:
+                        existing.user_id = j.user_id
+                        existing.schedule = j.schedule
+                        existing.content = j.content
+                        existing.scope = j.scope
+                        existing.expires_at = j.expires_at
+                        existing.last_fired = j.last_fired
+                        existing.enabled = j.enabled
+                        existing.pending_confirmation = j.pending_confirmation
+                        existing.updated_at = now
+                    else:
+                        session.add(CronJobORM(
+                            job_id=j.job_id,
+                            user_id=j.user_id,
+                            schedule=j.schedule,
+                            content=j.content,
+                            scope=j.scope,
+                            expires_at=j.expires_at,
+                            last_fired=j.last_fired,
+                            enabled=j.enabled,
+                            pending_confirmation=j.pending_confirmation,
+                            created_at=j.created_at or now,
+                            updated_at=now,
+                        ))
+                await session.commit()
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None:
+            # 已在事件循环中 - 创建 task 调度（不阻塞）
+            # best-effort DB 同步，无需等待结果也无需持有引用
+            asyncio.ensure_future(_sync())  # noqa: RUF006 - 有意 fire-and-forget
+        else:
+            asyncio.run(_sync())
 
 
 # ============================================================
