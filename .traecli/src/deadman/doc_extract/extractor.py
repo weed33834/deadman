@@ -14,9 +14,10 @@
     - rules/retrieval-guardrails.md：摘要含 confidence 标记
     - rules/service-boundary-framework.md：不替代律师审阅
 
-不引入新 pip 依赖：
-    - PDF 不用 PyPDF2（仅用 stdlib 简单解析；复杂 PDF 标 unsupported）
-    - OCR 不用 pytesseract（图片标 needs_ocr）
+不引入新 pip 依赖（核心路径）：
+    - pdfplumber / python-docx / pytesseract 为可选依赖（pip install deadman[doc-extract]）
+    - 安装时优先使用：pdfplumber 解析压缩 PDF、python-docx 解析 Word、pytesseract+Pillow OCR 图片
+    - 未安装时降级到 stdlib 正则解析或标记 [needs_ocr] / [unsupported_docx_format]
     - LLM 调用走 deadman.llm.llm_client；不可用时降级 confidence=0.3
 """
 
@@ -29,8 +30,39 @@ import re
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+# =====================================================================
+# 可选依赖探测：pdfplumber / python-docx / pytesseract + Pillow
+# 企业级扩展③：安装 deadman[doc-extract] 后自动启用增强提取
+# =====================================================================
+try:
+    import pdfplumber as _pdfplumber
+
+    _HAS_PDFPLUMBER = True
+except ImportError:
+    _pdfplumber = None  # type: ignore[assignment]
+    _HAS_PDFPLUMBER = False
+
+try:
+    import docx as _python_docx  # python-docx 的模块名是 docx
+
+    _HAS_PYTHON_DOCX = True
+except ImportError:
+    _python_docx = None  # type: ignore[assignment]
+    _HAS_PYTHON_DOCX = False
+
+try:
+    import pytesseract as _pytesseract
+    from PIL import Image as _PIL_Image
+
+    _HAS_OCR = True
+except ImportError:
+    _pytesseract = None  # type: ignore[assignment]
+    _PIL_Image = None  # type: ignore[assignment]
+    _HAS_OCR = False
 
 from ..vault.store import VaultStore
 
@@ -222,12 +254,12 @@ class DocumentExtractor:
     def _extract_text(self, content: bytes, file_type: str) -> str:
         """提取文本
 
-        - txt: 直接 decode（utf-8 优先，失败回退 gbk/llatin-1）
-        - pdf: 用 stdlib 简单解析（仅尝试找 BT/ET 文本块）；
-               复杂 PDF 标记 "[unsupported_pdf_format]"
-        - docx: 标记 "[unsupported_docx_format]"
-        - image: 标记 "[needs_ocr]"
-        - 其他: 标记 "[unsupported_format]"
+        优先使用外部库（pdfplumber / python-docx / pytesseract），未安装时降级：
+        - txt: 直接 decode（utf-8 优先，失败回退 gbk/latin-1）
+        - pdf: pdfplumber（支持压缩流/表格）→ 降级 stdlib 正则 → [unsupported_pdf_format]
+        - docx: python-docx（提取段落+表格）→ 降级 [unsupported_docx_format]
+        - image: pytesseract+Pillow OCR → 降级 [needs_ocr]
+        - 其他: [unsupported_format]
         """
         if file_type == "txt":
             for enc in ("utf-8", "gbk", "latin-1"):
@@ -239,13 +271,43 @@ class DocumentExtractor:
         if file_type == "pdf":
             return self._extract_pdf_text(content)
         if file_type == "image":
-            return "[needs_ocr]"
-        if file_type in ("docx", "doc"):
-            return "[unsupported_docx_format]"
+            return self._extract_image_text(content)
+        if file_type == "docx":
+            return self._extract_docx_text(content)
+        if file_type == "doc":
+            # .doc（旧格式）python-docx 不支持，标记 unsupported
+            return "[unsupported_doc_format]"
         return "[unsupported_format]"
 
+    def _extract_pdf_text(self, content: bytes) -> str:
+        """PDF 文本提取
+
+        优先 pdfplumber（支持 FlateDecode 压缩流、表格、多页），
+        降级到 stdlib 正则解析（仅 BT/ET 文本块），
+        均失败则返回 "[unsupported_pdf_format]"。
+        """
+        # 优先：pdfplumber（企业级增强，支持压缩 PDF / 表格）
+        if _HAS_PDFPLUMBER:
+            try:
+                texts: list[str] = []
+                with _pdfplumber.open(BytesIO(content)) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text() or ""
+                        if page_text:
+                            texts.append(page_text)
+                if texts:
+                    return "\n".join(texts)
+                # pdfplumber 打开成功但无文本 → 可能是扫描件（需 OCR）
+                logger.info("pdfplumber 提取到 0 文本，PDF 可能是扫描件（需 OCR）")
+                return "[needs_ocr]"
+            except Exception as exc:
+                logger.warning("pdfplumber 解析失败，降级到 stdlib 正则: %s", exc)
+
+        # 降级：stdlib 正则（仅简单未压缩 PDF）
+        return self._extract_pdf_text_stdlib(content)
+
     @staticmethod
-    def _extract_pdf_text(content: bytes) -> str:
+    def _extract_pdf_text_stdlib(content: bytes) -> str:
         """极简 PDF 文本提取 - 仅解析 BT...ET 块中的 Tj/TJ 操作符
 
         适用于未压缩、无加密的简单 PDF。
@@ -255,25 +317,57 @@ class DocumentExtractor:
             raw = content.decode("latin-1")  # PDF 内部用 latin-1
         except UnicodeDecodeError:
             return "[unsupported_pdf_format]"
-        # 检测是否含 FlateDecode 压缩流（这些我们处理不了）
-        if "FlateDecode" in raw or "/Filter" in raw:
-            # 仅当所有文本块都被压缩时才标 unsupported
-            # 简单 PDF 通常文本不在流里
-            pass
         texts: list[str] = []
-        # 匹配 (...) Tj 形式
         for m in re.finditer(r"\((.*?)\)\s*Tj", raw, re.DOTALL):
             texts.append(m.group(1))
-        # 匹配 [...] TJ 数组形式
         for m in re.finditer(r"\[(.*?)\]\s*TJ", raw, re.DOTALL):
-            # 提取 (...) 中的字符串
             inner = re.findall(r"\((.*?)\)", m.group(1))
             if inner:
                 texts.append("".join(inner))
         if not texts:
-            # 没匹配到任何文本，可能整页用了 FlateDecode 压缩
             return "[unsupported_pdf_format]"
         return "\n".join(texts)
+
+    def _extract_docx_text(self, content: bytes) -> str:
+        """DOCX 文本提取（python-docx）
+
+        提取段落 + 表格单元格文本。python-docx 未安装时降级到
+        "[unsupported_docx_format]"。
+        """
+        if not _HAS_PYTHON_DOCX:
+            return "[unsupported_docx_format]"
+        try:
+            doc = _python_docx.Document(BytesIO(content))
+            texts: list[str] = []
+            # 段落
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    texts.append(para.text)
+            # 表格
+            for table in doc.tables:
+                for row in table.rows:
+                    row_texts = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                    if row_texts:
+                        texts.append(" | ".join(row_texts))
+            return "\n".join(texts) if texts else ""
+        except Exception as exc:
+            logger.warning("python-docx 解析失败: %s", exc)
+            return "[unsupported_docx_format]"
+
+    def _extract_image_text(self, content: bytes) -> str:
+        """图片 OCR 文本提取（pytesseract + Pillow）
+
+        pytesseract 需系统安装 tesseract-ocr。未安装时降级到 "[needs_ocr]"。
+        """
+        if not _HAS_OCR:
+            return "[needs_ocr]"
+        try:
+            image = _PIL_Image.open(BytesIO(content))
+            text = _pytesseract.image_to_string(image, lang="chi_sim+eng")
+            return text.strip()
+        except Exception as exc:
+            logger.warning("pytesseract OCR 失败: %s", exc)
+            return "[needs_ocr]"
 
     # ==================================================================
     # PII 脱敏

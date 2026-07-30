@@ -79,8 +79,16 @@ mcp = ["duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
 # P1-2: Sentry 错误监控（sentry-sdk[fastapi] 含 ASGI auto-instrumentation）
 sentry = ["sentry-sdk[fastapi]>=2.0"]
+# 企业级扩展③：文档提取增强（pdfplumber 解析压缩 PDF / python-docx 解析 Word / pytesseract+Pillow OCR 图片）
+# 未安装时降级到 stdlib 正则解析或标记 [needs_ocr] / [unsupported_docx_format]
+doc-extract = [
+    "pdfplumber>=0.11",
+    "python-docx>=1.1",
+    "pytesseract>=0.3.10",
+    "Pillow>=10.0",
+]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,doc-extract]",
 ]
 
 [project.scripts]
