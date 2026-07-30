@@ -161,6 +161,89 @@ class TestSendSubscribeSse:
 
 
 # =====================================================================
+# 1.1 降级路径 L0 安全拦截（断裂点 #4 修复）
+# =====================================================================
+
+
+class TestSendFallbackSafetyGuard:
+    """A2A 降级路径（graph 失败 → 直调 LLM）的 L0 安全拦截。
+
+    修复前：降级路径直调 LLM 后不跑任何规则检查，L0 安全干预被绕过。
+    修复后：降级路径补 rule_checker.check，safety_triggered 时替换为安全响应，
+    与主路径 rule_check_node 行为一致。
+    """
+
+    async def test_fallback_safety_triggered_replaces_response(
+        self, v12_server_with_llm, monkeypatch
+    ):
+        """graph 失败降级直调 LLM，LLM 返回含危机关键词 → 替换为安全响应。"""
+        # 1) build_main_graph 抛异常 → 触发降级路径
+        import deadman.orchestration.graph as graph_module
+
+        monkeypatch.setattr(
+            graph_module,
+            "build_main_graph",
+            MagicMock(side_effect=RuntimeError("graph unavailable (test)")),
+        )
+        # 2) LLM 返回含 L0 危机关键词（CRISIS_KEYWORDS 含"想死"）
+        import deadman.llm as llm_module
+        from deadman.rules_loader import SAFETY_OVERRIDE_RESPONSE
+
+        async def _dangerous(messages, temperature=0.3, **kw):
+            return "我觉得活着没意思，想死"
+
+        mock_llm = MagicMock()
+        mock_llm.api_key = "test-key"
+        mock_llm.chat = AsyncMock(side_effect=_dangerous)
+        monkeypatch.setattr(llm_module, "llm_client", mock_llm)
+
+        # 3) tasks/send → 降级 → L0 拦截
+        req = {
+            "jsonrpc": "2.0",
+            "id": "req-safety",
+            "method": "tasks/send",
+            "params": {
+                "skill_id": "test-skill",
+                "message": {"role": "user", "parts": [{"type": "text", "content": "hi"}]},
+            },
+        }
+        resp = await v12_server_with_llm.handle_jsonrpc(req)
+
+        # 4) 响应被替换为标准安全干预文案
+        task = resp["result"]
+        assert task["state"] == "completed"
+        assert task["result"]["parts"][0]["content"] == SAFETY_OVERRIDE_RESPONSE
+
+    async def test_fallback_normal_response_passes_through(self, v12_server_with_llm, monkeypatch):
+        """graph 失败降级直调 LLM，LLM 返回正常文本 → 原样返回（不误杀）。"""
+        import deadman.orchestration.graph as graph_module
+
+        monkeypatch.setattr(
+            graph_module,
+            "build_main_graph",
+            MagicMock(side_effect=RuntimeError("graph unavailable (test)")),
+        )
+
+        req = {
+            "jsonrpc": "2.0",
+            "id": "req-normal",
+            "method": "tasks/send",
+            "params": {
+                "skill_id": "test-skill",
+                "message": {
+                    "role": "user",
+                    "parts": [{"type": "text", "content": "请介绍死亡证明办理流程"}],
+                },
+            },
+        }
+        resp = await v12_server_with_llm.handle_jsonrpc(req)
+        task = resp["result"]
+        assert task["state"] == "completed"
+        # fixture 的 mock LLM 返回 "mock LLM response"（不含危机词，原样返回）
+        assert task["result"]["parts"][0]["content"] == "mock LLM response"
+
+
+# =====================================================================
 # 2. Webhook 推送
 # =====================================================================
 

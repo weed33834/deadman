@@ -292,6 +292,20 @@ class A2AServer:
                         ],
                         temperature=0.3,
                     )
+                    # 降级路径也必须过 L0 安全检查（与主路径 rule_check_node 一致，
+                    # 避免编排图失败时安全干预被绕过）
+                    try:
+                        from ..rules_loader import SAFETY_OVERRIDE_RESPONSE, rule_checker
+
+                        rc = rule_checker.check(
+                            output_text=response,
+                            context={"user_input": user_text},
+                        )
+                        if rc.safety_triggered:
+                            logger.warning("A2A 降级路径 L0 安全触发，替换为安全响应")
+                            response = SAFETY_OVERRIDE_RESPONSE
+                    except Exception as rc_exc:
+                        logger.warning("A2A 降级路径规则检查失败（不阻塞降级）: %s", rc_exc)
                     task.result = {
                         "role": "agent",
                         "parts": [{"type": "text", "content": response}],

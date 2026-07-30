@@ -19,7 +19,7 @@ import structlog
 
 from ..config import settings
 from ..llm import get_llm_for_use_case
-from ..rules_loader import rule_checker, rule_loader
+from ..rules_loader import SAFETY_OVERRIDE_RESPONSE, rule_checker, rule_loader
 from ..types import RiskTier, RuleCheckResult, TransferSummary
 from .handoff import HANDOFF_ENABLED, HandoffManager
 from .handoff_audit import HANDOFF_AUDIT_ENABLED, get_handoff_audit_logger
@@ -1202,14 +1202,7 @@ async def rule_check_node(state: ConversationState) -> dict[str, Any]:
             risk_tier=result.risk_tier.value,
             violations_count=len(result.violations),
         )
-        safety_response = (
-            "我注意到对话中可能涉及安全问题。您的生命安全是最重要的。\n\n"
-            "如果您正在经历心理危机，请立即联系：\n"
-            "- 全国心理援助热线：400-161-9995（24小时）\n"
-            "- 北京心理危机研究与干预中心：010-82951332\n"
-            "- 或拨打 120 / 前往最近医院急诊\n\n"
-            "您不是一个人，请先确保安全，身后事的事务可以稍后再处理。"
-        )
+        safety_response = SAFETY_OVERRIDE_RESPONSE
         updates["draft_response"] = safety_response
     else:
         rule_log.info(

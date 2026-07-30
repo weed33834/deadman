@@ -30,7 +30,21 @@ SUPPLEMENTARY_RULES = [
     "multilingual-framework",
     "service-boundary-framework",
     "special-populations-framework",
+    # L4 通知护栏补充（程序层已由 NotificationGuardrail 强制；注入 LLM 使其自觉遵守 7 天等待期/双重确认/默认静默）
+    "notification-guardrails",
+    # 元规则：裁决 L0-L8 之间的优先级与冲突（conflict-resolution.md 自述"规则的规则"，不参与编号）
+    "conflict-resolution",
 ]
+
+# L0 安全触发时的标准干预响应（规则检查节点 + A2A/MCP 降级路径共用，单一来源避免文案漂移）
+SAFETY_OVERRIDE_RESPONSE = (
+    "我注意到对话中可能涉及安全问题。您的生命安全是最重要的。\n\n"
+    "如果您正在经历心理危机，请立即联系：\n"
+    "- 全国心理援助热线：400-161-9995（24小时）\n"
+    "- 北京心理危机研究与干预中心：010-82951332\n"
+    "- 或拨打 120 / 前往最近医院急诊\n\n"
+    "您不是一个人，请先确保安全，身后事的事务可以稍后再处理。"
+)
 
 
 class RuleLoader:

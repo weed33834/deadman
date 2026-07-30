@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 from ..config import settings
-from ..rules_loader import rule_checker
+from ..rules_loader import SAFETY_OVERRIDE_RESPONSE, rule_checker
 from ..types import (
     ConfidenceLabel,
     ExecutionMode,
@@ -1784,14 +1784,7 @@ async def invoke_subagent(
                 # L0 安全风险 → 拦截响应，返回安全提示（与 rule_check_node 一致）
                 if rc_result.safety_triggered:
                     rule_check_passed = False
-                    response = (
-                        "我注意到对话中可能涉及安全问题。您的生命安全是最重要的。\n\n"
-                        "如果您正在经历心理危机，请立即联系：\n"
-                        "- 全国心理援助热线：400-161-9995（24小时）\n"
-                        "- 北京心理危机研究与干预中心：010-82951332\n"
-                        "- 或拨打 120 / 前往最近医院急诊\n\n"
-                        "您不是一个人，请先确保安全，身后事的事务可以稍后再处理。"
-                    )
+                    response = SAFETY_OVERRIDE_RESPONSE
                 # L1 诚信问题 → 追加 disclaimer（不拦截，但标注）
                 elif rc_result.integrity_violations:
                     rule_check_passed = False
