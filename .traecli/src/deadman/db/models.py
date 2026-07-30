@@ -4,9 +4,12 @@
     1. users              — 全局单文件 read-modify-write，注册/更新即全文件重写
     2. cron_jobs          — 全局单文件，每次 tick 全文件重写
     3. notification_*     — 4 个全局文件，sent_log 无界增长
+    4. vault_items / switch_records / ending_note_* — 加密密文迁移（扩展④g/h/i）
 
-加密密文存储（VaultStore/SwitchStore/EndingNoteStore）留待扩展④b：
-    原有 AES-256-GCM 密文以 LargeBinary 列存储，不解密、不改密钥派生。
+加密密文存储（VaultStore/SwitchStore/EndingNoteStore）：
+    原有 AES-256-GCM 密文以 LargeBinary/Text 列存储，不解密、不改密钥派生，
+    保证历史数据可恢复。envelope 整体序列化为 JSON 字符串入库（保留 v1/v2/v3
+    兼容解密路径所需的全部字段：version/nonce/salt/ct/tag）。
 """
 
 from __future__ import annotations
@@ -14,10 +17,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     Float,
     Index,
+    LargeBinary,
     String,
     Text,
 )
@@ -162,11 +167,146 @@ class PasswordResetToken(Base):
 
 
 # =====================================================================
-# 加密密文存储抽象（扩展④b 预留）
+# vault_items — 数字遗产保险库（替代 vault/store.py 的 .enc + index.json）
 # =====================================================================
-# VaultStore / SwitchStore / EndingNoteStore 的 AES-256-GCM 密文
-# 将以 LargeBinary 列存储，保留 version 列以兼容 v1/v2/v3 解密路径。
-# 此处仅声明通用基类，具体表结构在扩展④b 按各 store 的 envelope 细化。
+# 扩展④g：VaultStore 加密密文 DB 迁移
+#   - content_encrypted 以 LargeBinary 原样存（AES-256-GCM envelope bytes）
+#   - metadata / beneficiary_user_ids / delivered_to 用 JSON 列（与文件 index 对齐）
+#   - 不解密、不改密钥派生，历史数据可恢复
+class VaultItem(Base, TimestampMixin):
+    """保险库条目 - 对应 vault/store.py VaultItem
+
+    content_encrypted 为 AES-256-GCM envelope 原始字节，与 .enc 文件内容一致。
+    """
+
+    __tablename__ = "vault_items"
+
+    item_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_encrypted: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # 'metadata' 是 SQLAlchemy Declarative 保留属性名，Python 属性用 item_metadata，
+    # 数据库列名仍为 metadata（与文件存储 index.json 字段对齐）
+    item_metadata: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    beneficiary_user_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    delivery_trigger: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    delivery_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    delivery_pending_since: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    delivered_to: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    __table_args__ = (
+        # beneficiary 反查：按受益人列条目
+        Index("ix_vault_items_owner_type", "owner_user_id", "type"),
+    )
+
+
+# =====================================================================
+# switch_records / switch_check_ins — Dead Man Switch（替代 switch.json + checkins.json）
+# =====================================================================
+# 扩展④h：SwitchStore 加密密文 DB 迁移
+#   - envelope 整体序列化为 JSON 字符串存 Text 列（保留 v1/v2/v3 解密所需字段）
+#   - checkins 单独成表，避免无界增长的 JSON 数组拖慢 load
+class SwitchRecord(Base, TimestampMixin):
+    """Dead Man Switch 主记录 - 对应 deadman_switch/store.py SwitchRecord
+
+    envelope_text 为加密 envelope 的 JSON 序列化字符串（与 switch.json 内容一致），
+    不解密、不改密钥派生。每用户一行（user_id 为主键）。
+    """
+
+    __tablename__ = "switch_records"
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    envelope_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class SwitchCheckIn(Base):
+    """Check-in 日志 - 对应 checkins.json（追加写、最近 200 条）
+
+    文件版每次 record_check_in 都全量重写 checkins.json；
+    DB 版改为 INSERT，消除读改写竞争，且支持按时间倒序索引查询。
+    """
+
+    __tablename__ = "switch_check_ins"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    check_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    method: Mapped[str] = mapped_column(String(32), nullable=False, default="web")
+
+    __table_args__ = (
+        # 按用户倒序查最近 N 条
+        Index("ix_switch_check_ins_user_time", "user_id", "check_in_at"),
+    )
+
+
+# =====================================================================
+# ending_note_* — 终活笔记（替代 note.json + shares/incoming/pending_deliveries）
+# =====================================================================
+# 扩展④i：EndingNoteStore 加密密文 DB 迁移
+#   - note envelope 整体序列化为 JSON 字符串存 Text 列
+#   - shares/incoming/pending_deliveries 拆为行级记录，消除全文件重写
+class EndingNoteRecord(Base, TimestampMixin):
+    """终活笔记主体 - 对应 ending_note/store.py note.json
+
+    envelope_text 为加密 envelope 的 JSON 序列化字符串（与 note.json 内容一致），
+    不解密、不改密钥派生。每用户一行。
+    """
+
+    __tablename__ = "ending_note_records"
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    envelope_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class EndingNoteShare(Base, TimestampMixin):
+    """笔记共享记录 - 对应 shares.json
+
+    一行 = 一次 owner → target 共享关系（去重 upsert）。
+    sections 为 None 表示共享全部章节。
+    """
+
+    __tablename__ = "ending_note_shares"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # f"{owner}:{target}"
+    owner_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    target_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    sections: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    shared_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class EndingNoteIncoming(Base, TimestampMixin):
+    """笔记接收记录 - 对应 incoming.json
+
+    一行 = 一次 target ← owner 接收关系（去重 upsert，与 shares 镜像）。
+    """
+
+    __tablename__ = "ending_note_incoming"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # f"{target}:{owner}"
+    target_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    owner_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    sections: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    shared_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class EndingNotePendingDelivery(Base, TimestampMixin):
+    """待投递记录 - 对应 pending_deliveries.json
+
+    一行 = 一次投递触发（death_confirmation/date/manual）。
+    状态机：pending → ready → delivered。
+    """
+
+    __tablename__ = "ending_note_pending_deliveries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # f"{owner}:{trigger}:{triggered_at}"
+    owner_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    trigger_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    triggered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    deliver_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    recipients: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 __all__ = [
@@ -177,4 +317,11 @@ __all__ = [
     "NotificationSentLog",
     "NotificationLastSession",
     "PasswordResetToken",
+    "VaultItem",
+    "SwitchRecord",
+    "SwitchCheckIn",
+    "EndingNoteRecord",
+    "EndingNoteShare",
+    "EndingNoteIncoming",
+    "EndingNotePendingDelivery",
 ]

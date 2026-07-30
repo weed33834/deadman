@@ -127,6 +127,93 @@ class VaultStore:
             logger.warning("VaultStore 创建数据目录失败 %s: %s", self.data_dir, exc)
 
     # ==================================================================
+    # DB 双写辅助（企业级扩展④g）
+    # ==================================================================
+    # 策略与 CronScheduler / NotificationGuardrail 一致：
+    #   - 写操作：文件存储成功后 best-effort 同步到 DB（消除全文件 read-modify-write 竞争）
+    #   - 读操作：继续走文件存储（保持现有解密路径，避免引入双向转换 bug）
+    #   - content_encrypted 以 LargeBinary 原样存，不解密、不改密钥派生
+
+    @staticmethod
+    def _db_enabled() -> bool:
+        """是否启用主数据库（惰性检查，避免 import 时耦合）。"""
+        try:
+            from ..db.engine import db_enabled
+
+            return db_enabled()
+        except ImportError:
+            return False
+
+    @staticmethod
+    def _run_async(coro):
+        """在同步上下文执行异步协程；已在事件循环中时 fire-and-forget。"""
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+            asyncio.ensure_future(coro)  # noqa: RUF006 - 有意 fire-and-forget
+        except RuntimeError:
+            asyncio.run(coro)
+
+    async def _sync_item_to_db(self, item: VaultItem) -> None:
+        """upsert 单个 VaultItem 到 DB（best-effort，失败仅 warning）。"""
+        try:
+            from ..db.engine import get_async_session_factory
+            from ..db.models import VaultItem as VaultItemORM
+
+            async with get_async_session_factory()() as session:
+                existing = await session.get(VaultItemORM, item.item_id)
+                if existing is not None:
+                    existing.owner_user_id = item.owner_user_id
+                    existing.type = item.type
+                    existing.title = item.title
+                    existing.content_encrypted = bytes(item.content_encrypted)
+                    existing.item_metadata = dict(item.metadata)
+                    existing.beneficiary_user_ids = list(item.beneficiary_user_ids)
+                    existing.delivery_trigger = item.delivery_trigger
+                    existing.delivery_date = item.delivery_date
+                    existing.delivery_pending_since = item.delivery_pending_since
+                    existing.delivered_to = dict(item.delivered_to)
+                    existing.updated_at = item.updated_at
+                else:
+                    session.add(
+                        VaultItemORM(
+                            item_id=item.item_id,
+                            owner_user_id=item.owner_user_id,
+                            type=item.type,
+                            title=item.title,
+                            content_encrypted=bytes(item.content_encrypted),
+                            item_metadata=dict(item.metadata),
+                            beneficiary_user_ids=list(item.beneficiary_user_ids),
+                            delivery_trigger=item.delivery_trigger,
+                            delivery_date=item.delivery_date,
+                            delivery_pending_since=item.delivery_pending_since,
+                            delivered_to=dict(item.delivered_to),
+                            created_at=item.created_at,
+                            updated_at=item.updated_at,
+                        )
+                    )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 vault item 到 DB 失败（best-effort）: %s", exc)
+
+    async def _delete_item_from_db(self, item_id: str) -> None:
+        """从 DB 删除单个 VaultItem（best-effort）。"""
+        try:
+            from sqlalchemy import delete
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import VaultItem as VaultItemORM
+
+            async with get_async_session_factory()() as session:
+                await session.execute(
+                    delete(VaultItemORM).where(VaultItemORM.item_id == item_id)
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("从 DB 删除 vault item 失败（best-effort）: %s", exc)
+
+    # ==================================================================
     # 用户目录辅助
     # ==================================================================
     def _user_dir(self, user_id: str) -> Path:
@@ -319,6 +406,9 @@ class VaultStore:
         index = self._read_index(owner_user_id)
         index[item_id] = item.to_index_dict()
         self._write_index(owner_user_id, index)
+        # DB 双写（best-effort，消除全文件 read-modify-write 竞争）
+        if self._db_enabled():
+            self._run_async(self._sync_item_to_db(item))
         return item
 
     def _load_item(self, owner_user_id: str, item_id: str) -> VaultItem | None:
@@ -442,6 +532,9 @@ class VaultStore:
         index = self._read_index(owner_user_id)
         index[item_id] = item.to_index_dict()
         self._write_index(owner_user_id, index)
+        # DB 双写（best-effort）
+        if self._db_enabled():
+            self._run_async(self._sync_item_to_db(item))
         return item
 
     def delete_item(self, item_id: str, owner_user_id: str) -> bool:
@@ -458,6 +551,9 @@ class VaultStore:
                 path.unlink()
         except OSError as exc:
             logger.warning("VaultStore 删除条目文件失败 %s: %s", path, exc)
+        # DB 双写删除（best-effort）
+        if self._db_enabled():
+            self._run_async(self._delete_item_from_db(item_id))
         return True
 
     # ==================================================================
@@ -596,6 +692,9 @@ class VaultStore:
                 index = self._read_index(item.owner_user_id)
                 index[item_id] = item.to_index_dict()
                 self._write_index(item.owner_user_id, index)
+                # DB 双写（best-effort，更新 delivery_pending_since）
+                if self._db_enabled():
+                    self._run_async(self._sync_item_to_db(item))
                 return {
                     "delivered": False,
                     "content": None,
@@ -670,6 +769,9 @@ class VaultStore:
         index = self._read_index(item.owner_user_id)
         index[item.item_id] = item.to_index_dict()
         self._write_index(item.owner_user_id, index)
+        # DB 双写（best-effort，更新 delivered_to）
+        if self._db_enabled():
+            self._run_async(self._sync_item_to_db(item))
         return {
             "delivered": True,
             "content": plaintext,

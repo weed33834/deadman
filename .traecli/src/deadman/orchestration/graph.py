@@ -52,6 +52,7 @@ END = None  # type: ignore
 MemorySaver = None  # type: ignore
 SqliteSaver = None  # type: ignore
 AsyncSqliteSaver = None  # type: ignore
+PostgresSaver = None  # type: ignore
 
 try:
     from langgraph.checkpoint.memory import MemorySaver as _MemorySaver  # type: ignore
@@ -84,11 +85,27 @@ try:
         SqliteSaver = _SqliteSaver
     except ImportError:
         pass
+    # PostgresSaver 是独立可选依赖（langgraph-checkpoint-postgres）
+    # 企业级扩展④j：DATABASE_URL 配置时优先用 PostgresSaver 实现跨进程持久化 checkpoint
+    try:
+        from langgraph.checkpoint.postgres import PostgresSaver as _PostgresSaver  # type: ignore
+
+        PostgresSaver = _PostgresSaver
+    except ImportError:
+        logger.info(
+            "langgraph-checkpoint-postgres 不可用，"
+            "checkpointer 降级为 MemorySaver。"
+            "pip install langgraph-checkpoint-postgres psycopg 后可获得跨进程持久化 checkpoint。"
+        )
 except ImportError:
     logger.info(
         "langgraph 不可用，编排将降级为 SequentialExecutor（顺序执行）模式。"
         "安装 langgraph 后可获得完整 StateGraph 能力（条件路由/checkpoint/streaming）。"
     )
+
+# PostgresSaver 全局单例（惰性初始化，保持连接引用避免 GC 关闭）
+_postgres_checkpointer: Any = None
+_postgres_cm: Any = None  # context manager 引用，避免 __exit__ 被提前触发
 
 # 节点名常量（与图中的 node key 对应）
 NODE_INPUT_GUARD = "input_guard"
@@ -411,6 +428,55 @@ def _build_sequential_executor() -> SequentialExecutor:
     return executor
 
 
+def _get_postgres_checkpointer():
+    """惰性创建全局 PostgresSaver 单例（企业级扩展④j）。
+
+    DATABASE_URL 配置且 langgraph-checkpoint-postgres 可用时，创建持久化
+    checkpointer（跨进程共享 checkpoint 状态）。setup() 建表（幂等）。
+
+    Returns:
+        PostgresSaver 实例；不可用时返回 None。
+    """
+    global _postgres_checkpointer, _postgres_cm
+    if _postgres_checkpointer is not None:
+        return _postgres_checkpointer
+    if PostgresSaver is None:
+        return None
+    try:
+        import contextlib
+
+        from ..config import settings
+
+        db_url = settings.database_url
+        if not db_url:
+            return None
+        # psycopg 需要 postgresql:// 协议（非 +asyncpg）
+        if db_url.startswith("postgresql+asyncpg://"):
+            db_url = db_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        elif db_url.startswith("postgresql+psycopg://"):
+            db_url = db_url.replace("postgresql+psycopg://", "postgresql://", 1)
+        # from_conn_string 返回 context manager；__enter__ 创建连接并返回 checkpointer
+        _postgres_cm = PostgresSaver.from_conn_string(db_url)
+        _postgres_checkpointer = _postgres_cm.__enter__()
+        # setup() 建表（幂等），同步方法
+        _postgres_checkpointer.setup()
+        logger.info("checkpointer 使用 PostgresSaver（跨进程持久化 checkpoint）")
+        return _postgres_checkpointer
+    except Exception as e:
+        logger.warning(
+            "PostgresSaver 初始化失败，降级到 MemorySaver: %s。"
+            "pip install langgraph-checkpoint-postgres psycopg 后可启用。",
+            e,
+        )
+        # 清理可能半初始化的资源
+        if _postgres_cm is not None:
+            with contextlib.suppress(Exception):
+                _postgres_cm.__exit__(None, None, None)
+        _postgres_checkpointer = None
+        _postgres_cm = None
+        return None
+
+
 def _build_langgraph():
     """构建 LangGraph StateGraph（完整模式）
 
@@ -473,15 +539,24 @@ def _build_langgraph():
     graph.add_edge(NODE_RESPOND, END)
 
     # === 编译 ===
-    # checkpointer 选择策略：
-    #   - 当前 web 路径用 await graph.ainvoke() 异步调用，
-    #     AsyncSqliteSaver 需要 aiosqlite.Connection（无法在 sync build_main_graph 内创建）；
-    #     sync SqliteSaver 不支持 async API（NotImplementedError）。
-    #   - 因此 web 路径用 MemorySaver（同时支持 sync/async），跨会话持久化由
-    #     MemoryManager.after_turn + 文件存储独立负责（不依赖 checkpointer）。
-    #   - CLI 同步路径可继续用 SqliteSaver（持久化 CLI 对话状态）。
+    # checkpointer 选择策略（企业级扩展④j 优先级）：
+    #   1. PostgresSaver：DATABASE_URL 配置 + langgraph-checkpoint-postgres 可用时，
+    #      跨进程持久化 checkpoint（生产推荐，多 worker 共享对话状态）。
+    #   2. MemorySaver：默认降级，兼容 sync+async，跨会话状态由
+    #      MemoryManager.after_turn + 文件存储独立负责。
+    #   注：AsyncSqliteSaver 需要 aiosqlite.Connection（无法在 sync build_main_graph
+    #       内创建）；sync SqliteSaver 不支持 async API（NotImplementedError），
+    #       故 SQLite checkpointer 仅用于 CLI 同步路径，web 异步路径不用。
     checkpointer = None
-    if MemorySaver is not None:
+    # 优先尝试 PostgresSaver
+    try:
+        pg_checkpointer = _get_postgres_checkpointer()
+        if pg_checkpointer is not None:
+            checkpointer = pg_checkpointer
+    except Exception as e:
+        logger.warning("PostgresSaver 获取失败，降级 MemorySaver: %s", e)
+    # 降级到 MemorySaver
+    if checkpointer is None and MemorySaver is not None:
         try:
             checkpointer = MemorySaver()
             logger.info(

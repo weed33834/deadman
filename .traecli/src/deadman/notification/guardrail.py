@@ -111,6 +111,36 @@ class NotificationGuardrail:
             logger.warning("NotificationGuardrail 创建数据目录失败 %s: %s", self.data_dir, exc)
 
     # ==================================================================
+    # DB 双写辅助（企业级扩展④f）
+    # ==================================================================
+
+    @staticmethod
+    def _db_enabled() -> bool:
+        """是否启用主数据库（惰性检查，避免 import 时耦合）。"""
+        try:
+            from ..db.engine import db_enabled
+
+            return db_enabled()
+        except ImportError:
+            return False
+
+    @staticmethod
+    def _run_async(coro):
+        """在同步上下文执行异步协程；已在事件循环中时 fire-and-forget。
+
+        与 CronScheduler._sync_jobs_to_db 相同的降级策略：
+        同步上下文用 asyncio.run 同步执行；
+        异步上下文用 ensure_future 不阻塞（best-effort，文件存储为 source of truth）。
+        """
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+            asyncio.ensure_future(coro)  # noqa: RUF006 - 有意 fire-and-forget
+        except RuntimeError:
+            asyncio.run(coro)
+
+    # ==================================================================
     # JSON 文件读写（原子 + 韧性）
     # ==================================================================
 
@@ -358,6 +388,7 @@ class NotificationGuardrail:
             content: 用户同意的原文（必须真实，不得伪造）
             scope: 同意范围（如 "reminder:2026-07-22T09:00:00"）
         """
+        now = datetime.now()
         consents = self._read_json(self.consent_file, {})
         if not isinstance(consents, dict):
             consents = {}
@@ -366,10 +397,13 @@ class NotificationGuardrail:
             {
                 "content": content,
                 "scope": scope,
-                "recorded_at": datetime.now().isoformat(),
+                "recorded_at": now.isoformat(),
             }
         )
         self._write_json(self.consent_file, consents)
+        # DB 双写（best-effort，消除全文件 read-modify-write 竞争）
+        if self._db_enabled():
+            self._run_async(self._sync_consent_to_db(user_id, content, scope, now))
 
     def record_unsubscribe(self, user_id: str, scope: str = "all") -> None:
         """记录退订，立即生效。
@@ -378,6 +412,7 @@ class NotificationGuardrail:
             user_id: 用户 ID
             scope: 退订范围，"all" 表示全部退订
         """
+        now = datetime.now()
         unsubscribes = self._read_json(self.unsubscribes_file, {})
         if not isinstance(unsubscribes, dict):
             unsubscribes = {}
@@ -385,10 +420,13 @@ class NotificationGuardrail:
         user_records.append(
             {
                 "scope": scope,
-                "recorded_at": datetime.now().isoformat(),
+                "recorded_at": now.isoformat(),
             }
         )
         self._write_json(self.unsubscribes_file, unsubscribes)
+        # DB 双写（best-effort）
+        if self._db_enabled():
+            self._run_async(self._sync_unsubscribe_to_db(user_id, scope, now))
 
     def record_send(
         self,
@@ -406,6 +444,7 @@ class NotificationGuardrail:
             sent_at: 发送时间（默认 datetime.now()）；测试可显式注入，
                      避免 record_send/can_send 时序错位导致的 flaky
         """
+        ts = sent_at or datetime.now()
         sent_log = self._read_json(self.sent_log_file, {})
         if not isinstance(sent_log, dict):
             sent_log = {}
@@ -414,10 +453,13 @@ class NotificationGuardrail:
             {
                 "content": content,
                 "channel": channel,
-                "sent_at": (sent_at or datetime.now()).isoformat(),
+                "sent_at": ts.isoformat(),
             }
         )
         self._write_json(self.sent_log_file, sent_log)
+        # DB 双写（best-effort，sent_log 无界增长，DB 版用索引优化频率查询）
+        if self._db_enabled():
+            self._run_async(self._sync_send_to_db(user_id, content, channel, ts))
 
     def record_session_end(
         self,
@@ -434,16 +476,144 @@ class NotificationGuardrail:
             emotion_intensity: 情绪强度（"高"/"中"/"低"）
             involved_sensitive_death: 是否涉及自杀/他杀/非正常死亡
         """
+        now = datetime.now()
         last_session = self._read_json(self.last_session_file, {})
         if not isinstance(last_session, dict):
             last_session = {}
         last_session[user_id] = {
-            "ended_at": datetime.now().isoformat(),
+            "ended_at": now.isoformat(),
             "safety_triggered": bool(safety_triggered),
             "emotion_intensity": emotion_intensity,
             "involved_sensitive_death": bool(involved_sensitive_death),
         }
         self._write_json(self.last_session_file, last_session)
+        # DB 双写（best-effort，每用户单行 UPSERT）
+        if self._db_enabled():
+            self._run_async(
+                self._sync_session_end_to_db(
+                    user_id,
+                    safety_triggered,
+                    emotion_intensity,
+                    involved_sensitive_death,
+                    now,
+                )
+            )
+
+    # ==================================================================
+    # DB 双写实现（扩展④f）
+    # ==================================================================
+    # 读操作（can_send 等）继续走文件存储，避免 emotion_intensity 字符串↔
+    # Float 双向转换引入 bug；DB 同步仅消除写竞争，为后续读路径迁移铺路。
+
+    @staticmethod
+    def _emotion_to_float(intensity: str) -> float:
+        """情绪强度字符串 → Float（DB 列类型对齐）。
+
+        文件存储用 "高"/"中"/"低"，DB 列为 Float。映射为 3.0/2.0/1.0/0.0。
+        读路径暂不迁移，此映射仅用于 DB 写入，不影响文件存储语义。
+        """
+        return {"高": 3.0, "中": 2.0, "低": 1.0}.get(str(intensity).strip(), 0.0)
+
+    async def _sync_consent_to_db(
+        self, user_id: str, content: str, scope: str, recorded_at: datetime
+    ) -> None:
+        try:
+            import uuid
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import NotificationConsent
+
+            async with get_async_session_factory()() as session:
+                session.add(
+                    NotificationConsent(
+                        id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        scope=scope,
+                        content=content,
+                        recorded_at=recorded_at,
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 consent 到 DB 失败（best-effort）: %s", exc)
+
+    async def _sync_unsubscribe_to_db(
+        self, user_id: str, scope: str, recorded_at: datetime
+    ) -> None:
+        try:
+            import uuid
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import NotificationUnsubscribe
+
+            async with get_async_session_factory()() as session:
+                session.add(
+                    NotificationUnsubscribe(
+                        id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        scope=scope,
+                        recorded_at=recorded_at,
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 unsubscribe 到 DB 失败（best-effort）: %s", exc)
+
+    async def _sync_send_to_db(
+        self, user_id: str, content: str, channel: str, sent_at: datetime
+    ) -> None:
+        try:
+            import uuid
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import NotificationSentLog
+
+            async with get_async_session_factory()() as session:
+                session.add(
+                    NotificationSentLog(
+                        id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        channel=channel,
+                        content=content,
+                        sent_at=sent_at,
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 sent_log 到 DB 失败（best-effort）: %s", exc)
+
+    async def _sync_session_end_to_db(
+        self,
+        user_id: str,
+        safety_triggered: bool,
+        emotion_intensity: str,
+        involved_sensitive_death: bool,
+        ended_at: datetime,
+    ) -> None:
+        try:
+            from ..db.engine import get_async_session_factory
+            from ..db.models import NotificationLastSession
+
+            async with get_async_session_factory()() as session:
+                existing = await session.get(NotificationLastSession, user_id)
+                if existing is not None:
+                    existing.ended_at = ended_at
+                    existing.safety_triggered = bool(safety_triggered)
+                    existing.emotion_intensity = self._emotion_to_float(emotion_intensity)
+                    existing.involved_sensitive_death = bool(involved_sensitive_death)
+                else:
+                    session.add(
+                        NotificationLastSession(
+                            user_id=user_id,
+                            ended_at=ended_at,
+                            safety_triggered=bool(safety_triggered),
+                            emotion_intensity=self._emotion_to_float(emotion_intensity),
+                            involved_sensitive_death=bool(involved_sensitive_death),
+                        )
+                    )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 last_session 到 DB 失败（best-effort）: %s", exc)
 
     # ==================================================================
     # sanitize_content - 内容脱敏

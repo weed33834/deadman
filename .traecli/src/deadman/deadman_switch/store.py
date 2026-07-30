@@ -85,6 +85,95 @@ class SwitchStore:
             logger.warning("SwitchStore 创建数据目录失败 %s: %s", self.data_dir, exc)
 
     # ==================================================================
+    # DB 双写辅助（企业级扩展④h）
+    # ==================================================================
+    # 策略：写操作文件存储成功后 best-effort 同步到 DB；读操作走文件存储。
+    #   - switch envelope 整体序列化为 JSON 字符串存 Text 列（保留 v1/v2/v3 解密字段）
+    #   - checkins 单独成表，消除无界增长数组的全文件重写
+    #   - 不解密、不改密钥派生
+
+    @staticmethod
+    def _db_enabled() -> bool:
+        """是否启用主数据库（惰性检查，避免 import 时耦合）。"""
+        try:
+            from ..db.engine import db_enabled
+
+            return db_enabled()
+        except ImportError:
+            return False
+
+    @staticmethod
+    def _run_async(coro):
+        """在同步上下文执行异步协程；已在事件循环中时 fire-and-forget。"""
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+            asyncio.ensure_future(coro)  # noqa: RUF006 - 有意 fire-and-forget
+        except RuntimeError:
+            asyncio.run(coro)
+
+    async def _sync_switch_to_db(self, user_id: str, envelope: dict[str, Any]) -> None:
+        """upsert SwitchRecord 到 DB（envelope 序列化为 JSON 字符串，best-effort）。"""
+        try:
+            from ..db.engine import get_async_session_factory
+            from ..db.models import SwitchRecord as SwitchRecordORM
+
+            envelope_text = json.dumps(envelope, ensure_ascii=False)
+            async with get_async_session_factory()() as session:
+                existing = await session.get(SwitchRecordORM, user_id)
+                if existing is not None:
+                    existing.envelope_text = envelope_text
+                else:
+                    session.add(SwitchRecordORM(user_id=user_id, envelope_text=envelope_text))
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 switch 到 DB 失败（best-effort）: %s", exc)
+
+    async def _sync_checkin_to_db(
+        self, user_id: str, check_in_at: datetime, method: str
+    ) -> None:
+        """INSERT SwitchCheckIn 到 DB（best-effort）。"""
+        try:
+            import uuid
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import SwitchCheckIn
+
+            async with get_async_session_factory()() as session:
+                session.add(
+                    SwitchCheckIn(
+                        id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        check_in_at=check_in_at,
+                        method=method,
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 checkin 到 DB 失败（best-effort）: %s", exc)
+
+    async def _delete_switch_from_db(self, user_id: str) -> None:
+        """从 DB 删除 SwitchRecord + 所有 SwitchCheckIn（best-effort）。"""
+        try:
+            from sqlalchemy import delete
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import SwitchCheckIn
+            from ..db.models import SwitchRecord as SwitchRecordORM
+
+            async with get_async_session_factory()() as session:
+                await session.execute(
+                    delete(SwitchRecordORM).where(SwitchRecordORM.user_id == user_id)
+                )
+                await session.execute(
+                    delete(SwitchCheckIn).where(SwitchCheckIn.user_id == user_id)
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("从 DB 删除 switch 失败（best-effort）: %s", exc)
+
+    # ==================================================================
     # 路径辅助
     # ==================================================================
     def _user_dir(self, user_id: str) -> Path:
@@ -149,6 +238,9 @@ class SwitchStore:
         """保存 switch 记录（加密 + 原子写入）"""
         envelope = self._encrypt_record(record)
         _atomic_write_json(self._switch_path(record.user_id), envelope)
+        # DB 双写（best-effort，envelope 整体存 Text 列，不解密）
+        if self._db_enabled():
+            self._run_async(self._sync_switch_to_db(record.user_id, envelope))
 
     def load(self, user_id: str) -> SwitchRecord | None:
         """加载 switch 记录；不存在返回 None"""
@@ -187,6 +279,9 @@ class SwitchStore:
                 user_dir.rmdir()
         except OSError:
             pass
+        # DB 双写删除（best-effort，删除 SwitchRecord + 所有 SwitchCheckIn）
+        if deleted and self._db_enabled():
+            self._run_async(self._delete_switch_from_db(user_id))
         return deleted
 
     # ==================================================================
@@ -232,6 +327,9 @@ class SwitchStore:
         if len(logs) > 200:
             logs = logs[-200:]
         _atomic_write_json(self._checkins_path(user_id), logs)
+        # DB 双写 check-in（best-effort，INSERT 消除全文件重写）
+        if self._db_enabled():
+            self._run_async(self._sync_checkin_to_db(user_id, now, method))
         self.save(record)
         return record
 

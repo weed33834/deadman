@@ -195,6 +195,211 @@ class EndingNoteStore:
         self.data_dir: Path = data_dir or (Path.home() / ".deadman" / "ending_notes")
 
     # ------------------------------------------------------------------
+    # DB 双写辅助（企业级扩展④i）
+    # ------------------------------------------------------------------
+    # 策略：写操作文件存储成功后 best-effort 同步到 DB；读操作走文件存储。
+    #   - note envelope 整体序列化为 JSON 字符串存 Text 列（保留 v1/v2/v3 解密字段）
+    #   - shares/incoming/pending_deliveries 拆为行级记录，消除全文件重写
+    #   - 不解密、不改密钥派生
+
+    @staticmethod
+    def _db_enabled() -> bool:
+        """是否启用主数据库（惰性检查，避免 import 时耦合）。"""
+        try:
+            from ..db.engine import db_enabled
+
+            return db_enabled()
+        except ImportError:
+            return False
+
+    @staticmethod
+    def _run_async(coro):
+        """在同步上下文执行异步协程；已在事件循环中时 fire-and-forget。"""
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+            asyncio.ensure_future(coro)  # noqa: RUF006 - 有意 fire-and-forget
+        except RuntimeError:
+            asyncio.run(coro)
+
+    async def _sync_note_to_db(self, user_id: str, envelope: dict[str, Any]) -> None:
+        """upsert EndingNoteRecord 到 DB（envelope 序列化为 JSON 字符串，best-effort）。"""
+        try:
+            from ..db.engine import get_async_session_factory
+            from ..db.models import EndingNoteRecord
+
+            envelope_text = json.dumps(envelope, ensure_ascii=False)
+            async with get_async_session_factory()() as session:
+                existing = await session.get(EndingNoteRecord, user_id)
+                if existing is not None:
+                    existing.envelope_text = envelope_text
+                else:
+                    session.add(EndingNoteRecord(user_id=user_id, envelope_text=envelope_text))
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 ending note 到 DB 失败（best-effort）: %s", exc)
+
+    async def _delete_note_from_db(self, user_id: str) -> None:
+        """从 DB 删除笔记及衍生记录（shares/incoming/pending_deliveries，best-effort）。"""
+        try:
+            from sqlalchemy import delete
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import (
+                EndingNoteIncoming,
+                EndingNotePendingDelivery,
+                EndingNoteRecord,
+                EndingNoteShare,
+            )
+
+            async with get_async_session_factory()() as session:
+                await session.execute(
+                    delete(EndingNoteRecord).where(EndingNoteRecord.user_id == user_id)
+                )
+                # owner 维度删除：我共享给别人的
+                await session.execute(
+                    delete(EndingNoteShare).where(EndingNoteShare.owner_user_id == user_id)
+                )
+                # target 维度删除：别人共享给我的
+                await session.execute(
+                    delete(EndingNoteIncoming).where(
+                        EndingNoteIncoming.target_user_id == user_id
+                    )
+                )
+                await session.execute(
+                    delete(EndingNotePendingDelivery).where(
+                        EndingNotePendingDelivery.owner_user_id == user_id
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("从 DB 删除 ending note 失败（best-effort）: %s", exc)
+
+    async def _sync_share_to_db(
+        self,
+        owner_user_id: str,
+        target_user_id: str,
+        sections: list[str] | None,
+        shared_at: datetime,
+    ) -> None:
+        """upsert EndingNoteShare + EndingNoteIncoming（镜像双写，best-effort）。"""
+        try:
+            from ..db.engine import get_async_session_factory
+            from ..db.models import EndingNoteIncoming, EndingNoteShare
+
+            share_id = f"{owner_user_id}:{target_user_id}"
+            incoming_id = f"{target_user_id}:{owner_user_id}"
+            async with get_async_session_factory()() as session:
+                # owner → target 共享记录
+                share = await session.get(EndingNoteShare, share_id)
+                if share is not None:
+                    share.sections = sections
+                    share.shared_at = shared_at
+                else:
+                    session.add(
+                        EndingNoteShare(
+                            id=share_id,
+                            owner_user_id=owner_user_id,
+                            target_user_id=target_user_id,
+                            sections=sections,
+                            shared_at=shared_at,
+                        )
+                    )
+                # target ← owner 接收记录（镜像）
+                incoming = await session.get(EndingNoteIncoming, incoming_id)
+                if incoming is not None:
+                    incoming.sections = sections
+                    incoming.shared_at = shared_at
+                else:
+                    session.add(
+                        EndingNoteIncoming(
+                            id=incoming_id,
+                            target_user_id=target_user_id,
+                            owner_user_id=owner_user_id,
+                            sections=sections,
+                            shared_at=shared_at,
+                        )
+                    )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 ending note share 到 DB 失败（best-effort）: %s", exc)
+
+    async def _delete_share_from_db(
+        self, owner_user_id: str, target_user_id: str
+    ) -> None:
+        """从 DB 删除 EndingNoteShare + EndingNoteIncoming（best-effort）。"""
+        try:
+            from sqlalchemy import delete
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import EndingNoteIncoming, EndingNoteShare
+
+            share_id = f"{owner_user_id}:{target_user_id}"
+            incoming_id = f"{target_user_id}:{owner_user_id}"
+            async with get_async_session_factory()() as session:
+                await session.execute(
+                    delete(EndingNoteShare).where(EndingNoteShare.id == share_id)
+                )
+                await session.execute(
+                    delete(EndingNoteIncoming).where(EndingNoteIncoming.id == incoming_id)
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("从 DB 删除 ending note share 失败（best-effort）: %s", exc)
+
+    async def _sync_pending_delivery_to_db(
+        self,
+        owner_user_id: str,
+        trigger_type: str,
+        triggered_at: datetime,
+        deliver_at: datetime | None,
+        recipients: list[str],
+        status: str,
+        delivered_at: datetime | None,
+    ) -> None:
+        """upsert EndingNotePendingDelivery 到 DB（按 owner+trigger 查询，best-effort）。
+
+        每个 owner 每个 trigger_type 只有一条 pending 记录（与文件存储语义一致）。
+        """
+        try:
+            from sqlalchemy import select
+
+            from ..db.engine import get_async_session_factory
+            from ..db.models import EndingNotePendingDelivery
+
+            async with get_async_session_factory()() as session:
+                stmt = select(EndingNotePendingDelivery).where(
+                    EndingNotePendingDelivery.owner_user_id == owner_user_id,
+                    EndingNotePendingDelivery.trigger_type == trigger_type,
+                )
+                existing = (await session.execute(stmt)).scalar_one_or_none()
+                if existing is not None:
+                    existing.triggered_at = triggered_at
+                    existing.deliver_at = deliver_at
+                    existing.recipients = list(recipients)
+                    existing.status = status
+                    existing.delivered_at = delivered_at
+                else:
+                    import uuid
+
+                    session.add(
+                        EndingNotePendingDelivery(
+                            id=f"{owner_user_id}:{trigger_type}:{uuid.uuid4().hex[:8]}",
+                            owner_user_id=owner_user_id,
+                            trigger_type=trigger_type,
+                            triggered_at=triggered_at,
+                            deliver_at=deliver_at,
+                            recipients=list(recipients),
+                            status=status,
+                            delivered_at=delivered_at,
+                        )
+                    )
+                await session.commit()
+        except Exception as exc:
+            logger.warning("同步 ending note pending delivery 到 DB 失败（best-effort）: %s", exc)
+
+    # ------------------------------------------------------------------
     # 路径辅助
     # ------------------------------------------------------------------
 
@@ -230,6 +435,9 @@ class EndingNoteStore:
         passphrase = _get_passphrase(note.user_id)
         envelope = _encrypt(plaintext, passphrase)
         _atomic_write_json(self._note_path(note.user_id), envelope)
+        # DB 双写（best-effort，envelope 整体存 Text 列，不解密）
+        if self._db_enabled():
+            self._run_async(self._sync_note_to_db(note.user_id, envelope))
 
     def load(self, user_id: str) -> EndingNote | None:
         """加载笔记；文件不存在返回 None
@@ -317,6 +525,9 @@ class EndingNoteStore:
                 user_dir.rmdir()
         except OSError:
             pass
+        # DB 双写删除（best-effort，删除 note + shares/incoming/pending_deliveries）
+        if deleted and self._db_enabled():
+            self._run_async(self._delete_note_from_db(user_id))
         return deleted
 
     # ------------------------------------------------------------------
@@ -346,6 +557,7 @@ class EndingNoteStore:
         if owner_user_id == target_user_id:
             raise ValueError("不能与自己共享")
 
+        shared_at = datetime.now()
         # owner 的对外共享清单
         shares = _read_json(self._shares_path(owner_user_id)) or []
         # 去重：已存在则更新 sections
@@ -354,7 +566,7 @@ class EndingNoteStore:
             {
                 "target_user_id": target_user_id,
                 "sections": sections,  # None 表示全部
-                "shared_at": datetime.now().isoformat(),
+                "shared_at": shared_at.isoformat(),
             }
         )
         _atomic_write_json(self._shares_path(owner_user_id), shares)
@@ -366,10 +578,15 @@ class EndingNoteStore:
             {
                 "owner_user_id": owner_user_id,
                 "sections": sections,
-                "shared_at": datetime.now().isoformat(),
+                "shared_at": shared_at.isoformat(),
             }
         )
         _atomic_write_json(self._incoming_path(target_user_id), incoming)
+        # DB 双写（best-effort，镜像 upsert share + incoming）
+        if self._db_enabled():
+            self._run_async(
+                self._sync_share_to_db(owner_user_id, target_user_id, sections, shared_at)
+            )
 
     def unshare(self, owner_user_id: str, target_user_id: str) -> None:
         """取消共享"""
@@ -382,6 +599,9 @@ class EndingNoteStore:
         incoming = _read_json(self._incoming_path(target_user_id)) or []
         incoming = [s for s in incoming if s.get("owner_user_id") != owner_user_id]
         _atomic_write_json(self._incoming_path(target_user_id), incoming)
+        # DB 双写删除（best-effort，删除 share + incoming）
+        if self._db_enabled():
+            self._run_async(self._delete_share_from_db(owner_user_id, target_user_id))
 
     def list_shared_with_me(self, user_id: str) -> list[EndingNote]:
         """列出共享给我的笔记（按 owner 的 load 实时读取，应用 sections 过滤）"""
@@ -486,15 +706,29 @@ class EndingNoteStore:
 
         if existing is None:
             # 首次触发：写 pending
+            deliver_at = now + timedelta(days=DEATH_CONFIRMATION_WAIT_DAYS)
             existing = {
                 "trigger_type": "death_confirmation",
                 "triggered_at": now.isoformat(),
-                "deliver_at": (now + timedelta(days=DEATH_CONFIRMATION_WAIT_DAYS)).isoformat(),
+                "deliver_at": deliver_at.isoformat(),
                 "recipients": recipients,
                 "status": "pending",
             }
             pending_list.append(existing)
             _atomic_write_json(pending_path, pending_list)
+            # DB 双写（best-effort，INSERT pending delivery）
+            if self._db_enabled():
+                self._run_async(
+                    self._sync_pending_delivery_to_db(
+                        owner_user_id=owner_user_id,
+                        trigger_type="death_confirmation",
+                        triggered_at=now,
+                        deliver_at=deliver_at,
+                        recipients=recipients,
+                        status="pending",
+                        delivered_at=None,
+                    )
+                )
             return {
                 "delivered": False,
                 "recipients": recipients,
@@ -532,6 +766,23 @@ class EndingNoteStore:
         existing["delivered_at"] = now.isoformat()
         existing["recipients"] = recipients
         _atomic_write_json(pending_path, pending_list)
+        # DB 双写（best-effort，UPDATE pending delivery → ready）
+        if self._db_enabled():
+            try:
+                triggered_at_dt = datetime.fromisoformat(existing["triggered_at"])
+            except (KeyError, ValueError, TypeError):
+                triggered_at_dt = now
+            self._run_async(
+                self._sync_pending_delivery_to_db(
+                    owner_user_id=owner_user_id,
+                    trigger_type="death_confirmation",
+                    triggered_at=triggered_at_dt,
+                    deliver_at=deliver_at,
+                    recipients=recipients,
+                    status="ready",
+                    delivered_at=now,
+                )
+            )
         return {
             "delivered": True,
             "recipients": recipients,
