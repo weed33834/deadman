@@ -184,6 +184,56 @@ class UserStore:
         self._atomic_write(data)
         return True
 
+    # ================================================================
+    # 密码重置支持（P1-3）
+    # ================================================================
+
+    def find_user_by_email(self, email: str) -> dict | None:
+        """按邮箱查找用户（返回含 user_id 的内部视图，供密码重置流程使用）
+
+        与 verify() 不同，此方法不做假 hash 来平衡响应时间——因为密码重置
+        请求端点本身不接收密码，且为防枚举，无论邮箱是否存在都返回统一成功响应
+        （由 API 层处理，而非 store 层）。store 层如实返回 None 表示未找到。
+
+        Returns:
+            {"user_id": ..., "email": ..., ...} 或 None
+        """
+        if not email:
+            return None
+        email_normalized = email.strip().lower()
+        email_hmac = self._email_hmac(email_normalized)
+        data = self._load()
+        for user_id, record in data.items():
+            if record.get("email_hmac") == email_hmac:
+                view = self._public_view(record)
+                view["user_id"] = user_id
+                return view
+        return None
+
+    def update_password(self, user_id: str, new_password: str) -> bool:
+        """更新用户密码（P1-3 密码重置确认端点调用）
+
+        - 校验新密码长度 >= password_min_length
+        - 重新生成 salt（不复用旧 salt）
+        - 原子写入
+
+        Returns:
+            True=更新成功；False=用户不存在 / 密码不合规
+        """
+        if not new_password or len(new_password) < self.password_min_length:
+            return False
+        data = self._load()
+        record = data.get(user_id)
+        if record is None:
+            return False
+        salt, password_hash = self._hash_password(new_password)
+        record["salt"] = salt.hex()
+        record["password_hash"] = password_hash.hex()
+        record["password_updated_at"] = datetime.now(timezone.utc).isoformat()
+        data[user_id] = record
+        self._atomic_write(data)
+        return True
+
     def list_users(self) -> list[dict]:
         """列出所有用户
 

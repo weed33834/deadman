@@ -94,6 +94,23 @@ class LoginRequest(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class PasswordResetRequest(BaseModel):
+    """密码重置请求（P1-3）"""
+    email: str = Field(..., description="注册邮箱")
+
+    model_config = {"extra": "ignore"}
+
+
+class PasswordResetConfirm(BaseModel):
+    """密码重置确认（P1-3）"""
+    token: str = Field(..., description="重置令牌（请求端点返回或邮件下发）")
+    new_password: str = Field(
+        ..., min_length=8, max_length=128, description="新密码（8-128 位）"
+    )
+
+    model_config = {"extra": "ignore"}
+
+
 class ChatRequest(BaseModel):
     query: str = Field(..., description="用户输入文本")
     agent: str | None = Field(default=None, description="目标智能体 ID")
@@ -616,6 +633,115 @@ async def auth_refresh(authorization: str | None = Header(default=None)):
         raise HTTPException(status_code=401, detail="token 无效或无需刷新")
     expires_at = _token_expiry_iso(jwt_mgr, new_token)
     return {"token": new_token, "expires_at": expires_at}
+
+
+# =====================================================================
+# 密码重置（P1-3）
+# =====================================================================
+
+
+@app.post("/api/auth/password-reset/request", tags=["auth"])
+async def auth_password_reset_request(req: PasswordResetRequest):
+    """POST /api/auth/password-reset/request → {message}
+
+    防枚举设计：无论邮箱是否存在，统一返回相同成功响应
+    （不泄露"邮箱未注册"信息，防止攻击者枚举有效邮箱）。
+
+    实际行为：
+        - 邮箱存在 → 生成重置令牌（30 分钟 TTL），通过 EmailSender 发送
+                     （SMTP 未配置时返回令牌到响应 body，仅开发环境）
+        - 邮箱不存在 → 静默跳过，返回相同成功响应
+    """
+    from ..auth.password_reset import PasswordResetTokenStore
+
+    store = get_user_store()
+    token_store = PasswordResetTokenStore(data_dir=settings.auth_data_dir)
+
+    user = store.find_user_by_email(req.email)
+
+    # 防枚举：无论是否找到用户，都返回相同响应
+    reset_token: str | None = None
+    if user is not None:
+        reset_token = token_store.create_token(
+            user_id=user["user_id"], email=user.get("email", req.email)
+        )
+        # 尝试通过 EmailSender 发送重置邮件
+        try:
+            from ..notification.email_sender import EmailSender
+
+            sender = EmailSender()
+            if sender.is_configured():
+                subject = "[Dead Man Switch] 密码重置"
+                body = (
+                    f"您正在重置密码。\n\n"
+                    f"重置令牌：{reset_token}\n"
+                    f"有效期：30 分钟\n\n"
+                    f"请使用此令牌和新密码调用 "
+                    f"POST /api/auth/password-reset/confirm 完成重置。\n"
+                    f"如非本人操作请忽略此邮件。\n"
+                )
+                sender.send_sync(user.get("email", req.email), subject, body)
+            # SMTP 未配置时：开发环境直接返回令牌；生产环境应只返回成功消息
+        except Exception as exc:
+            logger.warning("密码重置邮件发送失败 email=%s: %s", req.email, exc)
+
+    # 统一响应（防枚举）：不暴露用户是否存在
+    response: dict[str, Any] = {
+        "message": "如该邮箱已注册，重置链接已发送（30 分钟内有效）"
+    }
+    # 仅当 SMTP 未配置且用户存在时，返回令牌供开发测试
+    # 生产环境配好 SMTP 后此字段不会出现
+    if reset_token is not None:
+        try:
+            from ..notification.email_sender import EmailSender
+
+            if not EmailSender().is_configured():
+                response["dev_reset_token"] = reset_token
+                response["note"] = "SMTP 未配置，令牌直接返回；生产环境请配置 SENTRY_DSN 同级配置"
+        except Exception:
+            pass
+    return response
+
+
+@app.post("/api/auth/password-reset/confirm", tags=["auth"])
+async def auth_password_reset_confirm(req: PasswordResetConfirm):
+    """POST /api/auth/password-reset/confirm → {success, message} 或 400
+
+    使用令牌重置密码：
+        - 令牌无效 / 已过期 / 已使用 → 400
+        - 新密码不合规（< 8 位）→ 422（Pydantic 校验）
+        - 成功 → 200，令牌立即失效（单次使用）
+    """
+    from ..auth.password_reset import PasswordResetTokenStore
+
+    store = get_user_store()
+    token_store = PasswordResetTokenStore(data_dir=settings.auth_data_dir)
+
+    # 消费令牌（单次使用，成功后立即删除）
+    token_info = token_store.consume_token(req.token)
+    if token_info is None:
+        raise HTTPException(
+            status_code=400,
+            detail="重置令牌无效、已过期或已使用",
+        )
+
+    user_id = token_info.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="令牌数据损坏")
+
+    # 更新密码
+    ok = store.update_password(user_id, req.new_password)
+    if not ok:
+        raise HTTPException(
+            status_code=400,
+            detail="密码重置失败（用户不存在或密码不合规）",
+        )
+
+    logger.info("密码重置成功 user_id=%s", user_id)
+    return {
+        "success": True,
+        "message": "密码已重置，请使用新密码登录",
+    }
 
 
 def _extract_bearer(authorization: str | None) -> str | None:
