@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils import crypto
+from ..utils.db_retry import best_effort_db_write
 from .models import EndingNote
 
 logger = logging.getLogger(__name__)
@@ -225,7 +226,8 @@ class EndingNoteStore:
 
     async def _sync_note_to_db(self, user_id: str, envelope: dict[str, Any]) -> None:
         """upsert EndingNoteRecord 到 DB（envelope 序列化为 JSON 字符串，best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import EndingNoteRecord
 
@@ -237,12 +239,13 @@ class EndingNoteStore:
                 else:
                     session.add(EndingNoteRecord(user_id=user_id, envelope_text=envelope_text))
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 ending note 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 ending note 到 DB", logger)
 
     async def _delete_note_from_db(self, user_id: str) -> None:
         """从 DB 删除笔记及衍生记录（shares/incoming/pending_deliveries，best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from sqlalchemy import delete
 
             from ..db.engine import get_async_session_factory
@@ -273,8 +276,8 @@ class EndingNoteStore:
                     )
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("从 DB 删除 ending note 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "从 DB 删除 ending note", logger)
 
     async def _sync_share_to_db(
         self,
@@ -284,7 +287,8 @@ class EndingNoteStore:
         shared_at: datetime,
     ) -> None:
         """upsert EndingNoteShare + EndingNoteIncoming（镜像双写，best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import EndingNoteIncoming, EndingNoteShare
 
@@ -322,14 +326,15 @@ class EndingNoteStore:
                         )
                     )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 ending note share 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 ending note share 到 DB", logger)
 
     async def _delete_share_from_db(
         self, owner_user_id: str, target_user_id: str
     ) -> None:
         """从 DB 删除 EndingNoteShare + EndingNoteIncoming（best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from sqlalchemy import delete
 
             from ..db.engine import get_async_session_factory
@@ -345,8 +350,8 @@ class EndingNoteStore:
                     delete(EndingNoteIncoming).where(EndingNoteIncoming.id == incoming_id)
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("从 DB 删除 ending note share 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "从 DB 删除 ending note share", logger)
 
     async def _sync_pending_delivery_to_db(
         self,
@@ -362,7 +367,8 @@ class EndingNoteStore:
 
         每个 owner 每个 trigger_type 只有一条 pending 记录（与文件存储语义一致）。
         """
-        try:
+
+        async def _op() -> None:
             from sqlalchemy import select
 
             from ..db.engine import get_async_session_factory
@@ -396,8 +402,8 @@ class EndingNoteStore:
                         )
                     )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 ending note pending delivery 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 ending note pending delivery 到 DB", logger)
 
     # ------------------------------------------------------------------
     # 路径辅助

@@ -16,6 +16,7 @@ feature flag: DEADMAN_MARKETPLACE_ENABLED=1(测试启用)
 
 from __future__ import annotations
 
+import datetime as dt
 import time
 
 import pytest
@@ -24,6 +25,17 @@ from deadman.marketplace import MarketplaceError
 # =====================================================================
 # 公共 fixture
 # =====================================================================
+
+
+def _current_period() -> str:
+    """返回当前 UTC 月份的 "YYYY-MM" 周期标识。
+
+    payout 按周期窗口过滤 usage：RevenueShare._parse_period() 把 "YYYY-MM"
+    解析为该月的 UTC 起止区间，而 record_usage() 以 time.time()(UTC epoch)
+    落账。测试若硬编码固定月份，则只在那个月内通过，跨月后 usage 落在窗口
+    之外，分账恒为 0.0。此处与生产实现保持同一时间口径(UTC)。
+    """
+    return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m")
 
 
 def _reset_marketplace_singletons() -> None:
@@ -616,11 +628,12 @@ class TestRevenue:
             revenue._registry.submit(listing)
             revenue._registry.approve(aid)
             revenue.record_usage(aid, "u1", call_count=100, tokens=1000)
-        payout = revenue.payout("author_a", period="2026-07", plan="free")
+        period = _current_period()
+        payout = revenue.payout("author_a", period=period, plan="free")
         # 每个 agent author_share = 70,total = 140
         assert payout.author_id == "author_a"
         assert payout.amount == pytest.approx(140.0)
-        assert payout.period == "2026-07"
+        assert payout.period == period
         assert set(payout.agent_ids) == {"a1", "a2"}
 
     def test_payout_idempotent_overwrites(self, revenue):
@@ -628,8 +641,9 @@ class TestRevenue:
         revenue._registry.submit(listing)
         revenue._registry.approve("a1")
         revenue.record_usage("a1", "u1", call_count=100, tokens=1000)
-        p1 = revenue.payout("author_a", period="2026-07")
-        p2 = revenue.payout("author_a", period="2026-07")
+        period = _current_period()
+        p1 = revenue.payout("author_a", period=period)
+        p2 = revenue.payout("author_a", period=period)
         # 同一 period 覆盖
         assert p1.payout_id == p2.payout_id
         payouts = revenue.get_payouts("author_a")

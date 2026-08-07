@@ -45,11 +45,31 @@ async def initialized_db(sqlite_db):
     return sqlite_db
 
 
-async def _await_bg_sync():
-    """等待 fire-and-forget DB 同步后台任务完成。"""
+async def _await_bg_sync(timeout: float = 5.0):
+    """等待 fire-and-forget DB 同步后台任务完成。
+
+    生产端（SwitchStore._run_async 等）用 asyncio.ensure_future() 派发同步协程
+    且刻意不保留引用，测试侧无法直接 await 具体 task。
+
+    这里轮询 asyncio.all_tasks() 等待除当前任务外的全部任务结束，而不是固定
+    sleep 一个经验值——固定睡眠在 CI / 高负载机器上会因后台任务尚未完成而间歇
+    性失败（本函数原为 sleep(0.2)，实测约 1/3 概率挂在 record_check_in 断言）。
+    轮询方式在空闲时立即返回，更快；在负载高时最长等到 timeout，更稳。
+    """
     import asyncio
 
-    await asyncio.sleep(0.2)
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    current = asyncio.current_task()
+    while True:
+        pending = {t for t in asyncio.all_tasks() if t is not current and not t.done()}
+        if not pending:
+            return
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            # 超时兜底：不在此处抛错，交由调用方的业务断言暴露真实问题
+            return
+        await asyncio.wait(pending, timeout=remaining)
 
 
 # =====================================================================

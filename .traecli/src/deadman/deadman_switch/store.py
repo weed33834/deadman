@@ -35,6 +35,7 @@ from ..ending_note.store import (
     _encrypt,
     _read_json,
 )
+from ..utils.db_retry import best_effort_db_write
 from .models import CheckInLog, SwitchConfig, SwitchRecord, SwitchState
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,8 @@ class SwitchStore:
 
     async def _sync_switch_to_db(self, user_id: str, envelope: dict[str, Any]) -> None:
         """upsert SwitchRecord 到 DB（envelope 序列化为 JSON 字符串，best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import SwitchRecord as SwitchRecordORM
 
@@ -127,14 +129,15 @@ class SwitchStore:
                 else:
                     session.add(SwitchRecordORM(user_id=user_id, envelope_text=envelope_text))
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 switch 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 switch 到 DB", logger)
 
     async def _sync_checkin_to_db(
         self, user_id: str, check_in_at: datetime, method: str
     ) -> None:
         """INSERT SwitchCheckIn 到 DB（best-effort）。"""
-        try:
+
+        async def _op() -> None:
             import uuid
 
             from ..db.engine import get_async_session_factory
@@ -150,12 +153,13 @@ class SwitchStore:
                     )
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 checkin 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 checkin 到 DB", logger)
 
     async def _delete_switch_from_db(self, user_id: str) -> None:
         """从 DB 删除 SwitchRecord + 所有 SwitchCheckIn（best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from sqlalchemy import delete
 
             from ..db.engine import get_async_session_factory
@@ -170,8 +174,8 @@ class SwitchStore:
                     delete(SwitchCheckIn).where(SwitchCheckIn.user_id == user_id)
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("从 DB 删除 switch 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "从 DB 删除 switch", logger)
 
     # ==================================================================
     # 路径辅助

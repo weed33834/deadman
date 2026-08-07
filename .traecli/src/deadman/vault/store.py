@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils import crypto
+from ..utils.db_retry import best_effort_db_write
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,8 @@ class VaultStore:
 
     async def _sync_item_to_db(self, item: VaultItem) -> None:
         """upsert 单个 VaultItem 到 DB（best-effort，失败仅 warning）。"""
-        try:
+
+        async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import VaultItem as VaultItemORM
 
@@ -194,12 +196,13 @@ class VaultStore:
                         )
                     )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 vault item 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 vault item 到 DB", logger)
 
     async def _delete_item_from_db(self, item_id: str) -> None:
         """从 DB 删除单个 VaultItem（best-effort）。"""
-        try:
+
+        async def _op() -> None:
             from sqlalchemy import delete
 
             from ..db.engine import get_async_session_factory
@@ -210,8 +213,8 @@ class VaultStore:
                     delete(VaultItemORM).where(VaultItemORM.item_id == item_id)
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("从 DB 删除 vault item 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "从 DB 删除 vault item", logger)
 
     # ==================================================================
     # 用户目录辅助

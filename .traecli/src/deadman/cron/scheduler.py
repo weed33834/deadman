@@ -691,6 +691,10 @@ class CronScheduler:
 
         策略：删除 DB 中不存在于当前列表的 job，upsert 当前列表中的 job。
         同步是 best-effort，调用方已 try/except 包裹。
+
+        并发安全：fire-and-forget 派发下多次 save() 的全量 upsert 会并发命中同一
+        张表，触发 IntegrityError / "database table is locked"。统一走
+        best_effort_db_write 退避重试（见 utils.db_retry 模块文档）。
         """
         import asyncio
 
@@ -698,6 +702,7 @@ class CronScheduler:
 
         from ..db.engine import get_async_session_factory
         from ..db.models import CronJob as CronJobORM
+        from ..utils.db_retry import best_effort_db_write
 
         async def _sync():
             factory = get_async_session_factory()
@@ -742,6 +747,9 @@ class CronScheduler:
                         ))
                 await session.commit()
 
+        async def _sync_with_retry() -> None:
+            await best_effort_db_write(_sync, "同步 cron 任务到 DB", logger)
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -750,9 +758,9 @@ class CronScheduler:
         if loop is not None:
             # 已在事件循环中 - 创建 task 调度（不阻塞）
             # best-effort DB 同步，无需等待结果也无需持有引用
-            asyncio.ensure_future(_sync())  # noqa: RUF006 - 有意 fire-and-forget
+            asyncio.ensure_future(_sync_with_retry())  # noqa: RUF006 - 有意 fire-and-forget
         else:
-            asyncio.run(_sync())
+            asyncio.run(_sync_with_retry())
 
 
 # ============================================================

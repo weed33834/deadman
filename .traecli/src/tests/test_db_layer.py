@@ -422,11 +422,25 @@ class TestCronSchedulerDualWrite:
     """验证 CronScheduler 在 DB 启用时双写文件 + DB。"""
 
     @staticmethod
-    async def _await_bg_sync():
-        """等待 fire-and-forget DB 同步后台任务完成。"""
+    async def _await_bg_sync(timeout: float = 5.0):
+        """等待 fire-and-forget DB 同步后台任务完成。
+
+        轮询 asyncio.all_tasks() 而非固定 sleep：固定睡眠在高负载下会因后台
+        任务未完成而间歇性失败。空闲时立即返回，负载高时最长等到 timeout。
+        """
         import asyncio
 
-        await asyncio.sleep(0.15)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        current = asyncio.current_task()
+        while True:
+            pending = {t for t in asyncio.all_tasks() if t is not current and not t.done()}
+            if not pending:
+                return
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                return
+            await asyncio.wait(pending, timeout=remaining)
 
     async def test_propose_job_syncs_to_db(self, initialized_db, tmp_path, monkeypatch):
         """propose_job 后任务应同时存在于文件和 DB。"""

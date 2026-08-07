@@ -22,6 +22,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..utils.db_retry import best_effort_db_write
 from .engine import db_enabled, get_async_session_factory
 from .models import User
 
@@ -104,7 +105,8 @@ class UserRepository(BaseRepository):
         """将文件存储的用户记录同步到 DB（best-effort）。"""
         if not db_enabled():
             return
-        try:
+
+        async def _op() -> None:
             # 从文件存储读取完整记录（含 password_hash/salt）
             full_record = self.file_store.get_user_raw(user_id) if self.file_store else None
             if full_record is None:
@@ -131,8 +133,8 @@ class UserRepository(BaseRepository):
                 )
                 session.add(user)
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步用户到 DB 失败（best-effort，不阻断）user=%s: %s", user_id, exc)
+
+        await best_effort_db_write(_op, f"同步用户到 DB（user={user_id}）", logger)
 
     async def _create_db_only(
         self, email: str, password: str, display_name: str | None

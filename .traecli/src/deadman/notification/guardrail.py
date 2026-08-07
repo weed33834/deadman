@@ -27,6 +27,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from ..utils.db_retry import best_effort_db_write
+
 logger = logging.getLogger(__name__)
 
 
@@ -517,7 +519,8 @@ class NotificationGuardrail:
     async def _sync_consent_to_db(
         self, user_id: str, content: str, scope: str, recorded_at: datetime
     ) -> None:
-        try:
+
+        async def _op() -> None:
             import uuid
 
             from ..db.engine import get_async_session_factory
@@ -534,13 +537,14 @@ class NotificationGuardrail:
                     )
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 consent 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 consent 到 DB", logger)
 
     async def _sync_unsubscribe_to_db(
         self, user_id: str, scope: str, recorded_at: datetime
     ) -> None:
-        try:
+
+        async def _op() -> None:
             import uuid
 
             from ..db.engine import get_async_session_factory
@@ -556,13 +560,14 @@ class NotificationGuardrail:
                     )
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 unsubscribe 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 unsubscribe 到 DB", logger)
 
     async def _sync_send_to_db(
         self, user_id: str, content: str, channel: str, sent_at: datetime
     ) -> None:
-        try:
+
+        async def _op() -> None:
             import uuid
 
             from ..db.engine import get_async_session_factory
@@ -579,8 +584,8 @@ class NotificationGuardrail:
                     )
                 )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 sent_log 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 sent_log 到 DB", logger)
 
     async def _sync_session_end_to_db(
         self,
@@ -590,7 +595,8 @@ class NotificationGuardrail:
         involved_sensitive_death: bool,
         ended_at: datetime,
     ) -> None:
-        try:
+
+        async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import NotificationLastSession
 
@@ -612,8 +618,8 @@ class NotificationGuardrail:
                         )
                     )
                 await session.commit()
-        except Exception as exc:
-            logger.warning("同步 last_session 到 DB 失败（best-effort）: %s", exc)
+
+        await best_effort_db_write(_op, "同步 last_session 到 DB", logger)
 
     # ==================================================================
     # sanitize_content - 内容脱敏
