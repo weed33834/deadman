@@ -2,6 +2,38 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v5.2.0（2026-08）省级知识库全量补齐 + 国产大模型接入
+
+> 完成 P1（29 省级行政区知识库全量补齐，含港澳台）与 P2（国产大模型默认接入）。P1 采用「数据表（Province 字段）+ 渲染器」分离架构：全国统一法条口径写死在渲染模板，省级差异化事实入数据表，从根本上避免 26 份手写产生口径漂移；并配套结构 + 数据纪律校验（绝不编造电话号码 / 具体金额，URL 只收已联网核验的省级门户 + 国家级权威源）。P2 把 cost_router 早已路由但 `_PROVIDER_DEFAULTS` 缺失的国产 provider 正式接入，修复「已引用但未定义」导致不可达的缺陷。除新增知识库与两个测试文件外，运行时零新依赖，向后兼容。
+
+### P1：省级身后事知识库全量补齐（含港澳台）
+
+- 新增 [scripts/kb_cn_data.py](scripts/kb_cn_data.py) / [scripts/kb_cn_data_west.py](scripts/kb_cn_data_west.py)：26 个大陆省级 `Province` 数据表（直辖市 / 省 / 自治区），仅存省级差异化事实
+- 新增 [scripts/kb_cn_render_lib.py](scripts/kb_cn_render_lib.py)（阶段1-5 + 通用件）：`split_inherit(p)` 按关键词把 `inherit` 分流到阶段5（金融）/ 阶段6（不动产）/ 阶段7（通用），避免同一条事实三处重复注入
+- 新增 [scripts/kb_cn_render_lib2.py](scripts/kb_cn_render_lib2.py)（阶段6-9 + special + medical + footer）
+- 新增 [scripts/render_kb_cn.py](scripts/render_kb_cn.py)：主渲染器 + `audit()` 结构/数据纪律校验（`--check` 仅校验不写盘，`--only` 单省，`--date` 可复现日期）
+- 渲染产物：`.traecli/knowledge/regions/CN/` 下 26 省 `.md` 全部通过 `audit`（14 一级 + 42 二级区块，0 失败）
+- 港澳台为独立法域，单独手写：
+  - [hongkong.md](.traecli/knowledge/regions/CN/hongkong.md)（普通法：遗产承办书 / 无遗产税 / 强积金）
+  - [macau.md](.traecli/knowledge/regions/CN/macau.md)（葡系大陆法：继承权资格证明书 / 特留份 / 已废遗产税）
+  - [taiwan.md](.traecli/knowledge/regions/CN/taiwan.md)（课征遗产税 / 抛弃继承 3 月 / 两岸关系条例限制；官网本环境不可达，按纪律不收录未核验 URL，仅列机构名）
+- 数据纪律：正文中不出现任何疑似编造的本地座机 / 400 号码；金额一律「向 12345 / 对应机构核实」；URL 仅收 curl 核验 200 的 7 个国家级源 + 省级门户
+- 知识库新鲜度扫描器配套 [SCHEMA.md](.traecli/knowledge/regions/SCHEMA.md) 14 一级 / 42 二级区块标准
+
+### P2：国产大模型默认接入
+
+- 修改 [llm.py](.traecli/src/deadman/llm.py) `_PROVIDER_DEFAULTS`：新增 `qwen`（DashScope `compatible-mode/v1`）/ `deepseek`（`api.deepseek.com`）/ `ernie`（千帆 `/v2`），均为 OpenAI 兼容接口
+- 修改 [llm.py](.traecli/src/deadman/llm.py) `PROVIDER_MODELS`：补三家模型目录（qwen-max/plus/turbo/long、deepseek-chat/reasoner、ernie-4.5/speed/lite），llm-test 可直接选
+- 修复：cost_router 早已 `ModelChoice("deepseek", ...)` 且 SLA 优先级 / 延迟映射含 deepseek、qwen，但旧 `_PROVIDER_DEFAULTS` 无对应 base_url → `LLMClient` 选中后请求打错地址而失败。现三家 base_url 齐备，真正可达
+- 增强 `LLMClient.__init__`：当 `LLM_API_KEY` 为空时，按 provider 回退到专属环境变量（`DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `QIANFAN_API_KEY`），使 cost_router 选中的国产模型也能自动取 key
+- 配置同步：[.env.example](.env.example) 增三家 key 与 fallback 示例；[README.md](README.md) 支持列表 / 配置示例 / 路线图（29 省 + 国产 LLM 两项 v5.x 进行中 → 已勾选）
+
+### 测试
+
+- 新增 [scripts/test_render_kb_cn.py](scripts/test_render_kb_cn.py)（12 个）：`split_inherit` 三路分流与无重复、audit 结构/未核验电话/未核验 URL/门户引用、collect_provinces 无重复 key、26 省全量渲染通过 audit
+- 新增 [.traecli/src/tests/test_domestic_llm_providers.py](.traecli/src/tests/test_domestic_llm_providers.py)（5 个）：三家 provider 登记与 base_url/env_key、进入模型目录、cost_router deepseek 现可达、client 按 provider 回退取 key
+- 全量回归基线保持绿（P0 2807 passed / 1 skipped / 0 failed），ruff 全过
+
 ## v5.1.0（2026-07）编排韧性 + 前端可观测 + 工具 schema 自动化 + 企业级落地
 
 > 在 v5.0.0 基础上完成 P8/P9/P10 三项工程化任务 + 一个 LangGraph checkpointer 关键 bug 修复 + 前端用户流端到端测试，并追加 P0-3 / P1-1 ~ P1-4 五项企业级落地。P10 借鉴 AutoGen `TerminationCondition` 把 P4 硬编码的卡死检测抽成可组合的 `|`（OR 短路）/ `&`（AND 全满足）条件对象；P9 给 Web UI 加 dashboard 概览页，把进程内对话统计（agent 调用次数 / 风险分级 / span 类型 / token 累计 / 终止触发原因）暴露给前端；P8 把 12 个 MCP 工具从手写 `input_schema` 迁移到 `tool_auto` 装饰器，靠 type hints + Google-style docstring 自动生成 JSON Schema。企业级落地：P0-3 接通 DMS 通知邮件通道；P1-1 handoff 默认开启；P1-2 集成 Sentry 错误监控（可选依赖）；P1-3 密码重置流程；P1-4 CI 三 job 质量门禁。除 Sentry（可选 extra）外零新运行时依赖，向后兼容。

@@ -77,6 +77,24 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
         "env_key": "ZHIPU_API_KEY",
         "sdk": "openai",  # 智谱走 OpenAI 兼容接口
     },
+    # 国产大模型 - 通义千问（阿里云 DashScope，OpenAI 兼容接口）
+    "qwen": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "env_key": "DASHSCOPE_API_KEY",
+        "sdk": "openai",
+    },
+    # 国产大模型 - DeepSeek（OpenAI 兼容接口）
+    "deepseek": {
+        "base_url": "https://api.deepseek.com",
+        "env_key": "DEEPSEEK_API_KEY",
+        "sdk": "openai",
+    },
+    # 国产大模型 - 文心一言（百度智能云千帆，OpenAI 兼容 /v2 接口）
+    "ernie": {
+        "base_url": "https://qianfan.baidubce.com/v2",
+        "env_key": "QIANFAN_API_KEY",
+        "sdk": "openai",
+    },
     # 本地模型 - Ollama（OpenAI 兼容接口，默认 11434 端口）
     "ollama": {
         "base_url": "http://localhost:11434/v1",
@@ -210,6 +228,85 @@ PROVIDER_MODELS: dict[str, list[dict[str, Any]]] = {
             "output_price": None,
         },
     ],
+    "qwen": [
+        # 数据源: https://help.aliyun.com/zh/model-studio/ (阿里云百炼/DashScope)
+        {
+            "id": "qwen-max",
+            "name": "通义千问 Max",
+            "context": "32K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "qwen-plus",
+            "name": "通义千问 Plus",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "qwen-turbo",
+            "name": "通义千问 Turbo",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "qwen-long",
+            "name": "通义千问 Long (长上下文)",
+            "context": "1M",
+            "input_price": None,
+            "output_price": None,
+        },
+    ],
+    "deepseek": [
+        # 数据源: https://platform.deepseek.com/api-docs (2026-07)
+        {
+            "id": "deepseek-chat",
+            "name": "DeepSeek Chat (V3)",
+            "context": "64K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "deepseek-reasoner",
+            "name": "DeepSeek Reasoner (R1)",
+            "context": "64K",
+            "input_price": None,
+            "output_price": None,
+        },
+    ],
+    "ernie": [
+        # 数据源: https://cloud.baidu.com/doc/WENXINWORKSHOP (百度智能云千帆)
+        {
+            "id": "ernie-4.5-8k-preview",
+            "name": "文心一言 4.5 (8K)",
+            "context": "8K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "ernie-4.5-turbo-32k",
+            "name": "文心一言 4.5 Turbo (32K)",
+            "context": "32K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "ernie-speed",
+            "name": "文心 Speed (极速版)",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "ernie-lite",
+            "name": "文心 Lite (轻量版)",
+            "context": "32K",
+            "input_price": None,
+            "output_price": None,
+        },
+    ],
     "ollama": [
         # 本地模型，价格均为 0（本地运行）
         {
@@ -314,6 +411,14 @@ class LLMClient:
         self.api_key = api_key or settings.llm_api_key
         self.base_url = base_url or settings.llm_base_url
         self.timeout = settings.llm_timeout
+
+        # 若未显式给 key，按 provider 回退到其专属环境变量
+        # （OPENAI_API_KEY / ZHIPU_API_KEY / DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / QIANFAN_API_KEY）
+        # 这样 cost_router 选中的国产模型也能自动取到自己的 key。
+        if not self.api_key:
+            self.api_key = os.getenv(
+                _PROVIDER_DEFAULTS.get(self.provider, {}).get("env_key", ""), ""
+            )
 
         # P10：记录最近一次成功调用的 token usage，供 TerminationCondition 读取
         # 注意：这是"最近一次"，不是"本轮累计"；本轮累计由 nodes.py 的

@@ -140,7 +140,7 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
         │                    │                    │
 ┌───────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
 │  4 层记忆系统  │  │  知识库 + 工具  │  │  数据落地层     │
-│  working/epi/  │  │  CN 5 省 + US + │  │  ending_note/   │
+│  working/epi/  │  │  CN 34 省/自治区/直辖市 + US + │  │  ending_note/   │
 │  semantic/proc │  │  JP + WebSearch │  │  vault/cases/   │
 │                │  │  + 15 MCP 工具  │  │  switch/tickets │
 └────────────────┘  └─────────────────┘  └─────────────────┘
@@ -261,6 +261,9 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 - OpenAI（GPT-4o / GPT-4 Turbo / GPT-3.5）
 - Anthropic（Claude 3.5 Sonnet / Claude 3 Opus）
 - 智谱（GLM-4.6 / GLM-4-Plus）—— 国内首选
+- 通义千问（阿里云 DashScope，qwen-max / qwen-plus / qwen-turbo / qwen-long）
+- DeepSeek（deepseek-chat / deepseek-reasoner）
+- 文心一言（百度智能云千帆，ernie-4.5 / ernie-speed / ernie-lite）
 - 任何 OpenAI 兼容协议的 LLM（通过 `LLM_BASE_URL` 配置）
 - 支持多 provider fallback 链：主 LLM 失败按序尝试备选
 
@@ -291,7 +294,7 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 
 主要差异：
 
-- **本土化**：deadman 覆盖中国 5 省 + 8 类通知信函 + 微信公众号接入，海外产品只做美国
+- **本土化**：deadman 覆盖中国全部 34 个省级行政区（含港澳台）+ 8 类通知信函 + 微信公众号接入，海外产品只做美国
 - **多智能体**：deadman 6 智能体 + 12 子智能体协作，海外产品是单体应用
 - **规则优先级链**：deadman 有 L0-L8 共 15 个规则文件硬约束，海外产品无此机制
 - **开源**：deadman MIT 开源，海外产品全部闭源 SaaS
@@ -345,8 +348,8 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 
 近期（v5.x）进行中：
 
-- [ ] 补齐剩余 29 省级行政区知识库
-- [ ] 国产 LLM 默认接入（智谱 / 通义千问 / 文心一言）
+- [x] 补齐全国 34 个省级行政区知识库（含港澳台，统一渲染器 + 数据纪律校验）
+- [x] 国产 LLM 接入（智谱 / 通义千问 / DeepSeek / 文心一言，均 OpenAI 兼容）
 - [ ] 移动端 App（React Native）
 
 中期（v6.x）：
@@ -380,6 +383,12 @@ export LLM_PROVIDER="openai"
 # 国内可用智谱：
 # export LLM_PROVIDER="zhipu"
 # export LLM_MODEL="glm-4.6"
+# 国产大模型（均 OpenAI 兼容，LLM_BASE_URL 可留空自动解析）：
+# export LLM_PROVIDER="qwen"      && export DASHSCOPE_API_KEY="sk-xxx"
+# export LLM_PROVIDER="deepseek"  && export DEEPSEEK_API_KEY="sk-xxx"
+# export LLM_PROVIDER="ernie"     && export QIANFAN_API_KEY="xxx"
+# fallback 链亦可混合国产模型：
+# export LLM_FALLBACK_CHAIN="zhipu:glm-4.6,deepseek:deepseek-chat,qwen:qwen-max"
 
 # 生产部署必须设置（否则用开发默认值并打印警告）：
 export DEADMAN_ENDING_NOTE_PASSPHRASE="<强随机串>"
@@ -455,7 +464,7 @@ deadman/
 └── .traecli/                                # 业务实现
     ├── agents/                              # 智能体定义（6 并列 + 12 子智能体）
     ├── rules/                               # 规则文件（L0-L8 优先级链 15 个）
-    ├── knowledge/                           # 地域知识库（CN 5 省 + US + JP）
+    ├── knowledge/                           # 地域知识库（CN 34 省/自治区/直辖市 + US + JP）
     │   └── regions/                         #   SCHEMA.md + 各地域 9 阶段政策
     ├── skills/                              # 技能定义
     ├── tests/                               # 联调场景 + golden cases
