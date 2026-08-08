@@ -118,6 +118,13 @@ class ChatRequest(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class CliRequest(BaseModel):
+    timeout: int = Field(default=60, description="子命令超时（秒）")
+    args: list[str] | None = Field(default=None, description="透传给 CLI 的额外参数")
+
+    model_config = {"extra": "ignore"}
+
+
 # =====================================================================
 # 工具函数
 # =====================================================================
@@ -866,6 +873,20 @@ async def api_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/api/cli/{command}", tags=["cli"])
+async def api_cli(command: str, req: CliRequest):
+    """POST /api/cli/<command> → 通用 CLI 代理（白名单 + subprocess）
+
+    复用 ``web_server._handle_cli`` —— 仅允许 ``_CLI_COMMANDS`` 白名单内的只读/
+    测试子命令，subprocess 调用 ``python -m deadman.cli <command>``。前端「自测
+    网格」(TEST_GROUPS) 由此驱动。_handle_cli 内部为阻塞式 subprocess.run，用
+    ``asyncio.to_thread`` 包裹避免阻塞事件循环。
+    """
+    payload: dict[str, Any] = req.model_dump(exclude_none=True)
+    result = await asyncio.to_thread(web_server._handle_cli, command, payload)
+    return result
 
 
 # =====================================================================
