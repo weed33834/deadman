@@ -95,6 +95,13 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
         "env_key": "QIANFAN_API_KEY",
         "sdk": "openai",
     },
+    # 聚合网关 - newapi（OpenAI 兼容，多厂商模型：auto / DeepSeek-V4-* / glm-5.* 等）
+    # 公开网关地址非密钥；密钥走 NEWAPI_API_KEY 环境变量（绝不硬编码）
+    "newapi": {
+        "base_url": "https://api.hcnsec.cn/v1",
+        "env_key": "NEWAPI_API_KEY",
+        "sdk": "openai",
+    },
     # 本地模型 - Ollama（OpenAI 兼容接口，默认 11434 端口）
     "ollama": {
         "base_url": "http://localhost:11434/v1",
@@ -307,6 +314,45 @@ PROVIDER_MODELS: dict[str, list[dict[str, Any]]] = {
             "output_price": None,
         },
     ],
+    "newapi": [
+        # 聚合网关，模型随网关侧渠道变化；下列为已验证可用模型
+        # 数据源: https://api.hcnsec.cn/v1/models
+        {
+            "id": "auto",
+            "name": "newapi 自动路由 (Auto)",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "DeepSeek-V4-Flash",
+            "name": "DeepSeek V4 Flash",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "DeepSeek-V4-Pro",
+            "name": "DeepSeek V4 Pro",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-5.1",
+            "name": "智谱 GLM-5.1",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+        {
+            "id": "glm-5.2",
+            "name": "智谱 GLM-5.2",
+            "context": "128K",
+            "input_price": None,
+            "output_price": None,
+        },
+    ],
     "ollama": [
         # 本地模型，价格均为 0（本地运行）
         {
@@ -409,7 +455,12 @@ class LLMClient:
         self.provider = provider or settings.llm_provider
         self.model = model or settings.llm_model
         self.api_key = api_key or settings.llm_api_key
-        self.base_url = base_url or settings.llm_base_url
+        # base_url 解析优先级：显式参数 > provider 默认 > 全局 LLM_BASE_URL
+        self.base_url = (
+            base_url
+            or _PROVIDER_DEFAULTS.get(self.provider, {}).get("base_url", "")
+            or settings.llm_base_url
+        )
         self.timeout = settings.llm_timeout
 
         # 若未显式给 key，按 provider 回退到其专属环境变量

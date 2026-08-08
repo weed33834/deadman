@@ -7,6 +7,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
+    """零依赖的 .env 加载器（生产环境用 env 注入即可，本函数仅方便本地开发）。
+
+    仅当变量尚未在环境中存在时才写入 os.environ，避免覆盖已注入的真实配置。
+    """
+    p = Path(path)
+    if not p.exists():
+        return
+    try:
+        for raw in p.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+    except OSError:
+        return
+
+
+_load_dotenv()
+
+
 @dataclass
 class Settings:
     """全局配置"""
