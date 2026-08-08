@@ -163,6 +163,24 @@ _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
 }
 
 
+async def _wrap_awareness(text: str = "", **_: Any) -> Any:
+    """思维意识识别：识别用户意图与安全状态，返回推荐能力路由。
+
+    供智能体在分发动作前自省：用户当下想要什么（遗嘱/办事/陪伴/数字遗产/
+    死人开关/纪念/知识查询），是否处于危机（L0 触发哀伤陪伴护栏）。
+    """
+    from ..awareness import assess
+
+    if not text:
+        return {"ok": False, "error": "text required"}
+    result = await assess(text)
+    return {"ok": True, **result.to_dict()}
+
+
+# awareness 工具在 _wrap_awareness 定义后再注册（避免导入期未定义）
+_TOOL_WRAPPERS["awareness"] = _wrap_awareness
+
+
 def register_default_react_tools() -> None:
     """懒注册默认工具集。
 
