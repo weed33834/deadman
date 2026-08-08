@@ -4,13 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deadman"
-version = "5.1.0"
-description = "deadman - 身后事多智能体引导平台（不绑定任何厂商，适用于所有支持 agent 的平台）"
+version = "5.3.2"
+description = "deadman - 身后事多智能体引导平台：遗嘱/办事流程向导、数字遗产清单、哀伤陪伴、思维意识识别（意图+危机感知），Web 响应式适配。不绑定任何厂商，适用于所有支持 agent 的平台。"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "deadman Team"}]
-keywords = ["deadman", "aftercare", "agent", "multi-agent", "mcp", "langgraph"]
+keywords = [
+    "deadman",
+    "aftercare",
+    "agent",
+    "multi-agent",
+    "mcp",
+    "langgraph",
+    "digital-legacy",
+    "grief-companion",
+    "awareness",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -47,6 +57,8 @@ dependencies = [
     # 工具
     "httpx>=0.28",
     "tenacity>=9.0",
+    # requests：对齐本地 LLM 网关（alignment/local_llm）探测与转发，运行时按需 lazy 导入
+    "requests>=2.28",
     # HTML 解析（替代 web_search 中手写正则解析）
     "beautifulsoup4>=4.12",
     # JWT 会话管理（替代手写 HMAC 实现）
@@ -79,6 +91,20 @@ mcp = ["duckduckgo-search>=8.0"]
 ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
 # P1-2: Sentry 错误监控（sentry-sdk[fastapi] 含 ASGI auto-instrumentation）
 sentry = ["sentry-sdk[fastapi]>=2.0"]
+# 技能市场（marketplace/skill_manager）：frontmatter 解析技能 .md 的 YAML frontmatter
+# 未安装时降级到正则解析
+skills = ["python-frontmatter>=1.0"]
+# 多模态（multimodal/*）：各 SDK 均为 lazy 探测，未安装时对应能力自动降级
+# dashscope=通义千问 VL 视觉理解；edge-tts=语音合成；pywhispercpp=本地 ASR；
+# azure-cognitiveservices-speech=微软语音；torch/sentence-transformers=本地推理与 embedding
+multimodal = [
+    "dashscope>=1.14",
+    "edge-tts>=6.1",
+    "pywhispercpp>=1.0",
+    "azure-cognitiveservices-speech>=1.30",
+    "torch>=2.0",
+    "sentence-transformers>=2.5",
+]
 # 企业级扩展③：文档提取增强（pdfplumber 解析压缩 PDF / python-docx 解析 Word / pytesseract+Pillow OCR 图片）
 # 未安装时降级到 stdlib 正则解析或标记 [needs_ocr] / [unsupported_docx_format]
 doc-extract = [
@@ -95,7 +121,7 @@ db = [
     "alembic>=1.13",
 ]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,doc-extract,db]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db]",
 ]
 
 [project.scripts]

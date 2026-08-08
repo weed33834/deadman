@@ -2,6 +2,28 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v5.3.2（2026-08）思维意识识别接入编排主链 + 依赖/版本一致性
+
+> 小版本更新：把上一轮的「思维意识识别层」真正接入编排主链（路由前先 assess），补齐依赖声明与版本号一致性，清理冗余产物。
+
+### 编排接入（本次核心）
+- `input_guard_node` 在入口处调用 `awareness.assess()`：
+  - **L0 危机早干预**：`needs_crisis_intervention` 为真即置 `safety_override=True` 并填入哀伤陪伴护栏响应，先于任何智能体执行（安全优先短路）
+  - 非危机意图写入 `awareness_intent` / `awareness_capability` / `awareness_result` 状态字段，供下游消费
+- `router_node`：LLM 路由器不可用时，用 awareness 意图做兜底路由（比恒为 `death_aftercare` 更准，如 `knowledge`→`policy_researcher`）
+- `agent_node`：把用户意图注入 system prompt，引导承载智能体（如 `death_aftercare`）贴合意图并适时调用 `digital_legacy` / `grief_companion` 等 ReAct 工具
+- `ConversationState` 新增 `awareness_*` 字段；`awareness.assess()` 为确定性、零成本、离线路径（关键词+危机检测），识别失败不阻断主流程
+
+### 依赖与版本一致性
+- 版本号统一：`pyproject.toml` 与 `deadman/__init__.py` 由陈旧的 `5.1.0` 同步至 `5.3.2`（与 CHANGELOG 现状对齐）
+- 主依赖新增 `requests>=2.28`（`alignment/local_llm` 本地 LLM 网关探测，运行时 lazy 导入）
+- 可选依赖新增 `skills`（python-frontmatter，技能市场 frontmatter 解析）与 `multimodal`（dashscope/edge-tts/pywhispercpp/azure 语音与视觉 SDK，均为 lazy 探测按需安装）；纳入 `all`
+- `pyproject` 项目描述与 keywords 扩充（digital-legacy / grief-companion / awareness）
+
+### 清理
+- 移除本地缓存产物（`__pycache__` / `.pytest_cache` / `.ruff_cache` / `*.egg-info`），均已被 `.gitignore` 覆盖，不入库
+- 确认仓库无冗余/无用源文件（两套知识库渲染 lib 均被 `render_kb_cn.py` 使用）
+
 ## v5.3.1（2026-08）思维意识识别层 + 移动端安全区适配
 
 ### 新增：思维意识识别层 `awareness/`（能力栈「思维意识识别」层补齐）

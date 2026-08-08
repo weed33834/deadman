@@ -65,6 +65,21 @@ AGENT_NAMES: list[str] = [
 # 默认智能体（兜底路由）
 DEFAULT_AGENT = "death_aftercare"
 
+# 思维意识识别（awareness）意图 → 智能体兜底映射
+# LLM 路由器不可用时，用 awareness 关键词意图分类做兜底路由（比恒为 death_aftercare 更准）
+# 注：平台仅 6 个领域智能体，无"数字遗产/纪念/哀伤"专属智能体，相关意图由 death_aftercare
+# 承载，并在 agent_node 注入意图上下文以引导其调用对应 ReAct 工具（digital_legacy/grief_companion）。
+_AWARENESS_INTENT_TO_AGENT: dict[str, str] = {
+    "will": "death_aftercare",
+    "funeral": "death_aftercare",
+    "grief": "death_aftercare",
+    "digital_legacy": "death_aftercare",
+    "dead_switch": "death_aftercare",
+    "memorial": "death_aftercare",
+    "knowledge": "policy_researcher",
+    "general": "death_aftercare",
+}
+
 # L2 输入防护 - Prompt Injection 检测模式
 INJECTION_PATTERNS: list[str] = [
     r"ignore\s+(previous|all|above)\s+instructions",
@@ -339,7 +354,7 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
                 break
 
     safety_override = False
-    draft_response = ""
+    draft_response = state.get("draft_response", "")
 
     if injection_detected:
         # 注入攻击 → 触发安全优先
@@ -373,6 +388,29 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
         except Exception as e:  # pragma: no cover - 防御性
             logger.warning("GUID 沙箱包裹失败，降级到原输入: %s", e)
 
+    # === 思维意识识别（awareness）：路由前先 assess ===
+    # 确定性、零成本、离线：用关键词意图分类 + 危机检测，为下游路由/陪伴提供依据。
+    # L0 危机 → 安全优先短路（早干预，先于任何智能体执行）。
+    awareness_result: dict[str, Any] | None = None
+    awareness_intent: str | None = None
+    awareness_capability: str | None = None
+    awareness_crisis: bool = False
+    try:
+        from ..awareness import assess as awareness_assess
+
+        res = await awareness_assess(user_input, llm=None)
+        awareness_result = res.to_dict()
+        awareness_intent = res.intent
+        awareness_capability = res.recommended_capability
+        if res.needs_crisis_intervention:
+            awareness_crisis = True
+            safety_override = True  # 早干预：L0 触发，跳过其余流程
+            if not draft_response:
+                # 沿用平台统一 L0 危机响应（与 rule_check 安全路径一致，单一信源不发散）
+                draft_response = SAFETY_OVERRIDE_RESPONSE
+    except Exception as e:  # pragma: no cover - 防御性：识别失败不阻断主流程
+        logger.warning("awareness assess 失败，降级跳过: %s", e)
+
     _append_trace_span(
         state,
         "rule",
@@ -382,6 +420,8 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
             "pii_detected": pii_detected,
             "patterns": detected_patterns,
             "guid_sandbox_applied": guid_sandbox_applied,
+            "awareness_intent": awareness_intent,
+            "awareness_crisis": awareness_crisis,
         },
     )
 
@@ -389,6 +429,12 @@ async def input_guard_node(state: ConversationState) -> dict[str, Any]:
         "safety_override": safety_override,
         "trace_spans": state.get("trace_spans", []),
     }
+    # awareness 字段仅在成功识别后写入（保持向后兼容：失败则无这些字段）
+    if awareness_result is not None:
+        updates["awareness_result"] = awareness_result
+        updates["awareness_intent"] = awareness_intent
+        updates["awareness_capability"] = awareness_capability
+        updates["awareness_crisis"] = awareness_crisis
     if draft_response:
         updates["draft_response"] = draft_response
     if safety_override:
@@ -516,6 +562,15 @@ async def router_node(state: ConversationState) -> dict[str, Any]:
             logger.warning("路由 LLM 分类失败，降级到默认智能体: %s", e)
     else:
         reason = "llm_unavailable"
+
+    # awareness 兜底路由：LLM 不可用时用意图识别选智能体（比恒为 death_aftercare 更准）
+    if selected_agent == DEFAULT_AGENT:
+        awareness_intent = state.get("awareness_intent")
+        if awareness_intent:
+            fb = _AWARENESS_INTENT_TO_AGENT.get(awareness_intent)
+            if fb:
+                selected_agent = fb
+                reason = f"awareness_fallback:{awareness_intent}"
 
     _append_trace_span(
         state,
@@ -891,6 +946,19 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
             HandoffManager().apply_handoff(handoff_ctx, dict(state))
         except Exception as e:  # pragma: no cover - 防御性
             logger.warning("应用 handoff 上下文失败，跳过: %s", e)
+
+    # === 思维意识识别（awareness）：把用户意图注入 system prompt ===
+    # 引导承载智能体（如 death_aftercare）贴合意图，并在合适时调用对应 ReAct 工具
+    # （digital_legacy / grief_companion 等）。仅在已识别意图时注入，保持向后兼容。
+    awareness_intent = state.get("awareness_intent")
+    if awareness_intent:
+        awareness_cap = state.get("awareness_capability") or ""
+        system_prompt += (
+            "\n# 用户意图识别（思维意识层）\n"
+            f"当前用户意图倾向：{awareness_intent}；推荐能力：{awareness_cap}。\n"
+            "请在回应时贴合该意图，并在合适时调用对应工具（如数字遗产 digital_legacy / "
+            "哀伤陪伴 grief_companion），但不得虚构工具或越权承诺。\n"
+        )
 
     # 保留前序节点（如 input_guard 的 PII 提示）设置的 draft_response 前缀
     existing_prefix = state.get("draft_response", "")

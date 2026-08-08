@@ -82,6 +82,13 @@ class ConversationState(TypedDict, total=False):
     guid_sandbox_wrapped_input: str  # 用 GUID 包裹后的 user_input
     guid_sandbox_preamble: str  # 注入 system_prompt 的沙箱说明
 
+    # === 思维意识识别（awareness）：编排主链在路由前先 assess ===
+    # input_guard_node 调用 awareness.assess() 填充，router/agent 下游消费
+    awareness_result: dict[str, Any] | None  # assess() 完整结果（含意图分/危机级）
+    awareness_intent: str | None  # 识别出的意图（will/funeral/grief/digital_legacy...）
+    awareness_capability: str | None  # 推荐能力（grief_companion/digital_legacy...）
+    awareness_crisis: bool | None  # 是否需要危机干预（L0 触发）
+
 
 def create_initial_state(
     user_input: str,
@@ -118,4 +125,8 @@ def create_initial_state(
         forced_terminate=False,
         scratchpads={},
         handoff_context=None,
+        awareness_result=None,
+        awareness_intent=None,
+        awareness_capability=None,
+        awareness_crisis=None,
     )

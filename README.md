@@ -537,7 +537,7 @@ deadman --help
 
 | 文档 | 说明 |
 |------|------|
-| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.1.0） |
+| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.3.2） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | 行为准则 |
 | [SECURITY.md](SECURITY.md) | 安全策略与漏洞报告 |
