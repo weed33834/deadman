@@ -77,6 +77,70 @@ async def _wrap_query_knowledge(
     )
 
 
+async def _wrap_digital_legacy(
+    action: str = "summary",
+    user_id: str = "default",
+    asset_id: str | None = None,
+    heir_id: str | None = None,
+    category: str | None = None,
+    name: str | None = None,
+    access_hint: str | None = None,
+    action_on_death: str | None = None,
+    **_: Any,
+) -> Any:
+    """数字遗产清单工具：登记 / 查询 / 指派继承人 / 生成移交方案。
+
+    action:
+      - summary: 返回清单统计（资产数 / 未指派数 / 按类别分布）
+      - add_asset: 新增一项数字资产（需 name + category）
+      - assign: 把资产指派给继承人（需 asset_id + heir_id）
+      - add_heir: 新增继承人（需 name）
+      - plan: 生成 Markdown 移交 / 注销方案
+    敏感字段 access_hint 由存储层加密，不落明文。
+    """
+    import os
+
+    from ..digital_legacy import (
+        AssetAction,
+        DigitalAsset,
+        DigitalLegacyStore,
+        Heir,
+        render_plan_markdown,
+    )
+
+    pw = os.environ.get("DEADMAN_LEGACY_PASSPHRASE", "").encode("utf-8")
+    store = DigitalLegacyStore(user_id=user_id, passphrase=pw or None)
+
+    if action == "summary":
+        return {"ok": True, "summary": store.summary()}
+    if action == "add_heir":
+        if not name:
+            return {"ok": False, "error": "name required"}
+        reg = store.add_heir(Heir(id=heir_id or f"h_{os.urandom(4).hex()}", name=name))
+        return {"ok": True, "heirs": [h.to_dict() for h in reg.heirs]}
+    if action == "add_asset":
+        if not name or not category:
+            return {"ok": False, "error": "name & category required"}
+        asset = DigitalAsset(
+            id=asset_id or f"a_{os.urandom(4).hex()}",
+            category=category,
+            name=name,
+            access_hint=access_hint or "",
+            action_on_death=action_on_death or AssetAction.DECIDE.value,
+        )
+        reg = store.add_asset(asset)
+        return {"ok": True, "assets": [a.to_dict() for a in reg.assets]}
+    if action == "assign":
+        if not asset_id or not heir_id:
+            return {"ok": False, "error": "asset_id & heir_id required"}
+        reg = store.assign_heir(asset_id, heir_id)
+        a = next((x for x in reg.assets if x.id == asset_id), None)
+        return {"ok": True, "assigned_heir_id": a.assigned_heir_id if a else None}
+    if action == "plan":
+        return {"ok": True, "plan": render_plan_markdown(store.load())}
+    return {"ok": False, "error": f"unknown action: {action}"}
+
+
 async def _wrap_web_search_official(query: str, max_results: int = 5, **_: Any) -> Any:
     """包装 web_search_official。"""
     from ..mcp_server import server as mcp_server
@@ -95,6 +159,7 @@ _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "knowledge_lookup": _wrap_query_knowledge,  # 别名
     "knowledge_query": _wrap_query_knowledge,  # 别名
     "web_search_official": _wrap_web_search_official,
+    "digital_legacy": _wrap_digital_legacy,
 }
 
 

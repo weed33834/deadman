@@ -2,6 +2,30 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v5.3.0（2026-08）对标补齐 + 真实 LLM 跑通 + 仓库清理
+
+> 对标竞品（Cipherwill / BeyondLife / GoodTrust / Akeeva / SafeKeep / 中华遗嘱库）补齐两大核心缺口，接入 newapi 聚合网关让项目真正落地跑通，并清理仓库冗余产物。
+
+### 新增：数字遗产清单模块 `digital_legacy/`（对标 Cipherwill / GoodTrust）
+- 结构化资产登记（社交 / 金融 / 加密 / 云盘 / 证件 / 设备 / 订阅 8 类），继承人指派，移交 / 注销 / 纪念化 / 保留动作
+- `access_hint`（访问 / 恢复方式）落盘 AES-256-GCM 加密，绝不存明文
+- 规则驱动生成可执行处置方案（按类别 + 动作产出步骤，不编造深链 / 金额），可选 LLM 增强
+- 接入 ReAct 工具表（`digital_legacy` 工具：summary / add_asset / add_heir / assign / plan），智能体可直接调用
+
+### 新增：哀伤陪伴模块 `grief/`（对标 Akeeva / SafeKeep）
+- 关键词危机分级：L0（自伤 / 轻生）→ 触发 safety-protocol L0，停止事务引导、转介已验证官方热线（400-161-9995 / 12320）
+- L1（强烈哀伤）→ 共情承接；LLM 陪伴遵循「不诊断 / 不开导 / 不比较」约束
+- 全规则路径零依赖、可离线、可测试；LLM 失败时降级回规则
+
+### 接入：newapi 真实 LLM 网关
+- 新增 `newapi` provider（OpenAI 兼容，base_url 走 `https://api.hcnsec.cn/v1`，密钥走 `NEWAPI_API_KEY` 环境变量），实测真实推理通过
+- `config.py` 增加零依赖 `.env` 加载器，本地开发与生产 env 注入统一；`LLMClient` 构造时把 provider 默认 base_url 代入属性
+- `.env.example` 补充 newapi 渠道说明
+
+### 清理
+- 移除 `__pycache__` / `.pytest_cache` / `.ruff_cache` 等生成产物；`.gitignore` 已覆盖，确认 `.env` / `data/` 不入库
+- 542 个跟踪文件，无冗余入库
+
 ## v5.2.0（2026-08）省级知识库全量补齐 + 国产大模型接入
 
 > 完成 P1（29 省级行政区知识库全量补齐，含港澳台）与 P2（国产大模型默认接入）。P1 采用「数据表（Province 字段）+ 渲染器」分离架构：全国统一法条口径写死在渲染模板，省级差异化事实入数据表，从根本上避免 26 份手写产生口径漂移；并配套结构 + 数据纪律校验（绝不编造电话号码 / 具体金额，URL 只收已联网核验的省级门户 + 国家级权威源）。P2 把 cost_router 早已路由但 `_PROVIDER_DEFAULTS` 缺失的国产 provider 正式接入，修复「已引用但未定义」导致不可达的缺陷。除新增知识库与两个测试文件外，运行时零新依赖，向后兼容。
