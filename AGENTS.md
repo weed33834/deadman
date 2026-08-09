@@ -1,5 +1,3 @@
-<!-- 源: core/*.md + profiles/<id>/{AGENTS.md,docs/} + capabilities/*.md + manifests/*.yaml | 生成产物（AGENTS.md / CLAUDE.md / GEMINI.md 等）均非源，请勿手改 -->
-
 # === CORE LAYER (P0 红线，始终生效) ===
 
 ## [core] core/governance.md
