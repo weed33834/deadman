@@ -69,18 +69,18 @@
 - 新增 [scripts/kb_cn_render_lib.py](scripts/kb_cn_render_lib.py)（阶段1-5 + 通用件）：`split_inherit(p)` 按关键词把 `inherit` 分流到阶段5（金融）/ 阶段6（不动产）/ 阶段7（通用），避免同一条事实三处重复注入
 - 新增 [scripts/kb_cn_render_lib2.py](scripts/kb_cn_render_lib2.py)（阶段6-9 + special + medical + footer）
 - 新增 [scripts/render_kb_cn.py](scripts/render_kb_cn.py)：主渲染器 + `audit()` 结构/数据纪律校验（`--check` 仅校验不写盘，`--only` 单省，`--date` 可复现日期）
-- 渲染产物：`.traecli/knowledge/regions/CN/` 下 26 省 `.md` 全部通过 `audit`（14 一级 + 42 二级区块，0 失败）
+- 渲染产物：`src/knowledge/regions/CN/` 下 26 省 `.md` 全部通过 `audit`（14 一级 + 42 二级区块，0 失败）
 - 港澳台为独立法域，单独手写：
-  - [hongkong.md](.traecli/knowledge/regions/CN/hongkong.md)（普通法：遗产承办书 / 无遗产税 / 强积金）
-  - [macau.md](.traecli/knowledge/regions/CN/macau.md)（葡系大陆法：继承权资格证明书 / 特留份 / 已废遗产税）
-  - [taiwan.md](.traecli/knowledge/regions/CN/taiwan.md)（课征遗产税 / 抛弃继承 3 月 / 两岸关系条例限制；官网本环境不可达，按纪律不收录未核验 URL，仅列机构名）
+  - [hongkong.md](src/knowledge/regions/CN/hongkong.md)（普通法：遗产承办书 / 无遗产税 / 强积金）
+  - [macau.md](src/knowledge/regions/CN/macau.md)（葡系大陆法：继承权资格证明书 / 特留份 / 已废遗产税）
+  - [taiwan.md](src/knowledge/regions/CN/taiwan.md)（课征遗产税 / 抛弃继承 3 月 / 两岸关系条例限制；官网本环境不可达，按纪律不收录未核验 URL，仅列机构名）
 - 数据纪律：正文中不出现任何疑似编造的本地座机 / 400 号码；金额一律「向 12345 / 对应机构核实」；URL 仅收 curl 核验 200 的 7 个国家级源 + 省级门户
-- 知识库新鲜度扫描器配套 [SCHEMA.md](.traecli/knowledge/regions/SCHEMA.md) 14 一级 / 42 二级区块标准
+- 知识库新鲜度扫描器配套 [SCHEMA.md](src/knowledge/regions/SCHEMA.md) 14 一级 / 42 二级区块标准
 
 ### P2：国产大模型默认接入
 
-- 修改 [llm.py](.traecli/src/deadman/llm.py) `_PROVIDER_DEFAULTS`：新增 `qwen`（DashScope `compatible-mode/v1`）/ `deepseek`（`api.deepseek.com`）/ `ernie`（千帆 `/v2`），均为 OpenAI 兼容接口
-- 修改 [llm.py](.traecli/src/deadman/llm.py) `PROVIDER_MODELS`：补三家模型目录（qwen-max/plus/turbo/long、deepseek-chat/reasoner、ernie-4.5/speed/lite），llm-test 可直接选
+- 修改 [llm.py](src/src/deadman/llm.py) `_PROVIDER_DEFAULTS`：新增 `qwen`（DashScope `compatible-mode/v1`）/ `deepseek`（`api.deepseek.com`）/ `ernie`（千帆 `/v2`），均为 OpenAI 兼容接口
+- 修改 [llm.py](src/src/deadman/llm.py) `PROVIDER_MODELS`：补三家模型目录（qwen-max/plus/turbo/long、deepseek-chat/reasoner、ernie-4.5/speed/lite），llm-test 可直接选
 - 修复：cost_router 早已 `ModelChoice("deepseek", ...)` 且 SLA 优先级 / 延迟映射含 deepseek、qwen，但旧 `_PROVIDER_DEFAULTS` 无对应 base_url → `LLMClient` 选中后请求打错地址而失败。现三家 base_url 齐备，真正可达
 - 增强 `LLMClient.__init__`：当 `LLM_API_KEY` 为空时，按 provider 回退到专属环境变量（`DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `QIANFAN_API_KEY`），使 cost_router 选中的国产模型也能自动取 key
 - 配置同步：[.env.example](.env.example) 增三家 key 与 fallback 示例；[README.md](README.md) 支持列表 / 配置示例 / 路线图（29 省 + 国产 LLM 两项 v5.x 进行中 → 已勾选）
@@ -88,7 +88,7 @@
 ### 测试
 
 - 新增 [scripts/test_render_kb_cn.py](scripts/test_render_kb_cn.py)（12 个）：`split_inherit` 三路分流与无重复、audit 结构/未核验电话/未核验 URL/门户引用、collect_provinces 无重复 key、26 省全量渲染通过 audit
-- 新增 [.traecli/src/tests/test_domestic_llm_providers.py](.traecli/src/tests/test_domestic_llm_providers.py)（5 个）：三家 provider 登记与 base_url/env_key、进入模型目录、cost_router deepseek 现可达、client 按 provider 回退取 key
+- 新增 [src/src/tests/test_domestic_llm_providers.py](src/src/tests/test_domestic_llm_providers.py)（5 个）：三家 provider 登记与 base_url/env_key、进入模型目录、cost_router deepseek 现可达、client 按 provider 回退取 key
 - 全量回归基线保持绿（P0 2807 passed / 1 skipped / 0 failed），ruff 全过
 
 ## v5.1.0（2026-07）编排韧性 + 前端可观测 + 工具 schema 自动化 + 企业级落地
@@ -97,7 +97,7 @@
 
 ### P10：可组合终止条件（借鉴 AutoGen TerminationCondition）
 
-- 新增 [orchestration/termination.py](.traecli/src/deadman/orchestration/termination.py)（311 行）：
+- 新增 [orchestration/termination.py](src/src/deadman/orchestration/termination.py)（311 行）：
   - `TerminationResult` frozen dataclass（`should_terminate` / `reason` / `source`，不可变便于断言）
   - `TerminationCondition` ABC：抽象 `evaluate(state) -> TerminationResult`，重载 `__or__` / `__and__` 返回组合对象
   - `_OrTerminationCondition`：左侧终止即返回（短路），否则评估右侧
@@ -110,19 +110,19 @@
     - `ExternalTermination()`：外部 `set()` 触发（用户点"停止" / 上游超时 / 运维干预）
     - `TextMentionTermination(keyword, source_field="user_input")`：state 字段含关键词（对应 AutoGen TextMessageTermination）
   - `default_termination()` 工厂：等价 P4 的 `MaxStepsTermination(MAX_STEPS) | StuckAgentTermination(STUCK_AGENT_REPEAT_LIMIT)`
-- 修改 [orchestration/graph.py](.traecli/src/deadman/orchestration/graph.py)：
+- 修改 [orchestration/graph.py](src/src/deadman/orchestration/graph.py)：
   - 加模块级 `_default_termination` 单例（无状态可复用）
   - `_is_stuck(state)` 改为委托：`result = _default_termination.evaluate(state); return result.should_terminate, result.reason`（保留原签名向后兼容）
   - `SequentialExecutor.__init__` 加 `termination: TerminationCondition | None = None` 参数，可注入自定义组合条件
-- 修改 [orchestration/nodes.py](.traecli/src/deadman/orchestration/nodes.py)：
+- 修改 [orchestration/nodes.py](src/src/deadman/orchestration/nodes.py)：
   - 新增 `_accumulate_token_usage(state, usage)` helper：把 LLM 调用返回的 usage dict 累加到 `state["metrics"]["token_usage"]`
   - 3 处 LLM 调用后追加调用：`router_node`（router_llm.chat_json 后）/ `user_confirm_node`（respond_llm.chat 后）/ `agent_node`（respond_llm.chat 后）
   - 设计选择：不走 `cost_tracker`（进程级全局累积，跨会话串扰），走 state 本轮累计
-- 修改 [llm.py](.traecli/src/deadman/llm.py)：
+- 修改 [llm.py](src/src/deadman/llm.py)：
   - `__init__` 加 `self._last_usage: dict[str, int] = {}`
   - `chat_with_tools` 成功后 `self._last_usage = dict(resp.usage or {})`
   - 新增 `last_usage` property：`return dict(self._last_usage)`（供 nodes.py 累加）
-- 测试：[test_p10_termination.py](.traecli/src/tests/test_p10_termination.py) 38 个，覆盖：
+- 测试：[test_p10_termination.py](src/src/tests/test_p10_termination.py) 38 个，覆盖：
   - `TestMaxStepsTermination`(4) / `TestStuckAgentTermination`(3) / `TestTokenUsageTermination`(5)
   - `TestMessageCountTermination`(2) / `TestExternalTermination`(3) / `TestTextMentionTermination`(3)
   - `TestOrCombination`(4) / `TestAndCombination`(3) / `TestNestedCombination`(2)
@@ -132,13 +132,13 @@
 
 ### P9：前端 dashboard 概览页
 
-- 修改 [web/server.py](.traecli/src/deadman/web/server.py)：
+- 修改 [web/server.py](src/src/deadman/web/server.py)：
   - `WebServer.__init__` 加 `self._conversation_stats` 8 字段字典（total_conversations / degraded_count / agent_calls / risk_tier_counts / span_type_counts / token_usage_total / termination_triggers / recent_spans）
   - GET 路由加 `elif path == "/api/dashboard": self._handle_dashboard()`
   - `_handle_dashboard()`：返回 `copy.deepcopy(self._conversation_stats)`（防外部修改）
   - `_record_conversation_stats(...)`：best-effort 累加，4 处接入点（_handle_chat graph 成功 / _handle_chat 降级 / _stream_chat graph 成功 / _stream_chat 降级）
   - 进程内统计（非持久化）：重启即清零，避免跨会话串扰；recent_spans 保留最近 20 条
-- 修改 [web/static/index.html](.traecli/src/deadman/web/static/index.html)：
+- 修改 [web/static/index.html](src/src/deadman/web/static/index.html)：
   - HTML：`page-dashboard` 容器加「对话维度」section（dashboardStatsGrid + dashboard-charts 2x2 + recentSpansTable）
   - CSS：`.dashboard-grid` / `.dashboard-charts` / `.chart-card` / `.bar-chart` / `.bar-item` / `.bar-label` / `.bar-track` / `.bar-fill` / `.bar-value` / `.trace-table`（沿用中式米色 + 印章红克制美学）
   - JS：`loadDashboard()` 末尾追加 `/api/dashboard` fetch；新增 `renderDashboardStats(data)` + `renderBarChart(containerId, data, colorFn)`
@@ -147,7 +147,7 @@
 
 ### P8：13 个 MCP 工具迁移到 tool_auto
 
-- 修改 [mcp_server/server.py](.traecli/src/deadman/mcp_server/server.py)：
+- 修改 [mcp_server/server.py](src/src/deadman/mcp_server/server.py)：
   - 13 个工具从 `@mcp.tool(name=, description=, input_schema={...}, output_schema=...)` 改为 `@mcp.tool_auto(name=, description=, output_schema=...)`
   - enum 字段从 schema dict 改为 `Literal[...]` type hint
   - docstring 加 `Args:` 段（Google-style），`tool_auto` 解析后自动生成参数描述
@@ -157,7 +157,7 @@
 
 ### P0-bug-fix：LangGraph checkpointer thread_id 缺失
 
-- 修复 [web/server.py](.traecli/src/deadman/web/server.py) 两处 `graph.ainvoke(state)` 调用：
+- 修复 [web/server.py](src/src/deadman/web/server.py) 两处 `graph.ainvoke(state)` 调用：
   - 原：`result_state = await graph.ainvoke(state)` —— LangGraph MemorySaver checkpointer 要求 `config["configurable"]["thread_id"]`，缺失抛 `ValueError: Checkpointer requires one or more of the following 'configurable' keys: thread_id, checkpoint_ns, checkpoint_id`
   - 现：
     ```python
@@ -171,7 +171,7 @@
 
 ### 前端用户流端到端测试
 
-- 新增 [tests/test_e2e_frontend_user_flow.py](.traecli/src/tests/test_e2e_frontend_user_flow.py) 7 个测试：
+- 新增 [tests/test_e2e_frontend_user_flow.py](src/src/tests/test_e2e_frontend_user_flow.py) 7 个测试：
   - 沙箱无 playwright/selenium/chromium，用 `httpx` + SSE 解析模拟浏览器交互
   - SSE 解析：`event: trace` / `event: done` / `event: error` 三类事件分发，收到 done/error 后双层 break 退出（避免 httpx ReadTimeout）
   - 超时配置：`httpx.Timeout(connect=5, read=60, write=5, pool=5)`（SSE 长连接 read 60s）
@@ -187,32 +187,32 @@
 
 #### P0-3：Dead Man Switch 通知通道接通
 
-- 修复 [deadman_switch/actions.py](.traecli/src/deadman/deadman_switch/actions.py) `_do_notify_lawyer` / `_do_notify_heirs` 仅记录 `manual_todo` 不实际发邮件的功能契约违背
-- [notification/email_sender.py](.traecli/src/deadman/notification/email_sender.py) 新增 `send_sync()`（stdlib smtplib，无新依赖），与异步 `send()` 共享 `_build_message` 邮件构造逻辑
+- 修复 [deadman_switch/actions.py](src/src/deadman/deadman_switch/actions.py) `_do_notify_lawyer` / `_do_notify_heirs` 仅记录 `manual_todo` 不实际发邮件的功能契约违背
+- [notification/email_sender.py](src/src/deadman/notification/email_sender.py) 新增 `send_sync()`（stdlib smtplib，无新依赖），与异步 `send()` 共享 `_build_message` 邮件构造逻辑
 - `SwitchActionExecutor` 构造注入 `email_sender` / `user_store`（懒加载默认值）；`_do_notify_lawyer` 解析律师邮箱后真正调用 `send_sync`；`_do_notify_heirs` guardrail 校验 + 邮箱解析 + `send_sync` 三段式
 - 行为矩阵：SMTP 配置+成功 → `notified_via=email`；SMTP 未配置 → 降级 `manual_todo`（不阻塞）；发送失败 → `retryable`；邮箱无法解析 → 降级 `manual_todo`；guardrail 拒绝 → `blocked`
 - 测试：`test_deadman_switch.py` 新增 `TestNotifyEmailChannel` 5 项（发送成功 / 降级 / retryable / user_store 解析）
 
 #### P1-1：Handoff 默认开启
 
-- [orchestration/handoff.py](.traecli/src/deadman/orchestration/handoff.py) `HANDOFF_ENABLED` 默认 `"0"` → `"1"`；[handoff_audit.py](.traecli/src/deadman/orchestration/handoff_audit.py) `HANDOFF_AUDIT_ENABLED` 默认 `"0"` → `"1"`（审计链随 handoff 启用）
-- [feature_flags.py](.traecli/src/deadman/infrastructure/feature_flags.py) `_DEFAULTS["handoff"]` / `["handoff_audit"]` `False` → `True`（统一 FeatureFlagManager 与模块级常量）
-- [conftest.py](.traecli/src/tests/conftest.py) 新增 `_disable_handoff_by_default` autouse fixture 全局关闭 handoff 保证测试隔离；`test_handoff.py` 显式 monkeypatch 开启覆盖本 fixture
+- [orchestration/handoff.py](src/src/deadman/orchestration/handoff.py) `HANDOFF_ENABLED` 默认 `"0"` → `"1"`；[handoff_audit.py](src/src/deadman/orchestration/handoff_audit.py) `HANDOFF_AUDIT_ENABLED` 默认 `"0"` → `"1"`（审计链随 handoff 启用）
+- [feature_flags.py](src/src/deadman/infrastructure/feature_flags.py) `_DEFAULTS["handoff"]` / `["handoff_audit"]` `False` → `True`（统一 FeatureFlagManager 与模块级常量）
+- [conftest.py](src/src/tests/conftest.py) 新增 `_disable_handoff_by_default` autouse fixture 全局关闭 handoff 保证测试隔离；`test_handoff.py` 显式 monkeypatch 开启覆盖本 fixture
 - 降级保证不变：LLM 不可用时压缩消息退化为 `[:500]` 截断；显式 `DEADMAN_HANDOFF_ENABLED=0` 仍可关闭
 
 #### P1-2：Sentry 错误监控集成
 
-- 新增 [observability/sentry_init.py](.traecli/src/deadman/observability/sentry_init.py)：`init_sentry` / `capture_exception` / `capture_message` / `add_request_tag`，全部零依赖降级（SDK 未装 / DSN 空 → no-op）
-- [config.py](.traecli/src/deadman/config.py) 新增 `sentry_dsn` / `sentry_environment` / `sentry_traces_sample_rate` / `sentry_release` 字段（`default_factory` 读 env，便于测试隔离）
-- [web/app.py](.traecli/src/deadman/web/app.py) lifespan 启动时调 `init_sentry`；[web/middleware.py](.traecli/src/deadman/web/middleware.py) 兜底 Exception handler + RequestLoggingMiddleware 自动上报并关联 `request_id`
+- 新增 [observability/sentry_init.py](src/src/deadman/observability/sentry_init.py)：`init_sentry` / `capture_exception` / `capture_message` / `add_request_tag`，全部零依赖降级（SDK 未装 / DSN 空 → no-op）
+- [config.py](src/src/deadman/config.py) 新增 `sentry_dsn` / `sentry_environment` / `sentry_traces_sample_rate` / `sentry_release` 字段（`default_factory` 读 env，便于测试隔离）
+- [web/app.py](src/src/deadman/web/app.py) lifespan 启动时调 `init_sentry`；[web/middleware.py](src/src/deadman/web/middleware.py) 兜底 Exception handler + RequestLoggingMiddleware 自动上报并关联 `request_id`
 - [pyproject.toml](pyproject.toml) 新增 `sentry` optional-extra（`sentry-sdk[fastapi]>=2.0`）；`.env.example` 新增 SENTRY_* 变量
 - PIPL 合规：`send_default_pii=False`，不自动采集个人身份信息
 - 测试：`test_sentry_integration.py` 12 项（降级 / 初始化成功路径 / 配置字段读取）
 
 #### P1-3：密码重置功能
 
-- 新增 [auth/password_reset.py](.traecli/src/deadman/auth/password_reset.py) `PasswordResetTokenStore`：`secrets.token_urlsafe(32)` 256 bit 令牌 + 30 分钟 TTL + 单次使用（consume 即删）+ 原子写入
-- [auth/store.py](.traecli/src/deadman/auth/store.py) 新增 `find_user_by_email`（HMAC 索引，大小写不敏感）/ `update_password`（重新生成 salt，不复用旧 salt）
+- 新增 [auth/password_reset.py](src/src/deadman/auth/password_reset.py) `PasswordResetTokenStore`：`secrets.token_urlsafe(32)` 256 bit 令牌 + 30 分钟 TTL + 单次使用（consume 即删）+ 原子写入
+- [auth/store.py](src/src/deadman/auth/store.py) 新增 `find_user_by_email`（HMAC 索引，大小写不敏感）/ `update_password`（重新生成 salt，不复用旧 salt）
 - API 端点：`POST /api/auth/password-reset/request`（防枚举：无论邮箱是否存在统一返回成功；SMTP 配置时发邮件，未配置时返回 `dev_reset_token`）/ `POST /api/auth/password-reset/confirm`（消费令牌 + 更新密码）
 - 测试：`test_password_reset.py` 覆盖令牌生成 / 消费 / 过期 / 重放 / 防枚举 / 邮件下发全路径
 
@@ -261,7 +261,7 @@
 
 #### P0-gap-1：`/api/stream` SSE 流式接口走完整 graph（P0-gap-1）
 
-- 修复 [web/server.py](.traecli/src/deadman/web/server.py) `_stream_chat` 绕过 Phase 7 修复的 `build_main_graph()` 的关键盲区
+- 修复 [web/server.py](src/src/deadman/web/server.py) `_stream_chat` 绕过 Phase 7 修复的 `build_main_graph()` 的关键盲区
 - 原：前端 `index.html` 默认走 `/api/stream`，但 `_stream_chat` 仍硬编码 system prompt 直调 `llm_client.chat_stream()`，L0-L8 规则链全部失效
 - 现：构造 `ConversationState` → `build_main_graph().ainvoke(state)` → 拿到完整 `final_response` → 切分为 SSE chunk 分块下发
 - 普通用户在 Web UI 上实际体验到的对话流终于与文档承诺一致（Phase 7 修复的 `/api/chat` 不再是降级 fallback）
@@ -269,14 +269,14 @@
 
 #### P0-gap-2：Phase 10 ending-note 端点 auth 穿透（P0-gap-2）
 
-- 修复 [web/server.py](.traecli/src/deadman/web/server.py) `_ending_note_user_id` 仍从 query string `?user_id=` 取值的越权漏洞
+- 修复 [web/server.py](src/src/deadman/web/server.py) `_ending_note_user_id` 仍从 query string `?user_id=` 取值的越权漏洞
 - 原：任意登录用户改 `?user_id=xxx` 即可拉取他人终活笔记
 - 现：所有 `/api/ending-note*` 端点统一走 `_phase_auth_user()`（与 Phase 11/12/13 vault/documents/cases 一致），从 JWT payload 取 `user_id`
 - 测试：5 个（auth 穿透 / 越权拦截 / 不带 token 401 / 自己拉自己 200 / 共享场景仍走原 owner_user_id）
 
 #### P0-gap-3：加密方案升级 v2（PBKDF2-HMAC-SHA256 + per-user passphrase）
 
-- 升级 [ending_note/store.py](.traecli/src/deadman/ending_note/store.py) 与 [deadman_switch/store.py](.traecli/src/deadman/deadman_switch/store.py) 的加密原语
+- 升级 [ending_note/store.py](src/src/deadman/ending_note/store.py) 与 [deadman_switch/store.py](src/src/deadman/deadman_switch/store.py) 的加密原语
 - 原：`_encrypt(plaintext, key)` 中 `key` 参数完全未使用，`enc_key`/`mac_key` 仅由随机 nonce+salt 派生 —— 任何拿到 envelope 的人都能解密，零保密性
 - 现：
   - 密钥派生：PBKDF2-HMAC-SHA256（100k 迭代，32 字节输出），输入 = `user_passphrase` + per-message random salt
@@ -294,7 +294,7 @@
 #### memorial_writer：AI 悼文生成器（借鉴 Toast / Empathy / Afterword）
 
 - 参考 Toast（ToastPal AI 悼词）+ Empathy（AI Obituary Writer）+ Afterword
-- 新增 [memorial_writer/generator.py](.traecli/src/deadman/memorial_writer/generator.py) + [memorial_writer/models.py](.traecli/src/deadman/memorial_writer/models.py)
+- 新增 [memorial_writer/generator.py](src/src/deadman/memorial_writer/generator.py) + [memorial_writer/models.py](src/src/deadman/memorial_writer/models.py)
 - 5 种 doc_type：`eulogy`（悼词）/ `obituary`（讣告）/ `thank_you_note`（答谢词）/ `epitaph`（墓志铭）/ `memorial_speech`（追思发言）
 - 3 种 tone：`solemn` / `warm` / `humorous`
 - 4 种 faith 提示：`none` / `buddhist` / `taoist` / `christian`
@@ -308,7 +308,7 @@
 #### notification_letters：通知信函生成器（借鉴 Lantern 8 类模板库）
 
 - 参考 Lantern 的 8 类通知信函生成器，本土化为 8 类中国场景
-- 新增 [notification_letters/generator.py](.traecli/src/deadman/notification_letters/generator.py) + [notification_letters/templates.py](.traecli/src/deadman/notification_letters/templates.py) + [notification_letters/models.py](.traecli/src/deadman/notification_letters/models.py)
+- 新增 [notification_letters/generator.py](src/src/deadman/notification_letters/generator.py) + [notification_letters/templates.py](src/src/deadman/notification_letters/templates.py) + [notification_letters/models.py](src/src/deadman/notification_letters/models.py)
 - 8 类 letter_type：户口注销通知 / 社保丧葬费申领 / 公积金提取 / 医保账户注销 / 银行账户解冻 / 房产继承公证 / 信用卡销户 / 互联网账号注销
 - 模板用 `{{placeholder}}` 占位符，`_fill_template()` 长词优先替换
 - `_extract_placeholders()` 自动检测缺失字段
@@ -321,7 +321,7 @@
 #### deadman_switch：失联开关 + 多因子状态机（直接对标 GoodTrust）
 
 - 参考 GoodTrust 的 "Dead Man Switch" 自动触发机制（与 deadman 项目同名同概念，是最直接的对标）
-- 新增 [deadman_switch/store.py](.traecli/src/deadman/deadman_switch/store.py) + [deadman_switch/models.py](.traecli/src/deadman/deadman_switch/models.py) + [deadman_switch/actions.py](.traecli/src/deadman/deadman_switch/actions.py)
+- 新增 [deadman_switch/store.py](src/src/deadman/deadman_switch/store.py) + [deadman_switch/models.py](src/src/deadman/deadman_switch/models.py) + [deadman_switch/actions.py](src/src/deadman/deadman_switch/actions.py)
 - 5 状态状态机：`ACTIVE` → `SUSPECTED` → `VERIFYING` → `CONFIRMED` → `EXECUTED`；任意 → `ACTIVE`（check-in）/ 任意 → `CANCELLED`
 - 多因子验证：紧急联系人确认 + 继承人确认 + 律师介入 + 7 天冷静期结束才能 `CONFIRMED → EXECUTED`
 - 加密复用 ending_note v2（per-user passphrase 派生标签 `deadman-switch`，与 ending_note 隔离）
@@ -334,7 +334,7 @@
 #### plan_score：身后事规划完整度评分（借鉴 Trust & Will Plan Strength Score）
 
 - 参考 Trust & Will 的 Plan Strength Score
-- 新增 [plan_score/scorer.py](.traecli/src/deadman/plan_score/scorer.py) + [plan_score/models.py](.traecli/src/deadman/plan_score/models.py)
+- 新增 [plan_score/scorer.py](src/src/deadman/plan_score/scorer.py) + [plan_score/models.py](src/src/deadman/plan_score/models.py)
 - 5 维度加权评分（与 deadman 现有 5 模块一一对应）：
   - `ENDING_NOTE` 0.35（终活笔记 9 章节 + 遗嘱意图）
   - `VAULT` 0.25（保险库 4 项指标：password/document/photo/account）
@@ -353,13 +353,13 @@
 #### Phase 16A：5 省份知识库（PM v2 P0-gap-5）
 
 - 新增 5 个省份知识库文件：
-  - [knowledge/regions/CN/beijing.md](.traecli/knowledge/regions/CN/beijing.md)
-  - [knowledge/regions/CN/shanghai.md](.traecli/knowledge/regions/CN/shanghai.md)
-  - [knowledge/regions/CN/guangdong.md](.traecli/knowledge/regions/CN/guangdong.md)
-  - [knowledge/regions/CN/jiangsu.md](.traecli/knowledge/regions/CN/jiangsu.md)
-  - [knowledge/regions/CN/zhejiang.md](.traecli/knowledge/regions/CN/zhejiang.md)
-- 全部按 [knowledge/regions/SCHEMA.md](.traecli/knowledge/regions/SCHEMA.md) 9 阶段结构编写，每条信息附 `source` 与 `last_updated`
-- 新增 [cron/tasks/knowledge_freshness.py](.traecli/src/deadman/cron/tasks/knowledge_freshness.py) 时效巡检：
+  - [knowledge/regions/CN/beijing.md](src/knowledge/regions/CN/beijing.md)
+  - [knowledge/regions/CN/shanghai.md](src/knowledge/regions/CN/shanghai.md)
+  - [knowledge/regions/CN/guangdong.md](src/knowledge/regions/CN/guangdong.md)
+  - [knowledge/regions/CN/jiangsu.md](src/knowledge/regions/CN/jiangsu.md)
+  - [knowledge/regions/CN/zhejiang.md](src/knowledge/regions/CN/zhejiang.md)
+- 全部按 [knowledge/regions/SCHEMA.md](src/knowledge/regions/SCHEMA.md) 9 阶段结构编写，每条信息附 `source` 与 `last_updated`
+- 新增 [cron/tasks/knowledge_freshness.py](src/src/deadman/cron/tasks/knowledge_freshness.py) 时效巡检：
   - `scan_regions(regions_dir)` 扫描所有 .md，按 `STALE_DAYS=180` / `WARNING_DAYS=90` 判定 fresh/warning/stale/unknown
   - 政策变更高发领域关键词（税务/社保/银行/医疗/金融/不动产/车辆/公积金/医保/保险/继承/债权债务/遗产税/契税）命中时 warning 阈值降低
   - `check_official_sources(report)` 提取金额/时限/电话/法条号政策点，输出待审核列表
@@ -368,12 +368,12 @@
 
 #### Phase 16B：微信连接器 + 中国境内搜索 provider（PM v2 P0-gap-4）
 
-- 新增 [gateway/connectors/wechat.py](.traecli/src/deadman/gateway/connectors/wechat.py) 微信公众号连接器：
+- 新增 [gateway/connectors/wechat.py](src/src/deadman/gateway/connectors/wechat.py) 微信公众号连接器：
   - `_verify_signature(signature, timestamp, nonce)`：SHA1(sort(token, timestamp, nonce)) 签名校验
   - `handle_inbound(message_xml)`：解析微信消息 XML（text/image/event 三种类型），返回 Gateway 入站消息
   - `send(user_id, text)`：调 `sendCustomMessage` 客服消息接口（需要 access_token）
   - `start()` / `stop()`：graceful degradation，无 app_id/app_secret 时仅记日志不抛异常
-- 新增 [tools/web_search.py](.traecli/src/deadman/tools/web_search.py) 中国境内搜索 provider：
+- 新增 [tools/web_search.py](src/src/deadman/tools/web_search.py) 中国境内搜索 provider：
   - `BaiduSearchProvider`：百度搜索（默认配置，未配置 API key 时降级提示）
   - `BingCNSearchProvider`：必应中国（cn.bing.com，无需 API key）
   - 与原 `DuckDuckGoSearchProvider` 共存，按用户地区选择
@@ -387,7 +387,7 @@
   - [docs/terms.md](docs/terms.md) 用户协议
   - [docs/support.md](docs/support.md) 客服中心入口
 - Web 端点 `GET /privacy` / `GET /terms` / `GET /support` 渲染为 HTML
-- 新增 [support/store.py](.traecli/src/deadman/support/store.py) + [support/models.py](.traecli/src/deadman/support/models.py) 客服工单：
+- 新增 [support/store.py](src/src/deadman/support/store.py) + [support/models.py](src/src/deadman/support/models.py) 客服工单：
   - 5 类 category：`咨询` / `反馈` / `投诉` / `数据删除` / `跨境合规`
   - 3 级 priority：`低` / `普通` / `紧急`
   - 4 状态：`open` / `in_progress` / `resolved` / `closed`
@@ -395,7 +395,7 @@
   - 原子文件写入（权限 0o600）+ 索引文件
   - `add_reply(ticket_id, author, content, user_id)` 追加回复
   - `update_status(ticket_id, status, user_id)` 状态流转校验
-- 新增 [onboarding/wizard.py](.traecli/src/deadman/onboarding/wizard.py) + [onboarding/store.py](.traecli/src/deadman/onboarding/store.py) + [onboarding/models.py](.traecli/src/deadman/onboarding/models.py) Onboarding 引导：
+- 新增 [onboarding/wizard.py](src/src/deadman/onboarding/wizard.py) + [onboarding/store.py](src/src/deadman/onboarding/store.py) + [onboarding/models.py](src/src/deadman/onboarding/models.py) Onboarding 引导：
   - 5 步引导：`relationship` → `location` → `death_date` → `current_stage` → `consent`
   - 34 个省份选项（与知识库 `_PROVINCES` 列表一致）
   - 11 个办理阶段选项（参考 skills/death-aftercare-guide 划分）
@@ -413,7 +413,7 @@
 
 #### Phase 17D：13 个新 CLI 子命令
 
-- 新增 [_cli_extensions/phase16.py](.traecli/src/deadman/_cli_extensions/phase16.py) 集中注册 13 个子命令：
+- 新增 [_cli_extensions/phase16.py](src/src/deadman/_cli_extensions/phase16.py) 集中注册 13 个子命令：
   - Support Ticket（5）：`ticket-create` / `ticket-list` / `ticket-get` / `ticket-reply` / `ticket-close`
   - Onboarding（3）：`onboarding-show` / `onboarding-save` / `onboarding-steps`
   - Knowledge Freshness（2）：`knowledge-freshness-scan` / `knowledge-freshness-check`
@@ -425,7 +425,7 @@
 
 #### Phase 17E：跨模块集成测试（本版本）
 
-- 新增 [tests/test_phase17_integration.py](.traecli/src/tests/test_phase17_integration.py) 跨模块集成测试 22 个：
+- 新增 [tests/test_phase17_integration.py](src/src/tests/test_phase17_integration.py) 跨模块集成测试 22 个：
   - Phase 14 + Phase 15 集成（3 个）：ending_note 加密 v2 + plan_score 联动 / vault 加密 + deadman_switch 联动 / memorial_writer + notification_letters 联动
   - Phase 16 + Phase 15 集成（3 个）：plan_score 与 onboarding profile 联动 / knowledge_freshness 扫描 Phase 16A 5 省份文件 / support ticket 关联 deadman_switch
   - Phase 17D CLI + 模块集成（3 个）：CLI ticket-create 后用 ticket-get 读出 / CLI onboarding-save 后用 onboarding-show 读出 / CLI knowledge-freshness-scan 扫描真实 Phase 16A 文件
@@ -489,7 +489,7 @@
 
 #### Phase 7：Web UI /api/chat 走完整规则链（P0-1）
 
-- 修复 [web/server.py](.traecli/src/deadman/web/server.py) `_handle_chat` 绕过 `orchestration/graph.py` 的关键缺陷
+- 修复 [web/server.py](src/src/deadman/web/server.py) `_handle_chat` 绕过 `orchestration/graph.py` 的关键缺陷
 - 原：硬编码 system prompt 直接调 `llm_client.chat()`，L0-L8 规则链全部失效
 - 现：构造 `ConversationState` → `build_main_graph().ainvoke(state)` → 提取 response/risk_tier/safety_triggered/rule_violations → 调 `MemoryManager.after_turn` 更新 4 层记忆
 - 降级路径：graph 失败时改用 `SoulLoader().default_soul()` 作为 system message（不再硬编码），标记 `degraded=True`
@@ -619,23 +619,23 @@
 
 ## v4.6.1（2026-07）消息平台 Gateway + Telegram 连接器 + NotificationGuardrail L4 硬边界（借鉴 Hermes Agent MIT 设计）
 
-> 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 `gateway/run.py` + `plugins/platforms/telegram/adapter.py` 设计，按 deadman 身后事场景定位改造。**不是直接复制代码**——Hermes 的 Gateway 默认开启主动推送，deadman 必须反向约束：默认不启动，所有主动推送必须先过 `NotificationGuardrail.can_send()` 七项硬约束。严格遵守 `.traecli/rules/notification-guardrails.md` 第七章 L4 硬边界规范。
+> 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 `gateway/run.py` + `plugins/platforms/telegram/adapter.py` 设计，按 deadman 身后事场景定位改造。**不是直接复制代码**——Hermes 的 Gateway 默认开启主动推送，deadman 必须反向约束：默认不启动，所有主动推送必须先过 `NotificationGuardrail.can_send()` 七项硬约束。严格遵守 `src/rules/notification-guardrails.md` 第七章 L4 硬边界规范。
 
 ### 新增模块
 
-- **NotificationGuardrail**（`.traecli/src/deadman/notification/guardrail.py`）：L4 硬边界主动通知护栏，实现 `notification-guardrails.md` 第七章规范
+- **NotificationGuardrail**（`src/src/deadman/notification/guardrail.py`）：L4 硬边界主动通知护栏，实现 `notification-guardrails.md` 第七章规范
   - `can_send(user_id, scheduled_time)` 九步检查：退订 → 静默时段 → 敏感日期 → 72h 会话后 → 30d 敏感死亡后 → 14d R3 后 → 7d 高情绪后 → 频率上限 → opt-in
   - `sanitize_content(content)`：长词优先替换（"死亡证明" → "资料准备" 优先于 "死亡" → "待办事项"），命中"忌日/周年/自杀/他杀/非正常死亡"等完全禁止推送关键词时返回空串
   - `is_sensitive_date(dt, user_id)`：清明（4-5）/ 中元（8-15）/ 寒衣（11-1）/ 重阳（农历九月初九，简化为 10-1）±3 天 + 用户生日 ±3 天
   - `record_consent` / `record_unsubscribe` / `record_send` / `record_session_end`：JSON 文件持久化（`consent.json` / `unsubscribes.json` / `sent_log.json` / `last_session.json`），原子写入（tmp + `os.replace`）
   - 频率上限：日 1 / 周 3 / 月 8；静默时段：22:00-08:00（用户当地时区）
-- **Gateway**（`.traecli/src/deadman/gateway/core.py`）：消息平台网关核心，借鉴 Hermes Gateway 简化设计
+- **Gateway**（`src/src/deadman/gateway/core.py`）：消息平台网关核心，借鉴 Hermes Gateway 简化设计
   - `connectors` 注册表 + `register_connector` / `start` / `_poll_loop` / `stop` 生命周期
   - `handle_inbound(platform, user_id, text)`：被动响应，**不走 guardrail**（L0-L8 规则仍由 graph 节点执行）
   - `send_proactive(user_id, content, channel)`：主动推送，**必须先过 `guard.can_send()`** → `sanitize_content` → `_append_unsubscribe_hint` → `connector.send` → `record_send`，任一环节失败立即返回 `(False, reason)`
   - `_UNSUBSCRIBE_HINTS`：telegram/email/webhook/wechat 各渠道退订入口模板，未知渠道用 webhook 兜底
-- **PlatformConnector Protocol**（`.traecli/src/deadman/gateway/connectors/base.py`）：`@runtime_checkable` Protocol，定义 `platform_name` / `start` / `stop` / `send` / `poll` 接口
-- **TelegramConnector**（`.traecli/src/deadman/gateway/connectors/telegram.py`）：用 httpx 直连 Telegram Bot API（**不引入 python-telegram-bot 库**）
+- **PlatformConnector Protocol**（`src/src/deadman/gateway/connectors/base.py`）：`@runtime_checkable` Protocol，定义 `platform_name` / `start` / `stop` / `send` / `poll` 接口
+- **TelegramConnector**（`src/src/deadman/gateway/connectors/telegram.py`）：用 httpx 直连 Telegram Bot API（**不引入 python-telegram-bot 库**）
   - `start()`：无 `bot_token` 时 graceful degradation（仅记日志，不抛异常）；有 token 时 `getMe` 校验
   - `poll()`：AsyncIterator，`getUpdates` long polling（`timeout=30`），处理 `/start <token>` 配对、`/stop`、`/help`
   - `send(chat_id_or_user_id, text)`：先经 `_resolve_chat_id` 解析（user_id → chat_id 反查表），再调 `sendMessage`
@@ -643,7 +643,7 @@
 
 ### Config 扩展
 
-- `.traecli/src/deadman/config.py` 新增三个字段：
+- `src/src/deadman/config.py` 新增三个字段：
   - `telegram_bot_token: str`（默认空串，环境变量 `DEADMAN_TELEGRAM_BOT_TOKEN`）
   - `gateway_enabled: bool`（默认 False，环境变量 `DEADMAN_GATEWAY_ENABLED`）
   - `notification_data_dir: Path`（默认 `~/.deadman/notifications`，环境变量 `DEADMAN_NOTIFICATION_DATA_DIR`）
@@ -658,7 +658,7 @@
 
 ### 测试
 
-- `.traecli/src/tests/test_notification_guardrail.py`（14 个测试方法，11 个测试类）：
+- `src/src/tests/test_notification_guardrail.py`（14 个测试方法，11 个测试类）：
   - `TestSilentHours`：22:00 阻塞 / 07:00 阻塞 / 10:00 允许
   - `TestFrequencyDailyLimit`：日 1 次上限
   - `TestFrequencyWeeklyLimit`：周 3 次上限
@@ -673,7 +673,7 @@
   - `Test72hSilenceAfterSession`：72h 内阻塞 / 72h 后允许
   - `TestR3_14dSilence`：R3 触发后 14 天内阻塞
   - `TestHighEmotion7dSilence`：高情绪会话后 7 天内阻塞
-- `.traecli/src/tests/test_gateway.py`（6 个测试方法，6 个测试类）：
+- `src/src/tests/test_gateway.py`（6 个测试方法，6 个测试类）：
   - `TestHandleInboundCallsGraph`：handle_inbound 调 graph.ainvoke（不走 guardrail）
   - `TestSendProactiveBlockedByGuardrail`：can_send 返回 False 时不发送、不记录
   - `TestSendProactiveSanitizesContent`：发送前过 sanitize_content
@@ -763,7 +763,7 @@
 
 ### Cron 模块测试
 
-- `.traecli/src/tests/test_cron_expr.py`（7 个测试方法，4 个测试类）：
+- `src/src/tests/test_cron_expr.py`（7 个测试方法，4 个测试类）：
   - `test_basic_match`：`0 9 * * *` 匹配 9:00
   - `test_range_match`：`0 9-17 * * 1-5` 工作日 9-17 点
   - `test_step_match`：`*/30 * * * *` 每 30 分钟
@@ -771,7 +771,7 @@
   - `test_min_interval_hours_daily`：`0 9 * * *` 间隔 24h
   - `test_min_interval_hours_monthly`：`0 0 1 * *` 间隔 ≥ 28 天
   - `test_invalid_expr`：`0 25 * * *`（小时超界）抛 ValueError
-- `.traecli/src/tests/test_cron_scheduler.py`（13 个测试方法，6 个测试类）：
+- `src/src/tests/test_cron_scheduler.py`（13 个测试方法，6 个测试类）：
   - `test_propose_needs_confirmation`：propose 后 pending_confirmation=True
   - `test_confirm_activates_job`：confirm 后 enabled=True
   - `test_confirm_without_propose_fails`：直接 confirm 不存在的 job 报错
@@ -803,7 +803,7 @@
 
 > 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 `tools/web_tools.py` 设计，按 deadman 身后事场景定位改造。**不是直接复制代码**，而是借鉴 provider 抽象 + 可信度判定的设计，用 httpx 直连 + HTML 解析实现，避免引入 duckduckgo-search 重依赖。
 
-- **WebSearchTool**（`.traecli/src/deadman/tools/web_search.py`）：
+- **WebSearchTool**（`src/src/deadman/tools/web_search.py`）：
   - 借鉴 Hermes 的 WebSearchProvider 抽象，但用 `DuckDuckGoSearchProvider`（httpx 直连 `https://html.duckduckgo.com/html/`，正则解析 result__a / result__snippet，不依赖 duckduckgo-search / ddgs 包）
   - 每个结果含 `source_type`（official/news/org/blog/forum/unknown）和 `confidence`（0-1）（retrieval-guardrails 信任等级）
   - `_classify()` 域名分类：.gov.cn/.gov → official 0.9；.edu.cn/.edu → official 0.85；已知新闻域名 → news 0.7；.org → org 0.6；blog/forum 指标 → 0.4；其他 → unknown 0.4
@@ -818,7 +818,7 @@
 
 > 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 `tools/code_execution_tool.py` 设计，按 deadman 身后事场景定位改造。**不是直接复制代码**——Hermes 用 UDS + file-based RPC 实现 PTC（让 LLM 在沙箱内调用其他工具），deadman 不需要 PTC，仅执行用户提供的 Python 代码字符串。
 
-- **SandboxResult + SandboxBackend Protocol**（`.traecli/src/deadman/sandbox/base.py`）：
+- **SandboxResult + SandboxBackend Protocol**（`src/src/deadman/sandbox/base.py`）：
   - `SandboxResult` dataclass：ok / exit_code / stdout / stderr / backend / duration_ms / timed_out / error
   - `SandboxBackend` Protocol：`is_available()` + `async execute(code, timeout)`，可插拔
 - **LocalSandbox**：子进程 + `resource.setrlimit` 资源限制
@@ -839,7 +839,7 @@
 
 ### MCP Server 集成（13 → 15 工具）
 
-- `.traecli/src/deadman/mcp_server/server.py`：
+- `src/src/deadman/mcp_server/server.py`：
   - **替换** mock `web_search` 工具为真实 `WebSearchTool().search()` 调用（不再依赖 duckduckgo-search，不再返回 `mock=True`）
   - **新增** `web_search_official` 工具：仅返回官方源（source_type=official + confidence≥0.85）
   - **新增** `execute_code` 工具：调用 `SandboxManager().execute(code)`，返回 `SandboxResult.to_dict()`
@@ -848,13 +848,13 @@
 
 ### CLI 集成
 
-- `.traecli/src/deadman/cli.py` 新增两个子命令：
+- `src/src/deadman/cli.py` 新增两个子命令：
   - `deadman web-search <query> [--max N] [--fail-fast]`：联网搜索测试，表格打印结果（confidence<0.5 标黄 ANSI 黄色），写入 `data/web_search_health.json` 供反馈闭环
   - `deadman sandbox-test [--fail-fast]`：沙箱代码执行测试，3 步（后端可用性检测 + 基本执行 print('hello from sandbox') + 超时测试 while True timeout=2）
 
 ### 测试
 
-- `.traecli/src/tests/test_web_search.py`（9 个测试方法，5 个测试类）：
+- `src/src/tests/test_web_search.py`（9 个测试方法，5 个测试类）：
   - `test_classify_gov_cn`：.gov.cn → ("official", 0.9)
   - `test_classify_gov`：.gov.uk → ("official", 0.9)
   - `test_classify_edu`：.edu.cn → ("official", 0.85)
@@ -864,7 +864,7 @@
   - `test_search_no_injection`：shell 元字符仅作为 URL params（input-guardrails，验证 URL 不含 `rm -rf` / `$(cat`）
   - `test_search_low_confidence_note`：全部低可信度时 note 含"需向官方核实"（retrieval-guardrails）
   - `test_search_provider_protocol`：自定义 provider 可插拔（Protocol 结构子类型）
-- `.traecli/src/tests/test_sandbox.py`（7 个测试方法，7 个测试类）：
+- `src/src/tests/test_sandbox.py`（7 个测试方法，7 个测试类）：
   - `test_local_sandbox_execute_ok`：print('hello from sandbox') 成功
   - `test_local_sandbox_timeout`：while True 在 timeout=1 时被终止（timed_out=True）
   - `test_local_sandbox_stderr`：1/0 触发 ZeroDivisionError，stderr 含错误名
@@ -872,7 +872,7 @@
   - `test_docker_sandbox_unavailable_graceful`：Docker 不可用时返回 ok=False, error="docker_unavailable"
   - `test_sandbox_manager_fallback`：Docker 不可用时降级到 LocalSandbox
   - `test_sandbox_manager_prefers_docker`：Docker 可用时优先使用 Docker（mock 验证）
-- `.traecli/src/tests/test_mcp_server.py` 更新 3 个测试：
+- `src/src/tests/test_mcp_server.py` 更新 3 个测试：
   - `test_list_tools_returns_13_tools` → `test_list_tools_returns_15_tools`（13→15）
   - `test_expected_tool_names`：expected set 加入 `web_search_official` + `execute_code`
   - `test_call_web_search_returns_mock` → `test_call_web_search_returns_real`（不再有 `mock=True`，改为验证 `ok` / `results` / `note` 字段）
@@ -893,24 +893,24 @@
 
 ## v4.5.1（2026-07）文件持久化记忆层 + 交互式 REPL（借鉴 Hermes Agent MIT 设计）
 
-> 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 SOUL.md / MEMORY.md / USER.md 文件格式与 `hermes` 交互命令设计，在 deadman 现有架构上增量实现文件持久化记忆层与交互式 REPL。**不是直接复制代码**，而是借鉴设计 + 文件格式，严格遵守 `.traecli/rules/` 下 14 个规则文件（integrity-framework / safety-protocol / input-guardrails / compliance-framework 等）。
+> 借鉴 [Hermes Agent](https://github.com/NousResearchOS/Hermes-Agent)（MIT License）的 SOUL.md / MEMORY.md / USER.md 文件格式与 `hermes` 交互命令设计，在 deadman 现有架构上增量实现文件持久化记忆层与交互式 REPL。**不是直接复制代码**，而是借鉴设计 + 文件格式，严格遵守 `src/rules/` 下 14 个规则文件（integrity-framework / safety-protocol / input-guardrails / compliance-framework 等）。
 
 ### 新增模块
 
-- **FileMemoryStore**（`.traecli/src/deadman/memory/file_store.py`）：纯文件持久化记忆层，作为 Graphiti/LightRAG 都不可用时的降级后端
+- **FileMemoryStore**（`src/src/deadman/memory/file_store.py`）：纯文件持久化记忆层，作为 Graphiti/LightRAG 都不可用时的降级后端
   - 借鉴 Hermes MEMORY.md/USER.md 格式：YAML frontmatter + markdown body
   - 三个文件：`~/.deadman/memory/USER.md`（用户画像）、`MEMORY.md`（长期事实，按 4 章节组织）、`EPISODES.md`（情景记忆摘要）
   - 原子写入：先写 `.tmp` 再 `os.replace`，`fsync` 保证落盘，不残留临时文件
   - **PII 脱敏硬约束**：`save_profile` 调用 `sanitize_before_store` 对 identifier/name/phone/address/account_number 字段递归掩码（compliance-framework 数据安全底线）
   - 韧性优先：文件不存在返回空结构，写入失败仅 warning，绝不抛异常
 
-- **SoulLoader**（`.traecli/src/deadman/soul_loader.py`）：SOUL.md 用户级身份覆盖层
+- **SoulLoader**（`src/src/deadman/soul_loader.py`）：SOUL.md 用户级身份覆盖层
   - 借鉴 Hermes "define your bot's soul" 思想：用户可在 `~/.deadman/SOUL.md` 写入个性化身份
   - 默认 SOUL 强调 service-boundary 硬约束：不代办 / 不出法律意见 / 不与殡葬机构分成 / 不编造信息
   - 风险优先级链：safety-protocol > integrity-framework > input-guardrails
   - **不修改任何 `agents/*.md`**（平台级智能体定义，AI-RULE 严格保护）
 
-- **ChatREPL**（`.traecli/src/deadman/repl.py`）：交互式对话 REPL，实现 `deadman chat` 子命令
+- **ChatREPL**（`src/src/deadman/repl.py`）：交互式对话 REPL，实现 `deadman chat` 子命令
   - 借鉴 Hermes `hermes` 交互命令：asyncio + `input()` 主循环，不用 readline/curses（依赖最小）
   - slash 命令白名单：`/help` `/reset` `/usage` `/soul` `/memory` `/quit` `/exit`
   - **防注入硬约束**（input-guardrails.md）：用户输入仅作为 `ConversationState.user_input` 字段，绝不拼接到 shell/exec/eval；未知 slash 命令当普通文本送 LLM
@@ -919,7 +919,7 @@
 
 ### MemoryManager 集成（降级后端）
 
-- `.traecli/src/deadman/memory/manager.py` 新增 `file_store` 参数与 `_is_file_store_active()` 方法
+- `src/src/deadman/memory/manager.py` 新增 `file_store` 参数与 `_is_file_store_active()` 方法
 - 启用条件：graphiti 和 lightrag 都不可用 + file_store 就绪；首次启用时打印一次降级日志
 - `start_session`：profile 为 None 时从 `USER.md` 加载注入到 semantic 内存；recent_episodes 为空时从 `EPISODES.md` 加载
 - `after_turn`：写入更新后的 profile + 追加 episode 摘要 + 把标量事实追加到 `MEMORY.md` "用户事实" 章节
@@ -927,20 +927,20 @@
 
 ### CLI 集成
 
-- `.traecli/src/deadman/cli.py` 新增三个子命令：
+- `src/src/deadman/cli.py` 新增三个子命令：
   - `deadman chat [--user-id X] [--session-id Y]`：启动交互式 REPL
   - `deadman memory-export`：打印 FileMemoryStore 合并 markdown 视图（USER + MEMORY + EPISODES）
   - `deadman soul-show`：显示当前 SOUL.md（用户级或默认，标注来源）
 
 ### 测试
 
-- `.traecli/src/tests/test_file_store.py`（5 个测试类，8 个测试方法）：
+- `src/src/tests/test_file_store.py`（5 个测试类，8 个测试方法）：
   - `test_save_load_profile_roundtrip`：save_profile + load_profile 往返一致性 + user_id 不匹配返回 None
   - `test_pii_masking`：PII 字段 name 在落盘文件中被掩码（compliance-framework 数据安全）
   - `test_append_episode`：append_episode + load_episodes 追加/读取/limit + 多行 summary 单行化
   - `test_atomic_write`：_atomic_write 不残留 .tmp 文件 + 二次写入覆盖
   - `test_missing_file_returns_empty`：文件不存在返回空结构，不抛异常
-- `.traecli/src/tests/test_repl.py`（3 个测试类，6 个测试方法）：
+- `src/src/tests/test_repl.py`（3 个测试类，6 个测试方法）：
   - `test_slash_help`：/help 打印所有 slash 命令 + 不调用 graph
   - `test_slash_quit`：/quit 使 _read_input 返回 None + run() 退出码 0
   - `test_normal_input_calls_graph`：普通输入调用 graph.ainvoke + 用户输入仅作为 state.user_input（防注入）+ 含 shell 元字符的恶意输入原样传递不执行
@@ -966,7 +966,7 @@
 - Python 包名 `legacy` → `deadman`（src/ 与 tests/ 所有 imports 同步更新）
 - PyPI 包名 `legacy-aftercare` → `deadman`
 - CLI 命令 `legacy` / `legacy-mcp-server` / `legacy-a2a-server` / `legacy-web-server` → `deadman` / `deadman-mcp-server` / `deadman-a2a-server` / `deadman-web-server`
-- 目录 `.traecli/src/legacy/` → `.traecli/src/deadman/`（git mv 保留历史）
+- 目录 `src/src/legacy/` → `src/src/deadman/`（git mv 保留历史）
 - Prompt 文件 `legacy-greeter.prompty` → `deadman-greeter.prompty`（git mv 保留历史）
 - 配置默认值 `SANDBOX_WORK_DIR=/tmp/legacy-sandbox` → `/tmp/deadman-sandbox`，`A2A_SELF_AGENT_ID=legacy` → `deadman`
 - A2A / MCP Server 服务名 `legacy-aftercare-platform` / `legacy-platform` → `deadman-platform`
@@ -1018,7 +1018,7 @@
 - pytest fixtures 自动重置全局单例，保证用例隔离
 - 覆盖率报告：`pytest --cov=legacy --cov-report=html`
 
-### Docker 容器化（.traecli/）
+### Docker 容器化（src/）
 
 - **Dockerfile**：多阶段构建（builder + runtime），基于 python:3.11-slim，非 root 用户，tini 作为 PID 1，HEALTHCHECK 配置
 - **docker-compose.yml**：主服务 + 可选服务（Neo4j for Graphiti / Langfuse + Postgres for 可观测性 / OTel Collector），用 profiles 按需启动

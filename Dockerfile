@@ -41,7 +41,7 @@ RUN pip install --upgrade pip setuptools wheel
 # 利用 .dockerignore 排除 tests/ 与缓存，缩小构建上下文
 WORKDIR /build
 COPY pyproject.toml ./
-COPY .traecli/src/ ./.traecli/src/
+COPY src/src/ ./src/src/
 
 # 安装当前包 + 企业级扩展④ [db] extras（SQLAlchemy/asyncpg/alembic）
 # [db] extras 使镜像内置数据库迁移能力，DATABASE_URL 空时零开销降级
@@ -60,12 +60,12 @@ ARG VCS_REF=unknown
 # 运行时环境变量
 #   - PYTHONPATH 指向源码目录，使 import deadman 优先加载源码树
 #     （保证 config.py 中 project_root = Path(__file__).parent.parent.parent
-#      解析为 /app/.traecli/，从而正确定位 rules/agents/knowledge/skills）
+#      解析为 /app/src/，从而正确定位 rules/agents/knowledge/skills）
 #   - MCP_SERVER_HOST=0.0.0.0 使服务在容器内对外可达
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH="/app/.traecli/src" \
+    PYTHONPATH="/app/src/src" \
     DEADMAN_VERSION=${DEADMAN_VERSION} \
     # === MCP Server ===
     MCP_SERVER_HOST=0.0.0.0 \
@@ -110,19 +110,19 @@ RUN groupadd --system deadman \
        --home-dir /home/deadman --shell /bin/bash deadman
 
 # 创建项目目录与数据持久化目录
-RUN mkdir -p /app/.traecli /app/data /app/docker \
+RUN mkdir -p /app/src /app/data /app/docker \
     && chown -R deadman:deadman /app
 
 WORKDIR /app
 
 # 复制项目运行时数据（rules/agents/knowledge/skills 等被 MCP 工具读取）
-# 注意：构建上下文为仓库根目录，仅复制 .traecli/ 子目录以保持容器内路径结构
+# 注意：构建上下文为仓库根目录，仅复制 src/ 子目录以保持容器内路径结构
 # src/ 中的 deadman 包通过 PYTHONPATH 优先加载，保证 project_root 解析正确
-COPY --chown=deadman:deadman .traecli/ /app/.traecli/
+COPY --chown=deadman:deadman src/ /app/src/
 
 # 复制入口脚本与健康检查脚本
-COPY --chown=deadman:deadman .traecli/docker/entrypoint.sh /app/docker/entrypoint.sh
-COPY --chown=deadman:deadman .traecli/docker/healthcheck.py /app/docker/healthcheck.py
+COPY --chown=deadman:deadman src/docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=deadman:deadman src/docker/healthcheck.py /app/docker/healthcheck.py
 # 企业级扩展④：复制 Alembic 迁移配置与脚本（支持容器内 alembic upgrade head）
 COPY --chown=deadman:deadman alembic.ini /app/alembic.ini
 COPY --chown=deadman:deadman migrations/ /app/migrations/

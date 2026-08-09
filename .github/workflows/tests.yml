@@ -65,12 +65,12 @@ jobs:
           # 静态检查：E/W pycodestyle, F pyflakes, I isort, B bugbear,
           # C4 comprehensions, UP pyupgrade, SIM simplify, RUF ruff 专有
           # 配置见 pyproject.toml [tool.ruff.lint]
-          ruff check .traecli/src/
+          ruff check src/src/
 
       - name: Run ruff format check
         run: |
           # 格式检查（不修改文件，仅验证是否符合 ruff format 规范）
-          ruff format --check .traecli/src/
+          ruff format --check src/src/
 
   security:
     runs-on: ubuntu-latest

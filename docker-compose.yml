@@ -84,7 +84,7 @@ services:
       # 数据持久化（记忆 / LightRAG 存储 / 运行时数据）
       - ./data:/app/data
       # 可选：挂载测试套件以支持 eval 模式（.dockerignore 排除了 tests/）
-      # - ./.traecli/tests:/app/.traecli/tests:ro
+      # - ./src/tests:/app/src/tests:ro
     networks:
       - deadman-net
     healthcheck:
@@ -275,7 +275,7 @@ services:
   # Prometheus：指标采集与告警评估
   # 启用：docker compose --profile observability up -d
   # 抓取 deadman /metrics（HTTP RED 指标）+ OTel Collector 自身指标
-  # 告警规则见 .traecli/docker/observability/alert_rules.yml
+  # 告警规则见 src/docker/observability/alert_rules.yml
   # ============================================================
   prometheus:
     image: prom/prometheus:latest
@@ -285,8 +285,8 @@ services:
       - observability
       - full
     volumes:
-      - ./.traecli/docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./.traecli/docker/observability/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ./src/docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./src/docker/observability/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus-data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -310,7 +310,7 @@ services:
       - observability
       - full
     volumes:
-      - ./.traecli/docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./src/docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
@@ -336,7 +336,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - ./.traecli/docker/observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./src/docker/observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
       - grafana-data:/var/lib/grafana
     ports:
       - "3001:3000"  # 避让 Langfuse(3000)，主机用 3001

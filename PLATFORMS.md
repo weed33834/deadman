@@ -367,7 +367,7 @@ model: optional
 
 | 平台 | 文件系统适配方式 |
 |------|----------------|
-| TRAE | 原生支持，Read 工具直接读 .traecli/ |
+| TRAE | 原生支持，Read 工具直接读 src/ |
 | 阿里百炼 | 上传到"知识库"，自动向量检索 |
 | 腾讯元宝 | 上传到"知识库"，自动问答匹配 |
 | OpenAI Assistants | 上传文件 + file_search 工具 |

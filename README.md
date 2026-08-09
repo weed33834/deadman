@@ -44,7 +44,7 @@ deadman 是一个面向「身后事 + 医疗导航」垂直场景的**多智能�
 
 ### 多智能体架构
 
-6 个并列智能体（详见 [`.traecli/agents/`](.traecli/agents/)）：
+6 个并列智能体（详见 [`src/agents/`](src/agents/)）：
 
 | 智能体 | 职责 |
 |--------|------|
@@ -59,7 +59,7 @@ deadman 是一个面向「身后事 + 医疗导航」垂直场景的**多智能�
 
 ### 规则优先级链 L0-L8
 
-15 个规则文件构成硬约束（详见 [`.traecli/rules/`](.traecli/rules/)）：
+15 个规则文件构成硬约束（详见 [`src/rules/`](src/rules/)）：
 
 ```
 safety(L0) > integrity(L1) > input-guardrails(L2) > compliance(L3) >
@@ -306,11 +306,11 @@ deadman 仅做信息引导与流程梳理，让用户知道"接下来该办什�
 
 ### Q7：如何贡献新的省份知识库？
 
-1. 阅读 [.traecli/knowledge/regions/SCHEMA.md](.traecli/knowledge/regions/SCHEMA.md) 9 阶段标准
-2. 参考 [beijing.md](.traecli/knowledge/regions/CN/beijing.md) 模板
+1. 阅读 [src/knowledge/regions/SCHEMA.md](src/knowledge/regions/SCHEMA.md) 9 阶段标准
+2. 参考 [beijing.md](src/knowledge/regions/CN/beijing.md) 模板
 3. 填写 9 阶段 + 紧急联系方式 + 特殊情形 + 医疗政策补充
 4. 元信息标"数据来源"真实 URL，不确定的电话写"请拨打 12345 核实"
-5. 跑 `deadman knowledge-freshness-scan --regions-dir .traecli/knowledge/regions` 确认无 stale
+5. 跑 `deadman knowledge-freshness-scan --regions-dir src/knowledge/regions` 确认无 stale
 6. 提交 PR（按 [CONTRIBUTING.md](CONTRIBUTING.md) 流程）
 
 ### Q8：生产部署需要做什么？
@@ -465,7 +465,7 @@ deadman/
 ├── Dockerfile / docker-compose.yml          # 容器化
 ├── pyproject.toml                           # Python 包定义
 ├── docs/                                    # 文档（含隐私/协议/支持/部署/竞品调研/PM 评估）
-└── .traecli/                                # 业务实现
+└── src/                                # 业务实现
     ├── agents/                              # 智能体定义（6 并列 + 12 子智能体）
     ├── rules/                               # 规则文件（L0-L8 优先级链 15 个）
     ├── knowledge/                           # 地域知识库（CN 34 省/自治区/直辖市 + US + JP）
@@ -550,9 +550,9 @@ deadman --help
 | [docs/support.md](docs/support.md) | 帮助与支持 |
 | [docs/pm-assessment-v2.md](docs/pm-assessment-v2.md) | PM v2 评估报告（62/100） |
 | [docs/competitive-research-round2.md](docs/competitive-research-round2.md) | 第二轮竞品调研（15 家国际产品） |
-| [.traecli/src/README.md](.traecli/src/README.md) | 源码 README |
-| [.traecli/tests/scenarios.md](.traecli/tests/scenarios.md) | 8 个联调场景 |
-| [.traecli/tests/golden-cases.md](.traecli/tests/golden-cases.md) | 20 个 golden case |
+| [src/src/README.md](src/src/README.md) | 源码 README |
+| [src/tests/scenarios.md](src/tests/scenarios.md) | 8 个联调场景 |
+| [src/tests/golden-cases.md](src/tests/golden-cases.md) | 20 个 golden case |
 
 ## 测试
 
@@ -562,7 +562,7 @@ cd deadman
 pytest -q
 
 # 联调场景（需手动按 scenarios.md 执行）
-# 见 .traecli/tests/scenarios.md
+# 见 src/tests/scenarios.md
 ```
 
 当前测试规模：**2586 passed + 1 skipped + 0 failed**。

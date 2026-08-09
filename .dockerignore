@@ -37,17 +37,17 @@ coverage.xml
 *.cover
 .hypothesis/
 # 排除测试套件（eval 模式需挂载卷注入 tests/）
-.traecli/src/tests/
-.traecli/tests/
+src/src/tests/
+src/tests/
 
 # === Markdown 文档 ===
 # 排除所有 .md，但保留 README.md 以及运行时 MCP 工具依赖的 rules/agents/knowledge/skills 下的 .md
 **/*.md
 !**/README.md
-!.traecli/rules/**
-!.traecli/agents/**
-!.traecli/knowledge/**
-!.traecli/skills/**
+!src/rules/**
+!src/agents/**
+!src/knowledge/**
+!src/skills/**
 
 # === 密钥与敏感文件（绝不进镜像）===
 .env
@@ -102,4 +102,4 @@ docker-compose.yml
 
 # === 其他 ===
 sync.sh
-.traecli/.placeholder
+src/.placeholder

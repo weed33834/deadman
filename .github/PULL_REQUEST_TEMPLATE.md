@@ -17,7 +17,7 @@ Closes #
 
 ## 规则合规自查
 
-参考 `.traecli/rules/` 与 `CONTRIBUTING.md`：
+参考 `src/rules/` 与 `CONTRIBUTING.md`：
 
 - [ ] 不引入代办 / 代查 / 出具法律意见 / 编造不确定信息
 - [ ] 不削弱 L0-L8 优先级链（safety > integrity > input-guardrails > compliance > risk-tier > transparency > accountability > retrieval-guardrails > tone）

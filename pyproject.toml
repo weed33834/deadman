@@ -132,7 +132,7 @@ deadman-web-server = "deadman.web.app:main"
 deadman-web-server-legacy = "deadman.web.server:main"
 
 [tool.setuptools.packages.find]
-where = [".traecli/src"]
+where = ["src"]
 include = ["deadman*"]
 
 [tool.setuptools.package-data]
@@ -177,18 +177,18 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # 测试文件允许宽松一些
-".traecli/src/tests/*" = ["E501"]
+"src/tests/*" = ["E501"]
 # multimodal 模块：asr/tts/vision/ocr/image_gen 大量使用
 #   try: import openai / pywhispercpp / diffusers / azure.cognitiveservices.speech ...
 # 模式探测可选依赖是否安装，import 本身即为副作用，变量未在文件内引用是预期行为。
-".traecli/src/deadman/multimodal/*" = ["F401"]
+"src/deadman/multimodal/*" = ["F401"]
 # web/app.py + web/deps.py: FastAPI Depends() 在参数默认值是框架标准模式，B008 误报
-".traecli/src/deadman/web/app.py" = ["B008"]
-".traecli/src/deadman/web/deps.py" = ["B008"]
+"src/deadman/web/app.py" = ["B008"]
+"src/deadman/web/deps.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = [".traecli/src/tests"]
+testpaths = ["src/tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"'). Used for RAGAS / red-team / integration tests that burn tokens.",
     "ragas: marks tests that require ragas package installed.",
