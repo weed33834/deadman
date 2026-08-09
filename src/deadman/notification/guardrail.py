@@ -1,6 +1,6 @@
 """NotificationGuardrail - 主动通知护栏（L4 硬边界）
 
-实现 `.traecli/rules/notification-guardrails.md` 第七章要求：
+实现 `src/rules/notification-guardrails.md` 第七章要求：
     - can_send(user_id, scheduled_time) -> (allowed, reason)
     - record_consent / record_unsubscribe / record_send / record_session_end
     - sanitize_content / is_sensitive_date

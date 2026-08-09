@@ -2017,7 +2017,7 @@ def cmd_deploy_check(args):
     from .config import settings
     from .observability import metrics_collector
 
-    project_root = settings.project_root.parent  # .traecli/ 的父级 = 仓库根
+    project_root = settings.project_root.parent  # src/ 的父级 = 仓库根
     docker_dir = settings.project_root / "docker"
 
     artifacts = [

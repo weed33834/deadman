@@ -135,7 +135,7 @@ class RegulatoryChangeDetector:
     """法规变更检测器。
 
     用法:
-        detector = RegulatoryChangeDetector(store_path=".traecli/data/regulatory_changes.json")
+        detector = RegulatoryChangeDetector(store_path="src/data/regulatory_changes.json")
 
         # 1. 用户订阅
         detector.subscribe(
@@ -513,7 +513,7 @@ def get_regulatory_change_detector(
         if _detector_instance is None:
             path = store_path or os.environ.get(
                 "DEADMAN_REGULATORY_STORE",
-                ".traecli/data/regulatory_changes.json",
+                "src/data/regulatory_changes.json",
             )
             _detector_instance = RegulatoryChangeDetector(store_path=path)
         return _detector_instance

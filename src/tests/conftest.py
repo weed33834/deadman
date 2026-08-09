@@ -1,6 +1,6 @@
 """pytest 全局配置 - sys.path 设置 + mock LLM fixtures
 
-把 /workspace/.traecli/src 加到 sys.path，让 `import deadman` 能工作。
+把 /workspace/src/src 加到 sys.path，让 `import deadman` 能工作。
 LLM 调用全部走 mock，不真正调外部 API。
 """
 

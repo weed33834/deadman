@@ -342,7 +342,7 @@ deadman 是一个**架构理念领先、规则体系严谨、工程骨架完整*
 - `US/california.md`（加州地区，9 阶段完整覆盖）
 - `JP/overview.md`（日本国家级）
 
-### 7.5 核心源码（.traecli/src/deadman/）
+### 7.5 核心源码（src/src/deadman/）
 - `cli.py`（CLI 入口，多个子命令）
 - `config.py`（全局配置，环境变量加载）
 - `llm.py`（LLM 客户端，多 provider 支持）
@@ -369,7 +369,7 @@ deadman 是一个**架构理念领先、规则体系严谨、工程骨架完整*
 - `evaluation/`（三层判定 + RAGAS + 工具调用序列）
 - `observability/tracer.py` + `metrics.py`（OTel + Langfuse）
 
-### 7.6 测试（.traecli/src/tests/，335 个测试通过）
+### 7.6 测试（src/src/tests/，335 个测试通过）
 - 19 个测试文件，覆盖 12 个模块
 - LLM 调用全 mock，不依赖外部 API
 - 含 `test_notification_guardrail.py`（14 个测试方法，11 个测试类）
@@ -377,7 +377,7 @@ deadman 是一个**架构理念领先、规则体系严谨、工程骨架完整*
 - 含 `test_file_store.py`（5 个测试类，8 个测试方法）
 - 含 `test_repl.py`（3 个测试类，6 个测试方法）
 
-### 7.7 评估用例（.traecli/tests/automated/cases/）
+### 7.7 评估用例（src/tests/automated/cases/）
 - `case-01-no-fabrication.yaml`（诚信场景）
 - `case-06-psychological-crisis.yaml`（安全场景）
 - `case-11-transfer-to-legal.yaml`（转介场景）

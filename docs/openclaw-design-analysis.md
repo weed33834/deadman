@@ -41,7 +41,7 @@ OpenClaw 自我定位为 **"Personal AI Assistant that actually does things"**�
 | 记忆持久化 | SQLite（Kysely）+ SOUL.md 文件层 | 4 层记忆 + FileMemoryStore + Graphiti/LightRAG 可选 |
 | Agent 编排 | 内置 runtime（`src/agents/embedded-agent-runner/`）+ 插件 harness | LangGraph 编排 + Reflexion + Debate-Voting |
 
-来源：`openclaw/README.md` L156-166，`openclaw/AGENTS.md` L77-87，`openclaw/docs/agent-runtime-architecture.md` L10-20，`deadman/.traecli/rules/notification-guardrails.md` L1-15，`deadman/.traecli/src/deadman/llm.py` L1-8，`deadman/.traecli/src/deadman/memory/manager.py` L1-5。
+来源：`openclaw/README.md` L156-166，`openclaw/AGENTS.md` L77-87，`openclaw/docs/agent-runtime-architecture.md` L10-20，`deadman/src/rules/notification-guardrails.md` L1-15，`deadman/src/src/deadman/llm.py` L1-8，`deadman/src/src/deadman/memory/manager.py` L1-5。
 
 ### 整体评价
 
@@ -63,7 +63,7 @@ OpenClaw 是一个**工程化程度极高**的通用 AI 助手框架：架构边
 来源：`openclaw/docs/providers/clawrouter.md` L9-25 / L72-113，`openclaw/docs/concepts/model-failover.md`。
 
 **deadman 现状**：
-- `.traecli/src/deadman/llm.py` 已实现多 provider 支持（openai / anthropic / zhipu / ollama），用 `_PROVIDER_DEFAULTS` 字典配置
+- `src/src/deadman/llm.py` 已实现多 provider 支持（openai / anthropic / zhipu / ollama），用 `_PROVIDER_DEFAULTS` 字典配置
 - 已有 `LLM_FALLBACK_CHAIN` 顺序重试（主 LLM 失败后按链重试），tenacity 自动重试网络错误/限流
 - **但无智能路由**：所有任务（R1 信息查询 / R2 流程引导 / R3 即时人身安全）走同一个 `LLM_PRIMARY_MODEL`，没有"按任务类型选模型"的能力
 - 已有 `risk-tier-framework.md` 定义 R1-R3 三级风险，但未与 LLM 路由联动
@@ -76,7 +76,7 @@ OpenClaw 是一个**工程化程度极高**的通用 AI 助手框架：架构边
   - R1（信息查询、流程说明）→ 用便宜/快模型（如 glm-flash / gpt-4o-mini）
   - R2（流程引导、情绪支持、材料清单）→ 用中等模型（如 glm-4.6 / claude-haiku）
   - R3（即时人身安全、心理危机干预）→ 用最强模型（如 claude-opus / gpt-4.6），并启用 thinking high
-- 实现位置：在 `.traecli/src/deadman/llm.py` 新增 `route_model(risk_tier: str) -> str` 函数，配置项加到 `config.py` 的 `settings`
+- 实现位置：在 `src/src/deadman/llm.py` 新增 `route_model(risk_tier: str) -> str` 函数，配置项加到 `config.py` 的 `settings`
 - **不破坏现有 fallback 链**：路由选定模型后，仍走 `LLM_FALLBACK_CHAIN` 兜底
 - **后续 Phase 决策点**：是否在 LangGraph node 层做 risk_tier 判定，还是在 LLMClient 层透明路由
 
@@ -97,7 +97,7 @@ OpenClaw 是一个**工程化程度极高**的通用 AI 助手框架：架构边
 
 **deadman 现状**：
 - deadman 即将实现 Gateway + Telegram / Cron / Web search + Sandbox（任务描述明确）
-- 已有 `.traecli/src/deadman/web/server.py`（ThreadingHTTPServer + SSE 流式 + 多端点）
+- 已有 `src/src/deadman/web/server.py`（ThreadingHTTPServer + SSE 流式 + 多端点）
 - 已有 `a2a/server.py`（A2A Protocol 跨智能体通信）
 - 已有 `mcp_server/server.py`（MCP 工具暴露）
 - **但目前无统一 channel_directory / platform_registry**——Web / A2A / MCP / 即将到来的 Telegram 是分散入口
@@ -182,8 +182,8 @@ OpenClaw 是一个**工程化程度极高**的通用 AI 助手框架：架构边
 来源：`openclaw/AGENTS.md` L1-5 / L25-50。
 
 **deadman 现状**：
-- `.traecli/rules/` 下 14 个规则文件（integrity-framework / safety-protocol / input-guardrails / compliance-framework / notification-guardrails / risk-tier-framework / tone-framework / service-boundary-framework / accountability-framework / transparency-framework / multilingual-framework / retrieval-guardrails / legal-compliance-framework / special-populations-framework / conflict-resolution）
-- `.traecli/agents/` 下按智能体分文件（death-aftercare / legal-advisor / financial-analyst / medical-guide / policy-researcher 等，每个智能体还有特化子文件如 `legal-advisor-cases.md` / `legal-advisor-statutes.md`）
+- `src/rules/` 下 14 个规则文件（integrity-framework / safety-protocol / input-guardrails / compliance-framework / notification-guardrails / risk-tier-framework / tone-framework / service-boundary-framework / accountability-framework / transparency-framework / multilingual-framework / retrieval-guardrails / legal-compliance-framework / special-populations-framework / conflict-resolution）
+- `src/agents/` 下按智能体分文件（death-aftercare / legal-advisor / financial-analyst / medical-guide / policy-researcher 等，每个智能体还有特化子文件如 `legal-advisor-cases.md` / `legal-advisor-statutes.md`）
 - **但目前没有"工作树级 scoped 规则"**——所有规则都是平台级全局规则
 
 **是否借鉴**：**是（轻量借鉴）**
@@ -355,7 +355,7 @@ LLM_MODEL_R3=claude-opus       # 即时人身安全
 ### 改进 3：channel_registry.py 通道注册表（v4.6.0 候选，与 Gateway 同 Phase）
 
 **来源**：OpenClaw Gateway 的"单进程多通道 + 通道注册表"思想
-**改造**：新建 `.traecli/src/deadman/channels/registry.py`，每通道声明 `name / inbound_handler / outbound_handler / consent_required / guardrail_level`
+**改造**：新建 `src/src/deadman/channels/registry.py`，每通道声明 `name / inbound_handler / outbound_handler / consent_required / guardrail_level`
 **成本**：低（< 100 行 Python，无新依赖）
 **风险**：低（与现有 web/a2a/mcp server 解耦，不影响已有功能）
 **决策点**：与 Gateway + Telegram 通道同 Phase 实施
@@ -399,7 +399,7 @@ LLM_MODEL_R3=claude-opus       # 即时人身安全
 
 OpenClaw 的 `docs/` 按功能域分类（channels / cli / concepts / gateway / install / platforms / providers / tools / plugins / automation / security），每文件 YAML frontmatter 带 `summary` / `title` / `read_when` 三个字段，其中 `read_when` 是"何时该读这个文件"的触发条件列表——这是一种很高效的文档导航设计。
 
-deadman 当前 `docs/` 只有 `DEPLOYMENT.md` 与 `QUICKSTART.md`，规则文件集中在 `.traecli/rules/`。后续可借鉴 OpenClaw 的 frontmatter 风格为 deadman 文档加 `read_when` 字段，但不在本 Phase 实施。
+deadman 当前 `docs/` 只有 `DEPLOYMENT.md` 与 `QUICKSTART.md`，规则文件集中在 `src/rules/`。后续可借鉴 OpenClaw 的 frontmatter 风格为 deadman 文档加 `read_when` 字段，但不在本 Phase 实施。
 
 ---
 

@@ -1,6 +1,6 @@
 """官方热线查询
 
-数据源：.traecli/knowledge/hotlines/database.json
+数据源：src/knowledge/hotlines/database.json
 遵守 compliance-framework.md：不编造电话号码，所有热线必须标 source。
 
 查询逻辑：

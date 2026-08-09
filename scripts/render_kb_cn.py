@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从省级数据表渲染 `.traecli/knowledge/regions/CN/*.md` 知识库。
+"""从省级数据表渲染 `src/knowledge/regions/CN/*.md` 知识库。
 
 用法::
 

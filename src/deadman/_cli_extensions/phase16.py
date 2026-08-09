@@ -626,8 +626,8 @@ def register_subparsers(subparsers: Any) -> None:
     )
     kf_scan_p.add_argument(
         "--regions-dir",
-        default=".traecli/knowledge/regions",
-        help="地域知识库目录（默认 .traecli/knowledge/regions）",
+        default="src/knowledge/regions",
+        help="地域知识库目录（默认 src/knowledge/regions）",
     )
     kf_scan_p.set_defaults(func=cmd_knowledge_freshness_scan)
 

@@ -1,6 +1,6 @@
 """deadman.debate - 多智能体辩论/投票模块
 
-实现 .traecli/agents/Debate-Voting.md 设计：
+实现 src/agents/Debate-Voting.md 设计：
 - 3 轮辩论（Opening/Rebuttal/Closing）
 - 4 种投票策略（majority/weighted/confidence_weighted/consensus）
 - 仲裁机制（投票不分胜负时介入）

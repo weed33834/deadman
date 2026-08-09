@@ -58,7 +58,7 @@ AUDIT_CHAIN_ENABLED: bool = os.environ.get("DEADMAN_AUDIT_CHAIN_ENABLED", "0").l
 )
 
 # 持久化文件路径：
-# settings.project_root 是 .traecli/，其 parent 是 /workspace/deadman/，
+# settings.project_root 是 src/，其 parent 是 /workspace/deadman/，
 # 因此 audit.jsonl 落在 /workspace/deadman/data/audit.jsonl
 DEFAULT_AUDIT_PATH = Path("data") / "audit.jsonl"
 
@@ -211,7 +211,7 @@ class AuditChain:
                       （相对 settings.project_root.parent，即 /workspace/deadman/）
         """
         if persist_path is None:
-            # settings.project_root 是 .traecli/，parent 是 /workspace/deadman/
+            # settings.project_root 是 src/，parent 是 /workspace/deadman/
             self._path = settings.project_root.parent / DEFAULT_AUDIT_PATH
         else:
             self._path = Path(persist_path)

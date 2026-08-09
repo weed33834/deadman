@@ -1,7 +1,7 @@
 """deadman.cron - Cron 定时任务调度模块
 
 借鉴 Hermes Agent (cron/scheduler.py, MIT License) 的设计，按身后事场景改造：
-严格遵守 .traecli/rules/notification-guardrails.md 第三章约束。
+严格遵守 src/rules/notification-guardrails.md 第三章约束。
 
 核心差异（与 Hermes 相比）：
 - 默认 enabled=false（Hermes 默认开启 heartbeat）

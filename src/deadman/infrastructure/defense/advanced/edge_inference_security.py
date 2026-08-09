@@ -437,7 +437,7 @@ class InferenceAuditor:
     """推理审计器。
 
     用法:
-        auditor = InferenceAuditor(store_path=".traecli/data/inference_audit.jsonl")
+        auditor = InferenceAuditor(store_path="src/data/inference_audit.jsonl")
         # 推理前
         input_hash = auditor.hash_content(user_input)
         # 推理后
@@ -566,7 +566,7 @@ def get_model_signature_verifier(
         if _verifier is None:
             path = store_path or os.environ.get(
                 "DEADMAN_MODEL_SIGNATURE_STORE",
-                ".traecli/data/model_signatures.json",
+                "src/data/model_signatures.json",
             )
             _verifier = ModelSignatureVerifier(store_path=path)
         return _verifier
@@ -588,7 +588,7 @@ def get_inference_auditor(
         if _auditor is None:
             path = store_path or os.environ.get(
                 "DEADMAN_INFERENCE_AUDIT_PATH",
-                ".traecli/data/inference_audit.jsonl",
+                "src/data/inference_audit.jsonl",
             )
             _auditor = InferenceAuditor(store_path=path)
         return _auditor

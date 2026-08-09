@@ -1538,7 +1538,7 @@ async def web_search_official(
 @mcp.tool_auto(
     name="read_file",
     description=(
-        "读取项目内的文件。仅允许读取 .traecli/ 项目根目录之内的文件，禁止路径穿越。"
+        "读取项目内的文件。仅允许读取 src/ 项目根目录之内的文件，禁止路径穿越。"
         "适合读取 rules/*.md、knowledge/**/*.md、agents/*.md 等。"
     ),
     output_schema={
@@ -1589,7 +1589,7 @@ async def read_file(path: str, encoding: str = "utf-8", max_bytes: int = 1048576
 @mcp.tool_auto(
     name="write_file",
     description=(
-        "写入项目内的文件。仅允许写入 .traecli/ 项目根目录之内，禁止路径穿越。"
+        "写入项目内的文件。仅允许写入 src/ 项目根目录之内，禁止路径穿越。"
         "安全限制：禁止覆盖 rules/*.md（规则由人工维护）；禁止写入 .env / .git / 凭证文件。"
     ),
     output_schema={

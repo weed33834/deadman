@@ -36,7 +36,7 @@ class Settings:
     """全局配置"""
 
     # === 项目根目录 ===
-    project_root: Path = Path(__file__).parent.parent.parent  # .traecli/
+    project_root: Path = Path(__file__).parent.parent.parent  # src/
 
     # === MCP Server ===
     mcp_server_port: int = int(os.getenv("MCP_SERVER_PORT", "8000"))

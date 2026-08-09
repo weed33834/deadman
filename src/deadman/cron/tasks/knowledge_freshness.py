@@ -1,6 +1,6 @@
 """知识库时效巡检 - Phase 16A
 
-扫描 .traecli/knowledge/regions/ 下的地域知识库 markdown 文件，
+扫描 src/knowledge/regions/ 下的地域知识库 markdown 文件，
 解析元信息中"最后更新"日期，按 retrieval-guardrails.md 第二节规则判定时效：
   - 超 180 天未更新 → stale（必须触发更新或明确告知用户"此信息可能已过时"）
   - 超 90 天未更新（针对税务/社保/银行/医疗等政策变更高发领域）→ warning
@@ -142,7 +142,7 @@ class KnowledgeFreshnessChecker:
 
     用法：
         checker = KnowledgeFreshnessChecker()
-        reports = checker.scan_regions(Path(".traecli/knowledge/regions"))
+        reports = checker.scan_regions(Path("src/knowledge/regions"))
         stale_reports = [r for r in reports if r.status == "stale"]
         for r in stale_reports:
             drifts = checker.check_official_sources(r)
@@ -195,7 +195,7 @@ class KnowledgeFreshnessChecker:
         - policy_areas 根据文件内容关键词命中
 
         Args:
-            regions_dir: regions 目录路径（通常 .traecli/knowledge/regions）
+            regions_dir: regions 目录路径（通常 src/knowledge/regions）
 
         Returns:
             FreshnessReport 列表，按文件路径排序
