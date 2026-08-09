@@ -300,9 +300,9 @@ name: RAGAS Evaluation
 on:
   pull_request:
     paths:
-      - ".traecli/rules/**"
-      - ".traecli/knowledge/**"
-      - ".traecli/agents/**"
+      - "src/rules/**"
+      - "src/knowledge/**"
+      - "src/agents/**"
   schedule:
     - cron: "0 3 * * 1"  # 每周一次全量
 jobs:
@@ -321,7 +321,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python .traecli/tests/automated/runners/ragas_runner.py \
+          python src/tests/automated/runners/ragas_runner.py \
             --cases=ragas_applicable \
             --platform=trae
       - name: Upload RAGAS report
@@ -329,7 +329,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ragas-report
-          path: .traecli/tests/automated/reports/ragas/
+          path: src/tests/automated/reports/ragas/
 ```
 
 ## 报告格式

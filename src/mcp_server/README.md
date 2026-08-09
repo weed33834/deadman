@@ -511,7 +511,7 @@ mcp = FastMCP("deadman-platform")
 @mcp.tool()
 def check_rules(agent_name: str, output_text: str, context: dict = None) -> dict:
     """校验智能体输出是否符合规则"""
-    rules_dir = Path(".traecli/rules")
+    rules_dir = Path("src/rules")
     violations = []
     warnings = []
     
@@ -530,7 +530,7 @@ def check_rules(agent_name: str, output_text: str, context: dict = None) -> dict
 @mcp.tool()
 def query_knowledge(country: str, region: str = None, topic: str = None, fallback_to_search: bool = True) -> dict:
     """查询地域知识库"""
-    knowledge_dir = Path(f".traecli/knowledge/regions/{country}")
+    knowledge_dir = Path(f"src/knowledge/regions/{country}")
     if region:
         target_file = knowledge_dir / f"{region}.md"
     else:
@@ -600,7 +600,7 @@ if __name__ == "__main__":
   "mcpServers": {
     "deadman-platform": {
       "command": "python",
-      "args": [".traecli/mcp_server/server.py"],
+      "args": ["src/mcp_server/server.py"],
       "cwd": "/workspace"
     }
   }
@@ -611,7 +611,7 @@ if __name__ == "__main__":
 
 ```bash
 # 启动 MCP server
-python .traecli/mcp_server/server.py --transport http --port 8000
+python src/mcp_server/server.py --transport http --port 8000
 ```
 
 ```json

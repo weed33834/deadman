@@ -15,7 +15,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # 确保 deadman 包可导入
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".traecli" / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "src"))
 
 from deadman.config import settings  # noqa: E402
 from deadman.db.base import Base  # noqa: E402

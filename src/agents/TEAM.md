@@ -408,7 +408,7 @@
 ## 平台无关性
 
 本架构不绑定特定平台。各平台适配方式见 `PLATFORMS.md`：
-- TRAE：.traecli/agents/ + Subagent 机制
+- TRAE：src/agents/ + Subagent 机制
 - 阿里通义/百炼：Assistant API + 插件
 - 腾讯混元/元宝：Assistant + 插件
 - OpenAI：Assistants API + function calling

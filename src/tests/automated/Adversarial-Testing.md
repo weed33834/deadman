@@ -240,7 +240,7 @@ import yaml
 from pathlib import Path
 
 # 攻击 payload 仓库（独立目录，不入仓库，CI 中通过 secret 注入）
-PAYLOAD_VAULT = Path(".traecli/tests/automated/adversarial/_payloads/")
+PAYLOAD_VAULT = Path("src/tests/automated/adversarial/_payloads/")
 
 def expand_variants(base_case: str, types: list, count: int):
     base = yaml.safe_load(Path(f"cases/{base_case}.yaml").read_text())
@@ -278,7 +278,7 @@ def load_payloads(attack_type: str, n: int):
 ### 关键约束：payload 不入库
 
 ```
-.traecli/tests/automated/adversarial/_payloads/   # 加入 .gitignore
+src/tests/automated/adversarial/_payloads/   # 加入 .gitignore
 ```
 
 理由：
@@ -382,7 +382,7 @@ orchestrator = PyRIT(
         TreeOfAttacksAttack(
             branching_factor=3,
             depth=2,
-            payload_vault=".traecli/tests/automated/adversarial/_payloads/",
+            payload_vault="src/tests/automated/adversarial/_payloads/",
         ),
     ],
     # 成功判定：响应中是否出现预期违规标记
@@ -505,24 +505,24 @@ jobs:
         env:
           PAYLOAD_VAULT: ${{ secrets.PAYLOAD_VAULT }}
         run: |
-          mkdir -p .traecli/tests/automated/adversarial/_payloads/
-          echo "$PAYLOAD_VAULT" | base64 -d | tar xz -C .traecli/tests/automated/adversarial/_payloads/
+          mkdir -p src/tests/automated/adversarial/_payloads/
+          echo "$PAYLOAD_VAULT" | base64 -d | tar xz -C src/tests/automated/adversarial/_payloads/
       - name: Run Promptfoo
-        run: promptfoo eval --config .traecli/tests/automated/adversarial/promptfooconfig.yaml
+        run: promptfoo eval --config src/tests/automated/adversarial/promptfooconfig.yaml
       - name: Run Garak
-        run: python -m garak --config .traecli/tests/automated/adversarial/garak_config.yaml
+        run: python -m garak --config src/tests/automated/adversarial/garak_config.yaml
       - name: Run PyRIT
-        run: python .traecli/tests/automated/adversarial/pyrit_orchestration.py
+        run: python src/tests/automated/adversarial/pyrit_orchestration.py
       - name: Aggregate report
-        run: python .traecli/tests/automated/adversarial/aggregate_report.py
+        run: python src/tests/automated/adversarial/aggregate_report.py
       - name: Check ASR thresholds
-        run: python .traecli/tests/automated/adversarial/check_thresholds.py
+        run: python src/tests/automated/adversarial/check_thresholds.py
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: adversarial-report
-          path: .traecli/tests/automated/reports/adversarial/
+          path: src/tests/automated/reports/adversarial/
 ```
 
 ### PR 触发的轻量版
@@ -540,9 +540,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run case-13 variants
         run: |
-          python .traecli/tests/automated/adversarial/expand_variants.py \
+          python src/tests/automated/adversarial/expand_variants.py \
             --base case-13 --count 60
-          promptfoo eval --config .traecli/tests/automated/adversarial/quick_config.yaml
+          promptfoo eval --config src/tests/automated/adversarial/quick_config.yaml
       - name: Check ASR
         run: |
           ASR=$(jq '.asr' reports/adversarial/quick-asr.json)
@@ -681,7 +681,7 @@ root_span (adversarial_run)
 ### vault 结构
 
 ```
-.traecli/tests/automated/adversarial/_payloads/   # .gitignore
+src/tests/automated/adversarial/_payloads/   # .gitignore
 ├── cross_language/
 │   ├── en.jsonl
 │   ├── ja.jsonl

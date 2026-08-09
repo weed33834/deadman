@@ -46,7 +46,7 @@ from kb_cn_render_lib2 import (  # noqa: E402
     stage9,
 )
 
-OUT_DIR = SCRIPT_DIR.parent / ".traecli" / "knowledge" / "regions" / "CN"
+OUT_DIR = SCRIPT_DIR.parent / "src" / "knowledge" / "regions" / "CN"
 
 # beijing.md 骨架要求的一级 / 二级标题（结构校验用）。
 REQUIRED_SECTIONS = [
