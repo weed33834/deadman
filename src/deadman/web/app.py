@@ -58,6 +58,11 @@ from pydantic import BaseModel, Field
 
 from ..config import settings
 from .deps import get_current_user, get_jwt_manager, get_optional_user, get_user_store
+from .routes import admin as _admin_routes
+from .routes import mcp as _mcp_routes
+from .routes import resources as _resources_routes
+from .routes import text as _text_routes
+from .routes import voice as _voice_routes
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +305,16 @@ app = _build_app()
 
 
 # =====================================================================
+# 补齐 agent-builder-skill 完整版：注册 G1/G2/G3 新增路由
+# =====================================================================
+app.include_router(_admin_routes.router)
+app.include_router(_mcp_routes.router)
+app.include_router(_resources_routes.router)
+app.include_router(_text_routes.router)
+app.include_router(_voice_routes.router)
+
+
+# =====================================================================
 # Kubernetes 风格健康探针：liveness(/healthz) + readiness(/readyz)
 # =====================================================================
 
@@ -396,6 +411,13 @@ async def root_index(request: Request):
 @app.get("/mobile.html", include_in_schema=False)
 async def mobile_index():
     return FileResponse(_STATIC_DIR / "mobile.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/admin", include_in_schema=False)
+@app.get("/admin/", include_in_schema=False)
+async def admin_index():
+    """G1 管理台入口页（admin.html）"""
+    return FileResponse(_STATIC_DIR / "admin.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/manifest.json", include_in_schema=False)

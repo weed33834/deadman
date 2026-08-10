@@ -1059,6 +1059,40 @@ llm_client = LLMClient()
 
 
 # =====================================================================
+# 管理台：运行时重配置主 LLM（管理台"模型配置"面板用）
+# =====================================================================
+
+
+def reconfigure_main_llm(
+    provider: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+) -> dict[str, Any]:
+    """运行时重建全局 ``llm_client`` 与 use-case 缓存（管理台模型切换）。
+
+    作用域仅限当前进程；持久化由管理台/配置层负责。失败回退原 client。
+    """
+    global llm_client
+    try:
+        new_client = LLMClient(
+            provider=provider or llm_client.provider,
+            model=model or llm_client.model,
+            api_key=api_key if api_key is not None else llm_client.api_key,
+            base_url=base_url if base_url is not None else llm_client.base_url,
+        )
+        llm_client = new_client
+        _llm_client_cache.clear()
+        logger.info(
+            "管理台重配置主 LLM → provider=%s model=%s", llm_client.provider, llm_client.model
+        )
+        return {"ok": True, "provider": llm_client.provider, "model": llm_client.model}
+    except Exception as exc:
+        logger.warning("主 LLM 重配置失败（保留原配置）: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
+# =====================================================================
 # P7: 多模型分工（借鉴 OpenDeepResearch configuration.py）
 # =====================================================================
 # use_case → LLMClient 缓存，避免每次构造都创建新的 SDK client

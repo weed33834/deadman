@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deadman"
-version = "5.3.2"
+version = "5.4.0"
 description = "deadman - 身后事多智能体引导平台：遗嘱/办事流程向导、数字遗产清单、哀伤陪伴、思维意识识别（意图+危机感知），Web 响应式适配。不绑定任何厂商，适用于所有支持 agent 的平台。"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -120,8 +120,11 @@ db = [
     "asyncpg>=0.29",
     "alembic>=1.13",
 ]
+# 文本处理增强（textproc/*）：jieba 中文分词（未安装时自动退化为单字/词混合分词，
+# 关键词/检索算法纯 Python 零依赖兜底，始终可用）
+text = ["jieba>=0.42"]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text]",
 ]
 
 [project.scripts]

@@ -842,6 +842,15 @@ class McpServer:
                 "message": f"工具 {name} 未注册",
             }
 
+        # 管理台禁用的工具直接拦截（默认无禁用，不改变既有行为）
+        if name in _admin_blocked_tools:
+            return {
+                "ok": False,
+                "tool": name,
+                "error": "tool_disabled",
+                "message": f"工具 {name} 已被管理台禁用",
+            }
+
         # ---------- P3.1 网关（feature flag 关闭时直接跳过）----------
         if GATEWAY_ENABLED and _P3_MODULES_AVAILABLE:
             gw = self._get_gateway()
@@ -1213,6 +1222,30 @@ class McpServer:
 # =====================================================================
 
 mcp = McpServer("deadman-platform")
+
+
+# =====================================================================
+# 管理台：工具启停（admin 工具面板）
+# 用模块级集合记录被管理台"禁用"的工具名；call_tool 入口短路拦截。
+# 默认空集（全部放行），纯增量，不影响既有行为。
+# =====================================================================
+
+_admin_blocked_tools: set[str] = set()
+
+
+def is_tool_blocked(name: str) -> bool:
+    return name in _admin_blocked_tools
+
+
+def set_tool_enabled(name: str, enabled: bool) -> None:
+    if enabled:
+        _admin_blocked_tools.discard(name)
+    else:
+        _admin_blocked_tools.add(name)
+
+
+def list_tool_states() -> dict[str, bool]:
+    return {t["name"]: t["name"] not in _admin_blocked_tools for t in mcp.list_tools()}
 
 
 # Web Search 工具单例（懒加载，避免 httpx 未安装时阻塞 import）

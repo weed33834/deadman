@@ -5,7 +5,7 @@
 [![tests](https://github.com/weed33834/deadman/actions/workflows/tests.yml/badge.svg)](https://github.com/weed33834/deadman/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-5.1.0-6b5d4f.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.4.0-6b5d4f.svg)](CHANGELOG.md)
 
 ---
 
@@ -101,6 +101,35 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 - 文件级原子写入 + fsync + 0o600 权限
 
 详见 [SECURITY.md](SECURITY.md)。
+
+### 管理控制台（v5.4）—— 不是只有聊天界面
+
+对照 agent-builder-skill 完整版补齐运营能力：**管理台 = 资源化管理（配置 / 测试 / 运行 / 审计）**。访问 `/admin`（FastAPI 入口），含 11 个面板：
+
+| 面板 | 能力 |
+|------|------|
+| 提示词 | 完整 CRUD（保存递增版本）+ AI 生成 5 动作 + 测试台试跑 |
+| Agent | 创建 / 删除 / 试跑（走完整对话管线） |
+| 工具 | 启停 + **TestRunner 填参试跑** + 审计日志 |
+| 音色 | 资产 CRUD + 设默认 + 启停 |
+| 文本分析 | 关键词 / 一键分析 / 知识库混合检索 |
+| 模型 | 运行时切换 + **连通性测试**（真实 ping） |
+| MCP 客户端 | 外部 MCP Server 接入 / 连接 / 断开 |
+| 记忆 / 监控 / 评估 | 4 层记忆、对话统计、领域健康、评估看板 |
+| 设置 / 备份 | env 热加载 + 全量配置包导出 / 导入 |
+
+### 语音输入与输出（v5.4）
+
+- **ASR 语音转文字**：聊天输入框 🎤 麦克风按钮，`POST /api/voice/transcribe`
+- **TTS 文字转语音**：`GET /api/voice/speak`（多音色可配，未启用时前端回退浏览器 speechSynthesis）
+
+### MCP 客户端（v5.4）
+
+平台既可作 **MCP Server** 对外提供工具，也可作 **MCP 客户端** 接入外部第三方 MCP Server（官方 client 优先 + 纯 asyncio JSON-RPC 降级）。外部工具以 `ext_<server>_<tool>` 前缀注册进本地注册表，6 个智能体可直接调用。配置见 `DEADMAN_MCP_CLIENTS` 或管理台「MCP 客户端」面板。
+
+### 底层文本处理（v5.4）
+
+`textproc/` 模块（零必装依赖，jieba 可选）：中文分词、清洗归一化、停用词、**关键词提取（TF-IDF + TextRank）**、余弦相似度、**BM25 + 向量 RRF 混合检索**。通过 `/api/text/*` 暴露，供标签生成 / 搜索联想 / 知识库检索复用。
 
 ## 系统架构
 
@@ -537,7 +566,8 @@ deadman --help
 
 | 文档 | 说明 |
 |------|------|
-| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.3.2） |
+| [CHANGELOG.md](CHANGELOG.md) | 变更日志（当前 v5.4.0） |
+| [docs/ADMIN.md](docs/ADMIN.md) | 管理台 / 语音 / MCP 客户端 / 文本处理使用文档 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | 行为准则 |
 | [SECURITY.md](SECURITY.md) | 安全策略与漏洞报告 |

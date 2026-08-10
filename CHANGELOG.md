@@ -2,6 +2,42 @@
 
 > 本文件记录身后事 + 医疗导航多智能体平台的版本变更。版本号遵循语义化版本（major.minor），日期采用 YYYY-MM 格式。
 
+## v5.4.0（2026-08）补齐 agent-builder-skill 完整版：管理台 / 语音 / MCP 客户端 / 文本处理
+
+> 对照 agent-builder-skill（万能 Agent 构建器）10 层完整架构 + deep-spec 深度规格体系，补齐三类运营缺口，并把底层文本算法落地。
+
+### 管理台（Admin Console，G1）——从"只读监控"升级为"真资源管理"
+- 新增 `web/routes/resources.py` 真实资源服务（持久化 `~/.deadman/admin/*.json`）：
+  - **Prompt Manager**：完整 CRUD（保存递增版本）+ AI 生成 5 动作 + 测试台试跑
+  - **Tool TestRunner**：`/api/admin/tools/test` 填参试跑 + 审计日志
+  - **Model**：`/api/admin/models/test` 连通性测试 + 运行时切换主模型
+  - **Agent Manager**：创建/更新/删除 + 试跑（走完整对话管线）
+  - **Voice Manager**：音色资产 CRUD + 设默认
+  - **Settings**：env 子集热加载 + 持久化；**Backup**：全量配置包导出/导入
+- 新增 `/api/admin/*`（overview/models/tools/prompts/orchestration/agents/graph/monitoring/evaluation/memory/config）
+- `llm.reconfigure_main_llm()` 运行时切主模型；`mcp_server` 工具启停钩子
+- 前端 `web/static/admin.html`：11 面板真资源管理控制台；主站侧边栏新增「管理台」入口（`/admin`）
+
+### 语音输入与输出（Voice，G2）
+- `GET /api/voice/speak`（TTS）+ `POST /api/voice/transcribe`（ASR）
+- 主站聊天输入框 🎤 麦克风按钮（MediaRecorder 录音 → 转写回填）；失败结构化降级
+
+### MCP 客户端（MCP Client，G3）
+- 新增 `mcp_server/client.py`：作为客户端接入外部 MCP Server
+  - 官方 `mcp` client 优先 + 纯 asyncio JSON-RPC 降级（stdio/http/sse）
+  - 外部工具以 `ext_<server>_<tool>` 注册进 mcp + ReAct 双注册表；全局专用事件循环
+- 新增 `web/routes/mcp.py`：`/api/mcp/servers` 增删/连接/断开；配置 `DEADMAN_MCP_CLIENTS` 或 `~/.deadman/mcp_clients.json`
+
+### 底层文本处理与检索（deep-spec 20）
+- 新增 `textproc/` 模块（零必装依赖，jieba 可选）：
+  - `tokenize` 中文分词 / `clean` 清洗归一化 + 停用词 / `keywords` **TF-IDF + TextRank 关键词**
+  - `similarity` 余弦 + Jaccard / `bm25` BM25 检索 / `hybrid` **BM25 + 向量 RRF 混合检索**
+- 新增 `web/routes/text.py`：`/api/text/status|keywords|analyze|index|search`；管理台「文本分析」面板
+
+### 其他
+- `.env.example` 补齐配置；`pyproject` 版本 → 5.4.0 + `text` 可选依赖
+- 新增测试：`test_mcp_client` / `test_admin_gaps` / `test_admin_resources` / `test_textproc`
+
 ## v5.3.2（2026-08）思维意识识别接入编排主链 + 依赖/版本一致性
 
 > 小版本更新：把上一轮的「思维意识识别层」真正接入编排主链（路由前先 assess），补齐依赖声明与版本号一致性，清理冗余产物。

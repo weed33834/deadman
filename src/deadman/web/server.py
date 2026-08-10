@@ -315,6 +315,10 @@ class WebServer:
                     self._send_file(
                         _STATIC_DIR / "mobile.js", "application/javascript; charset=utf-8"
                     )
+                elif path == "/admin" or path == "/admin/":
+                    self._send_file(_STATIC_DIR / "admin.html", "text/html; charset=utf-8")
+                elif path == "/api/admin/overview":
+                    self._send_json(200, server_ref._handle_admin_overview())
                 elif path == "/api/health":
                     self._send_json(200, {"status": "ok", "service": "ag-ui"})
                 elif path == "/api/whoami":
@@ -904,6 +908,45 @@ class WebServer:
                     else:
                         summary[domain] = {"status": "no_data"}
                 self._send_json(200, summary)
+
+            def _handle_admin_overview(self) -> dict[str, Any]:
+                """G1 管理台总览（legacy server 降级实现，字段与 FastAPI 版对齐）"""
+                try:
+                    from ..llm import llm_client
+
+                    llm = {
+                        "provider": llm_client.provider,
+                        "model": llm_client.model,
+                        "api_key_set": bool(llm_client.api_key),
+                        "base_url": llm_client.base_url,
+                    }
+                except Exception:
+                    llm = {"provider": "?", "model": "?"}
+                try:
+                    from ..mcp_server.server import list_tool_states, mcp
+
+                    states = list_tool_states()
+                    tools_list = mcp.list_tools()
+                    tools = {
+                        "total": len(tools_list),
+                        "enabled": sum(1 for t in tools_list if states.get(t["name"], True)),
+                    }
+                except Exception:
+                    tools = {"total": 0, "enabled": 0}
+                try:
+                    from ..mcp_server.client import get_client_manager
+
+                    ext_count = len(get_client_manager().list_servers())
+                except Exception:
+                    ext_count = 0
+                return {
+                    "service": "deadman 多智能体引导平台",
+                    "llm": llm,
+                    "agents": {"main": 6, "registry": 0},
+                    "tools": tools,
+                    "external_mcp_servers": ext_count,
+                    "note": "legacy http.server 降级版；完整管理台请用 FastAPI 入口 (uvicorn deadman.web.app:app)",
+                }
 
             # === Phase 9: 免责告知 + 热线 + 机构 ===
 
