@@ -855,7 +855,7 @@ async def alerts_list() -> dict[str, Any]:
 
 @router.post("/alerts")
 async def alerts_create(
-    rule: dict[str, Any] = Body(
+    rule: dict[str, Any] = Body(  # noqa: B008
         default=None, embed=True, description="告警规则 {metric,op,threshold,channel,enabled}"
     ),
 ) -> dict[str, Any]:
