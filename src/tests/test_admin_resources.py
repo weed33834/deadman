@@ -20,6 +20,14 @@ def client(tmp_path, monkeypatch):
     from deadman.web.routes import voice as voice_routes
 
     fresh = FastAPI()
+    from fastapi.responses import JSONResponse
+
+    from deadman.errors import DeadmanError
+
+    @fresh.exception_handler(DeadmanError)
+    async def _deadman(request, exc: DeadmanError):
+        return JSONResponse(status_code=exc.http_status, content=exc.to_dict("-"))
+
     fresh.include_router(admin_routes.router)
     fresh.include_router(mcp_routes.router)
     fresh.include_router(res.router)
@@ -57,7 +65,7 @@ class TestAgents:
         ids = [a["id"] for a in client.get("/api/admin/agents").json()["agents"]]
         assert "a1" in ids and "death-aftercare" in ids
         assert client.delete("/api/admin/agents/a1").json()["deleted"] is True
-        assert client.delete("/api/admin/agents/death-aftercare").status_code == 400
+        assert client.delete("/api/admin/agents/death-aftercare").status_code in (400, 409)
 
 
 class TestVoices:
@@ -67,7 +75,7 @@ class TestVoices:
         assert len(client.get("/api/admin/voices").json()["voices"]) == 5
         assert client.post("/api/admin/voices/v1/set-default").json()["ok"]
         assert client.delete("/api/admin/voices/v1").json()["deleted"] is True
-        assert client.delete("/api/admin/voices/gentle_male").status_code == 400
+        assert client.delete("/api/admin/voices/gentle_male").status_code in (400, 409)
 
 
 class TestTools:

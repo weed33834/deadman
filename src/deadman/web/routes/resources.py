@@ -23,7 +23,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body
+
+from ...errors import DeadmanHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +129,7 @@ async def create_prompt(
     prompt_type: str = Body(default="chat", description="类型"),
 ) -> dict[str, Any]:
     if not name or content is None:
-        raise HTTPException(status_code=400, detail="name/content 必填")
+        raise DeadmanHTTPException("DM-PROMPT-4001")
     safe = _esc(name)
     data = {
         "content": content,
@@ -149,7 +151,7 @@ async def get_prompt(name: str) -> dict[str, Any]:
     for p in _builtin_prompts():
         if p["name"] == name:
             return p
-    raise HTTPException(status_code=404, detail=f"未找到提示词: {name}")
+    raise DeadmanHTTPException("DM-PROMPT-4040", message=f"未找到提示词: {name}")
 
 
 @router.put("/prompts/{name}")
@@ -159,7 +161,7 @@ async def update_prompt(
     description: str = Body(default=""),
 ) -> dict[str, Any]:
     if content is None:
-        raise HTTPException(status_code=400, detail="content 必填")
+        raise DeadmanHTTPException("DM-PROMPT-4001", message="content 必填")
     existing = _prompts_store.get(name) or {}
     existing["content"] = content
     if description:
@@ -174,7 +176,7 @@ async def update_prompt(
 async def delete_prompt(name: str) -> dict[str, Any]:
     if _prompts_store.delete(name):
         return {"ok": True, "name": name, "deleted": True}
-    raise HTTPException(status_code=400, detail="内置提示词不可删除，或不存在")
+    raise DeadmanHTTPException("DM-PROMPT-4090", message="内置提示词不可删除，或不存在")
 
 
 @router.post("/prompts/generate")
@@ -200,7 +202,7 @@ async def generate_prompt(
     try:
         content = await llm_client.chat([{"role": "user", "content": user_prompt}], temperature=0.3)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"AI 生成失败: {exc}") from exc
+        raise DeadmanHTTPException("DM-PROMPT-5000", message=f"AI 生成失败: {exc}") from exc
     drafts = _prompts_store.get("__drafts__") or []
     draft = {
         "name": f"draft_{int(time.time())}",
@@ -226,7 +228,7 @@ async def test_prompt(
                 p = b
                 break
     if p is None:
-        raise HTTPException(status_code=404, detail=f"未找到提示词: {name}")
+        raise DeadmanHTTPException("DM-PROMPT-4040", message=f"未找到提示词: {name}")
     system = p.get("content", "")
     start = time.monotonic()
     try:
@@ -260,7 +262,7 @@ async def tool_test(
     from ...mcp_server.server import mcp
 
     if not name:
-        raise HTTPException(status_code=400, detail="tool 必填")
+        raise DeadmanHTTPException("DM-TOOL-4001")
     arguments = arguments or {}
     start = time.monotonic()
     result = await mcp.call_tool(name, arguments)
@@ -382,7 +384,7 @@ async def create_agent(
 ) -> dict[str, Any]:
     agent = agent or {}
     if not agent.get("id") and not agent.get("name"):
-        raise HTTPException(status_code=400, detail="agent 需提供 id 或 name")
+        raise DeadmanHTTPException("DM-AGENT-4001")
     agent_id = _esc(str(agent.get("id") or agent.get("name")))
     payload = dict(_DEFAULT_AGENT_TEMPLATE)
     payload.update(agent)
@@ -395,10 +397,10 @@ async def create_agent(
 @router.delete("/agents/{agent_id}")
 async def delete_agent(agent_id: str) -> dict[str, Any]:
     if agent_id in {a["id"] for a in _builtin_agents()}:
-        raise HTTPException(status_code=400, detail="内置 Agent 不可删除")
+        raise DeadmanHTTPException("DM-AGENT-4090")
     if _agents_store.delete(agent_id):
         return {"ok": True, "agent_id": agent_id, "deleted": True}
-    raise HTTPException(status_code=404, detail=f"未找到 Agent: {agent_id}")
+    raise DeadmanHTTPException("DM-AGENT-4040", message=f"未找到 Agent: {agent_id}")
 
 
 @router.post("/agents/{agent_id}/test")
@@ -512,7 +514,7 @@ async def update_voice(
 ) -> dict[str, Any]:
     existing = _voices_store.get(voice_id)
     if existing is None:
-        raise HTTPException(status_code=404, detail=f"未找到音色: {voice_id}")
+        raise DeadmanHTTPException("DM-VOICE-4040", message=f"未找到音色: {voice_id}")
     voice = voice or {}
     for k in ("name", "engine", "voice_id", "language", "gender", "style", "params", "status"):
         if k in voice:
@@ -525,7 +527,7 @@ async def update_voice(
 async def delete_voice(voice_id: str) -> dict[str, Any]:
     if _voices_store.delete(voice_id):
         return {"ok": True, "voice_id": voice_id, "deleted": True}
-    raise HTTPException(status_code=400, detail="预置音色不可删除，或不存在")
+    raise DeadmanHTTPException("DM-VOICE-4090", message="预置音色不可删除，或不存在")
 
 
 @router.post("/voices/{voice_id}/set-default")

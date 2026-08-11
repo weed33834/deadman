@@ -161,6 +161,10 @@
   .md-hr { border: none; border-top: 1px solid var(--line); margin: .6em 0; }
   .md-ic { background: var(--paper-warm); padding: .1em .35em; border-radius: 4px; font-family: ui-monospace, monospace; font-size: .9em; }
   .md-code { background: #221e19; color: #e8e0d2; padding: .8em 1em; border-radius: var(--radius-s); overflow-x: auto; font-size: .85em; line-height: 1.6; margin: .4em 0; }
+  .md-code-wrap { position: relative; }
+  .md-copy { position: absolute; top: 8px; right: 8px; padding: 2px 8px; font-size: 11px; background: rgba(255,255,255,.08); color: #e8e0d2; border: 1px solid rgba(255,255,255,.2); border-radius: var(--radius-s); cursor: pointer; opacity: 0; transition: opacity .2s var(--ease); letter-spacing: 0; }
+  .md-code-wrap:hover .md-copy { opacity: 1; }
+  .md-copy:hover { background: var(--accent); color: #fff; }
   .md-table { border-collapse: collapse; margin: .5em 0; font-size: .92em; }
   .md-table th, .md-table td { border: 1px solid var(--line); padding: .35em .6em; }
   .md-table th { background: var(--paper-warm); font-weight: 600; }
@@ -532,6 +536,9 @@
     transition: all .2s var(--ease); box-shadow: var(--shadow-s);
   }
   .theme-toggle:hover { background: var(--accent); color: var(--paper-warm); transform: rotate(12deg); }
+  .topbar-action { padding: 6px 12px; background: #fff; color: var(--accent); border: 1px solid var(--line); border-radius: var(--radius-s); font-size: 12px; cursor: pointer; letter-spacing: .5px; transition: all .2s var(--ease); box-shadow: var(--shadow-s); }
+  .topbar-action:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  body.dark .topbar-action { background: #26221d; }
 
   /* ===== 对话维度 dashboard ===== */
   .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
@@ -710,6 +717,7 @@
       <select id="agentSelect" onchange="currentAgent=this.value"></select>
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">就绪</span>
+      <button class="topbar-action" onclick="exportConversation('md')" title="导出全部对话">⭳ 对话</button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜砚主题">☾</button>
       <span id="authArea"></span>
     </div>
@@ -739,6 +747,7 @@
         <div class="input-tools" id="inputTools">
           <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
           <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
+          <button class="tool-chip" id="stopBtn" onclick="stopGeneration()" title="停止生成" style="display:none">⏹ 停止</button>
           <input type="file" id="chatFile" accept=".pdf,.docx,.doc,.txt,.md,.csv,image/*" style="display:none" onchange="handleChatFile(this)">
           <span class="tool-chip kb-state" id="kbState" style="display:none">知识库开</span>
         </div>
@@ -1160,6 +1169,23 @@ let micRecording = false;
 // === 知识库开关 + 文件上传（对话特色增强）===
 let kbEnabled = false;
 let pendingFileText = ""; // 上传解析后的文件文本（随下一条消息附加）
+let streamAbort = null; // 停止生成用的 AbortController
+let lastUserQuery = ""; // 最近一条用户提问（供"重画"）
+
+function regenerateMsg(btn) {
+  if (streaming || !lastUserQuery) return;
+  // 移除最后一条 bot 消息
+  const msg = btn.closest(".message");
+  if (msg) msg.remove();
+  history = history.filter(m => m.role !== "assistant");
+  // 重发上一条用户提问
+  input.value = lastUserQuery;
+  send();
+}
+
+function stopGeneration() {
+  if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
+}
 
 function toggleKb() {
   kbEnabled = !kbEnabled;
@@ -1244,6 +1270,16 @@ async function uploadVoice(blob) {
 
 const sendBtn = document.getElementById("sendBtn");
 const chatArea = document.getElementById("chatArea");
+
+// 滚动锁定：用户上翻时不强制滚到底，避免打扰阅读
+let userScrolledUp = false;
+chatArea.addEventListener("scroll", () => {
+  userScrolledUp = (chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight) > 120;
+}, { passive: true });
+function scrollToBottom(force) {
+  if (force) userScrolledUp = false;
+  if (!userScrolledUp) chatArea.scrollTop = chatArea.scrollHeight;
+}
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 
@@ -1342,7 +1378,7 @@ function renderMarkdown(text) {
       i++;
       while (i < lines.length && !lines[i].trim().startsWith("```")) { code.push(lines[i]); i++; }
       i++; // 跳过结束 ```
-      html += `<pre class="md-code${lang?` lang-${lang}`:""}"><code>${code.join("\n")}</code></pre>`;
+      html += `<div class="md-code-wrap"><button class="md-copy" onclick="copyCode(this)" title="复制代码">⧉ 复制</button><pre class="md-code${lang?` lang-${lang}`:""}"><code>${code.join("\n")}</code></pre></div>`;
       continue;
     }
     // 表格
@@ -1454,6 +1490,7 @@ function addMessage(role, text, meta) {
     actions.className = "msg-actions";
     actions.innerHTML =
       '<button class="ma" onclick="copyMsg(this)" title="复制">⧉ 复制</button>' +
+      '<button class="ma" onclick="regenerateMsg(this)" title="重新生成">↻ 重画</button>' +
       '<button class="ma" onclick="exportMsg(this,\'md\')" title="导出 Markdown">⭳ MD</button>' +
       '<button class="ma" onclick="exportMsg(this,\'docx\')" title="导出 Word">⭳ Word</button>' +
       '<button class="ma" onclick="exportMsg(this,\'pdf\')" title="导出 PDF">⭳ PDF</button>';
@@ -1461,7 +1498,7 @@ function addMessage(role, text, meta) {
   }
   msg.appendChild(avatar); msg.appendChild(content);
   chatArea.appendChild(msg);
-  chatArea.scrollTop = chatArea.scrollHeight;
+  scrollToBottom();
   // P3：返回 content 容器，方便在 bubble 下方插入 trace 思考过程面板
   return { bubble, content };
 }
@@ -1486,6 +1523,32 @@ async function exportMsg(btn, format) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name + "." + ext; a.click();
   toast("已导出 " + ext.toUpperCase());
 }
+function copyCode(btn) {
+  const pre = btn.closest(".md-code-wrap").querySelector("pre");
+  const code = pre ? pre.innerText : "";
+  (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject())
+    .then(() => toast("代码已复制"))
+    .catch(() => { const t = document.createElement("textarea"); t.value = code; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); toast("已复制"); });
+}
+
+// 导出全部对话（md/docx/pdf）
+async function exportConversation(format) {
+  const msgs = [...document.querySelectorAll("#chatArea .message")].map(m => {
+    const who = m.classList.contains("user") ? "我" : "助手";
+    return "**" + who + "**\n" + (m.querySelector(".bubble") ? m.querySelector(".bubble").innerText : "");
+  });
+  if (!msgs.length) { toast("暂无对话可导出"); return; }
+  const text = msgs.join("\n\n---\n\n");
+  const name = "对话导出-" + new Date().toISOString().slice(0, 10);
+  try {
+    const r = await fetch("/api/chat/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, format, filename: name }) });
+    if (!r.ok) { toast("导出失败"); return; }
+    const blob = await r.blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name + "." + (format === "pdf" ? "pdf" : format === "docx" ? "docx" : "md"); a.click();
+    toast("已导出全部对话");
+  } catch (e) { toast("导出失败：" + e); }
+}
+
 // 轻提示
 function toast(msg) {
   let t = document.getElementById("toast");
@@ -1637,7 +1700,7 @@ async function send() {
           bubble.innerHTML = renderBotContent("⚠ 未能生成图表：\n" + (d.message || JSON.stringify(d)) + (d.stderr ? "\n```\n" + d.stderr + "\n```" : ""));
         }
       } catch (e) { bubble.innerHTML = renderBotContent("画图失败：" + e); }
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollToBottom();
       return;
     }
     try {
@@ -1653,12 +1716,15 @@ async function send() {
     } catch (e) {
       bubble.innerHTML = renderBotContent("命令执行失败：" + e);
     }
-    chatArea.scrollTop = chatArea.scrollHeight;
+    scrollToBottom();
     return;
   }
   addMessage("user", text);
   history.push({ role: "user", content: text });
+  lastUserQuery = text;
   streaming = true; sendBtn.disabled = true;
+  const stopBtn = document.getElementById("stopBtn"); if (stopBtn) stopBtn.style.display = "inline-block";
+  streamAbort = new AbortController();
   statusDot.className = "status-dot busy";
   statusText.innerHTML = '<span class="thinking-indicator"><span class="pulse-dot"></span>正在思考</span>';
   const { bubble, content } = addMessage("bot", "");
@@ -1675,7 +1741,7 @@ async function send() {
       pendingFileText = "";
     }
     const url = `/api/stream?query=${encodeURIComponent(sendQuery)}&agent=${encodeURIComponent(currentAgent)}${kb}`;
-    const resp = await fetch(url, { headers: { ...authHeaders() } });
+    const resp = await fetch(url, { headers: { ...authHeaders() }, signal: streamAbort.signal });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -1687,7 +1753,7 @@ async function send() {
       pendingRender = false;
       bubble.innerHTML = renderBotContent(full) +
         '<span class="typing-cursor"></span>';
-      chatArea.scrollTop = chatArea.scrollHeight;
+      scrollToBottom();
     };
     while (true) {
       const { done, value } = await reader.read();
@@ -1761,11 +1827,19 @@ async function send() {
       m.className = "meta"; m.textContent = meta;
       content.appendChild(m);
     }
-    chatArea.scrollTop = chatArea.scrollHeight;
+    scrollToBottom();
   } catch (e) {
-    bubble.textContent = "请求失败：" + e.message;
+    if (e.name === "AbortError") {
+      // 用户主动停止：保留已生成内容
+      if (full) { bubble.innerHTML = renderBotContent(full); history.push({ role: "assistant", content: full }); }
+      else bubble.textContent = "（已停止）";
+    } else {
+      bubble.textContent = "请求失败：" + e.message;
+    }
   } finally {
     streaming = false; sendBtn.disabled = false;
+    if (stopBtn) stopBtn.style.display = "none";
+    streamAbort = null;
     statusDot.className = "status-dot";
     statusText.textContent = "就绪";
     // Phase 16C P2-gap-3：流式完成后渲染 tel: 链接

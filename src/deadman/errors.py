@@ -88,6 +88,8 @@ def _register_defaults() -> None:
     ErrorRegistry.register("DM-AGENT-4090", 409, "内置 Agent 不可删除")
     # 语音
     ErrorRegistry.register("DM-VOICE-4001", 400, "缺少音频文件")
+    ErrorRegistry.register("DM-VOICE-4040", 404, "音色资源不存在")
+    ErrorRegistry.register("DM-VOICE-4090", 409, "预置音色不可删除或修改")
     ErrorRegistry.register("DM-VOICE-4150", 415, "不支持的音频格式")
     ErrorRegistry.register("DM-VOICE-4130", 413, "音频文件过大")
     ErrorRegistry.register("DM-VOICE-5030", 503, "语音转写/合成未启用")
