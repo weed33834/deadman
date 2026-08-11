@@ -310,10 +310,20 @@ async def chat_command(
         return _cmd_custom(tokens)
     if cmd in ("family", "kinship", "亲属"):
         return _cmd_family(tokens)
+    if cmd in ("vault", "legacy", "资产"):
+        return _cmd_vault(tokens)
+    if cmd in ("note", "ending", "终活"):
+        return _cmd_note(tokens)
+    if cmd in ("task", "schedule", "定时"):
+        return await _cmd_task(tokens)
+    if cmd in ("switch", "死人开关"):
+        return _cmd_switch(tokens)
+    if cmd in ("docs", "文档"):
+        return _cmd_docs(tokens)
     return {
         "ok": False,
         "kind": "text",
-        "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill /hotline /institution /custom /family /plot /image /browse",
+        "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill /hotline /institution /custom /family /vault /note /task /switch /docs /plot /image /browse",
     }
 
 
@@ -801,3 +811,169 @@ def _cmd_family(tokens: list[str]) -> dict[str, Any]:
             ),
         }
     return {"ok": False, "kind": "text", "text": _FAMILY_HELP}
+
+
+# =====================================================================
+# 对话调动剩余功能：/vault /note /task /switch /docs
+# =====================================================================
+
+_USER = "default"  # dev/anonymous 用 default 用户（对话命令无认证上下文）
+
+
+def _cmd_vault(tokens: list[str]) -> dict[str, Any]:
+    """数字遗产保险库：/vault list"""
+    try:
+        from ...digital_legacy import DigitalLegacyStore
+    except Exception:
+        try:
+            from ...vault.store import VaultStore
+        except Exception:
+            return {"ok": False, "kind": "text", "text": "保险库模块不可用"}
+        store = VaultStore()
+        try:
+            items = store.list_items(_USER, _USER)
+            md = ["**数字遗产保险库**\n"]
+            for it in items[:12]:
+                md.append(f"- **{it.get('title', '?')}**（{it.get('type', '')}）")
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": "\n".join(md) if len(items) else "保险库暂无条目。可在「保险库」页添加。",
+            }
+        except Exception as exc:
+            return {"ok": True, "kind": "text", "text": f"保险库：{exc}"}
+    store = DigitalLegacyStore(user_id=_USER)
+    try:
+        s = store.summary()
+        md = ["**数字遗产清单**\n"]
+        md.append(f"- 资产：{s.get('total_assets', 0)} 项，未指派 {s.get('unassigned', 0)} 项")
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"保险库读取失败: {exc}"}
+
+
+def _cmd_note(tokens: list[str]) -> dict[str, Any]:
+    """终活笔记：/note list"""
+    try:
+        from ...ending_note.store import EndingNoteStore
+
+        note = EndingNoteStore().load(_USER)
+        if note is None:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": "尚无终活笔记。可在「终活笔记」页开始填写。",
+            }
+        sections = (
+            note.sections
+            if hasattr(note, "sections")
+            else (note.get("sections", {}) if isinstance(note, dict) else {})
+        )
+        done = len([s for s in sections.values() if s]) if isinstance(sections, dict) else 0
+        total = len(sections) if isinstance(sections, dict) else 0
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"终活笔记：已完成 {done}/{total} 章节。可在「终活笔记」页继续填写。",
+        }
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"终活笔记读取失败: {exc}"}
+
+
+async def _cmd_task(tokens: list[str]) -> dict[str, Any]:
+    """定时任务：/task list | /task add <cron> <内容>"""
+    action = tokens[0] if tokens else "list"
+    try:
+        from ...cron.scheduler import CronScheduler
+
+        sched = CronScheduler()
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"定时任务模块不可用: {exc}"}
+    if action == "add":
+        # cron 为 5 个字段（可能被空格拆开），重组
+        cron = (
+            " ".join(tokens[1:6]) if len(tokens) >= 6 else (tokens[1] if len(tokens) >= 2 else "")
+        )
+        content = (
+            " ".join(tokens[6:])
+            if len(tokens) >= 7
+            else (" ".join(tokens[2:]) if len(tokens) > 2 else "")
+        )
+        if not cron or len(cron.split()) != 5:
+            return {
+                "ok": False,
+                "kind": "text",
+                "text": "用法: /task add <cron 5字段> <内容>，如 /task add 0 9 * * * 提醒办理",
+            }
+        try:
+            res = await sched.propose_job(_USER, cron, content)
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": f"已提议定时任务（需在管理台确认）：{res.get('message', '')}",
+            }
+        except Exception as exc:
+            return {"ok": False, "kind": "text", "text": f"提议失败: {exc}"}
+    jobs = sched.list_jobs(_USER)
+    if not jobs:
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": '暂无定时任务。用法: /task add "0 9 * * *" 提醒内容',
+        }
+    md = ["**定时任务**\n"]
+    for j in jobs[:10]:
+        d = j.to_dict() if hasattr(j, "to_dict") else j
+        md.append(
+            f"- {d.get('schedule', '')} · {d.get('content', '')} · {'已确认' if d.get('confirmed') else '待确认'}"
+        )
+    return {"ok": True, "kind": "text", "text": "\n".join(md)}
+
+
+def _cmd_switch(tokens: list[str]) -> dict[str, Any]:
+    """Dead Man Switch：/switch status"""
+    try:
+        from ...deadman_switch import store as sw_store
+
+        st = sw_store.SwitchStore()
+        try:
+            status = st.get_status(_USER) if hasattr(st, "get_status") else None
+        except Exception:
+            status = None
+        if status is None:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": "Dead Man Switch 未初始化。可在「Dead Man Switch」页设置。",
+            }
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"Dead Man Switch 状态：{getattr(status, 'status', str(status))}",
+        }
+    except Exception as exc:
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"Dead Man Switch：未初始化（{exc}）。可在「Dead Man Switch」页设置。",
+        }
+
+
+def _cmd_docs(tokens: list[str]) -> dict[str, Any]:
+    """文档管理：/docs list"""
+    try:
+        from ...doc_extract.extractor import DocumentExtractor
+
+        extractor = DocumentExtractor()
+        docs = extractor.list_my_documents(_USER)
+        if not docs:
+            return {"ok": True, "kind": "text", "text": "暂无文档。可在「文档管理」页上传/提取。"}
+        md = ["**已管理文档**\n"]
+        for d in docs[:12]:
+            di = d.to_dict() if hasattr(d, "to_dict") else d
+            md.append(
+                f"- **{di.get('title', '?')}**（{di.get('doc_type', di.get('file_type', ''))}）"
+            )
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"文档读取失败: {exc}"}

@@ -150,3 +150,15 @@ class TestSkillState:
         assert d["ok"] is True and "已停用" in d["text"]
         r2 = client.post("/api/chat/command", json={"command": "/skill enable demo"})
         assert "已启用" in r2.json()["text"]
+
+
+class TestFullCommands:
+    def test_task_add_and_list(self, client):
+        r = client.post("/api/chat/command", json={"command": "/task add 0 9 * * * 提醒办理"})
+        assert r.json()["ok"] is True and "已提议" in r.json()["text"]
+        assert "定时任务" in client.post("/api/chat/command", json={"command": "/task list"}).json()["text"]
+
+    def test_vault_note_docs_switch(self, client):
+        for cmd in ["/vault list", "/note list", "/docs list", "/switch status"]:
+            d = client.post("/api/chat/command", json={"command": cmd}).json()
+            assert "text" in d
