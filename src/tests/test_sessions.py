@@ -63,3 +63,21 @@ class TestSessions:
         sid = client.post("/api/sessions", json={"title": "x"}).json()["session"]["id"]
         r = client.post(f"/api/sessions/{sid}/messages", json={"role": "robot", "content": "hi"})
         assert r.status_code in (400, 422)
+
+
+class TestSearchGroup:
+    def test_patch_group_and_search(self, client):
+        sid = client.post("/api/sessions", json={"title": "身后事"}).json()["session"]["id"]
+        client.post(
+            f"/api/sessions/{sid}/messages", json={"role": "user", "content": "死亡证明怎么办"}
+        )
+        client.patch(f"/api/sessions/{sid}", json={"group": "家庭"})
+        # list 含 group
+        s = client.get("/api/sessions").json()["sessions"][0]
+        assert s.get("group") == "家庭"
+        # 搜索
+        r = client.get("/api/sessions/search?q=死亡").json()
+        assert len(r["sessions"]) == 1
+        # 分组
+        g = client.get("/api/sessions/groups").json()["groups"]
+        assert any(x["name"] == "家庭" for x in g)

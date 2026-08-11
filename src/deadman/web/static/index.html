@@ -92,6 +92,10 @@
   .session-del { color: #7c7467; font-size: 14px; padding: 0 4px; }
   .session-del:hover { color: var(--err); }
   .session-empty { padding: 8px 14px; font-size: 11px; color: #7c7467; }
+  .session-search { width: calc(100% - 24px); margin: 2px 12px 6px; padding: 6px 10px; background: rgba(255,255,255,.06); color: #e6ded2; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; font-size: 12px; outline: none; }
+  .session-search::placeholder { color: #7c7467; }
+  .session-group { padding: 8px 14px 2px; font-size: 10px; letter-spacing: 1px; color: #7c7467; text-transform: uppercase; }
+  .session-gcount { color: var(--accent-soft); font-size: 10px; margin-left: 2px; }
   .sidebar-footer {
     padding: 16px 26px; font-size: 10px; color: #7c7467;
     border-top: 1px solid rgba(255,255,255,.07); letter-spacing: .5px;
@@ -694,7 +698,8 @@
     <div class="nav-group-label" style="display:flex;justify-content:space-between;align-items:center;padding-right:8px">
       会话 <span class="session-new" onclick="newSession()" title="新建会话">＋</span>
     </div>
-    <div id="sessionList" style="max-height:180px;overflow-y:auto"></div>
+    <input id="sessionSearch" class="session-search" placeholder="搜索会话…" oninput="loadSessions(this.value)">
+    <div id="sessionList" style="max-height:220px;overflow-y:auto"></div>
     <div class="nav-item active" data-page="chat" onclick="switchPage('chat')">对话</div>
     <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">运维看板</div>
     <div class="nav-group-label">业务功能</div>
@@ -772,6 +777,7 @@
         </div>
         <div class="input-tools" id="inputTools">
           <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
+          <button class="tool-chip" id="searchToggle" onclick="toggleSearch()" title="联网搜索最新信息">🔍 联网</button>
           <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
           <button class="tool-chip" id="stopBtn" onclick="stopGeneration()" title="停止生成" style="display:none">⏹ 停止</button>
           <input type="file" id="chatFile" accept=".pdf,.docx,.doc,.txt,.md,.csv,image/*" style="display:none" onchange="handleChatFile(this)">
@@ -1194,9 +1200,16 @@ let micRecording = false;
 
 // === 知识库开关 + 文件上传（对话特色增强）===
 let kbEnabled = false;
+let searchEnabled = false;
 let pendingFileText = ""; // 上传解析后的文件文本（随下一条消息附加）
 let streamAbort = null; // 停止生成用的 AbortController
 let lastUserQuery = ""; // 最近一条用户提问（供"重画"）
+
+function toggleSearch() {
+  searchEnabled = !searchEnabled;
+  const btn = document.getElementById("searchToggle");
+  if (btn) btn.classList.toggle("on", searchEnabled);
+}
 
 function regenerateMsg(btn) {
   if (streaming || !lastUserQuery) return;
@@ -1307,16 +1320,31 @@ async function api(path, opts) {
 // === 会话管理（多会话/历史）===
 let currentSessionId = null;
 let currentSessionTitle = "";
-async function loadSessions() {
+async function loadSessions(q) {
   const list = document.getElementById("sessionList");
   if (!list) return;
+  q = (q || "").trim();
   try {
-    const d = (await api("/api/sessions")).data || {};
+    const url = q ? "/api/sessions/search?q=" + encodeURIComponent(q) : "/api/sessions";
+    const d = (await api(url)).data || {};
     const items = d.sessions || [];
-    list.innerHTML = items.map(s =>
-      '<div class="session-item' + (s.id === currentSessionId ? " active" : "") + '" onclick="switchSession(\'' + s.id + '\')" title="' + esc(s.title) + '">'
-      + '<span class="session-name">' + esc(s.title) + '</span>'
-      + '<span class="session-del" onclick="event.stopPropagation();deleteSession(\'' + s.id + '\')" title="删除">×</span></div>'
+    // 按分组渲染（无搜索时）
+    if (q) {
+      list.innerHTML = items.map(s =>
+        '<div class="session-item' + (s.id === currentSessionId ? " active" : "") + '" onclick="switchSession(\'' + s.id + '\')" title="' + esc(s.title) + '">'
+        + '<span class="session-name">' + esc(s.title) + '</span></div>'
+      ).join("") || '<div class="session-empty">无匹配会话</div>';
+      return;
+    }
+    const groups = {};
+    items.forEach(s => { const g = s.group || "默认"; (groups[g] = groups[g] || []).push(s); });
+    list.innerHTML = Object.entries(groups).map(([g, arr]) =>
+      '<div class="session-group">' + esc(g) + ' <span class="session-gcount">' + arr.length + '</span></div>'
+      + arr.map(s =>
+        '<div class="session-item' + (s.id === currentSessionId ? " active" : "") + '" onclick="switchSession(\'' + s.id + '\')" title="' + esc(s.title) + '">'
+        + '<span class="session-name">' + esc(s.title) + '</span>'
+        + '<span class="session-del" onclick="event.stopPropagation();deleteSession(\'' + s.id + '\')" title="删除">×</span></div>'
+      ).join("")
     ).join("") || '<div class="session-empty">暂无会话</div>';
   } catch (e) { list.innerHTML = '<div class="session-empty">会话加载失败</div>'; }
 }
@@ -1844,6 +1872,26 @@ async function send() {
           bubble.innerHTML = renderBotContent("⚠ 未能生成图表：\n" + (d.message || JSON.stringify(d)) + (d.stderr ? "\n```\n" + d.stderr + "\n```" : ""));
         }
       } catch (e) { bubble.innerHTML = renderBotContent("画图失败：" + e); }
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return;
+    }
+    if (text.trim().toLowerCase().startsWith("/image ")) {
+      // 图像生成
+      const prompt = text.trim().slice(7);
+      try {
+        const r = await fetch("/api/chat/image", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ prompt }) });
+        const d = await r.json();
+        if (d.ok && d.image_base64) {
+          bubble.innerHTML = '<img class="md-img" src="data:' + (d.image_mime || "image/png") + ';base64,' + d.image_base64 + '" alt="生成的图片">'
+            + '<div class="muted" style="margin-top:4px">🎨 ' + esc(prompt) + '</div>';
+        } else {
+          bubble.innerHTML = renderBotContent("⚠ 未能生成图片：\n" + (d.message || d.error || JSON.stringify(d)));
+        }
+      } catch (e) { bubble.innerHTML = renderBotContent("图像生成失败：" + e); }
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return;
+    }
+      } catch (e) { bubble.innerHTML = renderBotContent("画图失败：" + e); }
       scrollToBottom();
       return;
     }
@@ -1882,8 +1930,9 @@ async function send() {
     const kb = kbEnabled ? "&kb=1" : "";
     // 若上传过文件，把解析文本作为上下文附加到查询（用户气泡仍只显示原问题）
     let sendQuery = text;
+    if (searchEnabled) sendQuery = "【请联网搜索最新、最准确的信息来回答】" + text;
     if (pendingFileText) {
-      sendQuery = text + "\n\n【用户上传的文件内容，请结合回答】\n" + pendingFileText;
+      sendQuery = sendQuery + "\n\n【用户上传的文件内容，请结合回答】\n" + pendingFileText;
       pendingFileText = "";
     }
     const url = `/api/stream?query=${encodeURIComponent(sendQuery)}&agent=${encodeURIComponent(currentAgent)}${kb}`;

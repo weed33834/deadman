@@ -66,6 +66,7 @@ async def list_sessions() -> dict[str, Any]:
                 {
                     "id": data.get("id", p.stem),
                     "title": data.get("title", "未命名会话"),
+                    "group": data.get("group", ""),
                     "message_count": len(data.get("messages", [])),
                     "created_at": data.get("created_at", ""),
                     "updated_at": data.get("updated_at", ""),
@@ -140,3 +141,85 @@ async def append_message(
     data["updated_at"] = msg["ts"]
     _save(sid, data)
     return {"ok": True, "session_id": sid, "message": msg, "title": data["title"]}
+
+
+# =====================================================================
+# 会话搜索 + 分组（G2 / G1）
+# =====================================================================
+
+
+@router.get("/search")
+async def search_sessions(
+    q: str = "",
+    group: str = "",
+) -> dict[str, Any]:
+    """GET /api/sessions/search?q=&group= —— 按标题/内容关键词搜索，可按分组过滤"""
+    q = (q or "").strip().lower()
+    group = (group or "").strip()
+    results: list[dict[str, Any]] = []
+    for p in _sessions_dir().glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if group and data.get("group", "") != group:
+            continue
+        if q:
+            hay = (
+                data.get("title", "")
+                + " "
+                + " ".join(m.get("content", "") for m in data.get("messages", []))
+            ).lower()
+            if q not in hay:
+                continue
+        results.append(
+            {
+                "id": data.get("id", p.stem),
+                "title": data.get("title", "未命名会话"),
+                "group": data.get("group", ""),
+                "message_count": len(data.get("messages", [])),
+                "updated_at": data.get("updated_at", ""),
+            }
+        )
+    results.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+    return {"ok": True, "sessions": results, "query": q, "group": group}
+
+
+@router.patch("/{session_id}")
+async def update_session(
+    session_id: str,
+    title: str = Body(default=None, embed=True, description="新标题"),
+    group: str = Body(default=None, embed=True, description="分组/项目名"),
+) -> dict[str, Any]:
+    """PATCH /api/sessions/{id} —— 更新会话标题/分组"""
+    sid = _safe_id(session_id)
+    data = _load(sid)
+    if data is None:
+        raise DeadmanHTTPException("DM-GENERAL-4040", message=f"会话不存在: {session_id}")
+    if title is not None:
+        data["title"] = title[:40]
+    if group is not None:
+        data["group"] = group
+    data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    _save(sid, data)
+    return {
+        "ok": True,
+        "session_id": sid,
+        "title": data.get("title"),
+        "group": data.get("group", ""),
+    }
+
+
+@router.get("/groups")
+async def list_groups() -> dict[str, Any]:
+    """GET /api/sessions/groups —— 会话分组列表（含每组会话数）"""
+    counts: dict[str, int] = {}
+    for p in _sessions_dir().glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        g = data.get("group", "") or "默认"
+        counts[g] = counts.get(g, 0) + 1
+    groups = [{"name": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
+    return {"ok": True, "groups": groups}

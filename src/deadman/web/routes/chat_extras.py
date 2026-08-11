@@ -545,3 +545,42 @@ async def chat_plot(
         "image_mime": "image/png",
         "stdout": result.get("stdout", ""),
     }
+
+
+@router.post("/image")
+async def chat_image(
+    prompt: str = Body(default=None, embed=True, description="图像描述"),
+    style: str = Body(
+        default="memorial_card", description="风格：memorial_card/obituary/portrait/condolence_card"
+    ),
+) -> dict[str, Any]:
+    """POST /api/chat/image —— 生成图片（AI 图像生成），返回 base64。
+
+    供对话 /image 命令使用（围绕产品特色：纪念卡/讣告/肖像等风格）。
+    """
+    import asyncio
+    import base64
+
+    from ...multimodal.image_gen import ImageStyle, get_image_generator
+
+    if not prompt:
+        raise DeadmanHTTPException("DM-VALID-4002", message="prompt 必填")
+    try:
+        style_enum = ImageStyle(style)
+    except ValueError:
+        style_enum = ImageStyle.MEMORIAL_CARD
+    gen = get_image_generator()
+    if not gen.is_enabled():
+        raise DeadmanHTTPException(
+            "DM-VOICE-5030", message="图像生成未启用（DEADMAN_MULTIMODAL_ENABLED=0）"
+        )
+    img_bytes = await asyncio.to_thread(gen.generate, prompt, style_enum)
+    if not img_bytes:
+        raise DeadmanHTTPException("DM-VOICE-5000", message="图像生成失败（无输出）")
+    return {
+        "ok": True,
+        "image_base64": base64.b64encode(img_bytes).decode(),
+        "image_mime": "image/png",
+        "prompt": prompt,
+        "style": style_enum.value,
+    }
