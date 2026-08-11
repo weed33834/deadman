@@ -584,3 +584,55 @@ async def chat_image(
         "prompt": prompt,
         "style": style_enum.value,
     }
+
+
+@router.post("/browse")
+async def chat_browse(url: str = Body(default=None, embed=True, description="要浏览的网页 URL")) -> dict[str, Any]:
+    """POST /api/chat/browse —— 浏览器自动化（抓取网页并提取可读文本/摘要）
+
+    供对话 /browse 命令：让 Agent 抓取并总结网页内容。
+    """
+    if not url or not url.startswith(("http://", "https://")):
+        raise DeadmanHTTPException("DM-VALID-4001", message="url 需以 http(s):// 开头")
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (deadman-agent)"})
+            resp.raise_for_status()
+    except Exception as exc:
+        raise DeadmanHTTPException("DM-VOICE-5000", message=f"网页抓取失败: {exc}") from exc
+    # 提取可读文本
+    text = _extract_readable(resp.content)
+    return {
+        "ok": True,
+        "url": url,
+        "status": resp.status_code,
+        "title": _extract_title(resp.content),
+        "text": text[:8000],
+        "truncated": len(text) > 8000,
+        "hint": "可让 Agent 结合该网页内容继续回答；或在对话发 /browse <url> 触发。",
+    }
+
+
+def _extract_readable(html: bytes) -> str:
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n")
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        return "\n".join(lines)
+    except Exception:
+        return html.decode("utf-8", errors="replace")[:8000]
+
+
+def _extract_title(html: bytes) -> str:
+    try:
+        from bs4 import BeautifulSoup
+
+        return (BeautifulSoup(html, "html.parser").title.string or "").strip()
+    except Exception:
+        return ""

@@ -722,6 +722,7 @@
     <div class="nav-item" data-page="skills" onclick="switchPage('skills')"> data-i18n="技能管理"</div>
     <div class="nav-item" onclick="window.location.href='/admin'"> data-i18n="管理台"</div>
     <div class="nav-item" data-page="test" onclick="switchPage('test')"> data-i18n="测试中心"</div>
+    <div class="nav-item" data-page="canvas" onclick="switchPage('canvas')">画布</div>
     <div class="nav-item" data-page="resources" onclick="switchPage('resources')"> data-i18n="资源列表"</div>
     <div class="nav-item" onclick="openOnboardingWizard()"> data-i18n="重新引导"</div>
   </div>
@@ -866,11 +867,19 @@
     </div>
 
     <!-- 资源列表 -->
+    <div id="page-canvas" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <span class="section-title" style="font-family:'Songti SC',serif;font-size:16px;font-weight:600;color:var(--accent-deep)">画布 · 写作协作工作区</span>
+          <div><button class="btn green" onclick="canvasNew()">＋ 新建画布</button></div>
+        </div>
+        <div id="canvasMain"><div class="empty-hint">选择或新建一个画布</div></div>
+      </div>
+    </div>
     <div id="page-resources" class="page hidden">
       <div class="panel">
         <div class="panel-section">
-          <div class="section-title">智能体</div>
-          <table id="agentsTable">
+          <div class="section-title">智能体</div>          <table id="agentsTable">
             <thead><tr><th>标识</th><th>名称</th></tr></thead><tbody></tbody>
           </table>
         </div>
@@ -1178,11 +1187,12 @@ function switchPage(page) {
     "ending-note": "终活笔记", vault: "保险库", documents: "文档管理",
     cases: "遗码通", switch: "Dead Man Switch", letters: "通知信函",
     memorial: "悼文撰写", "plan-score": "规划评分", support: "客服工单",
-    hotlines: "热线/机构", skills: "技能管理",
+    hotlines: "热线/机构", skills: "技能管理", canvas: "画布",
   };
   document.getElementById("pageTitle").textContent = titles[page] || page;
   if (page === "dashboard") loadDashboard();
   if (page === "test") renderTestGrid();
+  if (page === "canvas") renderCanvas();
   if (page === "resources") loadResources();
   if (page === "ending-note") loadEndingNote();
   if (page === "vault") loadVaultItems();
@@ -1785,6 +1795,56 @@ async function exportReport(type) {
   toast("已导出" + label);
 }
 
+// === 画布协作（G6）===
+let currentCanvasId = null;
+async function renderCanvas() {
+  const d = (await api("/api/canvas")).data || {};
+  const items = (d.canvases || []).map(c =>
+    '<div class="session-item' + (c.id === currentCanvasId ? " active" : "") + '" onclick="openCanvas(\'' + c.id + '\')">'
+    + '<span class="session-name">' + esc(c.title) + '（' + c.block_count + ' 块）</span>'
+    + '<span class="session-del" onclick="event.stopPropagation();canvasDel(\'' + c.id + '\')">×</span></div>'
+  ).join("");
+  el("canvasMain").innerHTML =
+    '<div class="card-list" style="margin-bottom:14px">' + (items || '<div class="muted">暂无画布，点右上角新建</div>') + '</div>'
+    + '<div id="canvasEditor"><div class="empty-hint">← 选择画布开始编辑</div></div>';
+  if (currentCanvasId) openCanvas(currentCanvasId);
+}
+async function canvasNew() {
+  const d = (await api("/api/canvas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "未命名画布" }) })).data || {};
+  if (d.canvas) { currentCanvasId = d.canvas.id; renderCanvas(); }
+}
+async function openCanvas(id) {
+  currentCanvasId = id;
+  const d = (await api("/api/canvas/" + id)).data || {};
+  const c = d.canvas || {};
+  const blocks = (c.blocks || []).map((b, i) =>
+    '<div class="panel-section" style="position:relative">'
+    + '<textarea data-bidx="' + i + '" rows="5" style="width:100%;font-family:inherit">' + esc(b.content || "") + '</textarea>'
+    + '<div style="margin-top:6px"><button class="btn sm ghost" onclick="canvasAi(' + i + ')">🤖 AI</button>'
+    + '<button class="btn sm red" onclick="canvasDelBlock(' + i + ')">删块</button></div></div>'
+  ).join("");
+  el("canvasEditor").innerHTML =
+    '<div class="row"><div class="field"><label>标题</label><input type="text" id="cvTitle" value="' + esc(c.title || "") + '"></div>'
+    + '<div class="field"><label></label><button class="btn" onclick="canvasSave()">保存画布</button>'
+    + '<button class="btn ghost" onclick="canvasAddBlock()">＋ 块</button></div></div>'
+    + blocks + '<div id="cvOut"></div>';
+}
+async function canvasSave() {
+  const blocks = [...document.querySelectorAll("#canvasEditor textarea")].map(t => ({ type: "text", content: t.value }));
+  const r = await api("/api/canvas/" + currentCanvasId, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: el("cvTitle").value, blocks }) });
+  toast(r.ok ? "画布已保存" : "保存失败"); renderCanvas();
+}
+function canvasAddBlock() { openCanvas(currentCanvasId); }
+function canvasDelBlock(i) { const ta = document.querySelector(`[data-bidx="${i}"]`); if (ta) ta.closest(".panel-section").remove(); }
+async function canvasAi(i) {
+  const ta = document.querySelector(`[data-bidx="${i}"]`);
+  const instr = prompt("AI 指令（续写/改写/扩写…）：", "续写");
+  if (!instr || !ta) return;
+  const r = await api("/api/canvas/" + currentCanvasId + "/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ block_index: i, instruction: instr }) });
+  if (r.ok) ta.value = r.data.content; else toast("AI 失败");
+}
+async function canvasDel(id) { if (!confirm("删除画布？")) return; await api("/api/canvas/" + id, { method: "DELETE" }); if (currentCanvasId === id) currentCanvasId = null; renderCanvas(); }
+
 // 轻提示
 function toast(msg) {
   let t = document.getElementById("toast");
@@ -1952,6 +2012,21 @@ async function send() {
           bubble.innerHTML = renderBotContent("⚠ 未能生成图片：\n" + (d.message || d.error || JSON.stringify(d)));
         }
       } catch (e) { bubble.innerHTML = renderBotContent("图像生成失败：" + e); }
+      scrollToBottom();
+      return;
+    }
+    if (text.trim().toLowerCase().startsWith("/browse ")) {
+      // 浏览器自动化：抓取网页
+      const url = text.trim().slice(8);
+      try {
+        const r = await fetch("/api/chat/browse", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ url }) });
+        const d = await r.json();
+        if (d.ok) {
+          bubble.innerHTML = renderBotContent("**" + (d.title || url) + "**\n\n（已抓取 " + d.status + "，正文 " + d.text.length + " 字）\n\n" + d.text.slice(0, 1500));
+        } else {
+          bubble.innerHTML = renderBotContent("⚠ 网页抓取失败：" + (d.message || JSON.stringify(d)));
+        }
+      } catch (e) { bubble.innerHTML = renderBotContent("浏览失败：" + e); }
       scrollToBottom();
       return;
     }
