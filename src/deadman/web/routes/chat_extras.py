@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -305,10 +306,14 @@ async def chat_command(
         return _cmd_hotline(tokens)
     if cmd in ("institution", "institutions", "org"):
         return _cmd_institution(tokens)
+    if cmd in ("custom", "customs", "民俗"):
+        return _cmd_custom(tokens)
+    if cmd in ("family", "kinship", "亲属"):
+        return _cmd_family(tokens)
     return {
         "ok": False,
         "kind": "text",
-        "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill /hotline /institution",
+        "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill /hotline /institution /custom /family /plot /image /browse",
     }
 
 
@@ -663,3 +668,136 @@ def _extract_title(html: bytes) -> str:
         return (BeautifulSoup(html, "html.parser").title.string or "").strip()
     except Exception:
         return ""
+
+
+# =====================================================================
+# 民俗规则 / 亲属图谱 对话命令
+# =====================================================================
+
+_CUSTOM_HELP = (
+    "用法: /custom list | /custom get <地区|关键词> | /custom import <预置id> | /custom presets"
+)
+_FAMILY_HELP = "用法: /family list | /family add <姓名> [男|女] | /family rel <甲> <乙> <配偶|父|母|子|女|兄弟>"
+
+
+def _cmd_custom(tokens: list[str]) -> dict[str, Any]:
+    action = tokens[0] if tokens else "help"
+    try:
+        from ...web.routes.customs import _store as _cstore
+    except Exception:
+        return {"ok": False, "kind": "text", "text": "民俗模块不可用"}
+    if action == "help":
+        return {"ok": True, "kind": "text", "text": _CUSTOM_HELP}
+    if action == "presets":
+        from ...web.routes.customs import _PRESETS
+
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": "可导入预置：\n" + "\n".join(f"- {p['id']}（{p['title']}）" for p in _PRESETS),
+        }
+    if action == "import" and len(tokens) >= 2:
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"请在管理台「民俗规则」面板导入预置 {tokens[1]}，或稍后用 /custom get 查询已导入内容。",
+        }
+    if action == "get":
+        q = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+        items = [dict(v, id=k) for k, v in _cstore().items() if isinstance(v, dict)]
+        if q:
+            items = [
+                i
+                for i in items
+                if q in i.get("title", "")
+                or q in i.get("region", "")
+                or any(r.get("title", "") in q for r in i.get("rules", []))
+            ]
+        if not items:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": f"未找到相关民俗（关键词={q or '全部'}）。试试 /custom list 或到管理台导入预置。",
+            }
+        md = ["**民俗规则查询**\n"]
+        for i in items[:5]:
+            md.append(f"### {i['title']}（{i.get('region', '')}）")
+            if i.get("process"):
+                md.append("**流程**：" + " → ".join(i["process"][:8]))
+            for r in i.get("rules", [])[:6]:
+                md.append(f"- **{r.get('title', '')}**：{r.get('detail', '')}")
+            if i.get("weekly_observances"):
+                md.append(
+                    "**烧七/祭奠**："
+                    + "、".join(
+                        f"{w.get('day', '')}({w.get('note', '')})"
+                        for w in i["weekly_observances"][:7]
+                    )
+                )
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    if action == "list":
+        items = [dict(v, id=k) for k, v in _cstore().items() if isinstance(v, dict)]
+        if not items:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": "暂无已导入民俗。请在管理台「民俗规则」导入预置，或输入 /custom presets 查看可导入项。",
+            }
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": "已配置民俗：\n"
+            + "\n".join(f"- **{i['title']}**（{i.get('region', '')}）" for i in items[:10]),
+        }
+    return {"ok": False, "kind": "text", "text": _CUSTOM_HELP}
+
+
+def _cmd_family(tokens: list[str]) -> dict[str, Any]:
+    action = tokens[0] if tokens else "help"
+    try:
+        from ...web.routes.kinship import _load as _kload
+        from ...web.routes.kinship import _save as _ksave
+    except Exception:
+        return {"ok": False, "kind": "text", "text": "亲属图谱模块不可用"}
+    if action == "help":
+        return {"ok": True, "kind": "text", "text": _FAMILY_HELP}
+    if action == "add" and len(tokens) >= 2:
+        name = tokens[1]
+        gender = (
+            "male"
+            if ("男" in name or (len(tokens) > 2 and "男" in tokens[2]))
+            else (
+                "female" if ("女" in name or (len(tokens) > 2 and "女" in tokens[2])) else "unknown"
+            )
+        )
+        data = _kload()
+        data["members"].append(
+            {
+                "id": f"m-{int(time.time() * 1000) % 10**8}",
+                "name": name,
+                "gender": gender,
+                "note": "",
+                "birth": "",
+            }
+        )
+        _ksave(data)
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"已加入亲属：{name}（共 {len(data['members'])} 人）。可在「亲属图谱」页查看可视化。",
+        }
+    if action == "list":
+        data = _kload()
+        members = data.get("members", [])
+        if not members:
+            return {"ok": True, "kind": "text", "text": "暂无亲属成员。用 /family add 姓名 添加。"}
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": "亲属成员：\n"
+            + "\n".join(
+                f"- **{m.get('name', '')}**（{'男' if m.get('gender') == 'male' else '女' if m.get('gender') == 'female' else '未知'}）"
+                for m in members[:20]
+            ),
+        }
+    return {"ok": False, "kind": "text", "text": _FAMILY_HELP}

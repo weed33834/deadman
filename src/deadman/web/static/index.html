@@ -723,6 +723,8 @@
     <div class="nav-item" onclick="window.location.href='/admin'"> data-i18n="管理台"</div>
     <div class="nav-item" data-page="test" onclick="switchPage('test')"> data-i18n="测试中心"</div>
     <div class="nav-item" data-page="canvas" onclick="switchPage('canvas')">画布</div>
+    <div class="nav-item" data-page="customs" onclick="switchPage('customs')">民俗规则</div>
+    <div class="nav-item" data-page="kinship" onclick="switchPage('kinship')">亲属图谱</div>
     <div class="nav-item" data-page="resources" onclick="switchPage('resources')"> data-i18n="资源列表"</div>
     <div class="nav-item" onclick="openOnboardingWizard()"> data-i18n="重新引导"</div>
   </div>
@@ -874,6 +876,24 @@
           <div><button class="btn green" onclick="canvasNew()">＋ 新建画布</button></div>
         </div>
         <div id="canvasMain"><div class="empty-hint">选择或新建一个画布</div></div>
+      </div>
+    </div>
+    <div id="page-customs" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <span class="section-title" style="font-family:'Songti SC',serif;font-size:16px;font-weight:600;color:var(--accent-deep)">民俗 / 规则定制</span>
+          <div><button class="btn green" onclick="customImportPrompt()">⭱ 导入预置</button></div>
+        </div>
+        <div id="customsMain"><div class="empty-hint">加载中…</div></div>
+      </div>
+    </div>
+    <div id="page-kinship" class="page hidden">
+      <div class="panel">
+        <div class="page-toolbar">
+          <span class="section-title" style="font-family:'Songti SC',serif;font-size:16px;font-weight:600;color:var(--accent-deep)">亲属图谱</span>
+          <div><button class="btn green" onclick="kinAddPrompt()">＋ 成员</button></div>
+        </div>
+        <div id="kinshipMain"><div class="empty-hint">加载中…</div></div>
       </div>
     </div>
     <div id="page-resources" class="page hidden">
@@ -1187,12 +1207,14 @@ function switchPage(page) {
     "ending-note": "终活笔记", vault: "保险库", documents: "文档管理",
     cases: "遗码通", switch: "Dead Man Switch", letters: "通知信函",
     memorial: "悼文撰写", "plan-score": "规划评分", support: "客服工单",
-    hotlines: "热线/机构", skills: "技能管理", canvas: "画布",
+    hotlines: "热线/机构", skills: "技能管理", canvas: "画布", customs: "民俗规则", kinship: "亲属图谱",
   };
   document.getElementById("pageTitle").textContent = titles[page] || page;
   if (page === "dashboard") loadDashboard();
   if (page === "test") renderTestGrid();
   if (page === "canvas") renderCanvas();
+  if (page === "customs") renderCustoms();
+  if (page === "kinship") renderKinship();
   if (page === "resources") loadResources();
   if (page === "ending-note") loadEndingNote();
   if (page === "vault") loadVaultItems();
@@ -1844,6 +1866,103 @@ async function canvasAi(i) {
   if (r.ok) ta.value = r.data.content; else toast("AI 失败");
 }
 async function canvasDel(id) { if (!confirm("删除画布？")) return; await api("/api/canvas/" + id, { method: "DELETE" }); if (currentCanvasId === id) currentCanvasId = null; renderCanvas(); }
+
+// === 民俗规则（自定义+导入+查询）===
+async function renderCustoms() {
+  const d = (await api("/api/customs")).data || {};
+  const items = (d.customs || []).map(c =>
+    '<div class="card-item" onclick="customDetail(\'' + esc(c.id) + '\')" style="cursor:pointer">'
+    + '<div class="card-item-body"><div class="card-item-title">' + esc(c.title) + ' <span class="pill off">' + esc(c.region) + '</span> <span class="pill warn">' + esc(c.category) + '</span></div>'
+    + '<div class="card-item-desc">流程：' + esc((c.process||[]).join(' → ')) + '</div></div></div>'
+  ).join("");
+  el("customsMain").innerHTML =
+    card('已配置民俗', '可自定义/导入', items || '<div class="empty-hint">暂无。点右上角「导入预置」或下方新增自定义。</div>')
+    + card('新增自定义民俗', '自定义规则', `
+      <div class="row"><div class="field"><label>地区</label><input type="text" id="cuRegion" placeholder="如：我家/某地"></div>
+      <div class="field"><label>标题</label><input type="text" id="cuTitle" placeholder="如：我家丧葬规矩"></div>
+      <div class="field"><label>类别</label><select id="cuCat"><option value="funeral">丧葬</option><option value="wedding">婚嫁</option><option value="custom">自定义</option></select></div></div>
+      <div class="field"><label>流程（→ 分隔）</label><input type="text" id="cuProcess" placeholder="报丧 → 停灵 → 出殡"></div>
+      <div class="field"><label>规则（每行：标题|详情）</label><textarea id="cuRules" rows="4" placeholder="头七|全家祭奠"></textarea></div>
+      <div class="field"><label>烧七/祭奠（每行：日|说明）</label><textarea id="cuWeekly" rows="3" placeholder="头七|第7天祭奠"></textarea></div>
+      <button class="btn green" onclick="customAdd()">＋ 保存自定义</button><div id="cuMsg"></div>`);
+}
+async function customImportPrompt() {
+  const p = (await api("/api/customs/presets")).data || {};
+  const list = (p.presets||[]).map(x => x.id + '：' + x.title).join('\n');
+  const sel = prompt("可导入预置（输入 id）：\n" + list, "funeral-cn-common");
+  if (!sel) return;
+  const r = await api("/api/customs/import/" + sel, { method: "POST" });
+  toast(r.ok ? "已导入" : "导入失败"); renderCustoms();
+}
+async function customAdd() {
+  const rules = (el("cuRules").value||"").split("\n").map(l => { const i=l.indexOf("|"); return i>0?{title:l.slice(0,i).trim(),detail:l.slice(i+1).trim()}:{title:l.trim(),detail:""}; }).filter(r=>r.title);
+  const weekly = (el("cuWeekly").value||"").split("\n").map(l => { const i=l.indexOf("|"); return i>0?{day:l.slice(0,i).trim(),note:l.slice(i+1).trim()}:{day:l.trim(),note:""}; }).filter(w=>w.day);
+  const r = await api("/api/customs", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({region:el("cuRegion").value,title:el("cuTitle").value,category:el("cuCat").value,process:el("cuProcess").value.split("→").map(s=>s.trim()).filter(Boolean),rules,weekly_observances:weekly}) });
+  msg("cuMsg", r.ok?"已保存自定义民俗":"失败："+JSON.stringify(r.data), r.ok?"ok":"err"); renderCustoms();
+}
+async function customDetail(id) {
+  const d = (await api("/api/customs")).data || {};
+  const c = (d.customs||[]).find(x => x.id === id);
+  if (!c) return;
+  let md = "### " + c.title + "（" + c.region + "）\n\n";
+  if (c.process && c.process.length) md += "**流程**：" + c.process.join(" → ") + "\n\n";
+  (c.rules||[]).forEach(r => { md += "- **" + (r.title||"") + "**：" + (r.detail||"") + "\n"; });
+  if (c.weekly_observances && c.weekly_observances.length) {
+    md += "\n**烧七/祭奠**\n";
+    c.weekly_observances.forEach(w => md += "- " + (w.day||"") + "：" + (w.note||"") + "\n");
+  }
+  alert(md);
+}
+
+// === 亲属图谱（可视化）===
+async function renderKinship() {
+  const d = (await api("/api/kinship")).data || {};
+  const g = d.graph || {};
+  const members = (d.members||[]);
+  const rows = members.map(m =>
+    '<div class="session-item"><span class="session-name">' + esc(m.name) + '（' + (m.gender==='male'?'男':m.gender==='female'?'女':'未知') + '）</span>'
+    + '<span class="session-del" onclick="kinDel(\'' + m.id + '\')">×</span></div>'
+  ).join("");
+  const edgesTxt = (d.relations||[]).map(r => {
+    const a = members.find(m=>m.id===r.from); const b = members.find(m=>m.id===r.to);
+    return (a?a.name:'?') + ' → ' + (b?b.name:'?') + ' [' + r.type + ']';
+  }).join('\n');
+  el("kinshipMain").innerHTML =
+    card('亲属图谱可视化', 'SVG 图', drawGraph(g)) + card('成员列表', members.length+' 人', rows || '<div class="muted">暂无成员</div>')
+    + card('添加关系', '配偶/父/母/子/女/兄弟', `
+      <div class="row"><div class="field"><label>成员甲</label><input type="text" id="kA" placeholder="姓名"></div>
+      <div class="field"><label>关系</label><select id="kRel"><option value="spouse">配偶</option><option value="parent">父母</option><option value="child">子女</option><option value="sibling">兄弟</option></select></div>
+      <div class="field"><label>成员乙</label><input type="text" id="kB" placeholder="姓名"></div>
+      <div class="field"><label></label><button class="btn" onclick="kinRel()">连线</button></div></div>
+      <div class="muted">关系：${esc(edgesTxt)||'暂无'}</div>`);
+}
+function drawGraph(g) {
+  const nodes = g.nodes || [];
+  const edges = g.edges || [];
+  if (!nodes.length) return '<div class="empty-hint">暂无成员，点「＋ 成员」添加后自动生成图谱</div>';
+  const W = 560, H = 380, cx = W/2, cy = H/2, R = Math.min(cx,cy) - 40;
+  const pos = {};
+  nodes.forEach((n,i) => { const a = 2*Math.PI*i/nodes.length - Math.PI/2; pos[n.id] = {x: cx + R*Math.cos(a), y: cy + R*Math.sin(a)}; });
+  const edgeLines = edges.map(e => { const a=pos[e.source],b=pos[e.target]; if(!a||!b)return''; return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--accent-soft)" stroke-width="1.5"/>`; }).join('');
+  const nodeCircles = nodes.map(n => { const p=pos[n.id]; const fill = n.gender==='male'?'#c89a82':n.gender==='female'?'#c9a66b':'#b8b0a0'; return `<g><circle cx="${p.x}" cy="${p.y}" r="26" fill="${fill}" stroke="#fff" stroke-width="2"/><text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="11" fill="#fff">${esc((n.label||'?').slice(0,4))}</text></g>`; }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--paper-warm);border-radius:12px">${edgeLines}${nodeCircles}</svg>`;
+}
+async function kinAddPrompt() {
+  const name = prompt("成员姓名："); if (!name) return;
+  const gender = confirm("点击确定=男，取消=女") ? "male" : "female";
+  await api("/api/kinship/member", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name, gender}) });
+  renderKinship();
+}
+async function kinDel(id) { if(!confirm("删除该成员？"))return; await api("/api/kinship/member/"+id, {method:"DELETE"}); renderKinship(); }
+async function kinRel() {
+  const data = (await api("/api/kinship")).data || {};
+  const members = data.members || [];
+  const find = n => members.find(m => m.name === n.trim());
+  const a = find(el("kA").value), b = find(el("kB").value);
+  if (!a || !b) { toast("成员不存在（请先添加）"); return; }
+  const r = await api("/api/kinship/relation", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({from:a.id,to:b.id,type:el("kRel").value}) });
+  toast(r.ok ? "已连线" : "连线失败"); renderKinship();
+}
 
 // 轻提示
 function toast(msg) {
