@@ -845,8 +845,8 @@ class WebServer:
                 """部署工件校验"""
                 import yaml
 
-                project_root = settings.project_root.parent
-                docker_dir = settings.project_root / "docker"
+                project_root = settings.project_root
+                docker_dir = settings.project_root / "src" / "docker"
                 artifacts = [
                     ("Dockerfile", project_root / "Dockerfile"),
                     ("docker-compose.yml", project_root / "docker-compose.yml"),
@@ -2501,7 +2501,7 @@ class WebServer:
                 不引入 markdown 库；用 <pre> 简单包装即可（约束：不引入新依赖）。
                 需 HTML escape 避免注入。
                 """
-                docs_dir = settings.project_root.parent / "docs"
+                docs_dir = settings.project_root / "docs"
                 md_path = docs_dir / f"{name}.md"
                 if not md_path.exists():
                     self._send_json(

@@ -36,7 +36,7 @@ class Settings:
     """全局配置"""
 
     # === 项目根目录 ===
-    project_root: Path = Path(__file__).parent.parent.parent  # src/
+    project_root: Path = Path(__file__).parent.parent.parent  # 仓库根（src/ 的父级）
 
     # === MCP Server ===
     mcp_server_port: int = int(os.getenv("MCP_SERVER_PORT", "8000"))
@@ -187,25 +187,26 @@ class Settings:
     # 连接池回收秒数（避免长连接被数据库侧关闭）
     db_pool_recycle: int = int(os.getenv("DATABASE_POOL_RECYCLE", "1800"))
 
+    # 扁平化后：规则/智能体/知识库/技能/测试均在 src/ 下；data/ 与 docs/ 在仓库根
     @property
     def rules_dir(self) -> Path:
-        return self.project_root / "rules"
+        return self.project_root / "src" / "rules"
 
     @property
     def agents_dir(self) -> Path:
-        return self.project_root / "agents"
+        return self.project_root / "src" / "agents"
 
     @property
     def knowledge_dir(self) -> Path:
-        return self.project_root / "knowledge"
+        return self.project_root / "src" / "knowledge"
 
     @property
     def tests_dir(self) -> Path:
-        return self.project_root / "tests"
+        return self.project_root / "src" / "tests"
 
     @property
     def skills_dir(self) -> Path:
-        return self.project_root / "skills"
+        return self.project_root / "src" / "skills"
 
 
 # 全局单例

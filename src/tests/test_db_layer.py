@@ -17,6 +17,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select, text
+
 from deadman.db import engine as db_engine_mod
 from deadman.db.engine import db_enabled, dispose_engine, get_engine
 from deadman.db.models import (
@@ -26,7 +28,6 @@ from deadman.db.models import (
     User,
 )
 from deadman.db.session import get_db_session
-from sqlalchemy import select, text
 
 # =====================================================================
 # Fixtures
@@ -360,7 +361,7 @@ class TestUserRepository:
 class TestAlembicMigration:
     def test_revision_chain(self):
         """初始迁移 revision/down_revision 正确。"""
-        migrations_dir = Path(__file__).resolve().parent.parent.parent.parent / "migrations"
+        migrations_dir = Path(__file__).resolve().parent.parent.parent / "migrations"
         init_file = migrations_dir / "versions" / "0001_initial_schema.py"
         assert init_file.exists(), f"迁移文件不存在: {init_file}"
 
@@ -371,7 +372,7 @@ class TestAlembicMigration:
 
     def test_migration_has_all_tables(self):
         """迁移脚本包含所有 7 张表的 create_table。"""
-        migrations_dir = Path(__file__).resolve().parent.parent.parent.parent / "migrations"
+        migrations_dir = Path(__file__).resolve().parent.parent.parent / "migrations"
         init_file = migrations_dir / "versions" / "0001_initial_schema.py"
         content = init_file.read_text()
         for table in [

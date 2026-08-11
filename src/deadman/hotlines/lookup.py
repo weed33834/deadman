@@ -15,13 +15,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+
 # 默认数据库路径（包内自带）
-_DEFAULT_DB_PATH = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "knowledge"
-    / "hotlines"
-    / "database.json"
-)
+def _default_db_path() -> Path:
+    from ..config import settings
+
+    return settings.knowledge_dir / "hotlines" / "database.json"
+
+
+_DEFAULT_DB_PATH = _default_db_path()
 
 
 class HotlineLookup:

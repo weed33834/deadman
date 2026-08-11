@@ -448,7 +448,7 @@ _DOCS_DISCLAIMER = (
 
 def _render_docs_page(name: str) -> HTMLResponse:
     """渲染 docs/<name>.md 为简单 HTML（与 web/server.py 一致，无 markdown 依赖）"""
-    docs_dir = settings.project_root.parent / "docs"
+    docs_dir = settings.project_root / "docs"
     md_path = docs_dir / f"{name}.md"
     if not md_path.exists():
         raise HTTPException(status_code=404, detail=f"未找到文档: {name}")
@@ -1037,8 +1037,8 @@ async def deploy_check():
     """部署工件校验"""
     import yaml
 
-    project_root = settings.project_root.parent
-    docker_dir = settings.project_root / "docker"
+    project_root = settings.project_root
+    docker_dir = settings.project_root / "src" / "docker"
     artifacts = [
         ("Dockerfile", project_root / "Dockerfile"),
         ("docker-compose.yml", project_root / "docker-compose.yml"),

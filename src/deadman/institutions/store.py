@@ -22,12 +22,13 @@ from typing import Any
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "institutions"
 
 # === 种子数据路径（包内自带，首次启动时加载）===
-_SEED_FILE = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "knowledge"
-    / "institutions"
-    / "seed.json"
-)
+def _seed_file() -> Path:
+    from ..config import settings
+
+    return settings.knowledge_dir / "institutions" / "seed.json"
+
+
+_SEED_FILE = _seed_file()
 
 # === 类型枚举 ===
 VALID_TYPES = {
