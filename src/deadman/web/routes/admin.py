@@ -355,6 +355,15 @@ async def admin_evaluation() -> dict[str, Any]:
     return _evaluation_snapshot()
 
 
+@router.get("/error-codes")
+async def admin_error_codes() -> dict[str, Any]:
+    """GET /api/admin/error-codes —— 统一错误码注册表（deep-spec 21）"""
+    from ...errors import ErrorRegistry
+
+    codes = ErrorRegistry.all()
+    return {"ok": True, "count": len(codes), "codes": codes}
+
+
 @router.get("/memory")
 async def admin_memory() -> dict[str, Any]:
     return _memory_snapshot()

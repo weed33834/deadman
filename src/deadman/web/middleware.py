@@ -31,6 +31,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from ..errors import DeadmanError
+
 logger = logging.getLogger(__name__)
 
 
@@ -272,6 +274,19 @@ def register_exception_handlers(app: FastAPI) -> None:
                 "request_id": rid,
             },
         )
+
+    # 统一错误码体系（deep-spec 21）：DeadmanError / DeadmanHTTPException
+    @app.exception_handler(DeadmanError)
+    async def _deadman_error_handler(request: Request, exc: DeadmanError) -> JSONResponse:
+        rid = getattr(request.state, "request_id", "-")
+        logger.warning(
+            "deadman_error code=%s path=%s rid=%s: %s",
+            exc.code,
+            request.url.path,
+            rid,
+            exc.message,
+        )
+        return JSONResponse(status_code=exc.http_status, content=exc.to_dict(rid))
 
     @app.exception_handler(Exception)
     async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:

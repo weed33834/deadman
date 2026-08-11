@@ -17,8 +17,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import Response
+
+from ...errors import DeadmanHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -102,22 +104,24 @@ async def voice_transcribe(
     language: str = Form(default="auto", description="语言：auto/zh/en/ja/ko"),
 ) -> dict[str, Any]:
     if audio is None:
-        raise HTTPException(status_code=400, detail="缺少音频文件")
+        raise DeadmanHTTPException("DM-VOICE-4001")
     original = audio.filename or "recording.webm"
     ext = Path(original).suffix.lower()
     if ext not in _ALLOWED_EXT:
-        raise HTTPException(
-            status_code=415,
-            detail=f"不支持的音频格式: {ext or '(无扩展名)'}，允许: {sorted(_ALLOWED_EXT)}",
+        raise DeadmanHTTPException(
+            "DM-VOICE-4150",
+            message="不支持的音频格式: {}，允许: {}".format(
+                ext or "(无扩展名)", sorted(_ALLOWED_EXT)
+            ),
         )
     data = await audio.read()
     if len(data) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"音频过大（{len(data) / 1024 / 1024:.1f}MB），上限 {_MAX_UPLOAD_BYTES // 1024 // 1024}MB",
+        raise DeadmanHTTPException(
+            "DM-VOICE-4130",
+            message=f"音频过大（{len(data) / 1024 / 1024:.1f}MB），上限 {_MAX_UPLOAD_BYTES // 1024 // 1024}MB",
         )
     if len(data) == 0:
-        raise HTTPException(status_code=400, detail="音频为空")
+        raise DeadmanHTTPException("DM-VOICE-4001", message="音频为空")
 
     tmp_path = Path(tempfile.mktemp(prefix="deadman_voice_", suffix=ext))
     tmp_path.write_bytes(data)
@@ -126,14 +130,14 @@ async def voice_transcribe(
 
         svc = get_asr_service()
         if not svc.is_enabled():
-            raise HTTPException(
-                status_code=503, detail="语音转写未启用（DEADMAN_MULTIMODAL_ENABLED=0）"
+            raise DeadmanHTTPException(
+                "DM-VOICE-5030", message="语音转写未启用（DEADMAN_MULTIMODAL_ENABLED=0）"
             )
         try:
             result = await asyncio.to_thread(svc.transcribe, tmp_path, language or "auto")
         except Exception as exc:
             logger.warning("ASR 转写异常: %s", exc)
-            raise HTTPException(status_code=500, detail=f"转写失败: {exc}") from exc
+            raise DeadmanHTTPException("DM-VOICE-5000", message=f"转写失败: {exc}") from exc
         return {
             "ok": True,
             "text": result.text,

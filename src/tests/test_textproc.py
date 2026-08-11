@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.textproc import (
     clean_text,
     cosine_similarity,
@@ -93,9 +94,10 @@ class TestHybrid:
 
 class TestTextAPI:
     def _client(self):
-        from deadman.web.routes import text as text_routes
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
+        from deadman.web.routes import text as text_routes
 
         fresh = FastAPI()
         fresh.include_router(text_routes.router)
