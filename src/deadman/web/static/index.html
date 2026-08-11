@@ -145,6 +145,19 @@
     border-radius: 16px 16px 16px 4px;
   }
   .meta { font-size: 11px; color: var(--ink-muted); margin-top: 6px; padding-left: 4px; }
+  /* ===== Markdown 渲染 ===== */
+  .md-p { margin: .35em 0; }
+  .md-h { margin: .5em 0 .25em; font-weight: 600; color: var(--ink); line-height: 1.4; }
+  .md-h h1, .md-h h2 { font-size: 1.15em; } .md-h h3, .md-h h4 { font-size: 1.05em; }
+  .md-li { margin: .2em 0; padding-left: .4em; }
+  .md-q { border-left: 3px solid var(--accent-soft); margin: .4em 0; padding: .2em .8em; color: var(--ink-soft); background: var(--paper-warm); border-radius: 0 var(--radius-s) var(--radius-s) 0; }
+  .md-hr { border: none; border-top: 1px solid var(--line); margin: .6em 0; }
+  .md-ic { background: var(--paper-warm); padding: .1em .35em; border-radius: 4px; font-family: ui-monospace, monospace; font-size: .9em; }
+  .md-code { background: #221e19; color: #e8e0d2; padding: .8em 1em; border-radius: var(--radius-s); overflow-x: auto; font-size: .85em; line-height: 1.6; margin: .4em 0; }
+  .md-table { border-collapse: collapse; margin: .5em 0; font-size: .92em; }
+  .md-table th, .md-table td { border: 1px solid var(--line); padding: .35em .6em; }
+  .md-table th { background: var(--paper-warm); font-weight: 600; }
+  body.dark .md-code { background: #14120f; } body.dark .md-q { background: #26221d; }
   .input-area {
     padding: 18px 32px calc(18px + env(safe-area-inset-bottom)); background: rgba(246,244,240,.92);
     backdrop-filter: blur(10px); border-top: 1px solid var(--line);
@@ -152,6 +165,16 @@
   .input-wrapper {
     max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end;
   }
+  .input-tools { max-width: 720px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tool-chip {
+    padding: 4px 12px; font-size: 12px; background: #fff; color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: var(--radius-pill); cursor: pointer;
+    transition: all .2s var(--ease);
+  }
+  .tool-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .tool-chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tool-chip.kb-state { background: var(--ok); color: #fff; border-color: var(--ok); }
+  body.dark .tool-chip { background: #26221d; }
   textarea {
     flex: 1; padding: 12px 16px; border: 1px solid var(--line);
     border-radius: var(--radius-m); background: #fff; box-shadow: var(--shadow-s);
@@ -706,12 +729,19 @@
         </div>
       </div>
       <div class="input-area">
+        <div class="input-tools" id="inputTools">
+          <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
+          <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
+          <input type="file" id="chatFile" accept=".pdf,.docx,.doc,.txt,.md,.csv,image/*" style="display:none" onchange="handleChatFile(this)">
+          <span class="tool-chip kb-state" id="kbState" style="display:none">知识库开</span>
+        </div>
         <div class="input-wrapper">
-          <textarea id="input" placeholder="请输入您的问题…" rows="1" onkeydown="handleKey(event)"></textarea>
+          <textarea id="input" placeholder="请输入您的问题…（/prompt、/expert、/skill 可管理提示词/专家/技能）" rows="1" onkeydown="handleKey(event)"></textarea>
           <button id="micBtn" class="mic-btn" onclick="toggleVoiceInput()" title="语音输入" aria-label="语音输入">🎤</button>
           <button id="sendBtn" onclick="send()">发送</button>
         </div>
         <div class="mic-hint" id="micHint"></div>
+        <div class="mic-hint" id="chatHint"></div>
       </div>
     </div>
 
@@ -1120,6 +1150,38 @@ let mediaChunks = [];
 let mediaStream = null;
 let micRecording = false;
 
+// === 知识库开关 + 文件上传（对话特色增强）===
+let kbEnabled = false;
+let pendingFileText = ""; // 上传解析后的文件文本（随下一条消息附加）
+
+function toggleKb() {
+  kbEnabled = !kbEnabled;
+  const btn = document.getElementById("kbToggle");
+  const state = document.getElementById("kbState");
+  if (btn) btn.classList.toggle("on", kbEnabled);
+  if (state) { state.style.display = kbEnabled ? "inline-block" : "none"; }
+  const hint = document.getElementById("chatHint");
+  if (hint) hint.textContent = kbEnabled ? "已开启：回复将优先引用平台内置政策知识库。" : "";
+}
+
+async function handleChatFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const hint = document.getElementById("chatHint");
+  if (hint) hint.textContent = "正在解析 " + f.name + "…";
+  const fd = new FormData();
+  fd.append("file", f);
+  try {
+    const r = await fetch("/api/chat/upload", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!r.ok || !d.ok) { if (hint) hint.textContent = "解析失败：" + (d.message || ""); return; }
+    pendingFileText = (d.text || "").slice(0, 8000);
+    if (hint) hint.textContent = `已解析「${d.file_name}」（${d.char_count} 字）。发送消息时将附带该文件内容，可追问其要点。`;
+    if (d.file_type === "document") { /* 占位：后续可关联到文档管理 */ }
+  } catch (e) { if (hint) hint.textContent = "上传失败：" + e; }
+  input.value = "";
+}
+
 async function toggleVoiceInput() {
   const micBtn = document.getElementById("micBtn");
   if (!window.MediaRecorder) { alert("当前浏览器不支持语音录制（MediaRecorder）。"); return; }
@@ -1240,13 +1302,79 @@ function scrollToTop() {
 // 转为 <a href="tel:xxx">xxx</a> 可点击链接（移动端直接拨号）。
 const HOTLINE_REGEX = /(?<![\d-])(120|110|119|911|112|988|12320|12345|12348|12333|12315|96000|96399|400-?\d{3}-?\d{4}|0\d{2,3}-?\d{7,8})(?![\d-])/g;
 function renderBotContent(text) {
-  // 先 escape 防 XSS，再替换热线号码
+  // 先 escape 防 XSS，再替换热线号码 + Markdown 渲染
   const escaped = String(text || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  return escaped.replace(HOTLINE_REGEX, (m) => {
-    // tel: 不接受 -，去掉分隔符
+  const teled = escaped.replace(HOTLINE_REGEX, (m) => {
     const tel = m.replace(/-/g, "");
     return `<a class="tel-link" href="tel:${tel}">${m}</a>`;
   });
+  return renderMarkdown(teled);
+}
+
+// 轻量 Markdown 渲染器（在已 HTML-escape 的文本上安全转 Markdown）
+function renderMarkdown(text) {
+  if (!text) return "";
+  const lines = text.split("\n");
+  let html = "";
+  let i = 0;
+  let inTable = false, tableRows = [];
+  const closeTable = () => {
+    if (!tableRows.length) return;
+    html += "<table class='md-table'><tr>" + tableRows[0].map(h => `<th>${h}</th>`).join("") + "</tr>"
+      + tableRows.slice(1).map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</table>";
+    tableRows = [];
+  };
+  while (i < lines.length) {
+    let line = lines[i];
+    const trim = line.trim();
+    // 代码块
+    if (trim.startsWith("```")) {
+      closeTable();
+      const lang = trim.slice(3).trim();
+      const code = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) { code.push(lines[i]); i++; }
+      i++; // 跳过结束 ```
+      html += `<pre class="md-code${lang?` lang-${lang}`:""}"><code>${code.join("\n")}</code></pre>`;
+      continue;
+    }
+    // 表格
+    if (trim.includes("|") && trim.startsWith("|")) {
+      const cells = trim.split("|").slice(1, -1).map(c => inline(c.trim()));
+      // 跳过分隔行 |---|
+      if (tableRows.length === 0 && lines[i+1] && /^\s*\|[\s:\-|]+\|\s*$/.test(lines[i+1])) { i++; continue; }
+      tableRows.push(cells); i++; continue;
+    } else { closeTable(); }
+    // 标题
+    const h = trim.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { const lvl = h[1].length; html += `<h${lvl} class="md-h">${inline(h[2])}</h${lvl}>`; i++; continue; }
+    // 无序/有序列表
+    const ul = trim.match(/^[-*]\s+(.*)$/);
+    if (ul) { html += `<div class="md-li">• ${inline(ul[1])}</div>`; i++; continue; }
+    const ol = trim.match(/^\d+[.)]\s+(.*)$/);
+    if (ol) { html += `<div class="md-li">${inline(ol[1])}</div>`; i++; continue; }
+    // 引用
+    const q = trim.match(/^>\s?(.*)$/);
+    if (q) { html += `<blockquote class="md-q">${inline(q[1])}</blockquote>`; i++; continue; }
+    // 水平线
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trim)) { html += "<hr class='md-hr'>"; i++; continue; }
+    // 空行
+    if (!trim) { html += "<div class='md-blank'></div>"; i++; continue; }
+    // 普通段落
+    html += `<p class="md-p">${inline(trim)}</p>`;
+    i++;
+  }
+  closeTable();
+  return html;
+}
+
+// 行内格式：代码 / 粗体 / 斜体 / 链接
+function inline(s) {
+  return s
+    .replace(/`([^`]+)`/g, '<code class="md-ic">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
 function applyTelLinks(bubble) {
   // 流式更新时 bubble.textContent 会被覆盖，渲染完后调用此函数转 innerHTML
@@ -1445,6 +1573,27 @@ async function send() {
   const text = input.value.trim();
   if (!text || streaming) return;
   input.value = ""; input.style.height = "auto";
+  // 斜杠命令：/prompt /expert /skill → 走对话命令接口（管理提示词/专家/技能）
+  if (text.startsWith("/")) {
+    addMessage("user", text);
+    history.push({ role: "user", content: text });
+    const { bubble } = addMessage("bot", '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>');
+    try {
+      const r = await fetch("/api/chat/command", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ command: text }) });
+      const d = await r.json();
+      if (d.kind === "list") {
+        let md = "**命令结果**\n\n";
+        for (const [k, v] of Object.entries(d.items || {})) md += `**${k}**\n` + (Array.isArray(v) ? v.map(x => `- ${x}`).join("\n") : JSON.stringify(v)) + "\n\n";
+        bubble.innerHTML = renderBotContent(md);
+      } else {
+        bubble.innerHTML = renderBotContent(d.text || JSON.stringify(d));
+      }
+    } catch (e) {
+      bubble.innerHTML = renderBotContent("命令执行失败：" + e);
+    }
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return;
+  }
   addMessage("user", text);
   history.push({ role: "user", content: text });
   streaming = true; sendBtn.disabled = true;
@@ -1456,7 +1605,14 @@ async function send() {
   let traceData = null;
   let doneInfo = null;
   try {
-    const url = `/api/stream?query=${encodeURIComponent(text)}&agent=${encodeURIComponent(currentAgent)}`;
+    const kb = kbEnabled ? "&kb=1" : "";
+    // 若上传过文件，把解析文本作为上下文附加到查询（用户气泡仍只显示原问题）
+    let sendQuery = text;
+    if (pendingFileText) {
+      sendQuery = text + "\n\n【用户上传的文件内容，请结合回答】\n" + pendingFileText;
+      pendingFileText = "";
+    }
+    const url = `/api/stream?query=${encodeURIComponent(sendQuery)}&agent=${encodeURIComponent(currentAgent)}${kb}`;
     const resp = await fetch(url, { headers: { ...authHeaders() } });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();

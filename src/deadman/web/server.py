@@ -679,6 +679,23 @@ class WebServer:
                 """SSE 流式对话 - Phase 14 后走完整 graph 规则链"""
                 q = query.get("query", [""])[0]
                 agent = query.get("agent", ["death-aftercare"])[0]
+                # 知识库开关：kb=1 时检索内置政策知识库并作为上下文注入
+                if query.get("kb", ["0"])[0].lower() in ("1", "true"):
+                    try:
+                        from ..mcp_server.server import mcp
+
+                        kb_res = asyncio.run(
+                            mcp.call_tool(
+                                "query_knowledge",
+                                {"country": "CN", "topic": q or "身后事", "region": None},
+                            )
+                        )
+                        kb_data = kb_res.get("data") if isinstance(kb_res, dict) else None
+                        if kb_res.get("found") and kb_data:
+                            kb_text = str(kb_data)[:4000]
+                            q = f"{q}\n\n【平台政策知识库参考】{kb_text}"
+                    except Exception:
+                        pass  # 知识库不可用不阻断对话
                 # Phase 14：从 Authorization 头解析用户（与 /api/chat 一致）
                 # 未认证降级为 anonymous，不阻塞流式
                 headers = self._get_headers_dict()
