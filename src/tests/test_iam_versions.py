@@ -72,3 +72,52 @@ class TestTraces:
     def test_traces(self, client):
         r = client.get("/api/admin/traces?limit=5")
         assert r.status_code == 200 and "spans" in r.json()
+
+
+class TestAgentImportModelConfigKbAlerts:
+    def test_agent_import(self, client):
+        r = client.post(
+            "/api/admin/agents/import",
+            json={"yaml_text": "agent:\n  id: imp1\n  name: 导入\n  system_prompt: 专家"},
+        )
+        assert r.status_code == 200 and r.json()["agent"]["id"] == "imp1"
+
+    def test_model_config(self, client):
+        r = client.put(
+            "/api/admin/models/config",
+            json={"key_pool": ["k1"], "fallback_chain": ["openai:gpt-4o"]},
+        )
+        assert r.json()["key_pool"] == ["k1"]
+        g = client.get("/api/admin/models/config").json()
+        assert g["fallback_chain"] == ["openai:gpt-4o"]
+
+    def test_knowledge_docs_crud(self, client, tmp_path, monkeypatch):
+        import deadman.config as cfg
+
+        fake = tmp_path / "knowledge"
+        (fake / "regions").mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(
+            cfg, "settings", type("S", (), {"knowledge_dir": fake, "project_root": tmp_path})()
+        )
+        r = client.post(
+            "/api/admin/knowledge/docs", json={"path": "regions/CN/t.md", "content": "# 测试"}
+        )
+        assert r.status_code == 200 and r.json()["ok"] is True
+        docs = client.get("/api/admin/knowledge/docs").json()["docs"]
+        assert any("t.md" in d["path"] for d in docs)
+        assert (
+            client.delete("/api/admin/knowledge/docs?path=regions/CN/t.md").json()["deleted"]
+            is True
+        )
+
+    def test_alerts_crud(self, client):
+        r = client.post(
+            "/api/admin/alerts", json={"rule": {"metric": "tool_fail_rate", "threshold": 10}}
+        )
+        assert r.status_code == 200 and r.json()["ok"] is True
+        al = client.get("/api/admin/alerts").json()["alerts"]
+        assert len(al) == 1
+        assert client.delete(f"/api/admin/alerts/{al[0]['id']}").json()["deleted"] is True
+
+    def test_logs(self, client):
+        assert client.get("/api/admin/logs").status_code == 200

@@ -718,3 +718,239 @@ async def backup_import(
                 _voices_store.set(k, v)
         imported.append(f"voices({len(package['voices'])})")
     return {"ok": True, "imported": imported}
+
+
+# =====================================================================
+# P2.13 Agent 导入（yaml / 平台迁移）
+# =====================================================================
+
+
+@router.post("/agents/import")
+async def import_agent(
+    yaml_text: str = Body(default=None, embed=True, description="agent.yaml 内容"),
+) -> dict[str, Any]:
+    """POST /api/admin/agents/import —— 从 yaml 导入 Agent 配置"""
+    import yaml as _yaml
+
+    if not yaml_text:
+        raise DeadmanHTTPException("DM-VALID-4002", message="yaml_text 必填")
+    try:
+        parsed = _yaml.safe_load(yaml_text)
+    except Exception as exc:
+        raise DeadmanHTTPException("DM-VALID-4001", message=f"YAML 解析失败: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise DeadmanHTTPException("DM-VALID-4001", message="yaml 顶层应为映射")
+    agent = parsed.get("agent", parsed)
+    agent_id = _esc(str(agent.get("id") or agent.get("name") or "imported"))
+    payload = dict(_DEFAULT_AGENT_TEMPLATE)
+    payload.update(agent)
+    payload["id"] = agent_id
+    payload["imported_from"] = "yaml"
+    payload["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    _agents_store.set(agent_id, payload)
+    return {"ok": True, "agent": payload}
+
+
+# =====================================================================
+# P4.5/P4.6 模型多 key 轮换 + Fallback 链配置
+# =====================================================================
+
+
+@router.get("/models/config")
+async def model_config_get() -> dict[str, Any]:
+    """GET /api/admin/models/config —— 读取 key 池 / fallback 链配置"""
+    from .admin import _load_runtime
+
+    runtime = _load_runtime()
+    return {
+        "ok": True,
+        "key_pool": runtime.get("key_pool", []),
+        "fallback_chain": runtime.get("fallback_chain", []),
+    }
+
+
+@router.put("/models/config")
+async def model_config_put(
+    key_pool: list[str] = Body(default=[], description="多 key 池（每行一个）"),  # noqa: B008
+    fallback_chain: list[str] = Body(default=[], description="fallback 链（provider:model）"),  # noqa: B008
+) -> dict[str, Any]:
+    """PUT /api/admin/models/config —— 保存 key 池 / fallback 链（持久化 admin_runtime）"""
+    from .admin import _load_runtime, _save_runtime
+
+    runtime = _load_runtime()
+    runtime["key_pool"] = [k for k in key_pool if k]
+    runtime["fallback_chain"] = [f for f in fallback_chain if f]
+    _save_runtime(runtime)
+    return {
+        "ok": True,
+        "key_pool": runtime["key_pool"],
+        "fallback_chain": runtime["fallback_chain"],
+    }
+
+
+# =====================================================================
+# P5.6 知识库文档管理（列表 / 上传 / 删除）
+# =====================================================================
+
+
+@router.get("/knowledge/docs")
+async def knowledge_docs() -> dict[str, Any]:
+    """GET /api/admin/knowledge/docs —— 知识库文档列表"""
+    from ...config import settings
+
+    docs = []
+    kdir = settings.knowledge_dir / "regions"
+    if kdir.exists():
+        for f in sorted(kdir.rglob("*.md")):
+            docs.append(
+                {
+                    "path": f.relative_to(settings.project_root).as_posix(),
+                    "name": f.name,
+                    "size": f.stat().st_size,
+                }
+            )
+    return {"ok": True, "docs": docs, "count": len(docs)}
+
+
+@router.post("/knowledge/docs")
+async def knowledge_upload(
+    path: str = Body(default=None, embed=True, description="相对路径，如 regions/CN/new.md"),
+    content: str = Body(default="", embed=True, description="文档内容"),
+) -> dict[str, Any]:
+    """POST /api/admin/knowledge/docs —— 新增知识库文档"""
+    from ...config import settings
+
+    if not path or not path.startswith("regions/"):
+        raise DeadmanHTTPException("DM-VALID-4001", message="path 需以 regions/ 开头")
+    target = settings.knowledge_dir / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content or "", encoding="utf-8")
+    return {"ok": True, "path": path, "bytes": len(content or "")}
+
+
+@router.delete("/knowledge/docs")
+async def knowledge_delete(path: str = "") -> dict[str, Any]:
+    """DELETE /api/admin/knowledge/docs?path=regions/CN/x.md —— 删除文档"""
+    from ...config import settings
+
+    if not path or not path.startswith("regions/"):
+        raise DeadmanHTTPException("DM-VALID-4001", message="path 需以 regions/ 开头")
+    target = settings.knowledge_dir / path
+    if target.exists():
+        target.unlink(missing_ok=True)
+        return {"ok": True, "path": path, "deleted": True}
+    raise DeadmanHTTPException("DM-GENERAL-4040", message=f"文档不存在: {path}")
+
+
+# =====================================================================
+# M9 告警规则管理
+# =====================================================================
+
+
+@router.get("/alerts")
+async def alerts_list() -> dict[str, Any]:
+    """GET /api/admin/alerts —— 告警规则列表"""
+    return {"ok": True, "alerts": _alerts_store().get("rules") or []}
+
+
+@router.post("/alerts")
+async def alerts_create(
+    rule: dict[str, Any] = Body(
+        default=None, embed=True, description="告警规则 {metric,op,threshold,channel,enabled}"
+    ),
+) -> dict[str, Any]:
+    """POST /api/admin/alerts —— 新增告警规则"""
+    rule = rule or {}
+    if not rule.get("metric"):
+        raise DeadmanHTTPException("DM-VALID-4002", message="metric 必填")
+    store = _alerts_store()
+    rules = store.get("rules") or []
+    rid = f"alert-{int(time.time())}-{len(rules)}"
+    item = {
+        "id": rid,
+        "metric": rule.get("metric"),
+        "op": rule.get("op", ">"),
+        "threshold": rule.get("threshold", 0),
+        "channel": rule.get("channel", "log"),
+        "enabled": bool(rule.get("enabled", True)),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    rules.append(item)
+    store["rules"] = rules
+    _alerts_save(store)
+    return {"ok": True, "alert": item}
+
+
+@router.delete("/alerts/{alert_id}")
+async def alerts_delete(alert_id: str) -> dict[str, Any]:
+    """DELETE /api/admin/alerts/{id} —— 删除告警规则"""
+    store = _alerts_store()
+    rules = store.get("rules") or []
+    new_rules = [r for r in rules if r.get("id") != alert_id]
+    if len(new_rules) == len(rules):
+        raise DeadmanHTTPException("DM-GENERAL-4040", message=f"告警规则不存在: {alert_id}")
+    store["rules"] = new_rules
+    _alerts_save(store)
+    return {"ok": True, "alert_id": alert_id, "deleted": True}
+
+
+def _alerts_store() -> dict[str, Any]:
+    p = _ADMIN_DIR / "alerts.json"
+    if p.exists():
+        try:
+            import json as _json
+
+            return _json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _alerts_save(data: dict[str, Any]) -> None:
+    (_ADMIN_DIR / "alerts.json").write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+# =====================================================================
+# M4 工具热加载（动态注册 .py 工具）
+# =====================================================================
+
+
+@router.post("/tools/load")
+async def tool_load(
+    name: str = Body(default=None, embed=True, description="工具名"),
+    description: str = Body(default="", embed=True, description="工具描述"),
+    handler_code: str = Body(default=None, embed=True, description="async handler 源码"),
+    input_schema: dict[str, Any] = Body(default={}, embed=True, description="JSON Schema"),  # noqa: B008
+) -> dict[str, Any]:
+    """POST /api/admin/tools/load —— 热加载工具（注册 async handler 到 mcp）
+
+    需 DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED=1 且配置 DEADMAN_ADMIN_TOKEN。
+    handler_code 需定义 `async def handler(**kwargs) -> dict`。
+    """
+    from ...mcp_server import server as mcp_mod
+
+    if not name or not handler_code:
+        raise DeadmanHTTPException("DM-VALID-4002", message="name 与 handler_code 必填")
+    if not mcp_mod.DYNAMIC_TOOL_REGISTRATION_ENABLED:
+        raise DeadmanHTTPException(
+            "DM-TOOL-4030", message="动态注册未启用（DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED=1）"
+        )
+    if not mcp_mod.ADMIN_TOKEN:
+        raise DeadmanHTTPException("DM-TOOL-4030", message="未配置 DEADMAN_ADMIN_TOKEN")
+    ns: dict[str, Any] = {}
+    try:
+        exec(compile(handler_code, "<tool_load>", "exec"), ns)
+    except Exception as exc:
+        raise DeadmanHTTPException("DM-VALID-4001", message=f"源码编译失败: {exc}") from exc
+    handler = ns.get("handler")
+    if not callable(handler):
+        raise DeadmanHTTPException("DM-VALID-4001", message="handler_code 需定义 async handler")
+    result = mcp_mod.mcp.register_dynamic_tool(
+        name=name,
+        description=description or f"热加载工具 {name}",
+        input_schema=input_schema or {"type": "object", "properties": {}},
+        handler=handler,
+    )
+    return {"ok": result.get("ok", False), "name": name, "result": result}

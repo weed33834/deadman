@@ -397,6 +397,39 @@ def _normalize_span(sp: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+@router.get("/logs")
+async def admin_logs(limit: int = 100, level: str = "", q: str = "") -> dict[str, Any]:
+    """GET /api/admin/logs?limit=&level=&q= —— 日志查看器（读取日志文件尾部）"""
+    log_file = os.getenv("DEADMAN_LOG_FILE", str(Path.home() / ".deadman" / "deadman.log"))
+    p = Path(log_file)
+    if not p.exists():
+        return {
+            "ok": True,
+            "logs": [],
+            "note": f"未找到日志文件 {log_file}（设置 DEADMAN_LOG_FILE）",
+            "file": log_file,
+        }
+    try:
+        lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+    q = (q or "").lower()
+    level = (level or "").upper()
+    filtered = []
+    for ln in lines[-2000:]:
+        if level and f" {level} " not in ln and not ln.startswith(level):
+            continue
+        if q and q not in ln.lower():
+            continue
+        filtered.append(ln)
+    return {
+        "ok": True,
+        "logs": filtered[-limit:],
+        "file": log_file,
+        "total_available": len(filtered),
+    }
+
+
 @router.get("/memory")
 async def admin_memory() -> dict[str, Any]:
     return _memory_snapshot()
