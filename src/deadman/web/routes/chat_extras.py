@@ -275,7 +275,69 @@ async def chat_command(
         return _cmd_expert(tokens)
     if cmd == "skill":
         return _cmd_skill(tokens)
-    return {"ok": False, "kind": "text", "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill"}
+    if cmd in ("hotline", "hotlines"):
+        return _cmd_hotline(tokens)
+    if cmd in ("institution", "institutions", "org"):
+        return _cmd_institution(tokens)
+    return {
+        "ok": False,
+        "kind": "text",
+        "text": f"未知命令 /{cmd}。可用: /prompt /expert /skill /hotline /institution",
+    }
+
+
+def _cmd_hotline(tokens: list[str]) -> dict[str, Any]:
+    """查询官方热线：/hotline [省份] [功能] 或 /hotline 功能"""
+    try:
+        from ...hotlines.lookup import HotlineLookup
+
+        lookup = HotlineLookup()
+        province = tokens[0] if len(tokens) >= 1 else None
+        function = tokens[1] if len(tokens) >= 2 else None
+        results = lookup.lookup(province, function)
+        if not results:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": f"未找到热线（省份={province or '全国'}，功能={function or '全部'}）。试试 /hotline 北京 殡葬",
+            }
+        md = ["**官方热线查询**\n"]
+        for r in results[:12]:
+            name = r.get("name") or r.get("机构") or "—"
+            phone = r.get("phone") or r.get("电话") or "—"
+            fn = r.get("function") or r.get("功能") or ""
+            md.append(f"- **{name}**：{phone}{('（' + fn + '）') if fn else ''}")
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"热线查询失败: {exc}"}
+
+
+def _cmd_institution(tokens: list[str]) -> dict[str, Any]:
+    """查询机构：/institution [省份] [城市] [类型|关键词]"""
+    try:
+        from ...institutions.store import InstitutionStore
+
+        store = InstitutionStore()
+        province = tokens[0] if len(tokens) >= 1 else None
+        city = tokens[1] if len(tokens) >= 2 else None
+        keyword = tokens[2] if len(tokens) >= 3 else None
+        inst_type = tokens[2] if len(tokens) >= 3 and not keyword else None
+        results = store.search(province, city, inst_type, keyword)
+        if not results:
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": f"未找到机构（省份={province or '-'}，城市={city or '-'}）。试试 /institution 北京 殡仪馆",
+            }
+        md = ["**机构查询**\n"]
+        for r in results[:12]:
+            d = r.to_dict() if hasattr(r, "to_dict") else r
+            md.append(
+                f"- **{d.get('name', '—')}**：{d.get('address', '')} {d.get('phone', '')}".rstrip()
+            )
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"机构查询失败: {exc}"}
 
 
 # =====================================================================

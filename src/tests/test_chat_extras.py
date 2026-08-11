@@ -125,3 +125,19 @@ class TestPlot:
         r = client.post("/api/chat/plot", json={"code": "print('hello')"})
         d = r.json()
         assert d.get("ok") is False
+
+
+class TestHotlineInstitution:
+    def test_hotline_command(self, client):
+        r = client.post("/api/chat/command", json={"command": "/hotline"})
+        assert r.status_code == 200 and r.json()["ok"] is True
+        assert "热线" in r.json()["text"]
+
+    def test_institution_command(self, client):
+        r = client.post("/api/chat/command", json={"command": "/institution"})
+        assert r.status_code == 200 and r.json()["ok"] is True
+        assert "机构" in r.json()["text"]
+
+    def test_unknown_still_works(self, client):
+        r = client.post("/api/chat/command", json={"command": "/nope"})
+        assert r.json()["ok"] is False

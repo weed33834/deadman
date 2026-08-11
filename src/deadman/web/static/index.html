@@ -177,6 +177,8 @@
     max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end;
   }
   .input-tools { max-width: 720px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-chips { max-width: 720px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-chips .tool-chip { animation: msg-in .3s var(--ease) both; }
   .tool-chip {
     padding: 4px 12px; font-size: 12px; background: #fff; color: var(--ink-soft);
     border: 1px solid var(--line); border-radius: var(--radius-pill); cursor: pointer;
@@ -718,6 +720,7 @@
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">就绪</span>
       <button class="topbar-action" onclick="exportConversation('md')" title="导出全部对话">⭳ 对话</button>
+      <button class="topbar-action" onclick="clearConversation()" title="清空对话">🗑 清空</button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜砚主题">☾</button>
       <span id="authArea"></span>
     </div>
@@ -744,6 +747,14 @@
         </div>
       </div>
       <div class="input-area">
+        <div class="quick-chips" id="quickChips">
+          <button class="tool-chip" onclick="quickAction('身后事办理流程')">🧭 身后事流程</button>
+          <button class="tool-chip" onclick="quickAction('医疗导航与医保报销')">🏥 医疗导航</button>
+          <button class="tool-chip" onclick="quickAction('数字遗产与保险库')">🔐 数字遗产</button>
+          <button class="tool-chip" onclick="quickAction('撰写悼文')">🕯 悼文</button>
+          <button class="tool-chip" onclick="runHotline()">☎ 官方热线</button>
+          <button class="tool-chip" onclick="runPlotDemo()">📈 画个图</button>
+        </div>
         <div class="input-tools" id="inputTools">
           <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
           <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
@@ -1479,6 +1490,11 @@ function addMessage(role, text, meta) {
     bubble.textContent = text;
   }
   content.appendChild(bubble);
+  // 消息时间戳（微小实用功能）
+  const ts = document.createElement("div");
+  ts.className = "meta ts";
+  ts.textContent = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  content.appendChild(ts);
   if (meta) {
     const m = document.createElement("div");
     m.className = "meta"; m.textContent = meta;
@@ -1547,6 +1563,23 @@ async function exportConversation(format) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name + "." + (format === "pdf" ? "pdf" : format === "docx" ? "docx" : "md"); a.click();
     toast("已导出全部对话");
   } catch (e) { toast("导出失败：" + e); }
+}
+
+// 清空对话
+function clearConversation() {
+  if (!confirm("确认清空当前对话？")) return;
+  chatArea.innerHTML = "";
+  history = [];
+  toast("已清空对话");
+}
+// 快捷动作：填入提示并发送
+function quickAction(text) { input.value = text; send(); }
+// 快捷动作：直接查官方热线（走对话命令）
+function runHotline() { input.value = "/hotline"; send(); }
+// 快捷动作：画一个示例图
+function runPlotDemo() {
+  input.value = "/plot " + "import matplotlib.pyplot as plt\nimport numpy as np\nx = np.linspace(0, 10, 50)\nplt.plot(x, np.sin(x), label='sin')\nplt.plot(x, np.cos(x), label='cos')\nplt.legend()\nplt.title('示例图表')\nplt.show()";
+  send();
 }
 
 // 轻提示
