@@ -59,6 +59,7 @@ from pydantic import BaseModel, Field
 from ..config import settings
 from .deps import get_current_user, get_jwt_manager, get_optional_user, get_user_store
 from .routes import admin as _admin_routes
+from .routes import advanced as _advanced_routes
 from .routes import chat_extras as _chat_extras_routes
 from .routes import iam as _iam_routes
 from .routes import mcp as _mcp_routes
@@ -312,6 +313,7 @@ app = _build_app()
 # 补齐 agent-builder-skill 完整版：注册 G1/G2/G3 新增路由
 # =====================================================================
 app.include_router(_admin_routes.router)
+app.include_router(_advanced_routes.router)
 app.include_router(_chat_extras_routes.router)
 app.include_router(_iam_routes.router)
 app.include_router(_scheduler_routes.router)
