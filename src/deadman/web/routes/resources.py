@@ -163,6 +163,16 @@ async def update_prompt(
     if content is None:
         raise DeadmanHTTPException("DM-PROMPT-4001", message="content 必填")
     existing = _prompts_store.get(name) or {}
+    # 版本历史：保存旧版本（用于 diff / 回滚，M2）
+    versions = existing.setdefault("versions", [])
+    versions.append(
+        {
+            "version": int(existing.get("version", 0)),
+            "content": existing.get("content", ""),
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+    )
+    existing["versions"] = versions[-50:]  # 最多保留 50 个历史版本
     existing["content"] = content
     if description:
         existing["description"] = description
@@ -170,6 +180,48 @@ async def update_prompt(
     existing["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _prompts_store.set(name, existing)
     return {"ok": True, "name": name, "version": existing["version"]}
+
+
+@router.get("/prompts/{name}/versions")
+async def prompt_versions(name: str) -> dict[str, Any]:
+    """GET /api/admin/prompts/{name}/versions —— 版本历史（供 diff/回滚）"""
+    p = _prompts_store.get(name)
+    if p is None:
+        raise DeadmanHTTPException("DM-PROMPT-4040", message=f"未找到提示词: {name}")
+    return {
+        "ok": True,
+        "name": name,
+        "current_version": p.get("version", 0),
+        "versions": p.get("versions", []),
+    }
+
+
+@router.post("/prompts/{name}/rollback")
+async def prompt_rollback(
+    name: str, version: int = Body(default=None, embed=True)
+) -> dict[str, Any]:
+    """POST /api/admin/prompts/{name}/rollback —— 回滚到指定版本"""
+    p = _prompts_store.get(name)
+    if p is None:
+        raise DeadmanHTTPException("DM-PROMPT-4040", message=f"未找到提示词: {name}")
+    versions = p.get("versions", [])
+    target = next((v for v in versions if v.get("version") == version), None)
+    if target is None:
+        raise DeadmanHTTPException("DM-PROMPT-4040", message=f"版本 {version} 不存在")
+    # 回滚：当前内容入历史，恢复目标版本内容为新版本
+    versions.append(
+        {
+            "version": p.get("version", 0),
+            "content": p.get("content", ""),
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+    )
+    p["versions"] = versions[-50:]
+    p["content"] = target["content"]
+    p["version"] = int(p.get("version", 0)) + 1
+    p["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    _prompts_store.set(name, p)
+    return {"ok": True, "name": name, "version": p["version"], "rolled_back_to": version}
 
 
 @router.delete("/prompts/{name}")

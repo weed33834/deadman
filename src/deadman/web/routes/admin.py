@@ -364,6 +364,22 @@ async def admin_error_codes() -> dict[str, Any]:
     return {"ok": True, "count": len(codes), "codes": codes}
 
 
+@router.get("/traces")
+async def admin_traces(limit: int = 30, trace_id: str = "") -> dict[str, Any]:
+    """GET /api/admin/traces —— Trace 查看器（最近 span / 指定 trace）"""
+    from ...observability.tracer import tracer
+
+    try:
+        if trace_id:
+            spans = tracer.get_trace(trace_id)
+            return {"ok": True, "trace_id": trace_id, "spans": spans, "span_count": len(spans)}
+        spans = tracer.get_spans()
+        recent = spans[-limit:]
+        return {"ok": True, "spans": recent, "total": len(spans), "limit": limit}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
 @router.get("/memory")
 async def admin_memory() -> dict[str, Any]:
     return _memory_snapshot()

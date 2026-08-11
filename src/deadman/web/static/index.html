@@ -700,26 +700,26 @@
     </div>
     <input id="sessionSearch" class="session-search" placeholder="搜索会话…" oninput="loadSessions(this.value)">
     <div id="sessionList" style="max-height:220px;overflow-y:auto"></div>
-    <div class="nav-item active" data-page="chat" onclick="switchPage('chat')">对话</div>
-    <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">运维看板</div>
+    <div class="nav-item active" data-page="chat" onclick="switchPage('chat')" data-i18n="对话"> data-i18n="对话"</div>
+    <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')"> data-i18n="运维看板"</div>
     <div class="nav-group-label">业务功能</div>
-    <div class="nav-item" data-page="ending-note" onclick="switchPage('ending-note')">终活笔记</div>
-    <div class="nav-item" data-page="vault" onclick="switchPage('vault')">保险库</div>
-    <div class="nav-item" data-page="documents" onclick="switchPage('documents')">文档管理</div>
-    <div class="nav-item" data-page="cases" onclick="switchPage('cases')">遗码通</div>
-    <div class="nav-item" data-page="switch" onclick="switchPage('switch')">Dead Man Switch</div>
-    <div class="nav-item" data-page="letters" onclick="switchPage('letters')">通知信函</div>
-    <div class="nav-item" data-page="memorial" onclick="switchPage('memorial')">悼文撰写</div>
-    <div class="nav-item" data-page="plan-score" onclick="switchPage('plan-score')">规划评分</div>
+    <div class="nav-item" data-page="ending-note" onclick="switchPage('ending-note')"> data-i18n="终活笔记"</div>
+    <div class="nav-item" data-page="vault" onclick="switchPage('vault')"> data-i18n="保险库"</div>
+    <div class="nav-item" data-page="documents" onclick="switchPage('documents')"> data-i18n="文档管理"</div>
+    <div class="nav-item" data-page="cases" onclick="switchPage('cases')"> data-i18n="遗码通"</div>
+    <div class="nav-item" data-page="switch" onclick="switchPage('switch')"> data-i18n="Dead Man Switch"</div>
+    <div class="nav-item" data-page="letters" onclick="switchPage('letters')"> data-i18n="通知信函"</div>
+    <div class="nav-item" data-page="memorial" onclick="switchPage('memorial')"> data-i18n="悼文撰写"</div>
+    <div class="nav-item" data-page="plan-score" onclick="switchPage('plan-score')"> data-i18n="规划评分"</div>
     <div class="nav-group-label">服务</div>
-    <div class="nav-item" data-page="support" onclick="switchPage('support')">客服工单</div>
-    <div class="nav-item" data-page="hotlines" onclick="switchPage('hotlines')">热线/机构</div>
+    <div class="nav-item" data-page="support" onclick="switchPage('support')"> data-i18n="客服工单"</div>
+    <div class="nav-item" data-page="hotlines" onclick="switchPage('hotlines')"> data-i18n="热线/机构"</div>
     <div class="nav-group-label">运维</div>
-    <div class="nav-item" data-page="skills" onclick="switchPage('skills')">技能管理</div>
-    <div class="nav-item" onclick="window.location.href='/admin'">管理台</div>
-    <div class="nav-item" data-page="test" onclick="switchPage('test')">测试中心</div>
-    <div class="nav-item" data-page="resources" onclick="switchPage('resources')">资源列表</div>
-    <div class="nav-item" onclick="openOnboardingWizard()">重新引导</div>
+    <div class="nav-item" data-page="skills" onclick="switchPage('skills')"> data-i18n="技能管理"</div>
+    <div class="nav-item" onclick="window.location.href='/admin'"> data-i18n="管理台"</div>
+    <div class="nav-item" data-page="test" onclick="switchPage('test')"> data-i18n="测试中心"</div>
+    <div class="nav-item" data-page="resources" onclick="switchPage('resources')"> data-i18n="资源列表"</div>
+    <div class="nav-item" onclick="openOnboardingWizard()"> data-i18n="重新引导"</div>
   </div>
   <div class="sidebar-footer">
     <div class="sidebar-version" id="sidebarVersion">v5.0.0 · Phase 17</div>
@@ -741,6 +741,7 @@
       <span class="status-text" id="statusText">就绪</span>
       <button class="topbar-action" onclick="exportConversation('md')" title="导出全部对话">⭳ 对话</button>
       <button class="topbar-action" onclick="clearConversation()" title="清空对话">🗑 清空</button>
+      <button class="topbar-action" onclick="toggleLang()" id="langToggle" title="切换语言">EN</button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜砚主题">☾</button>
       <span id="authArea"></span>
     </div>
@@ -786,7 +787,7 @@
         <div class="input-wrapper">
           <textarea id="input" placeholder="请输入您的问题…（/prompt、/expert、/skill 可管理提示词/专家/技能）" rows="1" onkeydown="handleKey(event)"></textarea>
           <button id="micBtn" class="mic-btn" onclick="toggleVoiceInput()" title="语音输入" aria-label="语音输入">🎤</button>
-          <button id="sendBtn" onclick="send()">发送</button>
+          <button id="sendBtn" onclick="send()" data-i18n="发送">发送</button>
         </div>
         <div class="mic-hint" id="micHint"></div>
         <div class="mic-hint" id="chatHint"></div>
@@ -1704,6 +1705,37 @@ async function exportConversation(format) {
   } catch (e) { toast("导出失败：" + e); }
 }
 
+// === i18n 国际化（M8）===
+const I18N = {
+  zh: {
+    "对话": "对话", "运维看板": "运维看板", "终活笔记": "终活笔记", "保险库": "保险库",
+    "文档管理": "文档管理", "遗码通": "遗码通", "通知信函": "通知信函", "悼文撰写": "悼文撰写",
+    "规划评分": "规划评分", "客服工单": "客服工单", "热线/机构": "热线/机构",
+    "技能管理": "技能管理", "测试中心": "测试中心", "资源列表": "资源列表", "管理台": "管理台",
+    "发送": "发送", "语音输入": "语音输入",
+  },
+  en: {
+    "对话": "Chat", "运维看板": "Ops", "终活笔记": "Ending Note", "保险库": "Vault",
+    "文档管理": "Documents", "遗码通": "Decedent ID", "通知信函": "Letters", "悼文撰写": "Memorial",
+    "规划评分": "Plan Score", "客服工单": "Support", "热线/机构": "Hotlines",
+    "技能管理": "Skills", "测试中心": "Testing", "资源列表": "Resources", "管理台": "Admin",
+    "发送": "Send", "语音输入": "Voice",
+  },
+};
+let lang = localStorage.getItem("deadman-lang") || "zh";
+function applyI18n() {
+  const dict = I18N[lang] || I18N.zh;
+  document.documentElement.lang = lang;
+  const btn = document.getElementById("langToggle");
+  if (btn) btn.textContent = lang === "zh" ? "EN" : "中";
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key] !== undefined) el.textContent = dict[key];
+  });
+}
+function toggleLang() { lang = lang === "zh" ? "en" : "zh"; localStorage.setItem("deadman-lang", lang); applyI18n(); }
+applyI18n();
+
 // 清空对话
 function clearConversation() {
   if (!confirm("确认清空当前对话？")) return;
@@ -1888,10 +1920,6 @@ async function send() {
           bubble.innerHTML = renderBotContent("⚠ 未能生成图片：\n" + (d.message || d.error || JSON.stringify(d)));
         }
       } catch (e) { bubble.innerHTML = renderBotContent("图像生成失败：" + e); }
-      chatArea.scrollTop = chatArea.scrollHeight;
-      return;
-    }
-      } catch (e) { bubble.innerHTML = renderBotContent("画图失败：" + e); }
       scrollToBottom();
       return;
     }

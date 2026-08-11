@@ -60,6 +60,7 @@ from ..config import settings
 from .deps import get_current_user, get_jwt_manager, get_optional_user, get_user_store
 from .routes import admin as _admin_routes
 from .routes import chat_extras as _chat_extras_routes
+from .routes import iam as _iam_routes
 from .routes import mcp as _mcp_routes
 from .routes import resources as _resources_routes
 from .routes import scheduler as _scheduler_routes
@@ -312,6 +313,7 @@ app = _build_app()
 # =====================================================================
 app.include_router(_admin_routes.router)
 app.include_router(_chat_extras_routes.router)
+app.include_router(_iam_routes.router)
 app.include_router(_scheduler_routes.router)
 app.include_router(_sessions_routes.router)
 app.include_router(_mcp_routes.router)

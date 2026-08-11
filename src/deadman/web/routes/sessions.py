@@ -223,3 +223,100 @@ async def list_groups() -> dict[str, Any]:
         counts[g] = counts.get(g, 0) + 1
     groups = [{"name": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: -x[1])]
     return {"ok": True, "groups": groups}
+
+
+# =====================================================================
+# G3 会话收藏 + G4 会话分享
+# =====================================================================
+
+
+@router.post("/{session_id}/star")
+async def star_session(
+    session_id: str, starred: bool = Body(default=True, embed=True)
+) -> dict[str, Any]:
+    """POST /api/sessions/{id}/star —— 收藏/取消收藏会话"""
+    sid = _safe_id(session_id)
+    data = _load(sid)
+    if data is None:
+        raise DeadmanHTTPException("DM-GENERAL-4040", message=f"会话不存在: {session_id}")
+    data["starred"] = bool(starred)
+    _save(sid, data)
+    return {"ok": True, "session_id": sid, "starred": bool(starred)}
+
+
+@router.get("/starred")
+async def list_starred() -> dict[str, Any]:
+    """GET /api/sessions/starred —— 收藏的会话"""
+    out: list[dict[str, Any]] = []
+    for p in _sessions_dir().glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("starred"):
+            out.append(
+                {
+                    "id": data.get("id", p.stem),
+                    "title": data.get("title", ""),
+                    "updated_at": data.get("updated_at", ""),
+                }
+            )
+    out.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+    return {"ok": True, "sessions": out}
+
+
+# 会话分享：token → session 快照
+def _shares_dir() -> Path:
+    d = Path.home() / ".deadman" / "shares"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+@router.post("/{session_id}/share")
+async def share_session(session_id: str) -> dict[str, Any]:
+    """POST /api/sessions/{id}/share —— 生成分享链接（只读快照）"""
+    sid = _safe_id(session_id)
+    data = _load(sid)
+    if data is None:
+        raise DeadmanHTTPException("DM-GENERAL-4040", message=f"会话不存在: {session_id}")
+    token = uuid.uuid4().hex[:16]
+    share = {
+        "token": token,
+        "session_id": sid,
+        "title": data.get("title", "未命名会话"),
+        "messages": data.get("messages", []),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    (_shares_dir() / f"{token}.json").write_text(
+        json.dumps(share, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return {"ok": True, "token": token, "share_url": f"/share/{token}"}
+
+
+@router.delete("/{session_id}/share")
+async def unshare_session(session_id: str) -> dict[str, Any]:
+    """DELETE /api/sessions/{id}/share —— 撤销该会话的所有分享"""
+    sid = _safe_id(session_id)
+    removed = 0
+    for p in _shares_dir().glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("session_id") == sid:
+            p.unlink(missing_ok=True)
+            removed += 1
+    return {"ok": True, "removed": removed}
+
+
+@router.get("/share/{token}")
+async def get_share(token: str) -> dict[str, Any]:
+    """GET /api/sessions/share/{token} —— 读取分享的会话（公开只读）"""
+    p = _shares_dir() / f"{_safe_id(token)}.json"
+    if not p.exists():
+        raise DeadmanHTTPException("DM-GENERAL-4040", message="分享链接无效或已撤销")
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        raise DeadmanHTTPException("DM-GENERAL-4040", message="分享链接无效或已撤销") from None
+    return {"ok": True, "title": data.get("title"), "messages": data.get("messages", [])}

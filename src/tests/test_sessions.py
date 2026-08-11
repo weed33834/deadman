@@ -81,3 +81,26 @@ class TestSearchGroup:
         # 分组
         g = client.get("/api/sessions/groups").json()["groups"]
         assert any(x["name"] == "家庭" for x in g)
+
+
+class TestStarShare:
+    def test_star_share(self, client, tmp_path, monkeypatch):
+        # share 用 ~/.deadman/shares，隔离
+        import deadman.web.routes.sessions as ss
+
+        monkeypatch.setattr(
+            ss,
+            "_shares_dir",
+            lambda: (lambda d: (d.mkdir(parents=True, exist_ok=True), d)[1])(tmp_path / "shares"),
+        )
+        sid = client.post("/api/sessions", json={"title": "收藏"}).json()["session"]["id"]
+        client.post(f"/api/sessions/{sid}/messages", json={"role": "user", "content": "内容A"})
+        assert (
+            client.post(f"/api/sessions/{sid}/star", json={"starred": True}).json()["starred"]
+            is True
+        )
+        assert len(client.get("/api/sessions/starred").json()["sessions"]) == 1
+        tok = client.post(f"/api/sessions/{sid}/share").json()["token"]
+        assert len(client.get(f"/api/sessions/share/{tok}").json()["messages"]) == 1
+        assert client.delete(f"/api/sessions/{sid}/share").json()["removed"] >= 1
+        assert client.get(f"/api/sessions/share/{tok}").status_code in (400, 404)
