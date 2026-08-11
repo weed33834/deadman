@@ -81,3 +81,47 @@ class TestKb:
         r = client.post("/api/chat/kb", json={"query": "死亡证明", "country": "CN"})
         assert r.status_code == 200
         assert "ok" in r.json() or "result" in r.json()
+
+
+class TestExport:
+    def test_export_md(self, client):
+        r = client.post(
+            "/api/chat/export", json={"text": "# 标题\n\n正文", "format": "md", "filename": "x"}
+        )
+        assert r.status_code == 200 and len(r.content) > 0
+
+    def test_export_docx(self, client):
+        r = client.post(
+            "/api/chat/export",
+            json={"text": "# 清单\n\n- 项目1", "format": "docx", "filename": "x"},
+        )
+        assert r.status_code == 200 and len(r.content) > 1000
+
+    def test_export_pdf(self, client):
+        r = client.post(
+            "/api/chat/export",
+            json={"text": "# 报告\n\n正文内容", "format": "pdf", "filename": "x"},
+        )
+        assert r.status_code == 200 and r.content[:4] == b"%PDF"
+
+    def test_export_bad_format(self, client):
+        r = client.post("/api/chat/export", json={"text": "x", "format": "exe", "filename": "x"})
+        assert r.status_code in (400, 422)
+
+
+class TestPlot:
+    def test_plot_generates_image(self, client):
+        r = client.post(
+            "/api/chat/plot",
+            json={
+                "code": "import matplotlib\nimport matplotlib.pyplot as plt\nplt.plot([1,2,3],[3,1,2])\nplt.show()"
+            },
+        )
+        assert r.status_code == 200
+        d = r.json()
+        assert d.get("ok") is True and d.get("image_base64")
+
+    def test_plot_no_image(self, client):
+        r = client.post("/api/chat/plot", json={"code": "print('hello')"})
+        d = r.json()
+        assert d.get("ok") is False

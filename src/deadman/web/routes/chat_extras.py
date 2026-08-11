@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, File, UploadFile
+from fastapi.responses import Response
 
 from ...errors import DeadmanHTTPException
 
@@ -282,6 +283,155 @@ async def chat_command(
 # =====================================================================
 
 
+@router.post("/export")
+async def chat_export(
+    text: str = Body(default=None, embed=True, description="要导出的文本/Markdown"),
+    format: str = Body(default="md", description="导出格式：md / docx / pdf"),
+    filename: str = Body(default="导出内容"),
+) -> Response:
+    """POST /api/chat/export —— 把对话内容导出为 MD / Word(docx) / PDF。
+
+    用于把 AI 生成的方案/清单/悼文等导出为正式文件。
+    """
+
+    text = text or ""
+    fmt = (format or "md").lower()
+    if fmt == "md":
+        data = text.encode("utf-8")
+        media = "text/markdown; charset=utf-8"
+        name = f"{filename}.md"
+    elif fmt == "docx":
+        data = _build_docx(text)
+        media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        name = f"{filename}.docx"
+    elif fmt == "pdf":
+        data = _build_pdf(text)
+        media = "application/pdf"
+        name = f"{filename}.pdf"
+    else:
+        raise DeadmanHTTPException("DM-VALID-4001", message="格式仅支持 md / docx / pdf")
+    return Response(
+        content=data,
+        media_type=media,
+        headers={"Content-Disposition": _content_disposition(name)},
+    )
+
+
+def _content_disposition(name: str) -> str:
+    """生成兼容中文文件名的 Content-Disposition（RFC 5987 filename*）。"""
+    from urllib.parse import quote
+
+    ascii_name = "".join(c for c in name if ord(c) < 128) or "export"
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
+
+
+def _build_docx(text: str) -> bytes:
+    """生成 .docx 字节（python-docx，未安装则降级为最小 XML zip）。"""
+    import io
+
+    try:
+        from docx import Document
+
+        doc = Document()
+        for para in text.split("\n"):
+            line = para.strip()
+            if not line:
+                continue
+            if line.startswith("### "):
+                doc.add_heading(line[4:], level=3)
+            elif line.startswith("## "):
+                doc.add_heading(line[3:], level=2)
+            elif line.startswith("# "):
+                doc.add_heading(line[2:], level=1)
+            elif line.startswith(("- ", "* ")):
+                doc.add_paragraph(line[2:], style="List Bullet")
+            else:
+                doc.add_paragraph(line)
+        buf = io.BytesIO()
+        doc.save(buf)
+        return buf.getvalue()
+    except Exception:
+        # 降级：最小合法 .docx（zip 含 document.xml）
+        import zipfile
+
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            "<w:body>"
+            + "".join(f"<w:p><w:r><w:t>{_xml_esc(p)}</w:t></w:r></w:p>" for p in text.split("\n"))
+            + "</w:body></w:document>"
+        )
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr(
+                "[Content_Types].xml",
+                '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+            )
+            z.writestr(
+                "_rels/.rels",
+                '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+            )
+            z.writestr("word/document.xml", xml)
+        return buf.getvalue()
+
+
+def _build_pdf(text: str) -> bytes:
+    """生成 PDF 字节（reportlab + 内置 CJK 字体支持中文）。"""
+    import io
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        styles = getSampleStyleSheet()
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4)
+        story = []
+        for para in text.split("\n"):
+            line = para.strip()
+            if not line:
+                story.append(Spacer(1, 6))
+                continue
+            style = styles["BodyText"]
+            if line.startswith("### "):
+                line, style = line[4:], styles["Heading3"]
+            elif line.startswith("## "):
+                line, style = line[3:], styles["Heading2"]
+            elif line.startswith("# "):
+                line, style = line[2:], styles["Heading1"]
+            story.append(Paragraph(_xml_esc(line), style))
+            story.append(Spacer(1, 4))
+        doc.build(story)
+        return buf.getvalue()
+    except Exception:
+        # 降级：极简 PDF（仅 ASCII 文本；中文环境建议 reportlab 正常路径）
+        lines = [_pdf_esc(p) for p in text.split("\n") if p.strip()][:30]
+        body = "".join(
+            f"BT /F1 11 Tf 50 {550 - i * 16} Td ({ln}) Tj ET\n" for i, ln in enumerate(lines)
+        )
+        pdf = (
+            "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
+            f"4 0 obj<</Length {len(body)}>>stream\n{body}endstream\nendobj\n"
+            "5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+            "trailer<</Root 1 0 R>>\n%%EOF"
+        ).encode("latin-1")
+        return pdf
+
+
+def _xml_esc(s: str) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _pdf_esc(s: str) -> str:
+    return str(s).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
 @router.post("/kb")
 async def chat_kb(
     query: str = Body(default=None, embed=True, description="查询"),
@@ -299,3 +449,31 @@ async def chat_kb(
         return {"ok": True, "result": result}
     except Exception as exc:
         raise DeadmanHTTPException("DM-TEXT-4040", message=f"知识库查询失败: {exc}") from exc
+
+
+@router.post("/plot")
+async def chat_plot(
+    code: str = Body(default=None, embed=True, description="Python 绘图代码"),
+    timeout: int = Body(default=30),
+) -> dict[str, Any]:
+    """POST /api/chat/plot —— 运行绘图代码，返回生成的图表（base64）。
+
+    供对话画图：用户写一段 matplotlib 代码 → 沙箱执行 → 返回图片。
+    """
+    from ...mcp_server.server import mcp
+
+    result = await mcp.call_tool("execute_code", {"code": code or "", "timeout": timeout})
+    img = result.get("image_base64")
+    if not img:
+        return {
+            "ok": False,
+            "message": "代码未生成图片（请确认使用 matplotlib 并调用 plt.show()）",
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+        }
+    return {
+        "ok": True,
+        "image_base64": img,
+        "image_mime": "image/png",
+        "stdout": result.get("stdout", ""),
+    }

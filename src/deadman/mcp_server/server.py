@@ -3054,6 +3054,73 @@ async def report_incident(
 # 工具 14: execute_code（沙箱代码执行 - 借鉴 Hermes MIT 设计）
 # =====================================================================
 
+# 图表捕获：把 matplotlib 生成的图编码为 base64，写入 stdout 标记，供回传对话
+_IMG_START = "###DEADMAN_IMG_START###"
+_IMG_END = "###DEADMAN_IMG_END###"
+
+
+def _wrap_matplotlib_capture(code: str) -> str:
+    """在用户代码前注入 matplotlib Agg 捕获片段。
+
+    - 强制 Agg 后端（无 GUI 环境也能出图）
+    - 拦截 plt.show()，把当前 figure 编码为 PNG base64
+    - 结束前若仍有未关闭 figure，一并捕获
+    - 通过 stdout 标记输出，供沙箱回传
+    """
+    if "matplotlib" not in code:
+        return code  # 非绘图代码不注入，保持原样
+    preamble = """
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import io, base64
+_img_bufs = []
+_orig_show = plt.show
+def _deadman_cap_show(*a, **k):
+    try:
+        b = io.BytesIO()
+        plt.gcf().savefig(b, format="png", bbox_inches="tight")
+        b.seek(0)
+        _img_bufs.append(base64.b64encode(b.read()).decode())
+    except Exception:
+        pass
+    return _orig_show(*a, **k)
+plt.show = _deadman_cap_show
+"""
+    postamble = """
+try:
+    if plt.get_fignums():
+        b = io.BytesIO()
+        plt.gcf().savefig(b, format="png", bbox_inches="tight")
+        b.seek(0)
+        _img_bufs.append(base64.b64encode(b.read()).decode())
+except Exception:
+    pass
+import sys as _sys
+for _b in _img_bufs:
+    print("%s%s%s" % ("###DEADMAN_IMG_START###", _b, "###DEADMAN_IMG_END###"), file=_sys.stdout, flush=True)
+"""
+    return preamble + "\n" + code + "\n" + postamble
+
+
+def _extract_captured_image(stdout: str) -> str | None:
+    """从 stdout 中提取第一张图片的 base64（无则 None）。"""
+    import re
+
+    m = re.search(re.escape(_IMG_START) + r"([A-Za-z0-9+/=]+)" + re.escape(_IMG_END), stdout)
+    return m.group(1) if m else None
+
+
+def _strip_image_marker(stdout: str) -> str:
+    """从 stdout 中剔除图片标记行，保留纯文本输出。"""
+    import re
+
+    return re.sub(
+        re.escape(_IMG_START) + r"[A-Za-z0-9+/=]+" + re.escape(_IMG_END),
+        "",
+        stdout,
+    ).strip()
+
 
 @mcp.tool_auto(
     name="execute_code",
@@ -3145,8 +3212,20 @@ async def execute_code(
             "stderr": "",
         }
 
-    result = await manager.execute(code, timeout=timeout)
-    return result.to_dict()
+    # 图表能力：注入 matplotlib 捕获片段，生成的图以 base64 回传对话（特色加强）
+    wrapped = _wrap_matplotlib_capture(code)
+    result = await manager.execute(wrapped, timeout=timeout)
+    payload = result.to_dict()
+    # 解析 stdout 中的图片标记，取出 base64 并移除标记
+    stdout = payload.get("stdout", "") or ""
+    img = _extract_captured_image(stdout)
+    if img is not None:
+        payload["image_base64"] = img
+        payload["image_mime"] = "image/png"
+        payload["has_chart"] = True
+        # 从 stdout 中剔除标记，避免污染文本输出
+        payload["stdout"] = _strip_image_marker(stdout)
+    return payload
 
 
 # =====================================================================

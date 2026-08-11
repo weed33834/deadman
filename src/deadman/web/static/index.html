@@ -145,6 +145,13 @@
     border-radius: 16px 16px 16px 4px;
   }
   .meta { font-size: 11px; color: var(--ink-muted); margin-top: 6px; padding-left: 4px; }
+  .msg-actions { display: flex; gap: 6px; margin-top: 6px; opacity: 0; transition: opacity .2s var(--ease); }
+  .message:hover .msg-actions, .msg-actions:hover { opacity: 1; }
+  .ma { padding: 2px 8px; font-size: 11px; background: transparent; color: var(--ink-muted); border: 1px solid var(--line); border-radius: var(--radius-s); cursor: pointer; letter-spacing: 0; transition: all .2s var(--ease); }
+  .ma:hover { color: var(--accent); border-color: var(--accent); background: #fff; }
+  .md-img { max-width: 100%; border-radius: var(--radius-m); box-shadow: var(--shadow-m); margin: 4px 0; }
+  #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--paper-warm); padding: 8px 18px; border-radius: var(--radius-pill); font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s var(--ease); z-index: 2000; box-shadow: var(--shadow-m); }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   /* ===== Markdown 渲染 ===== */
   .md-p { margin: .35em 0; }
   .md-h { margin: .5em 0 .25em; font-weight: 600; color: var(--ink); line-height: 1.4; }
@@ -1441,11 +1448,50 @@ function addMessage(role, text, meta) {
     m.className = "meta"; m.textContent = meta;
     content.appendChild(m);
   }
+  // 机器人消息操作栏：复制 / 导出 MD/Word/PDF
+  if (role === "bot") {
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+    actions.innerHTML =
+      '<button class="ma" onclick="copyMsg(this)" title="复制">⧉ 复制</button>' +
+      '<button class="ma" onclick="exportMsg(this,\'md\')" title="导出 Markdown">⭳ MD</button>' +
+      '<button class="ma" onclick="exportMsg(this,\'docx\')" title="导出 Word">⭳ Word</button>' +
+      '<button class="ma" onclick="exportMsg(this,\'pdf\')" title="导出 PDF">⭳ PDF</button>';
+    content.appendChild(actions);
+  }
   msg.appendChild(avatar); msg.appendChild(content);
   chatArea.appendChild(msg);
   chatArea.scrollTop = chatArea.scrollHeight;
   // P3：返回 content 容器，方便在 bubble 下方插入 trace 思考过程面板
   return { bubble, content };
+}
+
+// 消息操作：复制
+function copyMsg(btn) {
+  const msg = btn.closest(".message");
+  const text = msg ? msg.querySelector(".bubble").innerText : "";
+  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+    .then(() => toast("已复制到剪贴板"))
+    .catch(() => { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); toast("已复制"); });
+}
+// 消息操作：导出 MD/Word/PDF
+async function exportMsg(btn, format) {
+  const msg = btn.closest(".message");
+  const text = msg ? msg.querySelector(".bubble").innerText : "";
+  const name = "对话导出-" + Date.now();
+  const r = await fetch("/api/chat/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, format, filename: name }) });
+  if (!r.ok) { toast("导出失败"); return; }
+  const blob = await r.blob();
+  const ext = format === "pdf" ? "pdf" : format === "docx" ? "docx" : "md";
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name + "." + ext; a.click();
+  toast("已导出 " + ext.toUpperCase());
+}
+// 轻提示
+function toast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 2000);
 }
 
 // ============================================================
@@ -1573,11 +1619,27 @@ async function send() {
   const text = input.value.trim();
   if (!text || streaming) return;
   input.value = ""; input.style.height = "auto";
-  // 斜杠命令：/prompt /expert /skill → 走对话命令接口（管理提示词/专家/技能）
+  // 斜杠命令：/prompt /expert /skill → 走对话命令接口；/plot → 画图
   if (text.startsWith("/")) {
     addMessage("user", text);
     history.push({ role: "user", content: text });
     const { bubble } = addMessage("bot", '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>');
+    if (text.trim().toLowerCase().startsWith("/plot ")) {
+      // 画图：运行代码 → 渲染生成的图表
+      const code = text.trim().slice(6);
+      try {
+        const r = await fetch("/api/chat/plot", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ code }) });
+        const d = await r.json();
+        if (d.ok && d.image_base64) {
+          bubble.innerHTML = '<img class="md-img" src="data:' + (d.image_mime || "image/png") + ';base64,' + d.image_base64 + '" alt="生成的图表">'
+            + (d.stdout ? '<pre class="md-code">' + esc(d.stdout) + '</pre>' : "");
+        } else {
+          bubble.innerHTML = renderBotContent("⚠ 未能生成图表：\n" + (d.message || JSON.stringify(d)) + (d.stderr ? "\n```\n" + d.stderr + "\n```" : ""));
+        }
+      } catch (e) { bubble.innerHTML = renderBotContent("画图失败：" + e); }
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return;
+    }
     try {
       const r = await fetch("/api/chat/command", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ command: text }) });
       const d = await r.json();
