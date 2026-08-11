@@ -57,6 +57,8 @@ textarea{resize:vertical;min-height:80px}
 .row{display:flex;gap:12px} .row .field{flex:1}
 .muted{color:var(--muted);font-size:12px}
 .msg{padding:8px 12px;border-radius:var(--radius-s);margin:8px 0;font-size:13px}
+.wf-bar{position:absolute;top:4px;height:14px;border-radius:4px;background:linear-gradient(90deg,var(--accent-soft),var(--accent));min-width:2px}
+.wf-scale{height:4px;background:var(--line);border-radius:2px;margin:4px 0 8px;font-size:10px;color:var(--muted)}
 .msg.ok{background:var(--ok-bg);color:var(--ok)} .msg.err{background:#f7eae6;color:var(--bad)} .msg.info{background:#eef0f5;color:#4a5568}
 @media(max-width:820px){.side{width:56px}.side .g,.side .item span{display:none}.side .item{padding:13px;text-align:center}}
 </style>
@@ -179,9 +181,16 @@ async function renderAgents(){
   card("创建 / 编辑 Agent","",`<div class="row"><div class="field"><label>Agent ID</label><input type="text" id="agId" placeholder="my-agent"></div><div class="field"><label>名称</label><input type="text" id="agName" placeholder="我的智能体"></div></div>
    <div class="field"><label>系统提示</label><textarea id="agPrompt" rows="4" placeholder="你是一位专业的助手…"></textarea></div>
    <div class="row"><div class="field"><label>温度</label><input type="number" id="agTemp" value="0.3" step="0.1"></div><div class="field"><label>max_steps</label><input type="number" id="agSteps" value="10"></div></div>
-   <button class="btn green" onclick="saveAgent()">保存 Agent</button><div id="agOut" style="margin-top:8px"></div>`);
+   <button class="btn green" onclick="saveAgent()">保存 Agent</button><div id="agOut" style="margin-top:8px"></div>`)+
+  card("AI 生成 Agent","描述 → agent.yaml",`<div class="row"><div class="field"><label>描述</label><input type="text" id="agGen" placeholder="帮我做一个能写周报的 agent"></div><div class="field"><label></label><button class="btn" onclick="genAgent()">🤖 生成</button></div></div><pre id="agGenOut" style="margin-top:8px">（描述后点击生成）</pre>`);
 }
 async function saveAgent(){const r=await api("/api/admin/agents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:el("agId").value,name:el("agName").value,system_prompt:el("agPrompt").value,temperature:parseFloat(el("agTemp").value),max_steps:parseInt(el("agSteps").value)})});msg("agOut",r.ok?"已保存 Agent "+(r.data.agent?.id||""):JSON.stringify(r.data),r.ok?"ok":"err");renderAgents();}
+async function genAgent(){
+  const desc=el("agGen").value.trim(); if(!desc){alert("请输入描述");return}
+  el("agGenOut").textContent="生成中…";
+  const r=await api("/api/admin/agents/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({description:desc})});
+  el("agGenOut").textContent = r.ok ? (r.data.agent_yaml||"（未生成）") : JSON.stringify(r.data);
+}
 async function testAgent(id){const input=prompt("测试对话输入：");if(input===null)return;const r=await api("/api/admin/agents/"+encodeURIComponent(id)+"/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:input})});const d=r.data||{};alert("Agent 试跑结果（前 400 字）：\n\n"+String(d.output||d.reply||d.error||JSON.stringify(d)).slice(0,400));}
 async function deleteAgent(id,type){if(type==="builtin"){alert("内置 Agent 不可删除");return}if(!confirm("删除 Agent "+id+"？"))return;await api("/api/admin/agents/"+encodeURIComponent(id),{method:"DELETE"});renderAgents();}
 async function renderTools(){
@@ -279,8 +288,18 @@ async function renderTraces(){
 async function searchTrace(){
   const tid=el("trTrace").value.trim(); if(!tid) return;
   const d=(await api("/api/admin/traces?trace_id="+encodeURIComponent(tid))).data||{};
-  const spans=(d.spans||[]).map(s=>`<tr><td class="mono">${esc(s.span_id||"")}</td><td>${esc(s.name||s.type||"")}</td><td>${esc(JSON.stringify(s.attributes||{}))}</td><td>${s.duration_ms!=null?s.duration_ms+"ms":""}</td></tr>`).join("");
-  el("trDetail").innerHTML=`<div class="msg info">trace ${esc(tid)}：${d.span_count||0} 个 span</div><table><tr><th>span_id</th><th>名称</th><th>属性</th><th>耗时</th></tr>${spans||'<tr><td colspan="4" class="muted">无结果</td></tr>'}</table>`;
+  const spans=(d.spans||[]);
+  // 瀑布图：按 start_time 相对定位
+  let min=Infinity, max=0;
+  spans.forEach(s=>{const t=s._start_iso?new Date(s._start_iso).getTime():0; if(t){min=Math.min(min,t);max=Math.max(max,t+(s.duration_ms||0));}});
+  const total=max-min||1;
+  const rows=spans.map(s=>{const t=s._start_iso?new Date(s._start_iso).getTime():0; const left=((t-min)/total*100); const w=Math.max(1,((s.duration_ms||1)/total*100));
+    return `<tr><td class="mono" style="width:120px">${esc(s.span_id||"")}</td><td style="width:180px">${esc(s.name||s.type||"")}</td>
+      <td style="position:relative;height:22px"><div class="wf-bar" style="left:${left}%;width:${w}%"></div></td>
+      <td style="width:80px">${s.duration_ms!=null?s.duration_ms+"ms":""}</td></tr>`;}).join("");
+  el("trDetail").innerHTML=`<div class="msg info">trace ${esc(tid)}：${d.span_count||0} 个 span（瀑布图）</div>
+   <div class="wf-scale"><span>0</span><span style="float:right">${(total/1000).toFixed(2)}s</span></div>
+   <table><tr><th>span_id</th><th>名称</th><th>耗时瀑布</th><th>耗时</th></tr>${rows||'<tr><td colspan="4" class="muted">无结果</td></tr>'}</table>`;
 }
 
 // ===== 定时任务（G11）=====

@@ -371,13 +371,30 @@ async def admin_traces(limit: int = 30, trace_id: str = "") -> dict[str, Any]:
 
     try:
         if trace_id:
-            spans = tracer.get_trace(trace_id)
+            spans = [_normalize_span(s) for s in tracer.get_trace(trace_id)]
             return {"ok": True, "trace_id": trace_id, "spans": spans, "span_count": len(spans)}
-        spans = tracer.get_spans()
+        spans = [_normalize_span(s) for s in tracer.get_spans()]
         recent = spans[-limit:]
         return {"ok": True, "spans": recent, "total": len(spans), "limit": limit}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def _normalize_span(sp: dict[str, Any]) -> dict[str, Any]:
+    """为 span 补充 duration_ms（供瀑布图定位）"""
+    out = dict(sp)
+    st = sp.get("start_time") or sp.get("_start_time") or ""
+    et = sp.get("end_time") or ""
+    try:
+        from datetime import datetime
+
+        s = datetime.fromisoformat(st)
+        e = datetime.fromisoformat(et) if et else datetime.now()
+        out["duration_ms"] = int((e - s).total_seconds() * 1000)
+        out["_start_iso"] = st
+    except Exception:
+        out["duration_ms"] = sp.get("duration_ms", 0)
+    return out
 
 
 @router.get("/memory")

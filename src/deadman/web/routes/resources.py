@@ -446,6 +446,40 @@ async def create_agent(
     return {"ok": True, "agent": payload}
 
 
+@router.post("/agents/generate")
+async def generate_agent(
+    description: str = Body(default=None, embed=True, description="自然语言描述"),
+) -> dict[str, Any]:
+    """POST /api/admin/agents/generate —— AI 生成 Agent（描述 → yaml 草稿）
+
+    围绕产品特色：输入"帮我做一个能写周报的 agent"等，生成 agent.yaml 配置草稿。
+    """
+    from ...llm import llm_client
+
+    if not description:
+        raise DeadmanHTTPException("DM-VALID-4002", message="description 必填")
+    prompt = (
+        "你是 Agent 配置生成器。根据用户描述，生成一份完整的 agent.yaml（含 name/type/description/"
+        "system_prompt/temperature/max_steps/tools/voice）。只输出 YAML，不要多余说明。\n\n描述："
+        + description
+    )
+    try:
+        yaml_text = await llm_client.chat([{"role": "user", "content": prompt}], temperature=0.3)
+    except Exception as exc:
+        raise DeadmanHTTPException("DM-PROMPT-5000", message=f"AI 生成失败: {exc}") from exc
+    # 存为草稿
+    drafts = _agents_store.get("__drafts__") or []
+    draft = {
+        "name": f"agent_draft_{int(time.time())}",
+        "description": description,
+        "yaml": yaml_text,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    drafts.append(draft)
+    _agents_store.set("__drafts__", drafts)
+    return {"ok": True, "draft": draft, "agent_yaml": yaml_text}
+
+
 @router.delete("/agents/{agent_id}")
 async def delete_agent(agent_id: str) -> dict[str, Any]:
     if agent_id in {a["id"] for a in _builtin_agents()}:

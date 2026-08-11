@@ -321,3 +321,91 @@ async def get_share(token: str) -> dict[str, Any]:
     except (json.JSONDecodeError, OSError):
         raise DeadmanHTTPException("DM-GENERAL-4040", message="分享链接无效或已撤销") from None
     return {"ok": True, "title": data.get("title"), "messages": data.get("messages", [])}
+
+
+# =====================================================================
+# 会话导出为周报 / 复盘 模板
+# =====================================================================
+
+
+@router.get("/{session_id}/report")
+async def session_report(session_id: str, type: str = "weekly") -> dict[str, Any]:
+    """GET /api/sessions/{id}/report?type=weekly|review —— 把会话导出为周报/复盘 Markdown
+
+    用于把一段对话沉淀为可交付的周报 / 复盘文档。
+    """
+    sid = _safe_id(session_id)
+    data = _load(sid)
+    if data is None:
+        raise DeadmanHTTPException("DM-GENERAL-4040", message=f"会话不存在: {session_id}")
+    messages = data.get("messages", [])
+    now = time.strftime("%Y-%m-%d", time.gmtime())
+    title = data.get("title", "未命名会话")
+    if type == "review":
+        md = [
+            f"# 对话复盘 —— {title}",
+            "",
+            f"> 导出时间：{now} · 消息数：{len(messages)}",
+            "",
+            "## 一、背景与目标",
+            "> （自动摘录：第一条用户消息）",
+            _first_user(messages),
+            "",
+            "## 二、对话摘要",
+            "",
+        ]
+        md += _summary(messages)
+        md += ["", "## 三、待办 / 结论", ""]
+        md += _todos(messages)
+    else:  # weekly 周报
+        md = [
+            f"# 本周工作总结 —— {title}",
+            "",
+            f"> 导出时间：{now} · 消息数：{len(messages)}",
+            "",
+            "## 一、本周完成事项",
+            "",
+        ]
+        md += _summary(messages)
+        md += ["", "## 二、主要结论", ""]
+        md += _conclusions(messages)
+        md += ["", "## 三、下一步计划", "", "- [ ] （待补充）", ""]
+    return {"ok": True, "type": type, "markdown": "\n".join(md)}
+
+
+def _first_user(messages: list[dict[str, Any]]) -> str:
+    for m in messages:
+        if m.get("role") == "user":
+            return m.get("content", "").strip()
+    return "—"
+
+
+def _summary(messages: list[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for m in messages[-20:]:
+        role = "问" if m.get("role") == "user" else "答"
+        content = (m.get("content") or "").strip().replace("\n", " ")
+        if content:
+            lines.append(f"- **{role}**：{content[:120]}")
+    if not lines:
+        lines.append("- （暂无对话内容）")
+    return lines
+
+
+def _conclusions(messages: list[dict[str, Any]]) -> list[str]:
+    """摘取最后的助手消息作为结论"""
+    for m in reversed(messages):
+        if m.get("role") == "assistant" and m.get("content"):
+            return ["- " + (m.get("content") or "").strip().replace("\n", " ")[:200]]
+    return ["- （暂无）"]
+
+
+def _todos(messages: list[dict[str, Any]]) -> list[str]:
+    out = []
+    for m in messages:
+        content = m.get("content", "")
+        for kw in ("待办", "需要", "记得", "下一步"):
+            if kw in content:
+                out.append(f"- [ ] {content.strip().replace(chr(10), ' ')[:80]}")
+                break
+    return out[:10] or ["- （无明确待办）"]

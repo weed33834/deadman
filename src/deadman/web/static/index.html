@@ -744,6 +744,8 @@
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">就绪</span>
       <button class="topbar-action" onclick="exportConversation('md')" title="导出全部对话">⭳ 对话</button>
+      <button class="topbar-action" onclick="exportReport('weekly')" title="导出本周工作总结">📋 周报</button>
+      <button class="topbar-action" onclick="exportReport('review')" title="导出对话复盘">🧠 复盘</button>
       <button class="topbar-action" onclick="clearConversation()" title="清空对话">🗑 清空</button>
       <button class="topbar-action" onclick="toggleLang()" id="langToggle" title="切换语言">EN</button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜砚主题">☾</button>
@@ -1769,6 +1771,18 @@ function runHotline() { input.value = "/hotline"; send(); }
 function runPlotDemo() {
   input.value = "/plot " + "import matplotlib.pyplot as plt\nimport numpy as np\nx = np.linspace(0, 10, 50)\nplt.plot(x, np.sin(x), label='sin')\nplt.plot(x, np.cos(x), label='cos')\nplt.legend()\nplt.title('示例图表')\nplt.show()";
   send();
+}
+
+// 导出当前会话为周报/复盘模板
+async function exportReport(type) {
+  if (!currentSessionId) { toast("请先新建/选择会话"); return; }
+  const r = await fetch("/api/sessions/" + currentSessionId + "/report?type=" + type);
+  const d = await r.json();
+  if (!r.ok || !d.markdown) { toast("导出失败"); return; }
+  const label = type === "weekly" ? "本周工作总结" : "对话复盘";
+  const blob = new Blob([d.markdown], { type: "text/markdown" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = label + "-" + new Date().toISOString().slice(0,10) + ".md"; a.click();
+  toast("已导出" + label);
 }
 
 // 轻提示
