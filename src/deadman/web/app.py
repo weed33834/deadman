@@ -62,6 +62,7 @@ from .routes import admin as _admin_routes
 from .routes import chat_extras as _chat_extras_routes
 from .routes import mcp as _mcp_routes
 from .routes import resources as _resources_routes
+from .routes import sessions as _sessions_routes
 from .routes import text as _text_routes
 from .routes import voice as _voice_routes
 
@@ -310,6 +311,7 @@ app = _build_app()
 # =====================================================================
 app.include_router(_admin_routes.router)
 app.include_router(_chat_extras_routes.router)
+app.include_router(_sessions_routes.router)
 app.include_router(_mcp_routes.router)
 app.include_router(_resources_routes.router)
 app.include_router(_text_routes.router)

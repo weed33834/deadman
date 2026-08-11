@@ -508,7 +508,13 @@ async def chat_kb(
         result = await mcp.call_tool(
             "query_knowledge", {"country": country, "topic": query or "", "region": region or None}
         )
-        return {"ok": True, "result": result}
+        # 提取引用来源（full_file），供前端展示"引用来源"
+        sources: list[str] = []
+        data = result.get("data") if isinstance(result, dict) else None
+        if isinstance(data, dict) and data.get("full_file"):
+            sources.append(data["full_file"])
+        result["sources"] = sources
+        return {"ok": True, "result": result, "sources": sources}
     except Exception as exc:
         raise DeadmanHTTPException("DM-TEXT-4040", message=f"知识库查询失败: {exc}") from exc
 

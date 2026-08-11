@@ -83,6 +83,15 @@
   }
   .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; transform: translateX(2px); }
   .nav-item.active { background: rgba(154,91,63,.22); border-left-color: var(--gold); color: #fff; }
+  .session-new { cursor: pointer; color: var(--accent-soft); font-size: 14px; padding: 0 4px; }
+  .session-new:hover { color: #fff; }
+  .session-item { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 14px; cursor: pointer; font-size: 12.5px; color: #cfc8ba; border-radius: 8px; margin: 1px 6px; transition: background .2s var(--ease); }
+  .session-item:hover { background: rgba(255,255,255,.06); }
+  .session-item.active { background: rgba(154,91,63,.22); color: #fff; }
+  .session-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-del { color: #7c7467; font-size: 14px; padding: 0 4px; }
+  .session-del:hover { color: var(--err); }
+  .session-empty { padding: 8px 14px; font-size: 11px; color: #7c7467; }
   .sidebar-footer {
     padding: 16px 26px; font-size: 10px; color: #7c7467;
     border-top: 1px solid rgba(255,255,255,.07); letter-spacing: .5px;
@@ -146,6 +155,7 @@
   }
   .meta { font-size: 11px; color: var(--ink-muted); margin-top: 6px; padding-left: 4px; }
   .msg-actions { display: flex; gap: 6px; margin-top: 6px; opacity: 0; transition: opacity .2s var(--ease); }
+  .kb-src { font-size: 11px; color: var(--accent); margin-top: 6px; padding: 4px 8px; background: var(--paper-warm); border-radius: var(--radius-s); }
   .message:hover .msg-actions, .msg-actions:hover { opacity: 1; }
   .ma { padding: 2px 8px; font-size: 11px; background: transparent; color: var(--ink-muted); border: 1px solid var(--line); border-radius: var(--radius-s); cursor: pointer; letter-spacing: 0; transition: all .2s var(--ease); }
   .ma:hover { color: var(--accent); border-color: var(--accent); background: #fff; }
@@ -681,6 +691,10 @@
     <div class="sidebar-subtitle">身后事多智能体引导平台</div>
   </div>
   <div class="nav-list">
+    <div class="nav-group-label" style="display:flex;justify-content:space-between;align-items:center;padding-right:8px">
+      会话 <span class="session-new" onclick="newSession()" title="新建会话">＋</span>
+    </div>
+    <div id="sessionList" style="max-height:180px;overflow-y:auto"></div>
     <div class="nav-item active" data-page="chat" onclick="switchPage('chat')">对话</div>
     <div class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">运维看板</div>
     <div class="nav-group-label">业务功能</div>
@@ -717,6 +731,7 @@
     <div class="topbar-title" id="pageTitle">对话</div>
     <div class="topbar-right">
       <select id="agentSelect" onchange="currentAgent=this.value"></select>
+      <select id="modelSelect" onchange="switchModel(this.value)" title="切换模型"></select>
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">就绪</span>
       <button class="topbar-action" onclick="exportConversation('md')" title="导出全部对话">⭳ 对话</button>
@@ -1282,6 +1297,68 @@ async function uploadVoice(blob) {
 const sendBtn = document.getElementById("sendBtn");
 const chatArea = document.getElementById("chatArea");
 
+// 通用 fetch 封装（返回 {ok,status,data}）
+async function api(path, opts) {
+  opts = opts || {};
+  const r = await fetch(path, opts);
+  return r.json().then(d => ({ ok: r.ok, status: r.status, data: d }));
+}
+
+// === 会话管理（多会话/历史）===
+let currentSessionId = null;
+let currentSessionTitle = "";
+async function loadSessions() {
+  const list = document.getElementById("sessionList");
+  if (!list) return;
+  try {
+    const d = (await api("/api/sessions")).data || {};
+    const items = d.sessions || [];
+    list.innerHTML = items.map(s =>
+      '<div class="session-item' + (s.id === currentSessionId ? " active" : "") + '" onclick="switchSession(\'' + s.id + '\')" title="' + esc(s.title) + '">'
+      + '<span class="session-name">' + esc(s.title) + '</span>'
+      + '<span class="session-del" onclick="event.stopPropagation();deleteSession(\'' + s.id + '\')" title="删除">×</span></div>'
+    ).join("") || '<div class="session-empty">暂无会话</div>';
+  } catch (e) { list.innerHTML = '<div class="session-empty">会话加载失败</div>'; }
+}
+async function newSession() {
+  const d = (await api("/api/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "" }) })).data || {};
+  if (!d.session) return;
+  currentSessionId = d.session.id;
+  currentSessionTitle = "";
+  history = []; chatArea.innerHTML = "";
+  loadSessions();
+}
+async function switchSession(id) {
+  currentSessionId = id;
+  const d = (await api("/api/sessions/" + id + "/messages")).data || {};
+  const msgs = d.messages || [];
+  chatArea.innerHTML = "";
+  history = [];
+  (msgs).forEach(m => { addMessage(m.role, m.content); if (m.role === "user") history.push({ role: "user", content: m.content }); });
+  currentSessionTitle = (await (await fetch("/api/sessions")).json()).data.sessions.find(s => s.id === id)?.title || "";
+  loadSessions();
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+async function deleteSession(id) {
+  if (!confirm("删除该会话？")) return;
+  await api("/api/sessions/" + id, { method: "DELETE" });
+  if (currentSessionId === id) { currentSessionId = null; history = []; chatArea.innerHTML = ""; }
+  loadSessions();
+}
+async function ensureSession() {
+  if (currentSessionId) return currentSessionId;
+  const d = (await api("/api/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "" }) })).data || {};
+  if (d.session) { currentSessionId = d.session.id; loadSessions(); }
+  return currentSessionId;
+}
+async function saveMessage(role, content) {
+  if (!currentSessionId) return;
+  try {
+    await api("/api/sessions/" + currentSessionId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role, content }) });
+    loadSessions();
+  } catch (e) {}
+}
+
 // 滚动锁定：用户上翻时不强制滚到底，避免打扰阅读
 let userScrolledUp = false;
 chatArea.addEventListener("scroll", () => {
@@ -1302,6 +1379,38 @@ const statusText = document.getElementById("statusText");
     sel.appendChild(opt);
   });
 })();
+
+// 多模型选择器：加载模型目录，切换时调管理端接口热切换主模型
+async function initModelSelect() {
+  const sel = document.getElementById("modelSelect");
+  if (!sel) return;
+  try {
+    const d = (await api("/api/admin/models")).data || {};
+    const cur = d.current || {};
+    sel.innerHTML = "";
+    const all = [];
+    Object.entries(d.catalog || {}).forEach(([provider, m]) => {
+      (m.models || []).forEach(x => { all.push({ provider, model: x.id }); });
+    });
+    // 去重 + 优先展示常用
+    const seen = new Set();
+    const opts = all.filter(o => { const k = o.provider + "/" + o.model; if (seen.has(k)) return false; seen.add(k); return true; });
+    opts.forEach(o => {
+      const opt = document.createElement("option");
+      opt.value = o.provider + "/" + o.model;
+      opt.textContent = o.model;
+      opt.dataset.provider = o.provider;
+      sel.appendChild(opt);
+    });
+    if (cur.provider && cur.model) sel.value = cur.provider + "/" + cur.model;
+  } catch (e) {}
+}
+async function switchModel(value) {
+  if (!value || !value.includes("/")) return;
+  const [provider, model] = value.split("/");
+  const r = await api("/api/admin/models", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider, model }) });
+  toast(r.ok ? ("已切换模型 " + model) : "切换失败");
+}
 
 // === 透明度（transparency-framework L5）：加载平台身份 ===
 let whoamiInfo = null;
@@ -1464,6 +1573,8 @@ function dismissBanner() {
 // 页面初始化
 initDisclaimerBanner();
 loadWhoami();
+initModelSelect();
+loadSessions();
 
 input.addEventListener("input", () => {
   input.style.height = "auto";
@@ -1755,6 +1866,8 @@ async function send() {
   addMessage("user", text);
   history.push({ role: "user", content: text });
   lastUserQuery = text;
+  await ensureSession();
+  saveMessage("user", text);
   streaming = true; sendBtn.disabled = true;
   const stopBtn = document.getElementById("stopBtn"); if (stopBtn) stopBtn.style.display = "inline-block";
   streamAbort = new AbortController();
@@ -1841,6 +1954,21 @@ async function send() {
     }
     bubble.innerHTML = renderBotContent(full);
     history.push({ role: "assistant", content: full });
+    saveMessage("assistant", full);
+    // 知识库引用来源：kb 开启时显示引用的政策文件
+    if (kbEnabled) {
+      try {
+        const kr = await fetch("/api/chat/kb", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: text, country: "CN" }) });
+        const kd = await kr.json();
+        const srcs = kd.sources || [];
+        if (srcs.length) {
+          const note = document.createElement("div");
+          note.className = "kb-src";
+          note.innerHTML = "📚 引用来源：" + srcs.map(s => '<code class="md-ic">' + esc(s) + '</code>').join(" ");
+          content.appendChild(note);
+        }
+      } catch (e) {}
+    }
 
     // P3：渲染思考过程面板（如果有 trace 数据）
     let meta = "";
