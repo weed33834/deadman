@@ -241,20 +241,46 @@ def _cmd_skill(tokens: list[str]) -> dict[str, Any]:
     except Exception as exc:
         logger.debug("skill 命令取技能失败: %s", exc)
         skills = []
+    state = _skill_state()  # {name: enabled}
     if action == "list":
-        return {
-            "ok": True,
-            "kind": "list",
-            "items": {"skills": [getattr(s, "name", str(s)) for s in skills]},
-        }
+        names = []
+        for s in skills:
+            name = getattr(s, "name", None) or (s.get("name") if isinstance(s, dict) else str(s))
+            state.setdefault(name, True)
+            names.append(f"{name}{'' if state[name] else '（停用）'}")
+        _skill_state_save(state)
+        return {"ok": True, "kind": "list", "items": {"skills": names}}
     if action in ("enable", "disable"):
         name = tokens[1] if len(tokens) >= 2 else ""
+        if not name:
+            return {"ok": False, "kind": "text", "text": "用法: /skill enable|disable <名称>"}
+        enabled = action == "enable"
+        state[name] = enabled
+        _skill_state_save(state)
         return {
             "ok": True,
             "kind": "text",
-            "text": f"skill {action} {name}：已{('启用' if action == 'enable' else '停用')}（技能目录 {settings.skills_dir}）",
+            "text": f"技能 {name} 已{'启用' if enabled else '停用'}（状态持久化，管理台技能面板可见）",
         }
     return {"ok": False, "kind": "text", "text": _SKILL_HELP}
+
+
+def _skill_state() -> dict[str, bool]:
+    p = _admin_dir() / "skills_state.json"
+    if p.exists():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _skill_state_save(state: dict[str, bool]) -> None:
+    (_admin_dir() / "skills_state.json").write_text(
+        json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 @router.post("/command")
@@ -321,8 +347,7 @@ def _cmd_institution(tokens: list[str]) -> dict[str, Any]:
         province = tokens[0] if len(tokens) >= 1 else None
         city = tokens[1] if len(tokens) >= 2 else None
         keyword = tokens[2] if len(tokens) >= 3 else None
-        inst_type = tokens[2] if len(tokens) >= 3 and not keyword else None
-        results = store.search(province, city, inst_type, keyword)
+        results = store.search(province, city, None, keyword)
         if not results:
             return {
                 "ok": True,
@@ -587,7 +612,9 @@ async def chat_image(
 
 
 @router.post("/browse")
-async def chat_browse(url: str = Body(default=None, embed=True, description="要浏览的网页 URL")) -> dict[str, Any]:
+async def chat_browse(
+    url: str = Body(default=None, embed=True, description="要浏览的网页 URL"),
+) -> dict[str, Any]:
     """POST /api/chat/browse —— 浏览器自动化（抓取网页并提取可读文本/摘要）
 
     供对话 /browse 命令：让 Agent 抓取并总结网页内容。

@@ -141,3 +141,12 @@ class TestHotlineInstitution:
     def test_unknown_still_works(self, client):
         r = client.post("/api/chat/command", json={"command": "/nope"})
         assert r.json()["ok"] is False
+
+
+class TestSkillState:
+    def test_skill_toggle(self, client):
+        r = client.post("/api/chat/command", json={"command": "/skill disable demo"})
+        d = r.json()
+        assert d["ok"] is True and "已停用" in d["text"]
+        r2 = client.post("/api/chat/command", json={"command": "/skill enable demo"})
+        assert "已启用" in r2.json()["text"]

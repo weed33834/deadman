@@ -268,21 +268,88 @@ async def eval_generate(description: str = Body(default=None, embed=True)) -> di
 # =====================================================================
 
 
+def _term_counter(texts: list[str]) -> dict[str, int]:
+    """统计一批文本的词频分布"""
+    from collections import Counter
+
+    from ...textproc import remove_stopwords, tokenize_words
+
+    c: Counter = Counter()
+    for t in texts:
+        c.update(remove_stopwords(tokenize_words(t or "")))
+    return dict(c)
+
+
+def _cosine(a: dict[str, float], b: dict[str, float]) -> float:
+    import math
+
+    keys = set(a) | set(b)
+    if not keys:
+        return 1.0
+    dot = sum(a.get(k, 0.0) * b.get(k, 0.0) for k in keys)
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    if na == 0 or nb == 0:
+        return 1.0
+    return dot / (na * nb)
+
+
+def _recent_inputs(limit: int = 200) -> list[str]:
+    """读取最近会话的用户消息作为当前输入分布"""
+    from .sessions import _load as _session_load
+    from .sessions import _sessions_dir
+
+    texts: list[str] = []
+    for p in sorted(_sessions_dir().glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)[
+        :5
+    ]:
+        try:
+            data = _session_load(p.stem)
+            for m in (data or {}).get("messages", []):
+                if m.get("role") == "user":
+                    texts.append(m.get("content", ""))
+        except Exception:
+            continue
+        if len(texts) >= limit:
+            break
+    return texts
+
+
 @router.get("/drift")
 async def drift_check() -> dict[str, Any]:
-    """GET /api/admin/drift —— 输入分布漂移检测（关键词基线对比）"""
+    """GET /api/admin/drift —— 数据漂移检测（基线词分布 vs 最近输入词分布 余弦相似度）"""
     from .admin import _load_runtime
 
     baseline = _load_runtime().get("input_baseline") or {}
-    # 模拟：若已采集 baseline 则对比，否则提示先采集
-    if not baseline:
+    bdist = baseline.get("term_dist")
+    if not bdist:
         return {
             "ok": True,
             "drift": False,
             "status": "no_baseline",
             "note": "先 POST /api/admin/drift/baseline 采集基线",
         }
-    return {"ok": True, "drift": False, "status": "stable", "baseline_count": len(baseline)}
+    recent = _recent_inputs()
+    if not recent:
+        return {"ok": True, "drift": False, "status": "no_input", "note": "尚无近期输入可对比"}
+    cdist = _term_counter(recent)
+    # 归一化为比例
+    t1 = sum(bdist.values()) or 1
+    t2 = sum(cdist.values()) or 1
+    bnorm = {k: v / t1 for k, v in bdist.items()}
+    cnorm = {k: v / t2 for k, v in cdist.items()}
+    sim = _cosine(bnorm, cnorm)
+    drift = sim < 0.6
+    return {
+        "ok": True,
+        "drift": drift,
+        "status": "drifted" if drift else "stable",
+        "similarity": round(sim, 4),
+        "threshold": 0.6,
+        "baseline_terms": len(bdist),
+        "current_terms": len(cdist),
+        "recent_inputs": len(recent),
+    }
 
 
 @router.post("/drift/baseline")
@@ -290,12 +357,15 @@ async def drift_baseline(sample: dict[str, Any] = Body(default={})) -> dict[str,
     """POST /api/admin/drift/baseline —— 采集当前输入分布作为基线"""
     from .admin import _load_runtime, _save_runtime
 
+    recent = _recent_inputs()
     runtime = _load_runtime()
-    runtime["input_baseline"] = sample or {
-        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    runtime["input_baseline"] = {
+        "term_dist": _term_counter(recent),
+        "sample_terms": len(recent),
+        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     _save_runtime(runtime)
-    return {"ok": True, "captured": True}
+    return {"ok": True, "captured": True, "inputs_sampled": len(recent)}
 
 
 # =====================================================================
@@ -325,6 +395,12 @@ async def tenants_create(name: str = Body(default=None, embed=True)) -> dict[str
     )
     _save("tenants", store)
     return {"ok": True, "tenant": items[-1]}
+
+
+@router.get("/orchestration/nodes/state")
+async def node_states() -> dict[str, Any]:
+    """GET /api/admin/orchestration/nodes/state —— 节点运行状态一览"""
+    return {"ok": True, "nodes": _store("node_states")}
 
 
 @router.post("/orchestration/{agent_id}/pause")
