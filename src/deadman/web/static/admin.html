@@ -84,7 +84,10 @@ const PANELS=[
  {id:"mcp",label:"MCP客户端",g:"资源管理",icon:"⇄"},
  {id:"memory",label:"记忆",g:"观测",icon:"☲"},
  {id:"monitoring",label:"监控",g:"观测",icon:"▤"},
+ {id:"traces",label:"链路追踪",g:"观测",icon:"⛓"},
  {id:"evaluation",label:"评估",g:"观测",icon:"✓"},
+ {id:"scheduler",label:"定时任务",g:"系统",icon:"⏰"},
+ {id:"iam",label:"用户权限",g:"系统",icon:"👥"},
  {id:"settings",label:"设置",g:"系统",icon:"⚑"},
  {id:"backup",label:"备份",g:"系统",icon:"⧉"},
 ];
@@ -99,7 +102,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","
 function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.className="msg"},6000)}
 
 async function renderPanel(){
-  const fns={overview:renderOverview,prompts:renderPrompts,agents:renderAgents,tools:renderTools,voices:renderVoices,text:renderText,models:renderModels,mcp:renderMcp,memory:renderMemory,monitoring:renderMonitoring,evaluation:renderEvaluation,settings:renderSettings,backup:renderBackup};
+  const fns={overview:renderOverview,prompts:renderPrompts,agents:renderAgents,tools:renderTools,voices:renderVoices,text:renderText,models:renderModels,mcp:renderMcp,memory:renderMemory,monitoring:renderMonitoring,traces:renderTraces,evaluation:renderEvaluation,scheduler:renderScheduler,iam:renderIam,settings:renderSettings,backup:renderBackup};
   try{await fns[current]()}catch(e){el("main").innerHTML=`<div class="card"><h2>加载失败</h2><div class="muted">${esc(e)}</div></div>`}
 }
 async function renderOverview(){
@@ -132,7 +135,21 @@ async function renderPromptDetail(){
    <button class="btn ghost" onclick="testPrompt()">🧪 试跑</button><button class="btn red" onclick="deletePrompt()" ${builtin?'disabled':''}>删除</button></div></div>
    <div class="row"><div class="field"><label>AI 动作</label><select id="pAiAction"><option value="generate">从描述生成</option><option value="optimize">优化</option><option value="rewrite">改写语气</option><option value="translate">翻译</option><option value="review">防注入审查</option></select></div>
    <div class="field"><label>描述/原文</label><input type="text" id="pAiDesc" placeholder="例如：写一个资深法务顾问的 system prompt"></div>
-   <div class="field"><label></label><button class="btn" onclick="aiPrompt()">🤖 AI 生成</button></div></div><div id="pOut"></div>`;
+   <div class="field"><label></label><button class="btn" onclick="aiPrompt()">🤖 AI 生成</button></div></div><div id="pOut"></div>
+   <div class="field" style="margin-top:8px"><label>版本历史（M2 · diff/回滚）</label><div id="pVersions">加载中…</div></div>`;
+  loadPromptVersions(promptSelName);
+}
+async function loadPromptVersions(name){
+  const d=(await api("/api/admin/prompts/"+encodeURIComponent(name)+"/versions")).data||{};
+  const vs=(d.versions||[]).slice().reverse();
+  el("pVersions").innerHTML=`当前 v${d.current_version||0}<br>`+
+   vs.map(v=>`<div class="row" style="align-items:center;margin-top:6px"><div class="field" style="margin:0"><code>v${v.version}</code> <span class="muted">${esc((v.content||"").slice(0,40))}</span> <span class="muted">${esc(v.ts||"")}</span></div>
+   <div class="field" style="margin:0;flex:0 0 auto"><button class="btn sm ghost" onclick="rollbackPrompt('${name}',${v.version})">回滚</button></div></div>`).join("")||'<div class="muted">暂无历史版本</div>';
+}
+async function rollbackPrompt(name,version){
+  if(!confirm("回滚到 v"+version+"？当前内容将进入历史。"))return;
+  const r=await api("/api/admin/prompts/"+encodeURIComponent(name)+"/rollback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({version})});
+  if(r.ok){toast("已回滚");renderPromptDetail()}else toast(JSON.stringify(r.data));
 }
 async function createPrompt(){
   const name=el("newPromptName").value.trim(); if(!name){alert("请输入名称");return}
@@ -245,6 +262,64 @@ async function saveSettings(){const body={};document.querySelectorAll("[id^=env_
 async function renderBackup(){el("main").innerHTML=card("备份 / 迁移","全量配置包",`<div class="muted">导出包含：提示词 / Agent / 音色 / 工具试跑记录 / 模型覆盖 / MCP 客户端配置。</div><div style="margin-top:12px;display:flex;gap:12px"><button class="btn green" onclick="exportBackup()">⭳ 导出配置包</button><button class="btn" onclick="document.getElementById('impFile').click()">⭱ 导入配置包</button><input type="file" id="impFile" accept=".json" style="display:none" onchange="importBackup(this)"></div><div id="bkMsg"></div>`);}
 async function exportBackup(){const r=await api("/api/admin/backup/export");const d=r.data||{};if(!r.ok){msg("bkMsg","导出失败","err");return}const blob=new Blob([JSON.stringify(d.package,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="deadman-backup-"+Date.now()+".json";a.click();msg("bkMsg","已导出配置包","ok");}
 async function importBackup(input){const f=input.files[0];if(!f)return;const r=await api("/api/admin/backup/import",{method:"POST",headers:{"Content-Type":"application/json"},body:await f.text()});msg("bkMsg",r.ok?("已导入："+r.data.imported.join(", ")):("失败："+JSON.stringify(r.data)),r.ok?"ok":"err");}
+// ===== 链路追踪（M10）=====
+async function renderTraces(){
+  const d=(await api("/api/admin/traces?limit=30")).data||{};
+  const rows=(d.spans||[]).slice().reverse().map(sp=>`<tr>
+    <td class="mono">${esc(sp.span_id||"")}</td><td>${esc(sp.trace_id||"")}</td>
+    <td>${esc(sp.name||sp.type||"")}</td><td>${esc(sp.agent||"")}</td>
+    <td>${sp.duration_ms!=null?sp.duration_ms+"ms":""}</td></tr>`).join("");
+  el("main").innerHTML=card("链路追踪","M10 · Trace 查看器",`
+   <div class="row"><div class="field"><label>按 trace_id 查询</label><input type="text" id="trTrace" placeholder="trace_id"></div>
+   <div class="field"><label></label><button class="btn" onclick="searchTrace()">查询</button></div></div>
+   <div id="trDetail"></div>
+   <div class="field" style="margin-top:10px"><label>最近 ${(d.spans||[]).length} 条 span（共 ${d.total||0}）</label>
+   <table><tr><th>span_id</th><th>trace_id</th><th>名称</th><th>agent</th><th>耗时</th></tr>${rows||'<tr><td colspan="5" class="muted">暂无 span（对话后产生）</td></tr>'}</table></div>`);
+}
+async function searchTrace(){
+  const tid=el("trTrace").value.trim(); if(!tid) return;
+  const d=(await api("/api/admin/traces?trace_id="+encodeURIComponent(tid))).data||{};
+  const spans=(d.spans||[]).map(s=>`<tr><td class="mono">${esc(s.span_id||"")}</td><td>${esc(s.name||s.type||"")}</td><td>${esc(JSON.stringify(s.attributes||{}))}</td><td>${s.duration_ms!=null?s.duration_ms+"ms":""}</td></tr>`).join("");
+  el("trDetail").innerHTML=`<div class="msg info">trace ${esc(tid)}：${d.span_count||0} 个 span</div><table><tr><th>span_id</th><th>名称</th><th>属性</th><th>耗时</th></tr>${spans||'<tr><td colspan="4" class="muted">无结果</td></tr>'}</table>`;
+}
+
+// ===== 定时任务（G11）=====
+async function renderScheduler(){
+  const d=(await api("/api/scheduler/jobs?user_id=default")).data||{};
+  const rows=(d.jobs||[]).map(j=>`<tr><td class="mono">${esc(j.job_id)}</td><td>${esc(j.schedule)}</td><td>${esc(j.content)}</td><td><span class="pill ${j.confirmed?"ok":"warn"}">${j.confirmed?"已激活":"待确认"}</span></td>
+   <td><button class="btn sm ghost" onclick="schedConfirm('${esc(j.job_id)}')">确认</button><button class="btn sm red" onclick="schedCancel('${esc(j.job_id)}')">取消</button></td></tr>`).join("");
+  el("main").innerHTML=card("定时任务","G11 · 调度器",`
+   <div class="row"><div class="field"><label>cron 表达式（5 字段）</label><input type="text" id="scCron" placeholder="0 9 * * *"></div>
+   <div class="field"><label>任务内容</label><input type="text" id="scContent" placeholder="提醒办理丧葬费"></div>
+   <div class="field"><label></label><button class="btn green" onclick="schedAdd()">+ 提议任务</button></div></div>
+   <div id="scMsg"></div>
+   <div class="field" style="margin-top:10px"><label>任务列表</label>
+   <table><tr><th>ID</th><th>调度</th><th>内容</th><th>状态</th><th>操作</th></tr>${rows||'<tr><td colspan="5" class="muted">暂无任务</td></tr>'}</table></div>
+   <div class="muted" style="margin-top:8px">双重确认制：提议后需「确认」才激活；每用户最多 5 条、最小间隔 24h、最长持续 30 天。</div>`);
+}
+async function schedAdd(){const r=await api("/api/scheduler/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({schedule:el("scCron").value,content:el("scContent").value,user_id:"default"})});msg("scMsg",r.ok||r.status<400?("已提议，请确认："+(r.data.message||"")):JSON.stringify(r.data),r.ok?"ok":"err");renderScheduler();}
+async function schedConfirm(id){await api("/api/scheduler/jobs/"+encodeURIComponent(id)+"/confirm?user_id=default",{method:"POST"});renderScheduler();}
+async function schedCancel(id){await api("/api/scheduler/jobs/"+encodeURIComponent(id)+"?user_id=default",{method:"DELETE"});renderScheduler();}
+
+// ===== 用户权限 IAM（M11）=====
+async function renderIam(){
+  const u=(await api("/api/admin/iam/users")).data||{};
+  const ur=(u.users||[]).map(x=>`<tr><td class="mono">${esc(x.user_id||"")}</td><td>${esc(x.email||"")}</td><td>${esc(x.display_name||"")}</td>
+   <td><select onchange="iamSetRole('${esc(x.user_id)}',this.value)"><option ${x.role==="admin"?"selected":""}>admin</option><option ${x.role==="developer"?"selected":""}>developer</option><option ${x.role==="tester"?"selected":""}>tester</option><option ${x.role==="viewer"?"selected":""}>viewer</option><option ${x.role==="user"?"selected":""}>user</option></select></td></tr>`).join("");
+  const k=(await api("/api/admin/iam/keys")).data||{};
+  const kr=(k.keys||[]).map(x=>`<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.masked)}</td><td>${esc(x.label)}</td><td>${esc(x.created_at)}</td><td><button class="btn sm red" onclick="iamRevokeKey('${esc(x.id)}')">吊销</button></td></tr>`).join("");
+  const p=(await api("/api/admin/iam/permissions")).data||{};
+  const pr=Object.entries(p.matrix||{}).map(([mod,acts])=>`<tr><td>${esc(mod)}</td><td class="mono">${esc(Object.keys(acts).join(" / "))}</td></tr>`).join("");
+  el("main").innerHTML=card("用户与权限","M11 · IAM",`<table><tr><th>user_id</th><th>邮箱</th><th>显示名</th><th>角色</th></tr>${ur||'<tr><td colspan="4" class="muted">暂无用户</td></tr>'}</table>`)+
+  card("API Key","生成/吊销",`<div class="row"><div class="field"><label>用途标签</label><input type="text" id="iamKeyLabel" placeholder="dev"></div><div class="field"><label></label><button class="btn green" onclick="iamGenKey()">+ 生成</button></div></div>
+   <div id="iamKeyOut"></div><table style="margin-top:10px"><tr><th>ID</th><th>Key</th><th>标签</th><th>创建时间</th><th></th></tr>${kr||'<tr><td colspan="5" class="muted">暂无 Key</td></tr>'}</table>`)+
+  card("权限矩阵","模块 × 角色",`<table><tr><th>模块</th><th>可执行角色</th></tr>${pr}</table>`);
+}
+async function iamSetRole(id,role){await api("/api/admin/iam/users/"+encodeURIComponent(id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({role})});toast("已更新角色");}
+async function iamGenKey(){const r=await api("/api/admin/iam/keys",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({label:el("iamKeyLabel").value})});el("iamKeyOut").innerHTML=`<div class="msg ok">新 Key（仅显示一次）：<code>${esc((r.data||{}).api_key||"")}</code></div>`;renderIam();}
+async function iamRevokeKey(id){await api("/api/admin/iam/keys/"+encodeURIComponent(id),{method:"DELETE"});renderIam();}
+function toast(t){let e=document.getElementById('admtoast');if(!e){e=document.createElement('div');e.id='admtoast';document.body.appendChild(e)}e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2000);}
+
 renderSide();renderPanel();
 </script>
 </body>

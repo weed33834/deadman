@@ -91,6 +91,10 @@
   .session-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .session-del { color: #7c7467; font-size: 14px; padding: 0 4px; }
   .session-del:hover { color: var(--err); }
+  .session-star { color: #7c7467; font-size: 12px; padding: 0 2px; cursor: pointer; }
+  .session-star.on { color: var(--gold); }
+  .session-share { color: #7c7467; font-size: 12px; padding: 0 2px; cursor: pointer; }
+  .session-share:hover, .session-star:hover { color: #fff; }
   .session-empty { padding: 8px 14px; font-size: 11px; color: #7c7467; }
   .session-search { width: calc(100% - 24px); margin: 2px 12px 6px; padding: 6px 10px; background: rgba(255,255,255,.06); color: #e6ded2; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; font-size: 12px; outline: none; }
   .session-search::placeholder { color: #7c7467; }
@@ -1344,10 +1348,24 @@ async function loadSessions(q) {
       + arr.map(s =>
         '<div class="session-item' + (s.id === currentSessionId ? " active" : "") + '" onclick="switchSession(\'' + s.id + '\')" title="' + esc(s.title) + '">'
         + '<span class="session-name">' + esc(s.title) + '</span>'
+        + '<span class="session-star' + (s.starred ? " on" : "") + '" onclick="event.stopPropagation();toggleStar(\'' + s.id + '\',' + !s.starred + ')" title="' + (s.starred ? "取消收藏" : "收藏") + '">' + (s.starred ? "★" : "☆") + '</span>'
+        + '<span class="session-share" onclick="event.stopPropagation();shareSession(\'' + s.id + '\')" title="分享">⇪</span>'
         + '<span class="session-del" onclick="event.stopPropagation();deleteSession(\'' + s.id + '\')" title="删除">×</span></div>'
       ).join("")
     ).join("") || '<div class="session-empty">暂无会话</div>';
   } catch (e) { list.innerHTML = '<div class="session-empty">会话加载失败</div>'; }
+}
+async function toggleStar(id, starred) {
+  await api("/api/sessions/" + id + "/star", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ starred }) });
+  loadSessions();
+}
+async function shareSession(id) {
+  const r = await api("/api/sessions/" + id + "/share", { method: "POST" });
+  if (r.ok && r.data.token) {
+    const url = location.origin + "/api/sessions/share/" + r.data.token;
+    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.resolve()).catch(() => {});
+    toast("分享链接已复制");
+  } else { toast("分享失败"); }
 }
 async function newSession() {
   const d = (await api("/api/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "" }) })).data || {};

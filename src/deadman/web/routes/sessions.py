@@ -67,6 +67,7 @@ async def list_sessions() -> dict[str, Any]:
                     "id": data.get("id", p.stem),
                     "title": data.get("title", "未命名会话"),
                     "group": data.get("group", ""),
+                    "starred": bool(data.get("starred", False)),
                     "message_count": len(data.get("messages", [])),
                     "created_at": data.get("created_at", ""),
                     "updated_at": data.get("updated_at", ""),
