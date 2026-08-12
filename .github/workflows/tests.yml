@@ -37,7 +37,9 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest -q --tb=short
+          pip install pytest-timeout
+          # --timeout 防止个别测试在 CI 环境挂起拖垮整个 job
+          pytest -q --tb=short --timeout=120 --timeout-method=thread
         env:
           PYTHONDONTWRITEBYTECODE: 1
 
