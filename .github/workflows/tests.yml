@@ -33,7 +33,7 @@ jobs:
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e .[dev,db,text]
 
       - name: Run tests
         run: |
@@ -65,12 +65,12 @@ jobs:
           # 静态检查：E/W pycodestyle, F pyflakes, I isort, B bugbear,
           # C4 comprehensions, UP pyupgrade, SIM simplify, RUF ruff 专有
           # 配置见 pyproject.toml [tool.ruff.lint]
-          ruff check src/src/
+          ruff check src/
 
       - name: Run ruff format check
         run: |
           # 格式检查（不修改文件，仅验证是否符合 ruff format 规范）
-          ruff format --check src/src/
+          ruff format --check src/
 
   security:
     runs-on: ubuntu-latest

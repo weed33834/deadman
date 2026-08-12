@@ -31,7 +31,7 @@ jobs:
             TOTAL=$(echo "$STATES" | jq 'length')
             if [ "$TOTAL" -eq 0 ]; then
               echo "No other checks — merging directly."
-              gh pr merge --squash "$PR_URL"
+              gh pr merge --squash --delete-branch "$PR_URL"
               exit 0
             fi
             if echo "$STATES" | grep -qE "FAILURE|CANCELLED|TIMED_OUT|ACTION_REQUIRED"; then
@@ -41,7 +41,7 @@ jobs:
             PASSING=$(echo "$STATES" | jq '[.[] | select(. == "SUCCESS" or . == "SKIPPED")] | length')
             if [ "$PASSING" -eq "$TOTAL" ]; then
               echo "All checks passed — merging!"
-              gh pr merge --squash "$PR_URL"
+              gh pr merge --squash --delete-branch "$PR_URL"
               exit 0
             fi
             echo "Waiting for checks... ($i/80)"
