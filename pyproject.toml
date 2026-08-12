@@ -143,13 +143,18 @@ doc-extract = [
 db = [
     "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.29",
+    "aiosqlite>=0.20",  # 测试/本地内存数据库
     "alembic>=1.13",
 ]
 # 文本处理增强（textproc/*）：jieba 中文分词（未安装时自动退化为单字/词混合分词，
 # 关键词/检索算法纯 Python 零依赖兜底，始终可用）
 text = ["jieba>=0.42"]
+# 文档导出（PDF/Word）
+doc-export = ["reportlab>=4.0", "python-docx>=1.1"]
+# 沙箱绘图
+plot = ["matplotlib>=3.7", "numpy>=1.24"]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text,doc-export,plot]",
 ]
 
 [project.scripts]

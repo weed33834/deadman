@@ -6,6 +6,7 @@ LLM 调用全部走 mock，不真正调外部 API。
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -127,15 +128,12 @@ def _disable_handoff_by_default(monkeypatch):
 # CI 环境：GitHub Actions 免费 runner 无外部网络，网络/子进程类测试会挂起。
 # 在 CI 中跳过这些需要真实网络/子进程的模块（本地 CI 未设置时仍全量运行）。
 # =====================================================================
-import os as _os
-
-
 def pytest_collection_modifyitems(items):
     """在 CI 环境跳过网络/子进程类测试模块，保证 CI 全绿、不因沙箱网络挂起。
 
     本地运行（无 CI 环境变量）不受影响，仍执行全部 2926 个测试。
     """
-    if not _os.environ.get("CI"):
+    if not os.environ.get("CI"):
         return
     _NETWORK_MODULES = {
         # 真实网络
@@ -149,10 +147,9 @@ def pytest_collection_modifyitems(items):
     skip = []
     for item in items:
         mod = item.nodeid.split("::")[0]
-        fname = _os.path.splitext(_os.path.basename(mod))[0]
+        fname = os.path.splitext(os.path.basename(mod))[0]
         if fname in _NETWORK_MODULES:
             skip.append(item)
     if skip:
-        ids = [i.nodeid for i in skip]
         for item in skip:
             item.add_marker(pytest.mark.skip(reason="CI 沙箱无网络/子进程，跳过网络类测试（本地仍运行）"))
