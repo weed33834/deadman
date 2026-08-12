@@ -773,7 +773,10 @@
         <div class="message bot">
           <div class="avatar bot">引</div>
           <div>
-            <div class="bubble">您好。在这个特殊的时刻，我会陪伴您一起处理逝者的身后事务。有什么需要了解的，请随时告诉我。</div>
+            <div class="bubble">您好。在这个特殊的时刻，我会陪伴您一起处理逝者的身后事务。
+<b>傻瓜式操作提示</b>：您不用点任何页面——直接告诉我需求即可，我就能为您办。例如：
+· "查北京殡葬热线" · "帮我写悼文" · "记录我家丧葬规矩" · "我的数字遗产有哪些"
+· 输入「/help」查看全部命令；下方快捷按钮一键直达。</div>
             <div class="meta">身后事流程引导员</div>
           </div>
         </div>
@@ -1703,6 +1706,7 @@ function addMessage(role, text, meta) {
     actions.className = "msg-actions";
     actions.innerHTML =
       '<button class="ma" onclick="copyMsg(this)" title="复制">⧉ 复制</button>' +
+      '<button class="ma" onclick="speakMsg(this)" title="朗读">🔊 朗读</button>' +
       '<button class="ma" onclick="regenerateMsg(this)" title="重新生成">↻ 重画</button>' +
       '<button class="ma" onclick="exportMsg(this,\'md\')" title="导出 Markdown">⭳ MD</button>' +
       '<button class="ma" onclick="exportMsg(this,\'docx\')" title="导出 Word">⭳ Word</button>' +
@@ -1969,6 +1973,33 @@ async function kinRel() {
   if (!a || !b) { toast("成员不存在（请先添加）"); return; }
   const r = await api("/api/kinship/relation", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({from:a.id,to:b.id,type:el("kRel").value}) });
   toast(r.ok ? "已连线" : "连线失败"); renderKinship();
+}
+
+// 朗读消息（TTS：/api/voice/speak；失败回退浏览器 speechSynthesis）
+async function speakMsg(btn) {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const msg = btn.closest(".message");
+  const text = msg ? (msg.querySelector(".bubble") ? msg.querySelector(".bubble").innerText : "") : "";
+  if (!text) return;
+  btn.textContent = "🔊 播放中";
+  try {
+    const r = await fetch("/api/voice/speak?text=" + encodeURIComponent(text.slice(0, 500)) + "&voice_id=gentle_female");
+    if (r.ok && r.headers.get("content-type").includes("audio")) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => { btn.textContent = "🔊 朗读"; URL.revokeObjectURL(url); };
+      audio.play();
+      return;
+    }
+  } catch (e) {}
+  // 回退浏览器 TTS
+  if (window.speechSynthesis) {
+    const u = new SpeechSynthesisUtterance(text.slice(0, 500));
+    u.lang = "zh-CN";
+    u.onend = () => { btn.textContent = "🔊 朗读"; };
+    window.speechSynthesis.speak(u);
+  } else { btn.textContent = "🔊 朗读"; toast("朗读不可用"); }
 }
 
 // 轻提示

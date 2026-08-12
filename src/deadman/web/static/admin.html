@@ -81,13 +81,11 @@ const PANELS=[
  {id:"agents",label:"Agent",g:"资源管理",icon:"✥"},
  {id:"tools",label:"工具",g:"资源管理",icon:"⚙"},
  {id:"voices",label:"音色",g:"资源管理",icon:"♪"},
- {id:"text",label:"文本分析",g:"资源管理",icon:"✂"},
- {id:"knowledge",label:"知识库",g:"资源管理",icon:"📚"},
+ {id:"text",label:"文本与知识",g:"资源管理",icon:"✂"},
  {id:"models",label:"模型",g:"资源管理",icon:"▦"},
  {id:"mcp",label:"MCP客户端",g:"资源管理",icon:"⇄"},
  {id:"memory",label:"记忆",g:"观测",icon:"☲"},
- {id:"monitoring",label:"监控",g:"观测",icon:"▤"},
- {id:"logs",label:"日志",g:"观测",icon:"☰"},
+ {id:"monitoring",label:"监控·日志",g:"观测",icon:"▤"},
  {id:"traces",label:"链路追踪",g:"观测",icon:"⛓"},
  {id:"evaluation",label:"评估",g:"观测",icon:"✓"},
  {id:"scheduler",label:"定时任务",g:"系统",icon:"⏰"},
@@ -107,7 +105,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","
 function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.className="msg"},6000)}
 
 async function renderPanel(){
-  const fns={overview:renderOverview,prompts:renderPrompts,agents:renderAgents,tools:renderTools,voices:renderVoices,text:renderText,knowledge:renderKnowledge,models:renderModels,mcp:renderMcp,memory:renderMemory,monitoring:renderMonitoring,logs:renderLogs,traces:renderTraces,evaluation:renderEvaluation,scheduler:renderScheduler,alerts:renderAlerts,iam:renderIam,settings:renderSettings,backup:renderBackup};
+  const fns={overview:renderOverview,prompts:renderPrompts,agents:renderAgents,tools:renderTools,voices:renderVoices,text:renderText,knowledge:renderText,models:renderModels,mcp:renderMcp,memory:renderMemory,monitoring:renderMonitoring,logs:renderMonitoring,traces:renderTraces,evaluation:renderEvaluation,scheduler:renderScheduler,alerts:renderAlerts,iam:renderIam,settings:renderSettings,backup:renderBackup};
   try{await fns[current]()}catch(e){el("main").innerHTML=`<div class="card"><h2>加载失败</h2><div class="muted">${esc(e)}</div></div>`}
 }
 async function renderOverview(){
@@ -251,6 +249,7 @@ async function renderText(){
   card("关键词提取","TF-IDF + TextRank",`<div class="field"><label>输入文本</label><textarea id="txKw" rows="3" placeholder="身后事办理流程包括死亡证明、户口注销、遗产继承…"></textarea></div><button class="btn" onclick="runKeywords()">提取关键词</button><div id="txKwOut"></div>`)+
   card("文本一键分析","清洗/分词/句子/关键词",`<div class="field"><label>输入文本</label><textarea id="txAna" rows="3" placeholder="办理死亡证明需要哪些材料？医保报销流程。"></textarea></div><button class="btn" onclick="runAnalyze()">分析</button><div id="txAnaOut"></div>`)+
   card("知识库混合检索","BM25 + 向量 RRF",`<div class="row"><div class="field"><label>查询</label><input type="text" id="txQ" placeholder="死亡证明怎么办"></div><div class="field"><label>向量混合</label><select id="txVec"><option value="false">仅 BM25</option><option value="true">BM25+向量</option></select></div><div class="field"><label></label><button class="btn" onclick="runSearch()">检索</button></div></div><div id="txSearchOut"></div>`);
+  renderKbDocs();
 }
 async function runKeywords(){const r=await api("/api/text/keywords",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:el("txKw").value,top_n:8})});el("txKwOut").innerHTML=`<pre>${esc(JSON.stringify((r.data||{}).keywords,null,2))}</pre>`;}
 async function runAnalyze(){const r=await api("/api/text/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:el("txAna").value})});const d=r.data||{};el("txAnaOut").innerHTML=`<div class="grid"><div class="stat"><div class="k">字符</div><div class="v">${d.char_count}</div></div><div class="stat"><div class="k">分词</div><div class="v">${d.word_count}</div></div><div class="stat"><div class="k">句子</div><div class="v">${d.sentence_count}</div></div></div><div class="field" style="margin-top:8px"><label>关键词</label><pre>${esc(JSON.stringify(d.keywords||[],null,2))}</pre></div><div class="field"><label>分词结果</label><pre>${esc((d.words||[]).join(" / "))}</pre></div>`;}
@@ -290,7 +289,11 @@ async function renderMcp(){
 async function addMcp(){const args=(el("mcArgs").value.trim()||"").split(/\s+/).filter(Boolean);const cfg={name:el("mcName").value.trim(),transport:el("mcTransport").value,command:el("mcCmd").value.trim(),args,url:el("mcCmd").value.trim()};const r=await api("/api/mcp/servers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});msg("mcMsg",r.ok?("✓ 已连接 "+cfg.name+"，注册工具 "+(r.data&&r.data.tool_count||0)):"✗ "+JSON.stringify(r.data),r.ok?"ok":"err");renderMcp();}
 async function mcpAct(name,act){if(act==="remove")await api("/api/mcp/servers/"+encodeURIComponent(name),{method:"DELETE"});else await api("/api/mcp/servers/"+encodeURIComponent(name)+"/"+act,{method:"POST"});renderMcp()}
 async function renderMemory(){const d=(await api("/api/admin/memory")).data||{};el("main").innerHTML=card("记忆系统","MemoryManager",`<div class="grid">${stat("working",d.working)}${stat("episodic",d.episodic)}${stat("semantic 事实",d.semantic_facts)}${stat("semantic 画像",d.semantic_profiles)}${stat("procedural",d.procedural)}${stat("Graphiti",d.graphiti_enabled?"启用":"关闭")}${stat("LightRAG",d.lightrag_enabled?"启用":"关闭")}</div>`);}
-async function renderMonitoring(){const d=(await api("/api/admin/monitoring")).data||{};const conv=d.conversation||{};const h=d.health||{};const healthRows=Object.entries(h||{}).map(([k,v])=>`<tr><td class="mono">${esc(k)}</td><td><span class="pill ${v.status==="ok"?"ok":v.status==="no_data"?"off":"warn"}">${esc(v.status)}</span></td></tr>`).join("");el("main").innerHTML=card("对话维度统计","Monitoring",`<div class="grid">${stat("总对话",conv.total_conversations)}${stat("降级",conv.degraded_count)}${stat("token",conv.token_usage_total&&conv.token_usage_total.total_tokens)}</div>`)+card("全领域健康","data/*_health.json",`<table><tr><th>领域</th><th>状态</th></tr>${healthRows||"<tr><td class='muted' colspan='2'>暂无</td></tr>"}</table>`);}
+async function renderMonitoring(){const d=(await api("/api/admin/monitoring")).data||{};const conv=d.conversation||{};const h=d.health||{};const healthRows=Object.entries(h||{}).map(([k,v])=>`<tr><td class="mono">${esc(k)}</td><td><span class="pill ${v.status==="ok"?"ok":v.status==="no_data"?"off":"warn"}">${esc(v.status)}</span></td></tr>`).join("");el("main").innerHTML=card("对话维度统计","Monitoring",`<div class="grid">${stat("总对话",conv.total_conversations)}${stat("降级",conv.degraded_count)}${stat("token",conv.token_usage_total&&conv.token_usage_total.total_tokens)}</div>`)+card("全领域健康","data/*_health.json",`<table><tr><th>领域</th><th>状态</th></tr>${healthRows||"<tr><td class='muted' colspan='2'>暂无</td></tr>"}</table>`);
+  renderLogsAppend();
+}
+async function renderKbDocs(){const d=(await api("/api/admin/knowledge/docs")).data||{};const rows=(d.docs||[]).map(x=>`<tr><td class="mono">${esc(x.path)}</td><td>${x.size} B</td><td><button class="btn sm red" onclick="kbDel('${esc(x.path)}')">删除</button></td></tr>`).join("");el("main").innerHTML+=card("知识库文档","P5.6 · 管理",`<div class="row"><div class="field"><label>相对路径</label><input type="text" id="kbPath" placeholder="regions/CN/新文档.md"></div><div class="field"><label>内容</label><input type="text" id="kbContent" placeholder="文档内容…"></div><div class="field"><label></label><button class="btn green" onclick="kbAdd()">+ 新增</button></div></div><div id="kbMsg"></div><table><tr><th>路径</th><th>大小</th><th></th></tr>${rows||'<tr><td colspan="3" class="muted">暂无</td></tr>'}</table>`);}
+async function renderLogsAppend(){const d=(await api("/api/admin/logs?limit=100")).data||{};const rows=(d.logs||[]).slice().reverse().map(l=>`<tr><td class="mono" style="white-space:pre-wrap;word-break:break-all">${esc(l)}</td></tr>`).join("");el("main").innerHTML+=card("日志查看器","P8.9 · "+(d.file||'').split('/').pop()||'',`<div class="row"><div class="field"><label>关键词</label><input type="text" id="logQ" placeholder="error…"></div><div class="field"><label></label><button class="btn" onclick="searchLogs()">查询</button></div></div><table><tr><th>日志</th></tr>${rows||'<tr><td class="muted">暂无（设置 DEADMAN_LOG_FILE）</td></tr>'}</table>`);}
 async function renderEvaluation(){const d=(await api("/api/admin/evaluation")).data||{};const ps=d.plan_score||{};el("main").innerHTML=card("评估看板","Evaluation",`<div class="grid">${stat("SelfCheck",d.selfcheck_available?"可用":"不可用")}${stat("用例数",d.case_count)}${stat("规划完整度",ps.score!=null?ps.score:"-")}</div>`)+card("规划完整度明细","",`<pre>${esc(JSON.stringify(ps,null,2))}</pre>`);}
 async function renderSettings(){const d=(await api("/api/admin/settings")).data||{};const env=d.env||{};const fields=Object.entries(env).filter(([k])=>k!=="sensitive_masked").map(([k,v])=>`<div class="field"><label>${esc(k)}${v.masked?' <span class="pill warn">敏感</span>':""}</label><input type="text" id="env_${esc(k)}" value="${esc(v.value||"")}"></div>`).join("");
   const ec=(await api("/api/admin/error-codes")).data||{};const codes=(ec.codes||[]).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.http_status}</td><td><span class="pill ${c.severity==="warn"?"warn":"bad"}">${esc(c.severity)}</span></td><td>${esc(c.message)}</td></tr>`).join("");

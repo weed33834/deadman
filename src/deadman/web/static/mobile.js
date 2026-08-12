@@ -165,6 +165,27 @@ async function sendMessage() {
   document.getElementById('sendBtn').disabled = true;
   isStreaming = true;
 
+  // 斜杠命令：/help /custom /family /vault /task 等 → 走对话命令接口（傻瓜式操作）
+  if (text.trim().startsWith('/')) {
+    const typingEl = document.createElement('div');
+    typingEl.className = 'chat-bubble bot';
+    typingEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+    document.getElementById('chatInner').appendChild(typingEl);
+    scrollToBottom();
+    try {
+      const r = await fetch(`${API_BASE}/api/chat/command`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: text.trim() }) });
+      const d = await r.json();
+      typingEl.remove();
+      appendBubble(d.text || JSON.stringify(d), 'bot');
+    } catch (e) {
+      typingEl.remove();
+      appendBubble('命令执行失败', 'error');
+    }
+    document.getElementById('sendBtn').disabled = false;
+    isStreaming = false;
+    return;
+  }
+
   // 显示 typing
   const typingEl = document.createElement('div');
   typingEl.className = 'chat-bubble bot';
@@ -275,10 +296,31 @@ function appendBubble(text, type) {
   const inner = document.getElementById('chatInner');
   const el = document.createElement('div');
   el.className = 'chat-bubble ' + type;
-  el.textContent = text;
+  if (type === 'bot') {
+    el.innerHTML = md(text || '');
+  } else {
+    el.textContent = text;
+  }
   inner.appendChild(el);
   scrollToBottom();
   return el;
+}
+
+// 轻量 Markdown 渲染（安全：先 escape）
+function md(t) {
+  if (!t) return '';
+  const esc = String(t).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+  let h = '';
+  esc.split('\n').forEach(line => {
+    const trim = line.trim();
+    if (/^###\s/.test(trim)) h += '<div style="font-weight:700;margin:.3em 0">' + trim.slice(4) + '</div>';
+    else if (/^##\s/.test(trim)) h += '<div style="font-weight:700;margin:.3em 0">' + trim.slice(3) + '</div>';
+    else if (/^#\s/.test(trim)) h += '<div style="font-weight:700;margin:.4em 0">' + trim.slice(2) + '</div>';
+    else if (/^[-*]\s/.test(trim)) h += '<div>• ' + trim.slice(2) + '</div>';
+    else if (/^\d+[.)]\s/.test(trim)) h += '<div>' + trim.replace(/^\d+[.)]\s/, i => i + ' ') + '</div>';
+    else if (trim) h += '<div style="margin:.15em 0">' + trim + '</div>';
+  });
+  return h;
 }
 
 function scrollToBottom() {
