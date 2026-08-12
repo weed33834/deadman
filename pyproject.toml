@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "deadman"
 version = "5.4.0"
-description = "deadman - 身后事多智能体引导平台：遗嘱/办事流程向导、数字遗产清单、哀伤陪伴、思维意识识别（意图+危机感知），Web 响应式适配。不绑定任何厂商，适用于所有支持 agent 的平台。"
+description = "deadman - An end-of-life & medical-navigation multi-agent guidance platform: after-death procedure wizard, digital legacy & vault, grief companion, folk-custom rules & kinship graph, conversation-first UX. Framework-agnostic, runs on any agent platform."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -13,12 +13,37 @@ authors = [{name = "deadman Team"}]
 keywords = [
     "deadman",
     "aftercare",
-    "agent",
-    "multi-agent",
-    "mcp",
-    "langgraph",
+    "end-of-life",
+    "funeral",
     "digital-legacy",
+    "digital-immortality",
     "grief-companion",
+    "grief-support",
+    "medicare",
+    "medical-navigation",
+    "folk-customs",
+    "kinship",
+    "family-tree",
+    "genealogy",
+    "multi-agent",
+    "ai-agent",
+    "llm",
+    "rag",
+    "knowledge-base",
+    "mcp",
+    "model-context-protocol",
+    "langgraph",
+    "fastapi",
+    "conversational-ai",
+    "voice",
+    "tts",
+    "asr",
+    "sandbox",
+    "data-visualization",
+    "memory",
+    "evaluation",
+    "iam",
+    "i18n",
     "awareness",
 ]
 classifiers = [
