@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.observability.metrics import (
     SLO_TARGETS,
     MetricsCollector,

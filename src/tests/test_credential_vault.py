@@ -6,6 +6,7 @@ import os
 import time
 
 import pytest
+
 from deadman.infrastructure.credential_vault import (
     _HAS_CRYPTO,
     CredentialNotFoundError,

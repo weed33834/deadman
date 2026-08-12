@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.memorial_writer.generator import MemorialGenerator
 from deadman.memorial_writer.models import (
     MemorialRequest,

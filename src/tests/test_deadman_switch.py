@@ -41,6 +41,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+
 from deadman.deadman_switch.actions import (
     SwitchActionExecutor,
 )

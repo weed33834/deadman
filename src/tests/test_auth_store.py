@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from deadman.auth.store import UserStore
 
 # =====================================================================

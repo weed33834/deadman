@@ -55,9 +55,7 @@ class User(Base, TimestampMixin):
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     password_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    __table_args__ = (
-        Index("ix_users_family_id", "family_id"),
-    )
+    __table_args__ = (Index("ix_users_family_id", "family_id"),)
 
 
 # =====================================================================
@@ -79,9 +77,7 @@ class CronJob(Base, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_fired: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    pending_confirmation: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
-    )
+    pending_confirmation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     __table_args__ = (
         # 查询 enabled + 未过期的任务（tick 高频查询）
@@ -144,9 +140,7 @@ class NotificationLastSession(Base, TimestampMixin):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     safety_triggered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     emotion_intensity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    involved_sensitive_death: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    involved_sensitive_death: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_birthday: Mapped[str | None] = mapped_column(String(10), nullable=True)  # MM-DD
     deceased_birthday: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
@@ -299,7 +293,9 @@ class EndingNotePendingDelivery(Base, TimestampMixin):
 
     __tablename__ = "ending_note_pending_deliveries"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # f"{owner}:{trigger}:{triggered_at}"
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True
+    )  # f"{owner}:{trigger}:{triggered_at}"
     owner_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     trigger_type: Mapped[str] = mapped_column(String(32), nullable=False)
     triggered_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

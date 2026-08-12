@@ -192,7 +192,8 @@ async def customs_create(custom: dict[str, Any] = Body(default=None)) -> dict[st
 
 @router.put("/{custom_id}")
 async def customs_update(
-    custom_id: str, custom: dict[str, Any] = Body(default=None)  # noqa: B008
+    custom_id: str,
+    custom: dict[str, Any] = Body(default=None),  # noqa: B008
 ) -> dict[str, Any]:
     """PUT /api/customs/{id} —— 更新民俗规则"""
     store = _store()

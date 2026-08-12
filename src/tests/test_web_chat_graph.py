@@ -21,6 +21,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from deadman.types import RiskTier, RuleCheckResult
 from deadman.web.server import WebServer
 

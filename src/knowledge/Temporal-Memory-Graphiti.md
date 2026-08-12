@@ -84,29 +84,32 @@ retrieval-guardrails 要求标注时效状态（fresh/stale/outdated），但无
 ```python
 # knowledge/_temporal/policy_facts.py（伪代码）
 
+
 @dataclass
 class PolicyFact:
-    fact_id: str                    # 唯一 ID
-    fact_type: str                  # time_limit/document_required/procedure_step/fee
-    content: str                    # 事实内容
-    jurisdiction: str               # CN/beijing, US/california
-    valid_time: TimeRange           # 有效时间
-    transaction_time: TimeRange     # 记录时间
-    source: Source                  # 来源（法规/官方公告）
-    supersedes: Optional[str]       # 取代哪个 fact_id
-    confidence: str                 # high/medium/low
-    
+    fact_id: str  # 唯一 ID
+    fact_type: str  # time_limit/document_required/procedure_step/fee
+    content: str  # 事实内容
+    jurisdiction: str  # CN/beijing, US/california
+    valid_time: TimeRange  # 有效时间
+    transaction_time: TimeRange  # 记录时间
+    source: Source  # 来源（法规/官方公告）
+    supersedes: Optional[str]  # 取代哪个 fact_id
+    confidence: str  # high/medium/low
+
+
 @dataclass
 class TimeRange:
     from_: Optional[datetime]
-    to: Optional[datetime]          # null 表示至今有效
-    
+    to: Optional[datetime]  # null 表示至今有效
+
+
 @dataclass
 class Source:
-    type: str                       # regulation/official_notice/web_search
+    type: str  # regulation/official_notice/web_search
     url: str
-    citation: str                   # "民法典 第XX条"
-    trust_level: str                # high/medium/low
+    citation: str  # "民法典 第XX条"
+    trust_level: str  # high/medium/low
     retrieved_at: datetime
 ```
 
@@ -115,37 +118,39 @@ class Source:
 ```python
 # knowledge/_temporal/user_events.py（伪代码）
 
+
 @dataclass
 class UserProgressEvent:
     event_id: str
-    user_id_hash: str               # 用户 ID 哈希（PII 脱敏）
+    user_id_hash: str  # 用户 ID 哈希（PII 脱敏）
     session_id: str
-    event_type: str                 # inquiry_started/document_obtained/procedure_completed/transfer_happened
-    procedure: str                  # 户籍注销/继承公证/...
-    timestamp: datetime             # 事件发生时间
-    location: str                   # 用户所在地
-    metadata: dict                  # 附加信息
-    
+    event_type: str  # inquiry_started/document_obtained/procedure_completed/transfer_happened
+    procedure: str  # 户籍注销/继承公证/...
+    timestamp: datetime  # 事件发生时间
+    location: str  # 用户所在地
+    metadata: dict  # 附加信息
+
+
 # 示例
 event1 = UserProgressEvent(
     event_type="inquiry_started",
     procedure="户籍注销",
     timestamp="2026-07-10T10:00:00Z",
-    location="CN/beijing"
+    location="CN/beijing",
 )
 
 event2 = UserProgressEvent(
     event_type="document_obtained",
     procedure="死亡证明",
     timestamp="2026-07-12T14:30:00Z",
-    location="CN/beijing"
+    location="CN/beijing",
 )
 
 event3 = UserProgressEvent(
     event_type="procedure_completed",
     procedure="户籍注销",
     timestamp="2026-07-15T09:00:00Z",
-    location="CN/beijing"
+    location="CN/beijing",
 )
 ```
 
@@ -154,22 +159,24 @@ event3 = UserProgressEvent(
 ```python
 # knowledge/_temporal/kb_versions.py（伪代码）
 
+
 @dataclass
 class KnowledgeVersion:
     version_id: str
-    file_path: str                  # knowledge/regions/CN/overview.md
-    version_hash: str               # 文件内容哈希
+    file_path: str  # knowledge/regions/CN/overview.md
+    version_hash: str  # 文件内容哈希
     created_at: datetime
-    changes: List[ChangeRecord]     # 本次版本变更的内容
-    author: str                     # policy-researcher
-    
+    changes: List[ChangeRecord]  # 本次版本变更的内容
+    author: str  # policy-researcher
+
+
 @dataclass
 class ChangeRecord:
-    change_type: str                # added/modified/deleted
-    section: str                    # 章节路径
+    change_type: str  # added/modified/deleted
+    section: str  # 章节路径
     old_content: Optional[str]
     new_content: Optional[str]
-    reason: str                     # 变更原因（如"民法典生效"）
+    reason: str  # 变更原因（如"民法典生效"）
 ```
 
 ## 时态查询
@@ -193,8 +200,9 @@ def get_current_fact(jurisdiction, fact_type, as_of=None):
         """,
         jurisdiction=jurisdiction,
         fact_type=fact_type,
-        as_of=as_of
+        as_of=as_of,
     )
+
 
 # 示例
 get_current_fact("CN/beijing", "household_cancellation_time_limit")
@@ -217,8 +225,9 @@ def get_fact_at_time(jurisdiction, fact_type, at_time):
         """,
         jurisdiction=jurisdiction,
         fact_type=fact_type,
-        at_time=at_time
+        at_time=at_time,
     )
+
 
 # 示例：用户在 2023-06-15 咨询的 case
 get_fact_at_time("CN/beijing", "household_cancellation_time_limit", "2023-06-15")
@@ -239,14 +248,15 @@ def get_user_timeline(user_id_hash, procedure=None):
         ORDER BY e.timestamp ASC
         """,
         user_id_hash=user_id_hash,
-        procedure=procedure
+        procedure=procedure,
     )
+
 
 # 示例返回：
 [
     {"event": "inquiry_started", "procedure": "户籍注销", "timestamp": "2026-07-10T10:00:00Z"},
     {"event": "document_obtained", "procedure": "死亡证明", "timestamp": "2026-07-12T14:30:00Z"},
-    {"event": "procedure_completed", "procedure": "户籍注销", "timestamp": "2026-07-15T09:00:00Z"}
+    {"event": "procedure_completed", "procedure": "户籍注销", "timestamp": "2026-07-15T09:00:00Z"},
 ]
 ```
 
@@ -259,7 +269,7 @@ def get_changes_affecting_user(user_id_hash, since_date):
     inquiries = query(
         "MATCH (e:UserProgressEvent {event_type: 'inquiry_started'}) RETURN e.procedure"
     )
-    
+
     # 2. 找到这些流程在 since_date 后的变更
     changes = []
     for proc in inquiries:
@@ -270,14 +280,11 @@ def get_changes_affecting_user(user_id_hash, since_date):
               AND f.transaction_time.from >= $since_date
             RETURN f
             """,
-            proc=proc, since_date=since_date
+            proc=proc,
+            since_date=since_date,
         )
         if new_facts:
-            changes.append({
-                "procedure": proc,
-                "new_facts": new_facts,
-                "user_action_needed": True
-            })
+            changes.append({"procedure": proc, "new_facts": new_facts, "user_action_needed": True})
     return changes
 ```
 
@@ -320,15 +327,15 @@ def check_temporal_consistency(response, query_date):
     facts_in_response = extract_facts(response)
     issues = []
     for fact in facts_in_response:
-        actual_at_time = get_fact_at_time(
-            fact.jurisdiction, fact.fact_type, query_date
-        )
+        actual_at_time = get_fact_at_time(fact.jurisdiction, fact.fact_type, query_date)
         if actual_at_time.content != fact.content:
-            issues.append({
-                "fact": fact.content,
-                "actual_at_time": actual_at_time.content,
-                "issue": f"在 {query_date} 时该事实为：{actual_at_time.content}"
-            })
+            issues.append(
+                {
+                    "fact": fact.content,
+                    "actual_at_time": actual_at_time.content,
+                    "issue": f"在 {query_date} 时该事实为：{actual_at_time.content}",
+                }
+            )
     return issues
 ```
 
@@ -338,6 +345,7 @@ def check_temporal_consistency(response, query_date):
 
 ```python
 # death-aftercare-tracker 子智能体扩展
+
 
 def record_user_event(user_id_hash, event_type, procedure, **metadata):
     """记录用户进度事件"""
@@ -349,7 +357,7 @@ def record_user_event(user_id_hash, event_type, procedure, **metadata):
         procedure=procedure,
         timestamp=datetime.now(),
         location=current_user_location,
-        metadata=metadata
+        metadata=metadata,
     )
     graphiti.add(event)
     # 同时记录 trace span
@@ -359,25 +367,25 @@ def record_user_event(user_id_hash, event_type, procedure, **metadata):
 def get_progress_report(user_id_hash):
     """生成用户进度报告"""
     timeline = get_user_timeline(user_id_hash)
-    
+
     # 1. 已完成的事项
     completed = [e for e in timeline if e.event_type == "procedure_completed"]
-    
+
     # 2. 已获取的文档
     documents = [e for e in timeline if e.event_type == "document_obtained"]
-    
+
     # 3. 下一步建议（基于当前时态事实）
     next_steps = recommend_next_steps(timeline)
-    
+
     # 4. 时限警告（基于 valid_time）
     warnings = check_time_limits(timeline)
-    
+
     return {
         "completed_procedures": completed,
         "obtained_documents": documents,
         "next_steps": next_steps,
         "warnings": warnings,
-        "last_activity": timeline[-1].timestamp if timeline else None
+        "last_activity": timeline[-1].timestamp if timeline else None,
     }
 
 
@@ -387,20 +395,19 @@ def check_time_limits(timeline):
     for event in timeline:
         if event.event_type == "inquiry_started":
             # 查询该流程的有效时限
-            time_limit = get_current_fact(
-                event.location, 
-                f"{event.procedure}_time_limit"
-            )
+            time_limit = get_current_fact(event.location, f"{event.procedure}_time_limit")
             if time_limit:
                 days_since = (datetime.now() - event.timestamp).days
                 limit_days = extract_days(time_limit.content)
                 if days_since > limit_days:
-                    warnings.append({
-                        "procedure": event.procedure,
-                        "days_since": days_since,
-                        "limit": limit_days,
-                        "warning": f"{event.procedure} 已超时 {days_since - limit_days} 天"
-                    })
+                    warnings.append(
+                        {
+                            "procedure": event.procedure,
+                            "days_since": days_since,
+                            "limit": limit_days,
+                            "warning": f"{event.procedure} 已超时 {days_since - limit_days} 天",
+                        }
+                    )
     return warnings
 ```
 
@@ -467,6 +474,7 @@ def update_knowledge_with_temporal(country, region, new_content, old_content=Non
 基于 Graphiti（Zep 2.0）的时态记忆客户端。
 Graphiti 提供原生时态图查询，避免自己实现 Neo4j + 时态扩展。
 """
+
 from graphiti import Graphiti
 from graphiti.nodes import EntityNode, EpisodicNode
 from graphiti.edges import EntityEdge
@@ -477,6 +485,7 @@ graphiti = Graphiti(
     neo4j_password="...",
     llm_client=openai_client,  # 用于实体提取
 )
+
 
 # 添加时态事实
 async def add_policy_fact(fact: PolicyFact):
@@ -493,9 +502,10 @@ async def add_policy_fact(fact: PolicyFact):
             "source_url": fact.source.url,
             "trust_level": fact.source.trust_level,
             "supersedes": fact.supersedes,
-        }
+        },
     )
     await graphiti.add_node(node)
+
 
 # 时态查询
 async def query_facts_at_time(jurisdiction, fact_type, at_time):
@@ -508,11 +518,7 @@ async def query_facts_at_time(jurisdiction, fact_type, at_time):
           AND (f.valid_to IS NULL OR f.valid_to >= $at_time)
         RETURN f
         """,
-        params={
-            "jurisdiction": jurisdiction,
-            "fact_type": fact_type,
-            "at_time": at_time
-        }
+        params={"jurisdiction": jurisdiction, "fact_type": fact_type, "at_time": at_time},
     )
 ```
 
@@ -627,24 +633,25 @@ volumes:
 RETENTION_POLICY = {
     "policy_facts": {
         "retention": "permanent",  # 永久保留（历史事实不能删）
-        "archive_after": None
+        "archive_after": None,
     },
     "user_progress_events": {
         "retention": "7_years",  # 7 年（继承诉讼时效）
         "archive_after": "1_year",  # 1 年后归档
-        "pii_redact_on_archive": True  # 归档时进一步脱敏
+        "pii_redact_on_archive": True,  # 归档时进一步脱敏
     },
     "knowledge_versions": {
         "retention": "permanent",  # 永久保留
-        "archive_after": "5_years"
-    }
+        "archive_after": "5_years",
+    },
 }
+
 
 def apply_retention():
     """定期执行保留策略"""
     for event in get_old_user_events(older_than="7_years"):
         delete_event(event)
-    
+
     for event in get_old_user_events(older_than="1_year"):
         archive_and_redact(event)
 ```

@@ -15,13 +15,15 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from sqlalchemy import select
+
 from deadman.db import engine as db_engine_mod
 from deadman.db.engine import dispose_engine
-from sqlalchemy import select
 
 # =====================================================================
 # Fixtures（与 test_db_layer.py 一致）
 # =====================================================================
+
 
 @pytest.fixture
 async def sqlite_db(monkeypatch):
@@ -76,6 +78,7 @@ async def _await_bg_sync(timeout: float = 5.0):
 # 扩展④f：NotificationGuardrail DB 双写
 # =====================================================================
 
+
 class TestNotificationGuardrailDualWrite:
     """验证 NotificationGuardrail 4 个 record_* 方法在 DB 启用时双写。"""
 
@@ -89,9 +92,7 @@ class TestNotificationGuardrailDualWrite:
         await _await_bg_sync()
         factory = db_engine_mod.get_async_session_factory()
         async with factory() as session:
-            stmt = select(NotificationConsent).where(
-                NotificationConsent.user_id == "user-n1"
-            )
+            stmt = select(NotificationConsent).where(NotificationConsent.user_id == "user-n1")
             row = (await session.execute(stmt)).scalar_one_or_none()
             assert row is not None
             assert row.scope == "reminder:2026-07-30"
@@ -125,9 +126,7 @@ class TestNotificationGuardrailDualWrite:
         await _await_bg_sync()
         factory = db_engine_mod.get_async_session_factory()
         async with factory() as session:
-            stmt = select(NotificationSentLog).where(
-                NotificationSentLog.user_id == "user-n3"
-            )
+            stmt = select(NotificationSentLog).where(NotificationSentLog.user_id == "user-n3")
             row = (await session.execute(stmt)).scalar_one_or_none()
             assert row is not None
             assert row.channel == "telegram"
@@ -179,6 +178,7 @@ class TestNotificationGuardrailDualWrite:
 # =====================================================================
 # 扩展④g：VaultStore DB 双写
 # =====================================================================
+
 
 class TestVaultStoreDualWrite:
     """验证 VaultStore 加密密文 DB 迁移。"""
@@ -241,6 +241,7 @@ class TestVaultStoreDualWrite:
 # =====================================================================
 # 扩展④h：SwitchStore DB 双写
 # =====================================================================
+
 
 class TestSwitchStoreDualWrite:
     """验证 SwitchStore 加密密文 DB 迁移。"""
@@ -315,6 +316,7 @@ class TestSwitchStoreDualWrite:
 # =====================================================================
 # 扩展④i：EndingNoteStore DB 双写
 # =====================================================================
+
 
 class TestEndingNoteStoreDualWrite:
     """验证 EndingNoteStore 加密密文 DB 迁移。"""

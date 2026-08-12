@@ -102,9 +102,7 @@ async def best_effort_db_write(
             return True
         except transient as exc:  # 空元组时该分支永不命中
             if attempt + 1 >= max_attempts:
-                logger.warning(
-                    "%s失败（best-effort，已重试 %d 次）: %s", desc, max_attempts, exc
-                )
+                logger.warning("%s失败（best-effort，已重试 %d 次）: %s", desc, max_attempts, exc)
                 return False
             # 线性退避，把时间片让给竞争方完成提交
             await asyncio.sleep(_BACKOFF_BASE_SECONDS * (attempt + 1))

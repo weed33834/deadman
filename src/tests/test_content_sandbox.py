@@ -14,8 +14,9 @@
 
 from __future__ import annotations
 
-import deadman.security.content_sandbox as sandbox_module
 import pytest
+
+import deadman.security.content_sandbox as sandbox_module
 from deadman.security.content_sandbox import (
     DEFAULT_MAX_LENGTH,
     ContentSandbox,

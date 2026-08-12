@@ -63,6 +63,7 @@ DPO（Direct Preference Optimization）：
 ```python
 # alignment/data_collection.py（伪代码）
 
+
 class PreferenceDataCollector:
     """偏好数据收集器"""
 
@@ -112,14 +113,16 @@ class PreferenceDataCollector:
             # 生成 rejected：故意违反规则的版本
             rejected = self._generate_violation(chosen, case["rules_involved"])
 
-            pairs.append({
-                "case_id": case["case_id"],
-                "user_input": case["user_input"],
-                "chosen": chosen,
-                "rejected": rejected,
-                "violation_type": case.get("violation_type", "unknown"),
-                "rules_involved": case["rules_involved"],
-            })
+            pairs.append(
+                {
+                    "case_id": case["case_id"],
+                    "user_input": case["user_input"],
+                    "chosen": chosen,
+                    "rejected": rejected,
+                    "violation_type": case.get("violation_type", "unknown"),
+                    "rules_involved": case["rules_involved"],
+                }
+            )
 
         return pairs
 
@@ -154,14 +157,16 @@ class PreferenceDataCollector:
                 # 构造 chosen：正确防御的版本
                 chosen = self._generate_correct_defense(result)
 
-                pairs.append({
-                    "case_id": f"adv-{result['case_id']}",
-                    "user_input": result["attack_input"],
-                    "chosen": chosen,
-                    "rejected": rejected,
-                    "violation_type": "adversarial_attack_success",
-                    "attack_vector": result["attack_vector"],
-                })
+                pairs.append(
+                    {
+                        "case_id": f"adv-{result['case_id']}",
+                        "user_input": result["attack_input"],
+                        "chosen": chosen,
+                        "rejected": rejected,
+                        "violation_type": "adversarial_attack_success",
+                        "attack_vector": result["attack_vector"],
+                    }
+                )
 
         return pairs
 
@@ -173,13 +178,15 @@ class PreferenceDataCollector:
         for log in reflexion_logs:
             if log["success"] and log["attempts"] > 1:
                 # 重试后成功：重试前（失败）= rejected，重试后（成功）= chosen
-                pairs.append({
-                    "case_id": f"reflexion-{log['operation_id']}",
-                    "user_input": log["input"],
-                    "chosen": log["final_result"],       # 重试后的好结果
-                    "rejected": log["first_attempt"],    # 第一次的坏结果
-                    "violation_type": log["failure_reason"],
-                })
+                pairs.append(
+                    {
+                        "case_id": f"reflexion-{log['operation_id']}",
+                        "user_input": log["input"],
+                        "chosen": log["final_result"],  # 重试后的好结果
+                        "rejected": log["first_attempt"],  # 第一次的坏结果
+                        "violation_type": log["failure_reason"],
+                    }
+                )
 
         return pairs
 ```
@@ -205,6 +212,7 @@ class PreferenceDataCollector:
 ```python
 # alignment/data_quality.py
 
+
 class PreferenceDataQualityChecker:
     """偏好数据质量检查"""
 
@@ -228,9 +236,7 @@ class PreferenceDataQualityChecker:
         )
 
         # 4. chosen 没有违反任何规则
-        checks["chosen_compliant"] = self._check_compliance(
-            pair["chosen"], pair["rules_involved"]
-        )
+        checks["chosen_compliant"] = self._check_compliance(pair["chosen"], pair["rules_involved"])
 
         # 5. 难度标注合理
         checks["difficulty_appropriate"] = self._check_difficulty(pair)
@@ -282,19 +288,22 @@ Step 3: 评估
 ```python
 # alignment/sft_training.py（伪代码）
 
+
 def prepare_sft_data():
     """准备 SFT 数据"""
     cases = load_golden_cases()
     sft_data = []
 
     for case in cases:
-        sft_data.append({
-            "messages": [
-                {"role": "system", "content": load_system_prompt(case)},
-                {"role": "user", "content": case["user_input"]},
-                {"role": "assistant", "content": case["expected_response"]},
-            ]
-        })
+        sft_data.append(
+            {
+                "messages": [
+                    {"role": "system", "content": load_system_prompt(case)},
+                    {"role": "user", "content": case["user_input"]},
+                    {"role": "assistant", "content": case["expected_response"]},
+                ]
+            }
+        )
 
     return sft_data
 
@@ -334,8 +343,8 @@ def load_system_prompt(case):
 
 {rules}
 
-当前用户画像：{case.get('user_profile', {})}
-当前地域：{case.get('jurisdiction', 'CN')}
+当前用户画像：{case.get("user_profile", {})}
+当前地域：{case.get("jurisdiction", "CN")}
 """
 ```
 
@@ -343,6 +352,7 @@ def load_system_prompt(case):
 
 ```python
 # alignment/dpo_training.py（伪代码）
+
 
 def prepare_dpo_data():
     """准备 DPO 偏好数据"""
@@ -355,11 +365,13 @@ def prepare_dpo_data():
     for pair in pairs:
         check = quality_checker.check_pair(pair)
         if check["passed"]:
-            high_quality.append({
-                "prompt": pair["user_input"],
-                "chosen": pair["chosen"],
-                "rejected": pair["rejected"],
-            })
+            high_quality.append(
+                {
+                    "prompt": pair["user_input"],
+                    "chosen": pair["chosen"],
+                    "rejected": pair["rejected"],
+                }
+            )
 
     return high_quality
 
@@ -374,7 +386,7 @@ def train_dpo(sft_model_path="./models/sft"):
         per_device_train_batch_size=2,
         gradient_accumulation_steps=8,
         learning_rate=5e-7,  # DPO 学习率要小
-        beta=0.1,            # 温度参数
+        beta=0.1,  # 温度参数
         warmup_ratio=0.1,
         bf16=True,
         logging_steps=10,
@@ -401,6 +413,7 @@ def train_dpo(sft_model_path="./models/sft"):
 
 ```python
 # alignment/evaluation.py
+
 
 def evaluate_dpo_model():
     """评估 DPO 模型"""
@@ -441,11 +454,11 @@ def evaluate_dpo_model():
 
 
 DPO_ACCEPTANCE_CRITERIA = {
-    "rule_compliance_rate_gte": 0.95,        # DPO 后规则遵守率
-    "compliance_improvement_gte": 0.05,      # 比 SFT 提升至少 5%
+    "rule_compliance_rate_gte": 0.95,  # DPO 后规则遵守率
+    "compliance_improvement_gte": 0.05,  # 比 SFT 提升至少 5%
     "general_capability_degradation_lte": 0.02,  # 通用能力下降不超过 2%
-    "integrity_violation_rate_lte": 0.03,    # 诚信违规率
-    "adversarial_defense_rate_gte": 0.90,    # 对抗防御率
+    "integrity_violation_rate_lte": 0.03,  # 诚信违规率
+    "adversarial_defense_rate_gte": 0.90,  # 对抗防御率
 }
 ```
 
@@ -524,6 +537,7 @@ DPO 对齐（补强）：
 
 ```python
 # alignment/continuous_iteration.py
+
 
 class DPOContinuousIteration:
     """DPO 持续迭代"""

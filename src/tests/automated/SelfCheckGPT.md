@@ -107,12 +107,13 @@ from statistics import mean
 # 数字类 claim 的正则
 NUMBER_PATTERNS = {
     "phone": r"\b\d{3,4}[-\s]?\d{7,8}\b|\b\d{11}\b",  # 电话
-    "days": r"\b\d+\s*(?:天|个工作日|日)\b",            # 时限
+    "days": r"\b\d+\s*(?:天|个工作日|日)\b",  # 时限
     "money": r"\b\d+(?:\.\d+)?\s*(?:万|元|美元|人民币)\b",  # 金额
-    "percent": r"\b\d+(?:\.\d+)?\s*%",                  # 百分比
-    "article": r"第\s*\d+\s*条",                        # 法条号
-    "step_count": r"\b\d+\s*(?:步|个阶段|个环节)\b",    # 步骤数
+    "percent": r"\b\d+(?:\.\d+)?\s*%",  # 百分比
+    "article": r"第\s*\d+\s*条",  # 法条号
+    "step_count": r"\b\d+\s*(?:步|个阶段|个环节)\b",  # 步骤数
 }
+
 
 def extract_numeric_claims(response: str) -> List[dict]:
     """从响应中提取所有数字类 claim"""
@@ -124,13 +125,15 @@ def extract_numeric_claims(response: str) -> List[dict]:
             start = max(0, m.start() - 50)
             end = min(len(response), m.end() + 50)
             context = response[start:end]
-            
-            claims.append({
-                "claim_type": claim_type,
-                "value": m.group(),
-                "context": context,
-                "position": m.start()
-            })
+
+            claims.append(
+                {
+                    "claim_type": claim_type,
+                    "value": m.group(),
+                    "context": context,
+                    "position": m.start(),
+                }
+            )
     return claims
 
 
@@ -140,7 +143,7 @@ async def selfcheck_claim(claim: dict, original_prompt: str, n_samples: int = 5)
     多次采样同一 prompt，检查 claim 是否在所有采样中一致出现。
     """
     temperatures = [0.3, 0.5, 0.7, 0.4, 0.6][:n_samples]
-    
+
     sampled_responses = []
     for temp in temperatures:
         # 重新生成响应（同 prompt，不同 temperature）
@@ -150,7 +153,7 @@ async def selfcheck_claim(claim: dict, original_prompt: str, n_samples: int = 5)
             # 用与原响应相同的上下文（知识库、规则）
         )
         sampled_responses.append(response)
-    
+
     # 从每次采样中提取相同类型的数字
     sampled_values = []
     for resp in sampled_responses:
@@ -163,7 +166,7 @@ async def selfcheck_claim(claim: dict, original_prompt: str, n_samples: int = 5)
             sampled_values.append(closest["value"])
         else:
             sampled_values.append(None)  # 该采样中未出现此类数字
-    
+
     # 一致性计算
     valid_values = [v for v in sampled_values if v is not None]
     if not valid_values:
@@ -173,29 +176,29 @@ async def selfcheck_claim(claim: dict, original_prompt: str, n_samples: int = 5)
             "consistency": 0.0,
             "verdict": "highly_suspicious",
             "sampled_values": sampled_values,
-            "reason": "5 次采样中均未出现此类数字，可能为单次幻觉"
+            "reason": "5 次采样中均未出现此类数字，可能为单次幻觉",
         }
-    
+
     # 数字归一化（提取纯数字）
     normalized = [extract_pure_number(v) for v in valid_values]
     unique_values = set(normalized)
-    
+
     consistency = 1.0 - (len(unique_values) - 1) / len(valid_values)
-    
+
     if consistency >= 0.8:
         verdict = "consistent"
     elif consistency >= 0.5:
         verdict = "moderate"
     else:
         verdict = "inconsistent"
-    
+
     return {
         "claim": claim,
         "consistency": consistency,
         "verdict": verdict,
         "sampled_values": sampled_values,
         "unique_values": list(unique_values),
-        "reason": interpret_verdict(verdict, unique_values)
+        "reason": interpret_verdict(verdict, unique_values),
     }
 
 
@@ -217,29 +220,27 @@ def interpret_verdict(verdict: str, unique_values: set) -> str:
 async def selfcheck_response(response: str, original_prompt: str) -> dict:
     """对完整响应做 SelfCheckGPT 校验"""
     claims = extract_numeric_claims(response)
-    
+
     if not claims:
-        return {
-            "claims_checked": 0,
-            "all_consistent": True,
-            "results": []
-        }
-    
+        return {"claims_checked": 0, "all_consistent": True, "results": []}
+
     results = []
     for claim in claims:
         result = await selfcheck_claim(claim, original_prompt)
         results.append(result)
-    
+
     # 综合判定
-    suspicious_claims = [r for r in results if r["verdict"] in ["inconsistent", "highly_suspicious"]]
+    suspicious_claims = [
+        r for r in results if r["verdict"] in ["inconsistent", "highly_suspicious"]
+    ]
     moderate_claims = [r for r in results if r["verdict"] == "moderate"]
-    
+
     return {
         "claims_checked": len(claims),
         "all_consistent": len(suspicious_claims) == 0,
         "suspicious_claims": suspicious_claims,
         "moderate_claims": moderate_claims,
-        "results": results
+        "results": results,
     }
 ```
 
@@ -247,6 +248,7 @@ async def selfcheck_response(response: str, original_prompt: str) -> dict:
 
 ```python
 # mcp_server/server.py（伪代码扩展）
+
 
 @mcp.tool()
 async def check_integrity(output_text: str, claims_to_verify: list, original_prompt: str = None):
@@ -259,20 +261,17 @@ async def check_integrity(output_text: str, claims_to_verify: list, original_pro
     freshness_check = check_freshness(claims_to_verify)
     single_source_check = check_single_source(claims_to_verify)
     boundary_check = check_boundary(output_text)
-    
+
     # 新增：SelfCheckGPT 校验（仅对数字类 claim）
     if original_prompt:
         selfcheck_result = await selfcheck_response(output_text, original_prompt)
-        
+
         # 根据 SelfCheckGPT 结果调整置信度
-        adjusted_confidence = adjust_confidence_labels(
-            output_text, 
-            selfcheck_result
-        )
+        adjusted_confidence = adjust_confidence_labels(output_text, selfcheck_result)
     else:
         selfcheck_result = None
         adjusted_confidence = None
-    
+
     return {
         "passed": (
             source_check["passed"]
@@ -288,35 +287,37 @@ async def check_integrity(output_text: str, claims_to_verify: list, original_pro
             "freshness_check": freshness_check,
             "single_source_check": single_source_check,
             "boundary_check": boundary_check,
-            "selfcheck_gpt": selfcheck_result
+            "selfcheck_gpt": selfcheck_result,
         },
-        "confidence_labels": adjusted_confidence
+        "confidence_labels": adjusted_confidence,
     }
 
 
 def adjust_confidence_labels(response: str, selfcheck_result: dict) -> list:
     """根据 SelfCheckGPT 结果调整置信度标注"""
     labels = []
-    
+
     for result in selfcheck_result["results"]:
         claim = result["claim"]
         verdict = result["verdict"]
-        
+
         if verdict == "consistent":
             confidence = "高"
         elif verdict == "moderate":
             confidence = "中"
         else:  # inconsistent / highly_suspicious
             confidence = "未知"
-        
-        labels.append({
-            "claim": claim["value"],
-            "claim_type": claim["claim_type"],
-            "confidence": confidence,
-            "selfcheck_consistency": result["consistency"],
-            "selfcheck_reason": result["reason"]
-        })
-    
+
+        labels.append(
+            {
+                "claim": claim["value"],
+                "claim_type": claim["claim_type"],
+                "confidence": confidence,
+                "selfcheck_consistency": result["consistency"],
+                "selfcheck_reason": result["reason"],
+            }
+        )
+
     return labels
 ```
 
@@ -457,14 +458,15 @@ SelfCheckGPT 的判定也可能误报，需要评估：
 # 50 个真实数字（有 source）
 # 50 个编造数字（无 source）
 
+
 def evaluate_selfcheck():
     tp = fp = tn = fn = 0
-    
+
     for case in BENCHMARK_CASES:
         result = selfcheck_claim(case["claim"], case["prompt"])
         predicted_suspicious = result["verdict"] in ["inconsistent", "highly_suspicious"]
         actual_suspicious = case["is_fabricated"]
-        
+
         if predicted_suspicious and actual_suspicious:
             tp += 1
         elif predicted_suspicious and not actual_suspicious:
@@ -473,11 +475,11 @@ def evaluate_selfcheck():
             tn += 1
         else:
             fn += 1
-    
+
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
     f1 = 2 * precision * recall / (precision + recall)
-    
+
     return {"precision": precision, "recall": recall, "f1": f1}
 ```
 

@@ -22,8 +22,9 @@ import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-import deadman.orchestration.react_loop as react_module
 import pytest
+
+import deadman.orchestration.react_loop as react_module
 from deadman.orchestration.react_loop import ReActLoop, ReActResult
 
 # =====================================================================

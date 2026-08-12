@@ -101,7 +101,8 @@ async def kinship_add_member(member: dict[str, Any] = Body(default=None)) -> dic
 
 @router.put("/member/{member_id}")
 async def kinship_update_member(
-    member_id: str, member: dict[str, Any] = Body(default=None)  # noqa: B008
+    member_id: str,
+    member: dict[str, Any] = Body(default=None),  # noqa: B008
 ) -> dict[str, Any]:
     """PUT /api/kinship/member/{id} —— 更新成员"""
     data = _load()

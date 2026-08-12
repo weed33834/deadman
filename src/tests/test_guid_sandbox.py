@@ -16,8 +16,9 @@ from __future__ import annotations
 import asyncio
 import re
 
-import deadman.orchestration.nodes as nodes_module
 import pytest
+
+import deadman.orchestration.nodes as nodes_module
 from deadman.orchestration.nodes import (
     _build_guid_sandbox_preamble,
     _detect_external_content,

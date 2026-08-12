@@ -269,8 +269,10 @@ class TestAgentTransfer:
         # 应检测到转介信号（pending_transfer 被设置 或 触发 user_confirm 中断）
         pending = result.get("pending_transfer")
         # 中断模式下 pending_transfer 可能在中断前的 state 中
-        assert pending is not None or result.get("transfer_confirmed") is not None or result.get(
-            "final_response"
+        assert (
+            pending is not None
+            or result.get("transfer_confirmed") is not None
+            or result.get("final_response")
         )
 
     async def test_user_confirms_transfer_proceeds(self, patch_llm):
@@ -331,9 +333,7 @@ class TestIntegrityCheck:
             return_value={"agent": "financial_analyst", "reason": "财务", "confidence": "high"}
         )
         # 编造具体数字（FABRICATION_PATTERNS 可能匹配）
-        patch_llm.chat = AsyncMock(
-            return_value="根据规定，遗产税起征点为 800000 元，税率 5%。"
-        )
+        patch_llm.chat = AsyncMock(return_value="根据规定，遗产税起征点为 800000 元，税率 5%。")
 
         graph = _build_graph()
         state = create_initial_state("遗产税怎么计算")

@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 
 import pytest
+
 from deadman.mcp_server import cache as cache_module
 from deadman.mcp_server.cache import ToolResultCache
 from deadman.mcp_server.server import mcp

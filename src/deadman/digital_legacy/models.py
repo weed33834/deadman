@@ -28,29 +28,29 @@ from typing import Any
 # 枚举常量
 # =====================================================================
 class AssetCategory(str, Enum):
-    SOCIAL = "social"          # 社交 / 内容账号
-    FINANCIAL = "financial"    # 银行 / 支付 / 证券
-    CRYPTO = "crypto"          # 加密资产 / 钱包
-    ACCOUNT = "account"        # 通用账号 / 云盘 / 会员
-    DOCUMENT = "document"      # 证件 / 合同扫描件
-    DEVICE = "device"          # 手机 / 电脑 / 硬件密钥
+    SOCIAL = "social"  # 社交 / 内容账号
+    FINANCIAL = "financial"  # 银行 / 支付 / 证券
+    CRYPTO = "crypto"  # 加密资产 / 钱包
+    ACCOUNT = "account"  # 通用账号 / 云盘 / 会员
+    DOCUMENT = "document"  # 证件 / 合同扫描件
+    DEVICE = "device"  # 手机 / 电脑 / 硬件密钥
     SUBSCRIPTION = "subscription"  # 订阅服务
     OTHER = "other"
 
 
 class AssetAction(str, Enum):
-    TRANSFER = "transfer"      # 转移给继承人
-    CLOSE = "close"            # 注销 / 关闭
+    TRANSFER = "transfer"  # 转移给继承人
+    CLOSE = "close"  # 注销 / 关闭
     MEMORIALIZE = "memorialize"  # 纪念化（转为纪念账号）
-    KEEP = "keep"              # 保留（如加密资产继续持有）
-    DECIDE = "decide"          # 待定
+    KEEP = "keep"  # 保留（如加密资产继续持有）
+    DECIDE = "decide"  # 待定
 
 
 class Sensitivity(str, Enum):
-    PUBLIC = "public"          # 可公开（如「我有一个微博账号」）
-    INTERNAL = "internal"      # 仅继承人可见
+    PUBLIC = "public"  # 可公开（如「我有一个微博账号」）
+    INTERNAL = "internal"  # 仅继承人可见
     CONFIDENTIAL = "confidential"  # 敏感（账号、估值）
-    SECRET = "secret"          # 高度敏感（访问/恢复方式）
+    SECRET = "secret"  # 高度敏感（访问/恢复方式）
 
 
 # 各类别通用处置指引（规则驱动，无 LLM 依赖；不编造深链）
@@ -77,12 +77,8 @@ CATEGORY_GUIDANCE: dict[str, str] = {
         "手机 / 电脑 / 硬件密钥：提前设置遗产联系人（如 Apple Legacy Contact、Google 遗嘱联系人），"
         "或离线记录解锁 / 恢复方式。"
     ),
-    AssetCategory.SUBSCRIPTION.value: (
-        "订阅服务：取消或转移，避免逝者账户持续扣费。"
-    ),
-    AssetCategory.OTHER.value: (
-        "其他数字资产：按性质决定移交或注销，必要时咨询专业人士。"
-    ),
+    AssetCategory.SUBSCRIPTION.value: ("订阅服务：取消或转移，避免逝者账户持续扣费。"),
+    AssetCategory.OTHER.value: ("其他数字资产：按性质决定移交或注销，必要时咨询专业人士。"),
 }
 
 _VALID_CATEGORIES = {c.value for c in AssetCategory}
@@ -96,9 +92,9 @@ _VALID_SENSITIVITY = {s.value for s in Sensitivity}
 @dataclass
 class Heir:
     id: str
-    name: str                     # 化名 / 关系，如「长子」「配偶」
-    relationship: str = ""        # 法律关系，如「子女」「配偶」
-    contact_hint: str = ""        # 联系方式提示（不存明文电话，按数据纪律）
+    name: str  # 化名 / 关系，如「长子」「配偶」
+    relationship: str = ""  # 法律关系，如「子女」「配偶」
+    contact_hint: str = ""  # 联系方式提示（不存明文电话，按数据纪律）
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -118,9 +114,9 @@ class DigitalAsset:
     id: str
     category: str
     name: str
-    owner_hint: str = ""          # 登录账号 / 标识提示（不存明文密码）
-    location: str = ""            # URL 或说明，如 https://weixin.qq.com
-    access_hint: str = ""         # 访问 / 恢复方式（敏感，落盘加密）
+    owner_hint: str = ""  # 登录账号 / 标识提示（不存明文密码）
+    location: str = ""  # URL 或说明，如 https://weixin.qq.com
+    access_hint: str = ""  # 访问 / 恢复方式（敏感，落盘加密）
     estimated_value: str | None = None  # 不编造金额；由用户自填或留空
     action_on_death: str = AssetAction.DECIDE.value
     assigned_heir_id: str | None = None

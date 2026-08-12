@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import jwt as pyjwt
+
 from deadman.auth.jwt import JWTManager
 
 # =====================================================================

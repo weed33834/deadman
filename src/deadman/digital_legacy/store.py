@@ -65,9 +65,7 @@ class DigitalLegacyStore:
         for a in data["assets"]:
             hint = a.get("access_hint") or ""
             if hint and self.passphrase:
-                a[_ENC_FIELD] = crypto.encrypt_envelope(
-                    hint.encode("utf-8"), self.passphrase
-                )
+                a[_ENC_FIELD] = crypto.encrypt_envelope(hint.encode("utf-8"), self.passphrase)
                 a["access_hint"] = ""
             elif hint:
                 # 无口令：保留明文但明确标记（调用方应传入 passphrase）
@@ -80,9 +78,7 @@ class DigitalLegacyStore:
             enc = a.pop(_ENC_FIELD, None)
             if enc and self.passphrase:
                 try:
-                    a["access_hint"] = crypto.decrypt_envelope(
-                        enc, self.passphrase
-                    ).decode("utf-8")
+                    a["access_hint"] = crypto.decrypt_envelope(enc, self.passphrase).decode("utf-8")
                 except ValueError as exc:
                     logger.warning("access_hint 解密失败（口令不匹配？）: %s", exc)
                     a["access_hint"] = ""

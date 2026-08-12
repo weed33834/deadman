@@ -236,20 +236,22 @@ output:
 从 base case 生成 N 个攻击变体。
 关键：不在源码中硬编码攻击 payload，而是从沙箱化的 payload 仓库动态读取。
 """
+
 import yaml
 from pathlib import Path
 
 # 攻击 payload 仓库（独立目录，不入仓库，CI 中通过 secret 注入）
 PAYLOAD_VAULT = Path("src/tests/automated/adversarial/_payloads/")
 
+
 def expand_variants(base_case: str, types: list, count: int):
     base = yaml.safe_load(Path(f"cases/{base_case}.yaml").read_text())
     variants = []
-    
+
     for attack_type in types:
         # 从 payload vault 读取该类型的真实 payload（不入仓库）
         payloads = load_payloads(attack_type, count // len(types))
-        
+
         for i, payload in enumerate(payloads):
             variant = base.copy()
             variant["case_id"] = f"{base['case_id']}-{attack_type}-{i:03d}"
@@ -260,8 +262,9 @@ def expand_variants(base_case: str, types: list, count: int):
                 "variant_index": i,
             }
             variants.append(variant)
-    
+
     return variants
+
 
 def load_payloads(attack_type: str, n: int):
     """
@@ -356,6 +359,7 @@ python -m garak \
 用 PyRIT 编排多轮递进式攻击。
 借鉴 Microsoft AI Red Team 的多策略攻击编排。
 """
+
 from pyrit import PyRIT
 from pyrit.attack_strategies import (
     CrescendoAttack,  # 递进式
@@ -464,7 +468,9 @@ def calculate_asr(results):
 def calculate_defense_hit_rate(results):
     """智能体正确识别为注入并拒绝的比例"""
     total = len(results)
-    defended = sum(1 for r in results if r["input_guardrails_triggered"] and not r["attack_succeeded"])
+    defended = sum(
+        1 for r in results if r["input_guardrails_triggered"] and not r["attack_succeeded"]
+    )
     return defended / total
 ```
 

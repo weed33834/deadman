@@ -134,16 +134,19 @@ platform_overrides:
 # evaluators/regex_blacklist.py（伪代码）
 import re
 
+
 def check_regex_blacklist(response, case_yaml):
     blacklist = case_yaml["evaluation"]["regex_blacklist"]
     failures = []
     for item in blacklist:
         if re.search(item["pattern"], response):
-            failures.append({
-                "pattern": item["pattern"],
-                "reason": item["reason"],
-                "matched_text": re.search(item["pattern"], response).group()
-            })
+            failures.append(
+                {
+                    "pattern": item["pattern"],
+                    "reason": item["reason"],
+                    "matched_text": re.search(item["pattern"], response).group(),
+                }
+            )
     return len(failures) == 0, failures
 ```
 
@@ -164,12 +167,14 @@ def check_keyword_must_hit(response, case_yaml):
     for group in must_hit_groups:
         hits = sum(1 for kw in group["keywords"] if kw in response)
         if hits < group["min_hits"]:
-            failures.append({
-                "keywords": group["keywords"],
-                "reason": group["reason"],
-                "hits": hits,
-                "required": group["min_hits"]
-            })
+            failures.append(
+                {
+                    "keywords": group["keywords"],
+                    "reason": group["reason"],
+                    "hits": hits,
+                    "required": group["min_hits"],
+                }
+            )
     return len(failures) == 0, failures
 ```
 
@@ -188,6 +193,7 @@ def llm_judge(response, case_yaml, judge_model="gpt-4o"):
     prompt = case_yaml["evaluation"]["llm_judge"]["prompt"].format(response=response)
     result = call_llm(judge_model, prompt)
     return parse_judgment(result)
+
 
 def cross_model_consensus(response, case_yaml):
     models = case_yaml["evaluation"]["llm_judge"]["judge_models"]
@@ -217,10 +223,11 @@ def cross_model_consensus(response, case_yaml):
 from ragas import evaluate
 from ragas.metrics import faithfulness, answer_relevancy, context_precision
 
+
 def ragas_evaluation(response, retrieved_context, question):
     result = evaluate(
         datasets={"question": [question], "answer": [response], "contexts": [retrieved_context]},
-        metrics=[faithfulness, answer_relevancy, context_precision]
+        metrics=[faithfulness, answer_relevancy, context_precision],
     )
     return result
 ```
@@ -270,45 +277,47 @@ def main(cases, platform):
     results = []
     for case_file in glob(f"tests/automated/cases/{cases}-*.yaml"):
         case = load_yaml(case_file)
-        
+
         # 1. 准备测试环境
         setup_mock(case["context"])
-        
+
         # 2. 调用智能体
         response, trace = call_agent(case["user_input"], platform)
-        
+
         # 3. 三层判定
         regex_pass, regex_failures = check_regex_blacklist(response, case)
         keyword_pass, keyword_failures = check_keyword_must_hit(response, case)
         semantic_pass, semantic_failures = cross_model_consensus(response, case)
-        
+
         # 4. RAGAS（如适用）
         if case.get("ragas_enabled"):
             ragas_result = ragas_evaluation(response, trace.retrieved_context, case["user_input"])
         else:
             ragas_result = None
-        
+
         # 5. 指标计算
         metrics = calculate_metrics(trace, case["expected_metrics"])
-        
+
         # 6. 综合判定
         passed = regex_pass and keyword_pass and semantic_pass and metrics.all_pass()
-        
-        results.append({
-            "case_id": case["case_id"],
-            "name": case["name"],
-            "passed": passed,
-            "regex_failures": regex_failures,
-            "keyword_failures": keyword_failures,
-            "semantic_failures": semantic_failures,
-            "ragas_result": ragas_result,
-            "metrics": metrics,
-            "trace_id": trace.id
-        })
-    
+
+        results.append(
+            {
+                "case_id": case["case_id"],
+                "name": case["name"],
+                "passed": passed,
+                "regex_failures": regex_failures,
+                "keyword_failures": keyword_failures,
+                "semantic_failures": semantic_failures,
+                "ragas_result": ragas_result,
+                "metrics": metrics,
+                "trace_id": trace.id,
+            }
+        )
+
     # 7. 生成报告
     generate_report(results)
-    
+
     # 8. 退出码（任何 case 失败 → 非零）
     exit(0 if all(r["passed"] for r in results) else 1)
 ```

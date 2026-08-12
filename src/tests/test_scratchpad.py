@@ -10,8 +10,9 @@
 
 from __future__ import annotations
 
-import deadman.orchestration.scratchpad as scratchpad_module
 import pytest
+
+import deadman.orchestration.scratchpad as scratchpad_module
 from deadman.orchestration.scratchpad import ScratchpadManager
 from deadman.orchestration.state import create_initial_state
 

@@ -110,7 +110,10 @@ class TestReport:
     def test_weekly_and_review(self, client):
         sid = client.post("/api/sessions", json={"title": "测试"}).json()["session"]["id"]
         client.post(f"/api/sessions/{sid}/messages", json={"role": "user", "content": "总结本周"})
-        client.post(f"/api/sessions/{sid}/messages", json={"role": "assistant", "content": "已完成甲，下一步乙"})
+        client.post(
+            f"/api/sessions/{sid}/messages",
+            json={"role": "assistant", "content": "已完成甲，下一步乙"},
+        )
         w = client.get(f"/api/sessions/{sid}/report?type=weekly").json()["markdown"]
         assert "本周完成事项" in w and "下一步" in w
         rv = client.get(f"/api/sessions/{sid}/report?type=review").json()["markdown"]

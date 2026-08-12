@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from deadman.memory.file_store import FileMemoryStore
 from deadman.memory.semantic import UserProfile
 

@@ -144,32 +144,38 @@ from datetime import datetime
 
 MAX_RETRIES = 3
 
+
 @dataclass
 class FailureRecord:
     """单次失败记录"""
-    attempt: int                              # 第几次尝试
-    failure_type: str                         # 失败类型
-    failure_message: str                      # 失败详情
-    input_summary: str                        # 输入摘要
-    output_summary: Optional[str]             # 输出摘要（若有）
+
+    attempt: int  # 第几次尝试
+    failure_type: str  # 失败类型
+    failure_message: str  # 失败详情
+    input_summary: str  # 输入摘要
+    output_summary: Optional[str]  # 输出摘要（若有）
     timestamp: datetime
-    
+
+
 @dataclass
 class Reflection:
     """反思结果"""
-    failure_pattern: str                      # 失败模式分类
-    root_cause: str                           # 根本原因
-    adjustment_strategy: str                  # 调整策略
-    adjusted_prompt: Optional[str]            # 调整后的 prompt
-    adjusted_args: Optional[dict]             # 调整后的参数
-    alternative_approach: Optional[str]       # 替代方案
+
+    failure_pattern: str  # 失败模式分类
+    root_cause: str  # 根本原因
+    adjustment_strategy: str  # 调整策略
+    adjusted_prompt: Optional[str]  # 调整后的 prompt
+    adjusted_args: Optional[dict]  # 调整后的参数
+    alternative_approach: Optional[str]  # 替代方案
+
 
 @dataclass
 class ReflexionMemory:
     """跨会话反思记忆（与 Graphiti 集成）"""
-    agent_name: str                           # 哪个智能体的记忆
-    failure_patterns: dict                    # 失败模式 → 出现次数
-    successful_adjustments: dict              # 失败模式 → 成功的调整策略
+
+    agent_name: str  # 哪个智能体的记忆
+    failure_patterns: dict  # 失败模式 → 出现次数
+    successful_adjustments: dict  # 失败模式 → 成功的调整策略
     last_updated: datetime
 
 
@@ -179,36 +185,35 @@ class ReflexionEngine:
         self.memory_store = memory_store  # Graphiti 客户端
         self.failures: List[FailureRecord] = []
         self.reflections: List[Reflection] = []
-    
+
     async def execute_with_reflexion(
         self,
         operation: callable,
         initial_input: dict,
-        operation_type: str  # "subagent_call" | "tool_call" | "transfer"
+        operation_type: str,  # "subagent_call" | "tool_call" | "transfer"
     ) -> dict:
         """
         带反思重试的操作执行器。
         """
         current_input = initial_input
-        
+
         for attempt in range(1, MAX_RETRIES + 1):
             # 1. 执行操作
             try:
                 result = await operation(**current_input)
-                
+
                 # 2. 评估结果
                 evaluation = self._evaluate_result(result, operation_type)
-                
+
                 if evaluation["success"]:
                     # 成功
                     if attempt > 1:
                         # 重试成功 → 记录成功的调整策略
                         await self._record_successful_adjustment(
-                            self.failures[-1].failure_type,
-                            self.reflections[-1].adjustment_strategy
+                            self.failures[-1].failure_type, self.reflections[-1].adjustment_strategy
                         )
                     return {"success": True, "result": result, "attempts": attempt}
-                
+
                 else:
                     # 失败
                     failure = FailureRecord(
@@ -217,22 +222,22 @@ class ReflexionEngine:
                         failure_message=evaluation["failure_message"],
                         input_summary=str(current_input)[:200],
                         output_summary=str(result)[:200] if result else None,
-                        timestamp=datetime.now()
+                        timestamp=datetime.now(),
                     )
                     self.failures.append(failure)
-                    
+
                     # 3. Reflexion：分析失败原因
                     reflection = await self._reflect(failure, operation_type)
                     self.reflections.append(reflection)
-                    
+
                     # 4. 调整输入
                     current_input = self._adjust_input(current_input, reflection)
-                    
+
                     # 记录 trace
                     self._log_reflexion_span(failure, reflection, attempt)
-                    
+
                     continue
-                    
+
             except Exception as e:
                 # 异常失败
                 failure = FailureRecord(
@@ -241,16 +246,16 @@ class ReflexionEngine:
                     failure_message=str(e),
                     input_summary=str(current_input)[:200],
                     output_summary=None,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
                 self.failures.append(failure)
-                
+
                 reflection = await self._reflect(failure, operation_type)
                 self.reflections.append(reflection)
-                
+
                 current_input = self._adjust_input(current_input, reflection)
                 continue
-        
+
         # 重试耗尽 → fallback
         return {
             "success": False,
@@ -258,17 +263,19 @@ class ReflexionEngine:
             "attempts": MAX_RETRIES,
             "failures": self.failures,
             "reflections": self.reflections,
-            "fallback_reason": self._determine_fallback_reason()
+            "fallback_reason": self._determine_fallback_reason(),
         }
-    
+
     async def _reflect(self, failure: FailureRecord, operation_type: str) -> Reflection:
         """用 LLM 分析失败原因，生成调整策略"""
-        
+
         # 加载历史反思记忆（如果有）
         memory = await self._load_memory()
         historical_pattern = memory.failure_patterns.get(failure.failure_type, 0) if memory else 0
-        historical_adjustment = memory.successful_adjustments.get(failure.failure_type) if memory else None
-        
+        historical_adjustment = (
+            memory.successful_adjustments.get(failure.failure_type) if memory else None
+        )
+
         prompt = f"""
 你是 Reflexion 反思引擎。分析以下失败，生成调整策略。
 
@@ -307,42 +314,43 @@ class ReflexionEngine:
 """
         result = await call_llm(prompt)
         return parse_reflection(result)
-    
+
     def _adjust_input(self, original_input: dict, reflection: Reflection) -> dict:
         """根据反思调整输入"""
         adjusted = original_input.copy()
-        
+
         # 应用 prompt 调整
         if reflection.adjusted_prompt:
             adjusted["prompt"] = reflection.adjusted_prompt
-        
+
         # 应用参数调整
         if reflection.adjusted_args:
             adjusted.update(reflection.adjusted_args)
-        
+
         # 加入反思历史到 prompt
         if "prompt" in adjusted:
             adjusted["prompt"] = self._inject_reflection_context(
-                adjusted["prompt"], self.failures[-3:]  # 最近 3 次失败
+                adjusted["prompt"],
+                self.failures[-3:],  # 最近 3 次失败
             )
-        
+
         return adjusted
-    
+
     def _inject_reflection_context(self, prompt: str, recent_failures: list) -> str:
         """把最近的失败反思加入 prompt，避免重复错误"""
         if not recent_failures:
             return prompt
-        
+
         reflection_context = "\n\n## 历史失败与反思（避免重复）\n"
-        for f, r in zip(recent_failures, self.reflections[-len(recent_failures):]):
+        for f, r in zip(recent_failures, self.reflections[-len(recent_failures) :]):
             reflection_context += f"""
 - 第 {f.attempt} 次失败：{f.failure_type}
   反思：{r.root_cause}
   本次调整：{r.adjustment_strategy}
 """
-        
+
         return prompt + reflection_context
-    
+
     def _evaluate_result(self, result: dict, operation_type: str) -> dict:
         """评估操作结果是否成功"""
         if operation_type == "subagent_call":
@@ -352,15 +360,15 @@ class ReflexionEngine:
                 return {
                     "success": False,
                     "failure_type": result.get("fallback_reason", "unknown"),
-                    "failure_message": "子智能体进入 fallback 模式"
+                    "failure_message": "子智能体进入 fallback 模式",
                 }
             else:
                 return {
                     "success": False,
                     "failure_type": "execution_failed",
-                    "failure_message": str(result)
+                    "failure_message": str(result),
                 }
-        
+
         elif operation_type == "tool_call":
             if result.get("success", True) and not result.get("error"):
                 return {"success": True}
@@ -368,9 +376,9 @@ class ReflexionEngine:
                 return {
                     "success": False,
                     "failure_type": result.get("error_type", "tool_error"),
-                    "failure_message": result.get("error", "未知错误")
+                    "failure_message": result.get("error", "未知错误"),
                 }
-        
+
         elif operation_type == "transfer":
             if result.get("accepted"):
                 return {"success": True}
@@ -378,43 +386,41 @@ class ReflexionEngine:
                 return {
                     "success": False,
                     "failure_type": "transfer_failed",
-                    "failure_message": result.get("reason", "转介失败")
+                    "failure_message": result.get("reason", "转介失败"),
                 }
-        
+
         return {"success": True}
-    
+
     def _determine_fallback_reason(self) -> str:
         """重试耗尽后，决定 fallback 原因"""
         if not self.failures:
             return "unknown"
-        
+
         last_failure = self.failures[-1]
         last_reflection = self.reflections[-1] if self.reflections else None
-        
+
         reason = f"重试 {MAX_RETRIES} 次后仍失败。"
         reason += f"最后一次失败：{last_failure.failure_type} - {last_failure.failure_message}"
         if last_reflection:
             reason += f"反思：{last_reflection.root_cause}"
         return reason
-    
+
     async def _load_memory(self) -> Optional[ReflexionMemory]:
         """从 Graphiti 加载反思记忆"""
         if not self.memory_store:
             return None
         return await self.memory_store.get_reflexion_memory(self.agent_name)
-    
-    async def _record_successful_adjustment(
-        self, failure_type: str, adjustment_strategy: str
-    ):
+
+    async def _record_successful_adjustment(self, failure_type: str, adjustment_strategy: str):
         """记录成功的调整策略到记忆"""
         if not self.memory_store:
             return
         await self.memory_store.record_successful_adjustment(
             agent_name=self.agent_name,
             failure_type=failure_type,
-            adjustment_strategy=adjustment_strategy
+            adjustment_strategy=adjustment_strategy,
         )
-    
+
     def _log_reflexion_span(self, failure: FailureRecord, reflection: Reflection, attempt: int):
         """记录 Reflexion trace span"""
         log_trace(
@@ -429,7 +435,7 @@ class ReflexionEngine:
                 "root_cause": reflection.root_cause,
                 "adjustment_strategy": reflection.adjustment_strategy,
                 "alternative_approach": reflection.alternative_approach,
-            }
+            },
         )
 ```
 
@@ -440,36 +446,26 @@ class ReflexionEngine:
 ```python
 # 父智能体调用子智能体的扩展
 async def invoke_subagent_with_reflexion(
-    parent_agent: str,
-    subagent_name: str,
-    task: str,
-    context: dict
+    parent_agent: str, subagent_name: str, task: str, context: dict
 ) -> dict:
     """带 Reflexion 的子智能体调用"""
-    
-    reflexion_engine = ReflexionEngine(
-        agent_name=parent_agent,
-        memory_store=graphiti_client
-    )
-    
+
+    reflexion_engine = ReflexionEngine(agent_name=parent_agent, memory_store=graphiti_client)
+
     async def call_subagent(**kwargs):
         # 实际调用子智能体
         return await platform.invoke_subagent(
             subagent_name=kwargs.get("subagent_name", subagent_name),
             task=kwargs.get("task", task),
-            context=kwargs.get("context", context)
+            context=kwargs.get("context", context),
         )
-    
+
     result = await reflexion_engine.execute_with_reflexion(
         operation=call_subagent,
-        initial_input={
-            "subagent_name": subagent_name,
-            "task": task,
-            "context": context
-        },
-        operation_type="subagent_call"
+        initial_input={"subagent_name": subagent_name, "task": task, "context": context},
+        operation_type="subagent_call",
     )
-    
+
     if result["success"]:
         return result["result"]
     else:
@@ -480,8 +476,8 @@ async def invoke_subagent_with_reflexion(
             attributes={
                 "execution_mode": "fallback",
                 "fallback_reason": result["fallback_reason"],
-                "attempts": result["attempts"]
-            }
+                "attempts": result["attempts"],
+            },
         )
         return await parent_agent_self_handle(task, context)
 ```
@@ -498,40 +494,22 @@ ADJUSTMENT_STRATEGIES = {
     },
     "timeout": {
         "strategy": "简化任务描述，减少上下文",
-        "context_reduction": "只保留核心信息，去除历史"
+        "context_reduction": "只保留核心信息，去除历史",
     },
     "format_error": {
         "strategy": "在 prompt 中加入更明确的输出格式要求",
-        "format_spec": "返回 JSON 格式：{...}"
+        "format_spec": "返回 JSON 格式：{...}",
     },
     "schema_validation_failed": {
         "strategy": "放宽 schema 要求，允许部分字段缺失",
-        "required_fields_relaxed": True
+        "required_fields_relaxed": True,
     },
-    "empty_response": {
-        "strategy": "重新表述问题，加入 Few-shot 示例",
-        "add_few_shot": True
-    },
-    "context_too_long": {
-        "strategy": "分段处理，先处理最关键部分",
-        "chunk_size": 2000
-    },
-    "tool_not_found": {
-        "strategy": "降级到平台原生工具",
-        "fallback_to_native": True
-    },
-    "invalid_args": {
-        "strategy": "根据 schema 修正参数",
-        "auto_fix_args": True
-    },
-    "rate_limit": {
-        "strategy": "等待后重试",
-        "backoff_seconds": 60
-    },
-    "transfer_summary_incomplete": {
-        "strategy": "补全缺失字段后重试",
-        "auto_complete_fields": True
-    }
+    "empty_response": {"strategy": "重新表述问题，加入 Few-shot 示例", "add_few_shot": True},
+    "context_too_long": {"strategy": "分段处理，先处理最关键部分", "chunk_size": 2000},
+    "tool_not_found": {"strategy": "降级到平台原生工具", "fallback_to_native": True},
+    "invalid_args": {"strategy": "根据 schema 修正参数", "auto_fix_args": True},
+    "rate_limit": {"strategy": "等待后重试", "backoff_seconds": 60},
+    "transfer_summary_incomplete": {"strategy": "补全缺失字段后重试", "auto_complete_fields": True},
 }
 
 
@@ -551,9 +529,9 @@ async def _reflect(self, failure: FailureRecord, operation_type: str) -> Reflect
             adjustment_strategy=predefined["strategy"],
             adjusted_prompt=predefined.get("format_spec"),
             adjusted_args={k: v for k, v in predefined.items() if k not in ["strategy"]},
-            alternative_approach=predefined.get("alternative_tool")
+            alternative_approach=predefined.get("alternative_tool"),
         )
-    
+
     # 慢速路径：LLM 反思
     return await self._llm_reflect(failure, operation_type)
 ```
@@ -565,6 +543,7 @@ async def _reflect(self, failure: FailureRecord, operation_type: str) -> Reflect
 ```python
 # knowledge/_temporal/reflexion_memory.py（伪代码）
 
+
 async def record_failure_pattern(agent_name: str, failure_type: str):
     """记录失败模式出现次数"""
     await graphiti.query(
@@ -574,11 +553,7 @@ async def record_failure_pattern(agent_name: str, failure_type: str):
         SET m.failure_patterns[$failure_type] = coalesce(m.failure_patterns[$failure_type], 0) + 1
         SET m.last_updated = $now
         """,
-        params={
-            "agent_name": agent_name,
-            "failure_type": failure_type,
-            "now": datetime.now()
-        }
+        params={"agent_name": agent_name, "failure_type": failure_type, "now": datetime.now()},
     )
 
 
@@ -596,8 +571,8 @@ async def record_successful_adjustment(
             "agent_name": agent_name,
             "failure_type": failure_type,
             "strategy": adjustment_strategy,
-            "now": datetime.now()
-        }
+            "now": datetime.now(),
+        },
     )
 
 
@@ -608,14 +583,14 @@ async def get_reflexion_memory(agent_name: str) -> ReflexionMemory:
         MATCH (m:ReflexionMemory {agent_name: $agent_name})
         RETURN m
         """,
-        params={"agent_name": agent_name}
+        params={"agent_name": agent_name},
     )
     if not result:
         return ReflexionMemory(
             agent_name=agent_name,
             failure_patterns={},
             successful_adjustments={},
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
     return ReflexionMemory(**result[0])
 ```
@@ -645,9 +620,10 @@ def reflexion_metrics(failures: list, reflections: list, final_result: dict) -> 
         "fallback_triggered": final_result.get("fallback", False),
         "common_failure_pattern": most_common([f.failure_type for f in failures]),
         "successful_adjustment_used": (
-            reflections[-1].adjustment_strategy if final_result.get("success") and len(reflections) > 0
+            reflections[-1].adjustment_strategy
+            if final_result.get("success") and len(reflections) > 0
             else None
-        )
+        ),
     }
 ```
 
@@ -686,27 +662,31 @@ def reflexion_metrics(failures: list, reflections: list, final_result: dict) -> 
 ```python
 # tests/automated/runners/reflexion_eval.py（伪代码）
 
+
 def evaluate_reflexion():
     """
     评估 Reflexion 是否真的减少了 fallback 率。
     对比：无 Reflexion vs 有 Reflexion
     """
     # 100 个故意会触发失败的 case
-    
+
     # 无 Reflexion
     no_reflexion_results = [run_case(c, reflexion=False) for c in cases]
     no_reflexion_fallback_rate = sum(1 for r in no_reflexion_results if r["fallback"]) / len(cases)
-    
+
     # 有 Reflexion
     with_reflexion_results = [run_case(c, reflexion=True) for c in cases]
-    with_reflexion_fallback_rate = sum(1 for r in with_reflexion_results if r["fallback"]) / len(cases)
-    
+    with_reflexion_fallback_rate = sum(1 for r in with_reflexion_results if r["fallback"]) / len(
+        cases
+    )
+
     return {
         "fallback_rate_without_reflexion": no_reflexion_fallback_rate,
         "fallback_rate_with_reflexion": with_reflexion_fallback_rate,
         "improvement": no_reflexion_fallback_rate - with_reflexion_fallback_rate,
         "avg_attempts_with_reflexion": mean(r["attempts"] for r in with_reflexion_results),
-        "cost_overhead": mean(r["cost"] for r in with_reflexion_results) - mean(r["cost"] for r in no_reflexion_results)
+        "cost_overhead": mean(r["cost"] for r in with_reflexion_results)
+        - mean(r["cost"] for r in no_reflexion_results),
     }
 ```
 

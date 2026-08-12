@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.observability.metrics import (
     METRIC_CATEGORIES,
     MetricsCollector,

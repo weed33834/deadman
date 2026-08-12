@@ -47,12 +47,14 @@ def trust_level_consistency(response, retrieved_contexts):
     for source in cited_sources:
         ctx = find_in_contexts(source, retrieved_contexts)
         if ctx and ctx["trust_level"] == "low" and "官方" in response:
-            inconsistencies.append({
-                "source": source,
-                "actual_trust": "low",
-                "response_claim": "官方",
-                "issue": "low 信任源被表述为官方"
-            })
+            inconsistencies.append(
+                {
+                    "source": source,
+                    "actual_trust": "low",
+                    "response_claim": "官方",
+                    "issue": "low 信任源被表述为官方",
+                }
+            )
     return 1.0 - len(inconsistencies) / max(len(cited_sources), 1)
 ```
 
@@ -71,11 +73,13 @@ def freshness_check(response, retrieved_contexts, current_date):
     for ctx in retrieved_contexts:
         if ctx["freshness_status"] in ["stale", "outdated"]:
             if ctx["content"] in response and "可能已过时" not in response:
-                issues.append({
-                    "ctx_id": ctx["id"],
-                    "freshness": ctx["freshness_status"],
-                    "issue": "引用过期内容未标注"
-                })
+                issues.append(
+                    {
+                        "ctx_id": ctx["id"],
+                        "freshness": ctx["freshness_status"],
+                        "issue": "引用过期内容未标注",
+                    }
+                )
     return 1.0 - len(issues) / max(len(retrieved_contexts), 1)
 ```
 
@@ -93,11 +97,9 @@ def single_source_detection(response, retrieved_contexts):
     for claim in critical_claims:
         sources = find_supporting_sources(claim, retrieved_contexts)
         if len(set(sources)) < 2:
-            single_sourced.append({
-                "claim": claim,
-                "sources_count": len(sources),
-                "issue": "关键事实单源"
-            })
+            single_sourced.append(
+                {"claim": claim, "sources_count": len(sources), "issue": "关键事实单源"}
+            )
     return 1.0 - len(single_sourced) / max(len(critical_claims), 1)
 ```
 
@@ -196,20 +198,23 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 
+
 def ragas_evaluation(case_yaml, response, retrieved_contexts, ground_truth):
     # 标准 4 维度
-    dataset = Dataset.from_dict({
-        "question": [case_yaml["user_input"]],
-        "answer": [response],
-        "contexts": [[c["content"] for c in retrieved_contexts]],
-        "ground_truth": [ground_truth],
-    })
-    
+    dataset = Dataset.from_dict(
+        {
+            "question": [case_yaml["user_input"]],
+            "answer": [response],
+            "contexts": [[c["content"] for c in retrieved_contexts]],
+            "ground_truth": [ground_truth],
+        }
+    )
+
     standard_result = evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
     )
-    
+
     # 平台特化 5 维度
     platform_metrics = {
         "trust_level_consistency": trust_level_consistency(response, retrieved_contexts),
@@ -218,7 +223,7 @@ def ragas_evaluation(case_yaml, response, retrieved_contexts, ground_truth):
         "confidence_labeling_rate": confidence_labeling_rate(response),
         "pii_redaction_rate": pii_redaction_rate(response, retrieved_contexts),
     }
-    
+
     return {
         "standard": standard_result,
         "platform": platform_metrics,
@@ -228,7 +233,7 @@ def ragas_evaluation(case_yaml, response, retrieved_contexts, ground_truth):
             and standard_result["context_precision"] >= 0.75
             and standard_result["context_recall"] >= 0.85
             and all(v >= 0.9 for v in platform_metrics.values())
-        )
+        ),
     }
 ```
 

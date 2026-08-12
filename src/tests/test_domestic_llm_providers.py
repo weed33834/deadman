@@ -66,7 +66,5 @@ def test_client_falls_back_to_provider_env_key(monkeypatch):
 
 def test_client_uses_explicit_api_key_over_env(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-env-qwen")
-    client = LLMClient(
-        provider="qwen", model="qwen-max", api_key="sk-explicit"
-    )
+    client = LLMClient(provider="qwen", model="qwen-max", api_key="sk-explicit")
     assert client.api_key == "sk-explicit"

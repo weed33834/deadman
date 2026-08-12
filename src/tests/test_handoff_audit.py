@@ -18,8 +18,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import deadman.orchestration.handoff_audit as audit_module
 import pytest
+
+import deadman.orchestration.handoff_audit as audit_module
 from deadman.orchestration.handoff_audit import (
     HandoffAuditEntry,
     HandoffAuditLogger,

@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.doc_extract.extractor import (
     DOC_TYPE_OTHER,
     DOC_TYPE_WILL,

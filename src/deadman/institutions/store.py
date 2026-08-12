@@ -21,6 +21,7 @@ from typing import Any
 # === 默认存储路径 ===
 _DEFAULT_DATA_DIR = Path.home() / ".deadman" / "institutions"
 
+
 # === 种子数据路径（包内自带，首次启动时加载）===
 def _seed_file() -> Path:
     from ..config import settings

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.infrastructure.multi_tenant import (
     DEFAULT_TENANT_ID,
     TenantContext,

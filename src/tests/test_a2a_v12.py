@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 import deadman.a2a.models as a2a_models
 import deadman.a2a.server as a2a_server_module
-import pytest
 from deadman.a2a.models import (
     AgentCard,
     AgentCardSkill,

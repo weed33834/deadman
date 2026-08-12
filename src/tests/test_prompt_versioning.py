@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.infrastructure.prompt_versioning import (
     PromptVersionManager,
 )

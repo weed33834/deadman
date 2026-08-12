@@ -177,6 +177,7 @@ relation_types:
 从 knowledge/regions/{country}/{region}.md 提取实体关系三元组。
 借鉴 LightRAG 的 entity extraction prompt。
 """
+
 import re
 from pathlib import Path
 
@@ -205,33 +206,31 @@ EXTRACT_PROMPT = """
 4. 时限、机构、文档名等属性填入 attributes
 """
 
+
 def extract_from_markdown(md_path):
     content = Path(md_path).read_text()
     prompt = EXTRACT_PROMPT.format(document_content=content)
     result = call_llm(prompt)
     return parse_jsonl(result)
 
+
 def build_graph(country, region):
     """构建某地区的知识图谱"""
     md_path = f"knowledge/regions/{country}/{region}.md"
     triples = extract_from_markdown(md_path)
-    
+
     # 存储到 _graph/ 目录
     graph_dir = Path(f"knowledge/_graph/{country}/{region}/")
     graph_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 实体表
     entities = [t for t in triples if t["type"] == "entity"]
-    (graph_dir / "entities.jsonl").write_text(
-        "\n".join(json.dumps(e) for e in entities)
-    )
-    
+    (graph_dir / "entities.jsonl").write_text("\n".join(json.dumps(e) for e in entities))
+
     # 关系表
     relations = [t for t in triples if t["type"] == "relation"]
-    (graph_dir / "relations.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in relations)
-    )
-    
+    (graph_dir / "relations.jsonl").write_text("\n".join(json.dumps(r) for r in relations))
+
     # 构建向量索引（实体名 + 描述）
     build_vector_index(entities, graph_dir / "entity_index")
 ```
@@ -245,23 +244,24 @@ policy-researcher 写入新地区/更新已有地区时，增量更新图谱。
 关键：只重建变更部分，不全量重建。
 """
 
-def on_knowledge_update(country, region, change_type="added"|"modified"):
+
+def on_knowledge_update(country, region, change_type="added" | "modified"):
     graph_dir = Path(f"knowledge/_graph/{country}/{region}/")
-    
+
     if change_type == "modified":
         # 1. 读取旧图谱
         old_entities = load_jsonl(graph_dir / "entities.jsonl")
         old_relations = load_jsonl(graph_dir / "relations.jsonl")
-        
+
         # 2. 重新提取（只对变更的章节）
         new_triples = extract_from_markdown(f"knowledge/regions/{country}/{region}.md")
-        
+
         # 3. 计算差异
         diff = compute_diff(old_entities + old_relations, new_triples)
-        
+
         # 4. 只更新差异部分
         apply_diff(graph_dir, diff)
-        
+
         # 5. 记录更新日志
         log_update(country, region, diff)
     else:
@@ -276,6 +276,7 @@ def on_knowledge_update(country, region, change_type="added"|"modified"):
 ```python
 # knowledge/_graph/query.py（伪代码）
 
+
 def query_graph(question, mode="hybrid"):
     """
     mode:
@@ -287,7 +288,7 @@ def query_graph(question, mode="hybrid"):
         local_result = local_search(question)
     if mode in ["global", "hybrid"]:
         global_result = global_search(question)
-    
+
     if mode == "local":
         return local_result
     elif mode == "global":
@@ -305,15 +306,13 @@ def local_search(question):
     """
     entities = extract_entities_from_question(question)
     similar = vector_search(entities, top_k=5)
-    
+
     results = []
     for entity in similar:
         neighbors = get_neighbors(entity)
-        results.append({
-            "center_entity": entity,
-            "neighbors": neighbors,
-            "relations": get_relations(entity)
-        })
+        results.append(
+            {"center_entity": entity, "neighbors": neighbors, "relations": get_relations(entity)}
+        )
     return results
 
 
@@ -325,11 +324,7 @@ def global_search(question):
     """
     topic = classify_topic(question)
     entities = get_entities_by_topic(topic)
-    return {
-        "topic": topic,
-        "entities": entities,
-        "summary": summarize_topic(topic)
-    }
+    return {"topic": topic, "entities": entities, "summary": summarize_topic(topic)}
 ```
 
 ### 检索示例
@@ -337,10 +332,7 @@ def global_search(question):
 **用户问**："我妈在北京去世，我拿着她的死亡证明能否办房产过户？"
 
 ```python
-result = query_graph(
-    "我妈在北京去世，我拿着她的死亡证明能否办房产过户？",
-    mode="hybrid"
-)
+result = query_graph("我妈在北京去世，我拿着她的死亡证明能否办房产过户？", mode="hybrid")
 ```
 
 **返回**：
@@ -382,13 +374,18 @@ result = query_graph(
 ```python
 # mcp_server/server.py（伪代码扩展）
 
+
 @mcp.tool()
-def query_knowledge(country: str, region: str = None, topic: str = None,
-                    query_mode: str = "markdown"|"graph"|"hybrid",
-                    fallback_to_search: bool = True) -> dict:
+def query_knowledge(
+    country: str,
+    region: str = None,
+    topic: str = None,
+    query_mode: str = "markdown" | "graph" | "hybrid",
+    fallback_to_search: bool = True,
+) -> dict:
     """
     查询地域知识库。
-    
+
     query_mode:
     - markdown: 仅查 Markdown（原行为）
     - graph: 仅查知识图谱
@@ -410,13 +407,13 @@ def query_graph_knowledge(country, region, topic):
         return {
             "found": False,
             "needs_research": True,
-            "research_suggestion": f"建议触发 policy-researcher 构建 {country}/{region} 图谱"
+            "research_suggestion": f"建议触发 policy-researcher 构建 {country}/{region} 图谱",
         }
-    
+
     # 调用图谱检索
     question = f"{country}/{region} {topic}"
     result = query_graph(question, mode="hybrid")
-    
+
     return {
         "found": True,
         "data": {
@@ -426,8 +423,8 @@ def query_graph_knowledge(country, region, topic):
             "relations": [...],
             "sources": [f"knowledge/regions/{country}/{region}.md"],
             "trust_level": "high",
-            "freshness_status": "fresh"
-        }
+            "freshness_status": "fresh",
+        },
     }
 ```
 
@@ -455,27 +452,30 @@ LightRAG 试点效果通过 RAGAS 的 context_recall 与 context_precision 量�
 ```python
 # tests/automated/runners/lightrag_eval.py（伪代码）
 
+
 def evaluate_lightrag():
     """对比 Markdown-only vs Hybrid 检索效果"""
     cases = load_ragas_applicable_cases()
-    
+
     results = {"markdown_only": [], "hybrid": []}
-    
+
     for case in cases:
         # Markdown-only 模式
         md_response, md_contexts = run_agent(case, query_mode="markdown")
         md_ragas = ragas_evaluation(case, md_response, md_contexts, case.ground_truth)
         results["markdown_only"].append(md_ragas)
-        
+
         # Hybrid 模式（Markdown + 图谱）
         hybrid_response, hybrid_contexts = run_agent(case, query_mode="hybrid")
         hybrid_ragas = ragas_evaluation(case, hybrid_response, hybrid_contexts, case.ground_truth)
         results["hybrid"].append(hybrid_ragas)
-    
+
     # 对比
     return {
-        "context_recall_improvement": avg(hybrid_ragas.context_recall) - avg(md_ragas.context_recall),
-        "context_precision_improvement": avg(hybrid_ragas.context_precision) - avg(md_ragas.context_precision),
+        "context_recall_improvement": avg(hybrid_ragas.context_recall)
+        - avg(md_ragas.context_recall),
+        "context_precision_improvement": avg(hybrid_ragas.context_precision)
+        - avg(md_ragas.context_precision),
         "faithfulness_improvement": avg(hybrid_ragas.faithfulness) - avg(md_ragas.faithfulness),
     }
 ```
@@ -506,17 +506,20 @@ MULTIHOP_TEST_CASES = [
     },
 ]
 
+
 def evaluate_multihop():
     results = []
     for case in MULTIHOP_TEST_CASES:
         result = query_graph(case["question"], mode="hybrid")
         hops_matched = result["reasoning_path"] == case["expected_path"]
-        results.append({
-            "question": case["question"],
-            "expected_hops": case["expected_hops"],
-            "actual_hops": count_hops(result["reasoning_path"]),
-            "path_matched": hops_matched,
-        })
+        results.append(
+            {
+                "question": case["question"],
+                "expected_hops": case["expected_hops"],
+                "actual_hops": count_hops(result["reasoning_path"]),
+                "path_matched": hops_matched,
+            }
+        )
     return results
 ```
 

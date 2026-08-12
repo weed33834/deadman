@@ -86,14 +86,16 @@ class WorkingMemory:
 
     def add_turn(self, role, content, agent=None, **kwargs):
         """添加一轮对话"""
-        self.recent_turns.append({
-            "turn_id": str(uuid4()),
-            "role": role,
-            "content": content,
-            "timestamp": datetime.utcnow(),
-            "agent": agent or self.current_agent,
-            **kwargs,
-        })
+        self.recent_turns.append(
+            {
+                "turn_id": str(uuid4()),
+                "role": role,
+                "content": content,
+                "timestamp": datetime.utcnow(),
+                "agent": agent or self.current_agent,
+                **kwargs,
+            }
+        )
         # 超过上限时，把最老的移到 episodic memory
         if len(self.recent_turns) > self.MAX_TURNS:
             old_turn = self.recent_turns.pop(0)
@@ -123,6 +125,7 @@ from typing import Optional
 @dataclass
 class Episode:
     """一个情景片段"""
+
     episode_id: str
     session_id: str
     timestamp: datetime
@@ -142,7 +145,7 @@ class EpisodicMemory:
 
     def __init__(self, vector_store, graphiti_client):
         self.vector_store = vector_store  # 向量库（如 Chroma/Qdrant）
-        self.graphiti = graphiti_client   # 与 Temporal-Memory-Graphiti.md 集成
+        self.graphiti = graphiti_client  # 与 Temporal-Memory-Graphiti.md 集成
 
     def archive_turn(self, session_id: str, turn: dict):
         """把工作记忆溢出的轮次归档到情景记忆"""
@@ -170,20 +173,21 @@ class EpisodicMemory:
         self.vector_store.add(episode)
 
         # 4. 同步到 Graphiti（时态记忆）
-        self.graphiti.add_event({
-            "event_type": "UserProgressEvent",
-            "episode_id": episode.episode_id,
-            "session_id": session_id,
-            "timestamp": episode.timestamp,
-            "summary": summary,
-            "agent": episode.agent,
-        })
+        self.graphiti.add_event(
+            {
+                "event_type": "UserProgressEvent",
+                "episode_id": episode.episode_id,
+                "session_id": session_id,
+                "timestamp": episode.timestamp,
+                "summary": summary,
+                "agent": episode.agent,
+            }
+        )
 
     def recall_by_time(self, session_id: str, start: datetime, end: datetime) -> list[Episode]:
         """按时间范围回忆"""
         return self.vector_store.query(
-            filter={"session_id": session_id,
-                    "timestamp": {"$gte": start, "$lte": end}}
+            filter={"session_id": session_id, "timestamp": {"$gte": start, "$lte": end}}
         )
 
     def recall_by_semantic(self, query: str, top_k: int = 5) -> list[Episode]:
@@ -204,9 +208,9 @@ class EpisodicMemory:
         """用 LLM 生成片段摘要"""
         prompt = f"""
         用一句话总结以下对话片段的核心信息：
-        角色：{turn['role']}
-        内容：{turn['content']}
-        智能体：{turn.get('agent', 'unknown')}
+        角色：{turn["role"]}
+        内容：{turn["content"]}
+        智能体：{turn.get("agent", "unknown")}
 
         摘要要求：
         - 包含关键事实（人物/时间/地点/事件）
@@ -234,6 +238,7 @@ from typing import Optional
 @dataclass
 class UserProfile:
     """用户画像 - 语义记忆的核心"""
+
     user_id: str
     name: Optional[str] = None
     relationship_to_deceased: Optional[str] = None  # 子女/配偶/父母/...
@@ -268,6 +273,7 @@ class UserProfile:
 @dataclass
 class Fact:
     """事实知识 - 语义记忆的单元"""
+
     fact_id: str
     fact_type: str  # user_profile / policy / procedure / entity
     content: str
@@ -304,12 +310,14 @@ class SemanticMemory:
                 setattr(profile, key, value)
 
         # 同步到 Graphiti（时态记忆，保留历史版本）
-        self.graphiti.add_event({
-            "event_type": "UserProgressEvent",
-            "user_id": user_id,
-            "profile_update": updates,
-            "timestamp": datetime.utcnow(),
-        })
+        self.graphiti.add_event(
+            {
+                "event_type": "UserProgressEvent",
+                "user_id": user_id,
+                "profile_update": updates,
+                "timestamp": datetime.utcnow(),
+            }
+        )
 
     def _handle_contradiction(self, user_id, field, old_value, new_value):
         """
@@ -340,16 +348,18 @@ class SemanticMemory:
         self.facts[fact.fact_id] = fact
 
         # 同步到 Graphiti（PolicyFact 类型，时态管理）
-        self.graphiti.add_event({
-            "event_type": "PolicyFact" if fact.fact_type == "policy" else "KnowledgeVersion",
-            "fact_id": fact.fact_id,
-            "content": fact.content,
-            "source": fact.source,
-            "confidence": fact.confidence,
-            "valid_time": fact.valid_time,
-            "supersedes": fact.supersedes,
-            "transaction_time": datetime.utcnow(),
-        })
+        self.graphiti.add_event(
+            {
+                "event_type": "PolicyFact" if fact.fact_type == "policy" else "KnowledgeVersion",
+                "fact_id": fact.fact_id,
+                "content": fact.content,
+                "source": fact.source,
+                "confidence": fact.confidence,
+                "valid_time": fact.valid_time,
+                "supersedes": fact.supersedes,
+                "transaction_time": datetime.utcnow(),
+            }
+        )
 
     def query_facts(self, query: str, jurisdiction=None, fact_type=None) -> list[Fact]:
         """查询事实知识"""
@@ -368,13 +378,15 @@ class SemanticMemory:
         if len(results) < 3:
             graph_results = self.lightrag.query(query, mode="hybrid")
             for r in graph_results:
-                results.append(Fact(
-                    fact_id=str(uuid4()),
-                    fact_type="entity",
-                    content=r["content"],
-                    source=r.get("source", "lightrag"),
-                    confidence=r.get("confidence", 0.7),
-                ))
+                results.append(
+                    Fact(
+                        fact_id=str(uuid4()),
+                        fact_type="entity",
+                        content=r["content"],
+                        source=r.get("source", "lightrag"),
+                        confidence=r.get("confidence", 0.7),
+                    )
+                )
 
         return results
 ```
@@ -392,6 +404,7 @@ from dataclasses import dataclass, field
 @dataclass
 class Procedure:
     """程序记忆 - 任务流程"""
+
     procedure_id: str
     procedure_name: str
     jurisdiction: dict  # 适用地域
@@ -418,6 +431,7 @@ class Procedure:
 @dataclass
 class UserProgress:
     """用户在某流程上的进度"""
+
     user_id: str
     procedure_id: str
     current_step: int
@@ -470,17 +484,20 @@ class ProceduralMemory:
         progress.last_active_at = datetime.utcnow()
 
         # 同步到 Graphiti（跨会话续接）
-        self.graphiti.add_event({
-            "event_type": "UserProgressEvent",
-            "user_id": user_id,
-            "procedure_id": procedure_id,
-            "completed_steps": progress.completed_steps,
-            "current_step": progress.current_step,
-            "timestamp": datetime.utcnow(),
-        })
+        self.graphiti.add_event(
+            {
+                "event_type": "UserProgressEvent",
+                "user_id": user_id,
+                "procedure_id": procedure_id,
+                "completed_steps": progress.completed_steps,
+                "current_step": progress.current_step,
+                "timestamp": datetime.utcnow(),
+            }
+        )
 
-    def learn_from_user(self, user_id: str, procedure_name: str, jurisdiction: dict,
-                        user_correction: dict):
+    def learn_from_user(
+        self, user_id: str, procedure_name: str, jurisdiction: dict, user_correction: dict
+    ):
         """
         从用户反馈中学习 - 用户纠正了流程的某一步
         与 Reflexion 机制集成
@@ -502,13 +519,15 @@ class ProceduralMemory:
         proc.verified = False  # 需要重新验证
 
         # 记录到 Graphiti 作为 KnowledgeVersion
-        self.graphiti.add_event({
-            "event_type": "KnowledgeVersion",
-            "procedure_id": proc.procedure_id,
-            "change": "user_correction",
-            "user_correction": user_correction,
-            "transaction_time": datetime.utcnow(),
-        })
+        self.graphiti.add_event(
+            {
+                "event_type": "KnowledgeVersion",
+                "procedure_id": proc.procedure_id,
+                "change": "user_correction",
+                "user_correction": user_correction,
+                "transaction_time": datetime.utcnow(),
+            }
+        )
 ```
 
 ## Memory Manager（统一管理）
@@ -541,9 +560,7 @@ class MemoryManager:
         # 2. 恢复最近情景（情景记忆）
         recent_episodes = self.episodic.recall_recent(session_id, n=3)
         if recent_episodes:
-            self.working.temp_vars["recent_episodes_summary"] = [
-                e.summary for e in recent_episodes
-            ]
+            self.working.temp_vars["recent_episodes_summary"] = [e.summary for e in recent_episodes]
 
         # 3. 恢复流程进度（程序记忆）
         if profile and profile.current_stage:
@@ -596,14 +613,14 @@ class MemoryManager:
             context_parts.append("\n=== 待澄清的矛盾 ===")
             for c in contradictions:
                 context_parts.append(
-                    f"用户之前说 {c['field']}={c['old_value']}，"
-                    f"现在说 {c['new_value']}，需要澄清"
+                    f"用户之前说 {c['field']}={c['old_value']}，现在说 {c['new_value']}，需要澄清"
                 )
 
         return "\n".join(context_parts)
 
-    def after_turn(self, user_id: str, user_input: str, assistant_response: str,
-                   agent: str, **kwargs):
+    def after_turn(
+        self, user_id: str, user_input: str, assistant_response: str, agent: str, **kwargs
+    ):
         """一轮对话结束后，更新各层记忆"""
         # 1. 写入工作记忆
         self.working.add_turn("user", user_input)
@@ -617,9 +634,7 @@ class MemoryManager:
         # 3. 更新流程进度
         if kwargs.get("step_completed"):
             procedure_id = kwargs.get("procedure_id")
-            self.procedural.update_user_progress(
-                user_id, procedure_id, kwargs["step_completed"]
-            )
+            self.procedural.update_user_progress(user_id, procedure_id, kwargs["step_completed"])
 
     def _extract_facts(self, user_input, assistant_response):
         """从对话中提取事实"""
@@ -649,8 +664,7 @@ class MemoryManager:
             lines.append(f"地点：{profile.location.get('city', '')}")
         if profile.deceased_info:
             d = profile.deceased_info
-            lines.append(f"逝者：{d.get('name', '未知')}, "
-                        f"去世日期：{d.get('death_date', '未知')}")
+            lines.append(f"逝者：{d.get('name', '未知')}, 去世日期：{d.get('death_date', '未知')}")
         if profile.current_stage:
             lines.append(f"当前阶段：第 {profile.current_stage} 阶段")
         return "\n".join(lines)
@@ -660,6 +674,7 @@ class MemoryManager:
 
 ```python
 # memory/langgraph_integration.py
+
 
 def inject_memory_to_state(state: ConversationState, memory_manager: MemoryManager):
     """把记忆注入到 LangGraph state"""
@@ -703,6 +718,7 @@ def update_memory_after_turn(state: ConversationState, memory_manager: MemoryMan
 
 ```python
 # memory/privacy.py
+
 
 class PrivacyManager:
     """隐私管理 - 与 compliance-framework 集成"""

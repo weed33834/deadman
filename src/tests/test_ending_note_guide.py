@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from deadman.ending_note.guide import EndingNoteGuide
 from deadman.ending_note.models import EndingNote
 from deadman.ending_note.store import EndingNoteStore

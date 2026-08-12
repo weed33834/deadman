@@ -24,6 +24,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.tools.web_search import (
     BaiduSearchProvider,
     BingCNSearchProvider,

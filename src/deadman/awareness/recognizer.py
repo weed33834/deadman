@@ -19,14 +19,14 @@ from .intent import IntentType, classify_intent
 
 # 意图 → 推荐能力（对应工具 / 智能体 / 页面）
 _CAPABILITY_MAP: dict[IntentType, str] = {
-    IntentType.WILL: "ending_note",           # 终活笔记 / 遗嘱引导
-    IntentType.FUNERAL: "knowledge_procedure", # 办事流程向导
-    IntentType.GRIEF: "grief_companion",       # 哀伤陪伴
+    IntentType.WILL: "ending_note",  # 终活笔记 / 遗嘱引导
+    IntentType.FUNERAL: "knowledge_procedure",  # 办事流程向导
+    IntentType.GRIEF: "grief_companion",  # 哀伤陪伴
     IntentType.DIGITAL_LEGACY: "digital_legacy",  # 数字遗产清单工具
     IntentType.DEAD_SWITCH: "deadman_switch",  # 死人开关
-    IntentType.MEMORIAL: "memorial_writer",    # 纪念文生成
-    IntentType.KNOWLEDGE: "knowledge_query",   # 地域知识库查询
-    IntentType.GENERAL: "chat",                # 通用对话
+    IntentType.MEMORIAL: "memorial_writer",  # 纪念文生成
+    IntentType.KNOWLEDGE: "knowledge_query",  # 地域知识库查询
+    IntentType.GENERAL: "chat",  # 通用对话
 }
 
 
@@ -72,9 +72,7 @@ async def assess(text: str, llm=None) -> AwarenessResult:
         intent=intent_res.intent.value,
         intent_confidence=intent_res.confidence,
         crisis_level=crisis.level,
-        recommended_capability=_CAPABILITY_MAP.get(
-            intent_res.intent, "chat"
-        ),
+        recommended_capability=_CAPABILITY_MAP.get(intent_res.intent, "chat"),
         needs_crisis_intervention=False,
         intent_scores=intent_res.scores,
     )

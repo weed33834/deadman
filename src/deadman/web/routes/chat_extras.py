@@ -1198,7 +1198,9 @@ def _cmd_cases(tokens: list[str]) -> dict[str, Any]:
         md = ["**遗码通 · 逝者案例**\n"]
         for c in cases[:10]:
             d = c.to_dict() if hasattr(c, "to_dict") else c
-            md.append(f"- **{d.get('decedent_name', d.get('name', '?'))}**（{d.get('case_id', d.get('id', ''))}）")
+            md.append(
+                f"- **{d.get('decedent_name', d.get('name', '?'))}**（{d.get('case_id', d.get('id', ''))}）"
+            )
         return {"ok": True, "kind": "text", "text": "\n".join(md)}
     except Exception as exc:
         return {"ok": True, "kind": "text", "text": f"遗码通：{exc}"}
@@ -1212,7 +1214,13 @@ def _cmd_letters(tokens: list[str]) -> dict[str, Any]:
         types = [t.get("type") for t in LETTER_TYPES if isinstance(t, dict)]
         if not types:
             types = [str(t) for t in LETTER_TYPES]
-        return {"ok": True, "kind": "text", "text": "通知信函类型：\n" + "\n".join(f"- {t}" for t in types) + "\n\n可在「通知信函」页生成。"}
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": "通知信函类型：\n"
+            + "\n".join(f"- {t}" for t in types)
+            + "\n\n可在「通知信函」页生成。",
+        }
     except Exception as exc:
         return {"ok": True, "kind": "text", "text": f"通知信函：可在「通知信函」页查看（{exc}）"}
 
@@ -1225,9 +1233,19 @@ def _cmd_score(tokens: list[str]) -> dict[str, Any]:
         s = PlanScorer()
         detail = s.score(_USER) if hasattr(s, "score") else None
         if detail is None:
-            return {"ok": True, "kind": "text", "text": "规划完整度：可在「规划评分」页查看（暂无评分数据）。"}
-        score = getattr(detail, "total", None) if not isinstance(detail, dict) else detail.get("total")
-        return {"ok": True, "kind": "text", "text": f"身后事规划完整度：{score}%。可在「规划评分」页查看明细。"}
+            return {
+                "ok": True,
+                "kind": "text",
+                "text": "规划完整度：可在「规划评分」页查看（暂无评分数据）。",
+            }
+        score = (
+            getattr(detail, "total", None) if not isinstance(detail, dict) else detail.get("total")
+        )
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"身后事规划完整度：{score}%。可在「规划评分」页查看明细。",
+        }
     except Exception as exc:
         return {"ok": True, "kind": "text", "text": f"规划完整度：可在「规划评分」页查看（{exc}）"}
 

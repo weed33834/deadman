@@ -19,6 +19,7 @@ import secrets
 
 import pytest
 from cryptography.exceptions import InvalidTag
+
 from deadman.utils.crypto import (
     _decrypt_v1,
     _v2_derive_subkey,

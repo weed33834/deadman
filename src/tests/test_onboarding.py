@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from deadman.onboarding.models import OnboardingProfile
 from deadman.onboarding.store import OnboardingStore
 from deadman.onboarding.wizard import OnboardingWizard

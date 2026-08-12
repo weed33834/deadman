@@ -20,6 +20,7 @@ import datetime as dt
 import time
 
 import pytest
+
 from deadman.marketplace import MarketplaceError
 
 # =====================================================================

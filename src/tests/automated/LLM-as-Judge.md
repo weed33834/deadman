@@ -142,46 +142,47 @@ JUDGE_MODELS = [
     {"provider": "zhipu", "model": "glm-4.6", "weight": 1.0},
 ]
 
+
 def cross_model_judge(response, case_yaml, user_input):
     requirements = case_yaml["evaluation"]["llm_judge"]["prompt"]
-    
+
     # 并行调用多个 judge 模型
     judgments = []
     for judge_config in JUDGE_MODELS:
         # 关键：judge 模型不能是被测模型
         if judge_config["model"] == case_yaml.get("tested_model"):
             continue
-        
+
         prompt = GENERAL_JUDGE_PROMPT.format(
-            requirements=requirements,
-            response=response,
-            user_input=user_input
+            requirements=requirements, response=response, user_input=user_input
         )
-        
+
         result = call_llm(judge_config, prompt)
         parsed = parse_json(result)
-        judgments.append({
-            "judge_model": judge_config["model"],
-            "verdict": parsed["overall_verdict"],
-            "reasoning": parsed["step_by_step"],
-            "failures": parsed.get("failure_reasons", [])
-        })
-    
+        judgments.append(
+            {
+                "judge_model": judge_config["model"],
+                "verdict": parsed["overall_verdict"],
+                "reasoning": parsed["step_by_step"],
+                "failures": parsed.get("failure_reasons", []),
+            }
+        )
+
     # 共识判定
     pass_count = sum(1 for j in judgments if j["verdict"] == "通过")
     fail_count = sum(1 for j in judgments if j["verdict"] == "失败")
-    
+
     if pass_count >= len(judgments) * 0.67:
         consensus = "通过"
     elif fail_count >= len(judgments) * 0.5:
         consensus = "失败"
     else:
         consensus = "需人工复核"  # 分歧大
-    
+
     return {
         "consensus": consensus,
         "judgments": judgments,
-        "agreement_rate": max(pass_count, fail_count) / len(judgments)
+        "agreement_rate": max(pass_count, fail_count) / len(judgments),
     }
 ```
 
@@ -202,28 +203,29 @@ def cross_model_judge(response, case_yaml, user_input):
 ```python
 # evaluators/pairwise_comparison.py（伪代码）
 
+
 def pairwise_compare(response_a, response_b, case_yaml, platform_a, platform_b):
     prompt = f"""
     以下是两个 AI 智能体对同一用户输入的响应。
     判定哪个更好（考虑规则遵守、语气、准确性）。
-    
+
     用户输入：{case_yaml["user_input"]}
-    
+
     评审要求：{case_yaml["evaluation"]["llm_judge"]["prompt"]}
-    
+
     响应 A（平台 {platform_a}）：
     {response_a}
-    
+
     响应 B（平台 {platform_b}）：
     {response_b}
-    
+
     判定：A 更好 / B 更好 / 平手
     """
-    
+
     # 交换位置跑两次，取平均（消除 position bias）
     result1 = call_llm(judge_model, prompt)
     result2 = call_llm(judge_model, swap_ab(prompt))
-    
+
     return reconcile(result1, result2)
 ```
 

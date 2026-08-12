@@ -101,9 +101,7 @@ def test_crud_assign_and_remove(tmp_path):
     store = DigitalLegacyStore("u_test", passphrase=b"pw", root=tmp_path)
     reg = AssetRegister(user_id="u_test")
     reg = store.add_heir(Heir(id="h2", name="次子"))
-    reg = store.add_asset(
-        DigitalAsset(id="a9", category=AssetCategory.ACCOUNT.value, name="邮箱")
-    )
+    reg = store.add_asset(DigitalAsset(id="a9", category=AssetCategory.ACCOUNT.value, name="邮箱"))
     reg = store.assign_heir("a9", "h2")
     assert reg.assets[0].assigned_heir_id == "h2"
     reg = store.remove_asset("a9")

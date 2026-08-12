@@ -732,19 +732,21 @@ class CronScheduler:
                         existing.pending_confirmation = j.pending_confirmation
                         existing.updated_at = now
                     else:
-                        session.add(CronJobORM(
-                            job_id=j.job_id,
-                            user_id=j.user_id,
-                            schedule=j.schedule,
-                            content=j.content,
-                            scope=j.scope,
-                            expires_at=j.expires_at,
-                            last_fired=j.last_fired,
-                            enabled=j.enabled,
-                            pending_confirmation=j.pending_confirmation,
-                            created_at=j.created_at or now,
-                            updated_at=now,
-                        ))
+                        session.add(
+                            CronJobORM(
+                                job_id=j.job_id,
+                                user_id=j.user_id,
+                                schedule=j.schedule,
+                                content=j.content,
+                                scope=j.scope,
+                                expires_at=j.expires_at,
+                                last_fired=j.last_fired,
+                                enabled=j.enabled,
+                                pending_confirmation=j.pending_confirmation,
+                                created_at=j.created_at or now,
+                                updated_at=now,
+                            )
+                        )
                 await session.commit()
 
         async def _sync_with_retry() -> None:

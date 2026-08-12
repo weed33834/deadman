@@ -132,9 +132,7 @@ class SwitchStore:
 
         await best_effort_db_write(_op, "同步 switch 到 DB", logger)
 
-    async def _sync_checkin_to_db(
-        self, user_id: str, check_in_at: datetime, method: str
-    ) -> None:
+    async def _sync_checkin_to_db(self, user_id: str, check_in_at: datetime, method: str) -> None:
         """INSERT SwitchCheckIn 到 DB（best-effort）。"""
 
         async def _op() -> None:
@@ -170,9 +168,7 @@ class SwitchStore:
                 await session.execute(
                     delete(SwitchRecordORM).where(SwitchRecordORM.user_id == user_id)
                 )
-                await session.execute(
-                    delete(SwitchCheckIn).where(SwitchCheckIn.user_id == user_id)
-                )
+                await session.execute(delete(SwitchCheckIn).where(SwitchCheckIn.user_id == user_id))
                 await session.commit()
 
         await best_effort_db_write(_op, "从 DB 删除 switch", logger)

@@ -3916,7 +3916,9 @@ def cmd_db(args):
 
     action = args.db_action
     print(f"[db] 操作: {action}")
-    print(f"[db] DATABASE_URL: {settings.database_url.split('@')[-1] if '@' in settings.database_url else '(已配置)'}")
+    print(
+        f"[db] DATABASE_URL: {settings.database_url.split('@')[-1] if '@' in settings.database_url else '(已配置)'}"
+    )
 
     if action == "init":
         # 开发/测试：直接 create_all（不走 Alembic）

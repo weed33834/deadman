@@ -24,6 +24,7 @@ import io
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from deadman.notification_letters import (
     LETTER_TEMPLATES,
     LETTER_TYPES,

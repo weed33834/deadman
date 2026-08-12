@@ -10,6 +10,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
+
 from deadman.selfcheck.checker import (
     _HIGH_THRESHOLD,
     NUMBER_PATTERNS,

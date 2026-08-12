@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.memory.vector_store import (
     ChromaVectorStore,
     InMemoryVectorStore,

@@ -209,9 +209,7 @@ class VaultStore:
             from ..db.models import VaultItem as VaultItemORM
 
             async with get_async_session_factory()() as session:
-                await session.execute(
-                    delete(VaultItemORM).where(VaultItemORM.item_id == item_id)
-                )
+                await session.execute(delete(VaultItemORM).where(VaultItemORM.item_id == item_id))
                 await session.commit()
 
         await best_effort_db_write(_op, "从 DB 删除 vault item", logger)

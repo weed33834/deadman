@@ -25,6 +25,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.evaluation.ragas_evaluator import (
     ALL_METRIC_NAMES,
     DEFAULT_QUALITY_GATE_THRESHOLD,

@@ -67,6 +67,7 @@ class RiskTier(str, Enum):
 
 class TransferSummary(BaseModel):
     """转介摘要 - TEAM.md 定义的 7 字段"""
+
     from_agent: str
     to_agent: str
     reason: str
@@ -78,6 +79,7 @@ class TransferSummary(BaseModel):
 
 class SubagentResult(BaseModel):
     """子智能体返回结果 - TEAM.md 定义"""
+
     subagent_name: str
     execution_mode: Literal["success", "fallback", "failed"]
     report: dict[str, Any]
@@ -87,6 +89,7 @@ class SubagentResult(BaseModel):
 
 class RuleCheckResult(BaseModel):
     """规则校验结果"""
+
     passed: bool
     violations: list[dict] = Field(default_factory=list)
     risk_tier: RiskTier = RiskTier.R0
@@ -152,8 +155,8 @@ def build_main_graph():
     graph = StateGraph(ConversationState)
 
     # === 入口节点 ===
-    graph.add_node("input_guard", input_guard_node)        # L2 input-guardrails
-    graph.add_node("router", router_node)                  # 意图识别 + 选智能体
+    graph.add_node("input_guard", input_guard_node)  # L2 input-guardrails
+    graph.add_node("router", router_node)  # 意图识别 + 选智能体
     graph.add_node("user_confirm_transfer", user_confirm_node)  # interrupt
 
     # === 6 个并列智能体节点（每个内部挂载 subgraph） ===
@@ -165,10 +168,10 @@ def build_main_graph():
     graph.add_node("medical_guide", medical_guide_subgraph)
 
     # === 后置校验节点 ===
-    graph.add_node("rule_check", rule_check_node)          # L0-L8 规则校验
+    graph.add_node("rule_check", rule_check_node)  # L0-L8 规则校验
     graph.add_node("integrity_check", integrity_check_node)  # 5 关事实复核
-    graph.add_node("output_guard", output_guard_node)      # 输出前最终校验
-    graph.add_node("respond", respond_node)                # 生成最终响应
+    graph.add_node("output_guard", output_guard_node)  # 输出前最终校验
+    graph.add_node("respond", respond_node)  # 生成最终响应
 
     # === 入口边 ===
     graph.set_entry_point("input_guard")
@@ -194,14 +197,20 @@ def build_main_graph():
         "user_confirm_transfer",
         after_user_confirm,
         {
-            "proceed_transfer": "router",    # 用户同意，路由到目标智能体
-            "decline_transfer": "respond",   # 用户拒绝，回应当前智能体
+            "proceed_transfer": "router",  # 用户同意，路由到目标智能体
+            "decline_transfer": "respond",  # 用户拒绝，回应当前智能体
         },
     )
 
     # === 智能体执行后 ===
-    for agent in ["death_aftercare", "legal_advisor", "financial_analyst",
-                  "policy_researcher", "cross_border_specialist", "medical_guide"]:
+    for agent in [
+        "death_aftercare",
+        "legal_advisor",
+        "financial_analyst",
+        "policy_researcher",
+        "cross_border_specialist",
+        "medical_guide",
+    ]:
         graph.add_edge(agent, "rule_check")
 
     # === 规则校验后 ===
@@ -209,7 +218,7 @@ def build_main_graph():
         "rule_check",
         after_rule_check,
         {
-            "safety_override": "respond",       # L0 触发，直接响应
+            "safety_override": "respond",  # L0 触发，直接响应
             "needs_integrity_check": "integrity_check",
             "pass_through": "output_guard",
         },
@@ -231,6 +240,7 @@ def build_main_graph():
 
 ```python
 # orchestration/nodes/router.py（伪代码）
+
 
 def route_to_agent(state: ConversationState) -> str:
     """根据用户输入和当前状态决定路由到哪个智能体"""
@@ -279,19 +289,20 @@ def classify_intent(user_input: str, user_profile: dict) -> str:
 ```python
 # orchestration/subgraphs/death_aftercare.py（伪代码）
 
+
 def death_aftercare_subgraph(state: ConversationState) -> ConversationState:
     """death_aftercare 智能体的子图"""
 
     subgraph = StateGraph(ConversationState)
 
     # === 子图节点 ===
-    subgraph.add_node("load_agent_md", load_agent_md_node)        # 加载 death-aftercare.md
-    subgraph.add_node("load_rules", load_rules_node)              # 加载 rules/*.md
-    subgraph.add_node("assess_emotion", assess_emotion_node)      # 调用 emotional 子智能体
-    subgraph.add_node("track_progress", track_progress_node)      # 调用 tracker 子智能体
-    subgraph.add_node("query_knowledge", query_knowledge_node)    # MCP query_knowledge
-    subgraph.add_node("check_subagent_timing", check_timing_node) # 子智能体调用时机硬约束
-    subgraph.add_node("draft_response", draft_response_node)      # 起草响应
+    subgraph.add_node("load_agent_md", load_agent_md_node)  # 加载 death-aftercare.md
+    subgraph.add_node("load_rules", load_rules_node)  # 加载 rules/*.md
+    subgraph.add_node("assess_emotion", assess_emotion_node)  # 调用 emotional 子智能体
+    subgraph.add_node("track_progress", track_progress_node)  # 调用 tracker 子智能体
+    subgraph.add_node("query_knowledge", query_knowledge_node)  # MCP query_knowledge
+    subgraph.add_node("check_subagent_timing", check_timing_node)  # 子智能体调用时机硬约束
+    subgraph.add_node("draft_response", draft_response_node)  # 起草响应
     subgraph.add_node("detect_transfer_signals", detect_transfer_node)  # 检测转介信号
 
     # === 子图边 ===
@@ -342,8 +353,10 @@ def assess_emotion_node(state: ConversationState) -> ConversationState:
 
     result = execute_with_reflexion(
         operation=invoke_subagent,
-        initial_input={"subagent_name": "death-aftercare-emotional",
-                       "user_input": state["user_input"]},
+        initial_input={
+            "subagent_name": "death-aftercare-emotional",
+            "user_input": state["user_input"],
+        },
         operation_type="subagent",
     )
 
@@ -357,15 +370,17 @@ def assess_emotion_node(state: ConversationState) -> ConversationState:
     state["subagent_results"].append(subagent_result)
 
     # 记录 trace span
-    state["trace_spans"].append({
-        "span_type": "subagent",
-        "name": "subagent.death-aftercare-emotional",
-        "attributes": {
-            "execution_mode": subagent_result.execution_mode,
-            "reflexion_attempts": result.get("attempts", 1),
-            "fallback_used": result.get("fallback", False),
-        },
-    })
+    state["trace_spans"].append(
+        {
+            "span_type": "subagent",
+            "name": "subagent.death-aftercare-emotional",
+            "attributes": {
+                "execution_mode": subagent_result.execution_mode,
+                "reflexion_attempts": result.get("attempts", 1),
+                "fallback_used": result.get("fallback", False),
+            },
+        }
+    )
 
     # 危机检测 → 触发 safety_override
     if subagent_result.report.get("crisis_detected"):
@@ -383,6 +398,7 @@ def assess_emotion_node(state: ConversationState) -> ConversationState:
 
 ```python
 # orchestration/nodes/rule_check.py（伪代码）
+
 
 def rule_check_node(state: ConversationState) -> ConversationState:
     """L0-L8 规则优先级链校验"""
@@ -409,12 +425,14 @@ def rule_check_node(state: ConversationState) -> ConversationState:
     for rule in rules:
         result = rule.check(state["draft_response"], state)
         if not result.passed:
-            violations.append({
-                "rule": rule.name,
-                "priority": rule.priority,
-                "violation": result.violation,
-                "suggestion": result.suggestion,
-            })
+            violations.append(
+                {
+                    "rule": rule.name,
+                    "priority": rule.priority,
+                    "violation": result.violation,
+                    "suggestion": result.suggestion,
+                }
+            )
             if rule.priority == 0:  # L0 safety
                 safety_triggered = True
                 risk_tier = RiskTier.R3
@@ -431,15 +449,17 @@ def rule_check_node(state: ConversationState) -> ConversationState:
     )
 
     # 记录 trace span
-    state["trace_spans"].append({
-        "span_type": "rule",
-        "name": "rule.check_all",
-        "attributes": {
-            "violations_count": len(violations),
-            "risk_tier": risk_tier.value,
-            "safety_triggered": safety_triggered,
-        },
-    })
+    state["trace_spans"].append(
+        {
+            "span_type": "rule",
+            "name": "rule.check_all",
+            "attributes": {
+                "violations_count": len(violations),
+                "risk_tier": risk_tier.value,
+                "safety_triggered": safety_triggered,
+            },
+        }
+    )
 
     return state
 
@@ -459,6 +479,7 @@ def after_rule_check(state: ConversationState) -> str:
 ```python
 # orchestration/nodes/user_confirm.py（伪代码）
 
+
 def user_confirm_node(state: ConversationState) -> ConversationState:
     """
     转介前暂停，等用户确认。
@@ -468,7 +489,7 @@ def user_confirm_node(state: ConversationState) -> ConversationState:
 
     # 生成转介话术
     prompt = f"""
-    用户输入：{state['user_input']}
+    用户输入：{state["user_input"]}
     转介摘要：{transfer.model_dump()}
 
     按以下要求生成转介话术（tone-framework）：
@@ -526,15 +547,17 @@ def save_user_progress(state: ConversationState):
     与 Temporal-Memory-Graphiti.md 集成。
     """
     graphiti = GraphitiClient()
-    graphiti.add_event({
-        "event_type": "UserProgressEvent",
-        "session_id": state["session_id"],
-        "user_profile": state["user_profile"],
-        "current_agent": state["current_agent"],
-        "completed_items": state.get("completed_items", []),
-        "pending_items": state.get("pending_items", []),
-        "timestamp": datetime.utcnow(),
-    })
+    graphiti.add_event(
+        {
+            "event_type": "UserProgressEvent",
+            "session_id": state["session_id"],
+            "user_profile": state["user_profile"],
+            "current_agent": state["current_agent"],
+            "completed_items": state.get("completed_items", []),
+            "pending_items": state.get("pending_items", []),
+            "timestamp": datetime.utcnow(),
+        }
+    )
 ```
 
 ## 与现有设施的集成点
@@ -554,24 +577,29 @@ def query_knowledge_node(state: ConversationState) -> ConversationState:
     # 若 LightRAG 试点已启用，用 hybrid 模式
     query_mode = "hybrid" if settings.LIGHTRAG_ENABLED else "vector"
 
-    result = mcp.call_tool("query_knowledge", {
-        "country": state["user_profile"]["country"],
-        "region": state["user_profile"].get("region"),
-        "topic": extract_topic(state["user_input"]),
-        "query_mode": query_mode,  # LightRAG-Pilot.md 定义
-    })
+    result = mcp.call_tool(
+        "query_knowledge",
+        {
+            "country": state["user_profile"]["country"],
+            "region": state["user_profile"].get("region"),
+            "topic": extract_topic(state["user_input"]),
+            "query_mode": query_mode,  # LightRAG-Pilot.md 定义
+        },
+    )
 
     state["knowledge_results"] = result["chunks"]
-    state["trace_spans"].append({
-        "span_type": "tool",
-        "name": "tool.query_knowledge",
-        "attributes": {
-            "tool_name": "query_knowledge",
-            "query_mode": query_mode,
-            "results_count": len(result["chunks"]),
-            "sources": [c["source"] for c in result["chunks"]],
-        },
-    })
+    state["trace_spans"].append(
+        {
+            "span_type": "tool",
+            "name": "tool.query_knowledge",
+            "attributes": {
+                "tool_name": "query_knowledge",
+                "query_mode": query_mode,
+                "results_count": len(result["chunks"]),
+                "sources": [c["source"] for c in result["chunks"]],
+            },
+        }
+    )
     return state
 ```
 
@@ -633,6 +661,7 @@ def instrument_graph(graph):
                 for s in result.get("trace_spans", []):
                     emit_span(s)
                 return result
+
         return wrapped
 
     return apply_wrapper(graph, wrapped_node)
@@ -653,16 +682,20 @@ def stream_to_langfuse(graph, stream_mode="values"):
 ```python
 # orchestration/nodes/integrity_check.py（伪代码）
 
+
 def integrity_check_node(state: ConversationState) -> ConversationState:
     """5 关事实复核 + SelfCheckGPT 数字类校验"""
     from tests.automated.SelfCheckGPT import check_numeric_consistency
 
     # 1. check_integrity MCP 工具（5 关）
     mcp = MCPClient()
-    integrity_result = mcp.call_tool("check_integrity", {
-        "output_text": state["draft_response"],
-        "knowledge_results": state["knowledge_results"],
-    })
+    integrity_result = mcp.call_tool(
+        "check_integrity",
+        {
+            "output_text": state["draft_response"],
+            "knowledge_results": state["knowledge_results"],
+        },
+    )
 
     # 2. SelfCheckGPT 数字类一致性校验
     numeric_check = check_numeric_consistency(
@@ -761,6 +794,7 @@ def integrity_check_node(state: ConversationState) -> ConversationState:
 ```python
 # orchestration/test_runner.py（伪代码）
 
+
 def run_golden_cases():
     """跑 tests/automated/cases/ 下的所有 YAML"""
     graph = build_main_graph()
@@ -769,11 +803,14 @@ def run_golden_cases():
         case = load_yaml(case_file)
 
         # 用 case 的 user_input 跑 graph
-        result = graph.invoke({
-            "user_input": case["user_input"],
-            "user_profile": case.get("context", {}),
-            "session_id": f"test-{case['case_id']}",
-        }, config={"configurable": {"thread_id": f"test-{case['case_id']}"}})
+        result = graph.invoke(
+            {
+                "user_input": case["user_input"],
+                "user_profile": case.get("context", {}),
+                "session_id": f"test-{case['case_id']}",
+            },
+            config={"configurable": {"thread_id": f"test-{case['case_id']}"}},
+        )
 
         # 三层判定
         evaluate_response(result["final_response"], case)

@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.mcp_server import gateway as gw_module
 from deadman.mcp_server.gateway import ToolGateway
 

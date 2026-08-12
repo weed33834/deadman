@@ -54,31 +54,33 @@ from enum import Enum
 
 class DebateState(str, Enum):
     INITIATED = "initiated"
-    OPENING = "opening"            # 各方陈述
-    REBUTTAL = "rebuttal"          # 交叉质询
-    CLOSING = "closing"            # 总结陈词
-    VOTING = "voting"              # 投票
-    ARBITRATION = "arbitration"    # 仲裁（若投票不分胜负）
-    CONCLUDED = "concluded"        # 结束
+    OPENING = "opening"  # 各方陈述
+    REBUTTAL = "rebuttal"  # 交叉质询
+    CLOSING = "closing"  # 总结陈词
+    VOTING = "voting"  # 投票
+    ARBITRATION = "arbitration"  # 仲裁（若投票不分胜负）
+    CONCLUDED = "concluded"  # 结束
 
 
 @dataclass
 class DebatePosition:
     """辩论立场"""
+
     agent_id: str
-    position: str              # 该 agent 的主张
+    position: str  # 该 agent 的主张
     supporting_evidence: list[dict]  # 支持证据
     # [{"type": "statute", "content": "民法典第1123条", "source": "..."}]
-    confidence: float          # 0.0-1.0
+    confidence: float  # 0.0-1.0
     jurisdiction_basis: Optional[str]  # 法律依据/政策依据
 
 
 @dataclass
 class Debate:
     """辩论会话"""
+
     debate_id: str
-    topic: str                 # 辩论主题
-    participants: list[str]    # 参与辩论的 agent_id 列表
+    topic: str  # 辩论主题
+    participants: list[str]  # 参与辩论的 agent_id 列表
     positions: list[DebatePosition]  # 各方立场
     rounds: list[dict] = field(default_factory=list)  # 辩论轮次
     votes: dict[str, str] = field(default_factory=dict)  # {voter_id: voted_for_agent}
@@ -103,8 +105,8 @@ class DebateEngine:
         conflict_check = call_llm(f"""
         判断以下多个回答是否存在实质冲突：
 
-        回答 1（{responses[0]['agent']}）：{responses[0]['response']}
-        回答 2（{responses[1]['agent']}）：{responses[1]['response']}
+        回答 1（{responses[0]["agent"]}）：{responses[0]["response"]}
+        回答 2（{responses[1]["agent"]}）：{responses[1]["response"]}
         ...
 
         实质冲突 = 对同一问题给出不同结论（不只是表述差异）。
@@ -112,8 +114,9 @@ class DebateEngine:
         """)
         return conflict_check["conflict"]
 
-    async def initiate_debate(self, topic: str, participants: list[str],
-                              initial_responses: list[dict]) -> Debate:
+    async def initiate_debate(
+        self, topic: str, participants: list[str], initial_responses: list[dict]
+    ) -> Debate:
         """发起辩论"""
         debate = Debate(
             debate_id=str(uuid4()),
@@ -172,19 +175,22 @@ class DebateEngine:
                 - 不确定的部分必须标注置信度
                 """,
             )
-            debate.rounds.append({
-                "round": 1,
-                "agent": position.agent_id,
-                "type": "opening",
-                "statement": statement,
-            })
+            debate.rounds.append(
+                {
+                    "round": 1,
+                    "agent": position.agent_id,
+                    "type": "opening",
+                    "statement": statement,
+                }
+            )
 
     async def _rebuttal_round(self, debate: Debate):
         """Round 2：交叉质询"""
         for position in debate.positions:
             # 把其他 agent 的 opening 给这个 agent，让它反驳
-            others_opening = [r for r in debate.rounds
-                              if r["round"] == 1 and r["agent"] != position.agent_id]
+            others_opening = [
+                r for r in debate.rounds if r["round"] == 1 and r["agent"] != position.agent_id
+            ]
 
             rebuttal = await self._agent_speak(
                 agent_id=position.agent_id,
@@ -202,12 +208,14 @@ class DebateEngine:
                 4. 不得编造证据
                 """,
             )
-            debate.rounds.append({
-                "round": 2,
-                "agent": position.agent_id,
-                "type": "rebuttal",
-                "statement": rebuttal,
-            })
+            debate.rounds.append(
+                {
+                    "round": 2,
+                    "agent": position.agent_id,
+                    "type": "rebuttal",
+                    "statement": rebuttal,
+                }
+            )
 
     async def _closing_round(self, debate: Debate):
         """Round 3：总结陈词"""
@@ -236,12 +244,14 @@ class DebateEngine:
             parsed = parse_json(closing)
             position.position = parsed["final_position"]
             position.confidence = parsed["confidence"]
-            debate.rounds.append({
-                "round": 3,
-                "agent": position.agent_id,
-                "type": "closing",
-                "statement": closing,
-            })
+            debate.rounds.append(
+                {
+                    "round": 3,
+                    "agent": position.agent_id,
+                    "type": "closing",
+                    "statement": closing,
+                }
+            )
 
     async def _voting(self, debate: Debate):
         """投票"""
@@ -333,8 +343,10 @@ class DebateEngine:
 ```python
 # agents/voting_strategies.py（伪代码）
 
+
 class VotingStrategy:
     """投票策略基类"""
+
     def vote(self, positions: list[DebatePosition], voters: list[str]) -> dict:
         raise NotImplementedError
 
@@ -357,13 +369,13 @@ class WeightedVote(VotingStrategy):
     """加权投票 - 不同 voter 权重不同"""
 
     VOTER_WEIGHTS = {
-        "legal-advisor": 1.2,        # 法律问题权重高
+        "legal-advisor": 1.2,  # 法律问题权重高
         "cross-border-specialist": 1.2,  # 跨境问题权重高
         "financial-analyst": 1.0,
-        "policy-researcher": 1.1,    # 政策问题权重略高
-        "death-aftercare": 0.9,      # 通用 agent 权重略低
+        "policy-researcher": 1.1,  # 政策问题权重略高
+        "death-aftercare": 0.9,  # 通用 agent 权重略低
         "medical-guide": 0.9,
-        "debate-arbiter": 1.5,       # 仲裁者权重最高
+        "debate-arbiter": 1.5,  # 仲裁者权重最高
     }
 
     def vote(self, positions, voters):
@@ -408,17 +420,26 @@ class ConsensusVote(VotingStrategy):
         max_votes = max(votes.values())
         if max_votes / total >= self.THRESHOLD:
             winner = max(votes, key=votes.get)
-            return {"winner": winner, "votes": votes, "strategy": "consensus",
-                    "consensus_reached": True}
+            return {
+                "winner": winner,
+                "votes": votes,
+                "strategy": "consensus",
+                "consensus_reached": True,
+            }
         else:
-            return {"votes": votes, "strategy": "consensus",
-                    "consensus_reached": False, "needs_arbitration": True}
+            return {
+                "votes": votes,
+                "strategy": "consensus",
+                "consensus_reached": False,
+                "needs_arbitration": True,
+            }
 ```
 
 ## 与现有架构的集成
 
 ```python
 # agents/debate_integration.py
+
 
 class DebateTrigger:
     """检测何时触发辩论"""
@@ -467,6 +488,7 @@ class DebateArbiter:
 
 ```python
 # agents/debate_observability.py
+
 
 def trace_debate(debate: Debate):
     """把辩论过程记录为 OTel trace"""

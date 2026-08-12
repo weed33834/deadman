@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
 from deadman.memory.episodic import Episode, EpisodicMemory
 
 

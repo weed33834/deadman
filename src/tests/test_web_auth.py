@@ -19,6 +19,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+
 from deadman.auth.jwt import JWTManager
 from deadman.auth.store import UserStore
 from deadman.web.server import WebServer

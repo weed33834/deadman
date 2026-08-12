@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import asyncio
 
-import deadman.security.redteam as redteam_module
 import pytest
+
+import deadman.security.redteam as redteam_module
 from deadman.security.redteam import (
     REDTEAM_PAYLOAD_VAULT,
     RedteamPayload,

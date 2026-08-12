@@ -33,6 +33,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.cron.tasks.knowledge_freshness import (
     DriftItem,
     FreshnessReport,

@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 
 import pytest
+
 from deadman.orchestration.state import create_initial_state
 from deadman.orchestration.termination import (
     ExternalTermination,

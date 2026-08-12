@@ -128,40 +128,65 @@ AGENT_CARDS = {
     "death-aftercare": {
         "agent_id": "deadman-death-aftercare",
         "name": "身后事流程引导员",
-        "capabilities": ["death-certificate-guidance", "estate-inheritance-overview",
-                        "psychological-crisis-response", "digital-account-succession",
-                        "household-cancellation", "funeral-service-guidance"]
+        "capabilities": [
+            "death-certificate-guidance",
+            "estate-inheritance-overview",
+            "psychological-crisis-response",
+            "digital-account-succession",
+            "household-cancellation",
+            "funeral-service-guidance",
+        ],
     },
     "legal-advisor": {
         "agent_id": "deadman-legal-advisor",
         "name": "法律顾问（不出法律意见）",
-        "capabilities": ["inheritance-dispute-assessment", "lawyer-referral",
-                        "legal-framework-explanation", "statute-of-limitations-check"]
+        "capabilities": [
+            "inheritance-dispute-assessment",
+            "lawyer-referral",
+            "legal-framework-explanation",
+            "statute-of-limitations-check",
+        ],
     },
     "financial-analyst": {
         "agent_id": "deadman-financial-analyst",
         "name": "财务分析师",
-        "capabilities": ["estate-asset-inventory", "tax-obligation-assessment",
-                        "insurance-claim-guidance", "debt-settlement-framework"]
+        "capabilities": [
+            "estate-asset-inventory",
+            "tax-obligation-assessment",
+            "insurance-claim-guidance",
+            "debt-settlement-framework",
+        ],
     },
     "policy-researcher": {
         "agent_id": "deadman-policy-researcher",
         "name": "政策研究员",
-        "capabilities": ["policy-search", "policy-verification",
-                        "cross-jurisdiction-comparison", "policy-change-tracking"]
+        "capabilities": [
+            "policy-search",
+            "policy-verification",
+            "cross-jurisdiction-comparison",
+            "policy-change-tracking",
+        ],
     },
     "cross-border-specialist": {
         "agent_id": "deadman-cross-border-specialist",
         "name": "跨境专家",
-        "capabilities": ["consular-authentication-guidance", "body-repatriation-framework",
-                        "legal-conflict-identification", "multi-jurisdiction-coordination"]
+        "capabilities": [
+            "consular-authentication-guidance",
+            "body-repatriation-framework",
+            "legal-conflict-identification",
+            "multi-jurisdiction-coordination",
+        ],
     },
     "medical-guide": {
         "agent_id": "deadman-medical-guide",
         "name": "医疗导航员",
-        "capabilities": ["medical-insurance-guidance", "hospital-information",
-                        "cross-region-medical-care", "medical-dispute-referral"]
-    }
+        "capabilities": [
+            "medical-insurance-guidance",
+            "hospital-information",
+            "cross-region-medical-care",
+            "medical-dispute-referral",
+        ],
+    },
 }
 ```
 
@@ -177,30 +202,31 @@ from typing import Optional, Any
 
 
 class TaskState(str, Enum):
-    SUBMITTED = "submitted"        # 已提交
-    RECEIVED = "received"          # 已接收
-    IN_PROGRESS = "in_progress"    # 处理中
+    SUBMITTED = "submitted"  # 已提交
+    RECEIVED = "received"  # 已接收
+    IN_PROGRESS = "in_progress"  # 处理中
     AWAITING_INPUT = "awaiting_input"  # 等待补充信息
-    COMPLETED = "completed"        # 已完成
-    FAILED = "failed"              # 失败
-    REJECTED = "rejected"          # 拒绝（能力不匹配）
+    COMPLETED = "completed"  # 已完成
+    FAILED = "failed"  # 失败
+    REJECTED = "rejected"  # 拒绝（能力不匹配）
 
 
 @dataclass
 class A2ATask:
     """A2A 任务"""
+
     task_id: str
-    from_agent_id: str       # 调用方
-    to_agent_id: str         # 被调用方
-    capability_id: str       # 调用的能力
-    input_data: dict         # 输入参数
+    from_agent_id: str  # 调用方
+    to_agent_id: str  # 被调用方
+    capability_id: str  # 调用的能力
+    input_data: dict  # 输入参数
     state: TaskState
     created_at: datetime
     updated_at: datetime
     result: Optional[dict] = None
     error: Optional[str] = None
     integrity_report: Optional[dict] = None  # 诚信报告
-    trace_span_id: Optional[str] = None      # OTel span
+    trace_span_id: Optional[str] = None  # OTel span
 
 
 class A2AServer:
@@ -209,22 +235,13 @@ class A2AServer:
     def receive_task(self, task_request: dict) -> A2ATask:
         """接收外部 agent 的任务"""
         # 1. 验证调用方凭证
-        if not self._authenticate(task_request["from_agent_id"],
-                                   task_request["auth_token"]):
-            return A2ATask(
-                ...,
-                state=TaskState.REJECTED,
-                error="authentication_failed"
-            )
+        if not self._authenticate(task_request["from_agent_id"], task_request["auth_token"]):
+            return A2ATask(..., state=TaskState.REJECTED, error="authentication_failed")
 
         # 2. 能力匹配
         agent_card = self._get_agent_card(task_request["to_agent_id"])
         if task_request["capability_id"] not in agent_card.capabilities:
-            return A2ATask(
-                ...,
-                state=TaskState.REJECTED,
-                error="capability_not_supported"
-            )
+            return A2ATask(..., state=TaskState.REJECTED, error="capability_not_supported")
 
         # 3. 创建任务
         task = A2ATask(
@@ -292,8 +309,7 @@ class A2AServer:
 class A2AClient:
     """A2A 客户端 - 调用外部 agent"""
 
-    async def call_agent(self, to_agent_id: str, capability_id: str,
-                         input_data: dict) -> dict:
+    async def call_agent(self, to_agent_id: str, capability_id: str, input_data: dict) -> dict:
         """调用外部 agent"""
         # 1. 发现 agent endpoint
         endpoint = await self._discover_agent(to_agent_id)
@@ -322,6 +338,7 @@ class A2AClient:
 ```python
 # a2a/discovery.py（伪代码）
 
+
 class AgentDiscovery:
     """Agent 发现服务 - 类似服务注册中心"""
 
@@ -336,10 +353,7 @@ class AgentDiscovery:
         agents = await http_get(f"{self.REGISTRY_URL}/agents", params=params)
 
         # 按信誉、能力匹配度排序
-        return sorted(agents, key=lambda a: (
-            -a["reputation_score"],
-            -a["capability_match_score"]
-        ))
+        return sorted(agents, key=lambda a: (-a["reputation_score"], -a["capability_match_score"]))
 
     async def register_self(self, agent_card: dict):
         """注册自己的 agent 到发现服务"""
@@ -347,8 +361,7 @@ class AgentDiscovery:
 
     async def update_capability(self, agent_id: str, capabilities: list[str]):
         """更新能力声明"""
-        await http_put(f"{self.REGISTRY_URL}/agents/{agent_id}",
-                       {"capabilities": capabilities})
+        await http_put(f"{self.REGISTRY_URL}/agents/{agent_id}", {"capabilities": capabilities})
 ```
 
 ## 转介机制的 A2A 映射
@@ -363,6 +376,7 @@ class AgentDiscovery:
 
 A2A 让外部转介成为可能。
 """
+
 
 class HybridTransferManager:
     """混合转介管理 - 内部 + 外部"""
@@ -388,20 +402,21 @@ class HybridTransferManager:
         # 1. 发现外部 agent
         discovery = AgentDiscovery()
         external_agents = await discovery.discover_agents(
-            capability=summary["capability_needed"],
-            jurisdiction=summary["jurisdiction"]
+            capability=summary["capability_needed"], jurisdiction=summary["jurisdiction"]
         )
 
         if not external_agents:
             return {
                 "transfer_type": "failed",
                 "error": "no_external_agent_available",
-                "fallback": "建议用户自行咨询当地专业人士"
+                "fallback": "建议用户自行咨询当地专业人士",
             }
 
         # 2. 让用户选择
-        options = [{"agent_id": a["agent_id"], "name": a["name"],
-                    "description": a["description"]} for a in external_agents[:3]]
+        options = [
+            {"agent_id": a["agent_id"], "name": a["name"], "description": a["description"]}
+            for a in external_agents[:3]
+        ]
 
         return {
             "transfer_type": "external_a2a",
@@ -432,7 +447,7 @@ class HybridTransferManager:
             return {
                 "warning": "external_agent_integrity_unverified",
                 "result": result,
-                "recommendation": "建议交叉验证外部 agent 的回答"
+                "recommendation": "建议交叉验证外部 agent 的回答",
             }
 
         return result
@@ -442,6 +457,7 @@ class HybridTransferManager:
 
 ```python
 # a2a/security.py
+
 
 class A2ASecurityManager:
     """A2A 安全管理"""

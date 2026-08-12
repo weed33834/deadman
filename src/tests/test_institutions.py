@@ -21,6 +21,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from deadman.institutions.store import (
     Institution,
     InstitutionStore,

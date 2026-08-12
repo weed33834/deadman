@@ -61,29 +61,38 @@ financial-analyst:  "死亡证明" → 保险理赔
 # 顶层类层级
 class Thing:
     """所有实体的基类"""
+
     pass
+
 
 class Entity(Thing):
     """实体 - 有持久存在的对象"""
+
     properties: list[str]  # 属性
     labels: dict[str, str]  # 多语言标签 {zh: "...", en: "...", ja: "..."}
 
+
 class Event(Thing):
     """事件 - 有时间发生的动作"""
+
     start_time: datetime
     end_time: Optional[datetime]
     location: Optional[Location]
     participants: list[Entity]
 
+
 class Relation(Thing):
     """关系 - 实体之间的连接"""
+
     source: Entity
     target: Entity
     relation_type: str
     valid_time: TimeRange  # 与 Graphiti 集成
 
+
 class Property(Thing):
     """属性 - 实体的特征"""
+
     property_type: str  # datatype property
     value: Any
     unit: Optional[str]
@@ -98,11 +107,8 @@ class Property(Thing):
 ```python
 class Person(Entity):
     """自然人 - 所有域的核心主体"""
-    labels = {
-        "zh": "人",
-        "en": "Person",
-        "ja": "人物"
-    }
+
+    labels = {"zh": "人", "en": "Person", "ja": "人物"}
 
     # 必填属性
     identifier: str  # 身份证号/护照号（脱敏存储）
@@ -126,7 +132,7 @@ class Person(Entity):
 
     # 角色标签（决定哪个智能体负责）
     roles: list[str]  # deceased / bereaved / heir / creditor / debtor /
-                      # patient / guardian / agent / minor / elderly
+    # patient / guardian / agent / minor / elderly
 ```
 
 ### 2. Organization（组织/机构）
@@ -134,16 +140,13 @@ class Person(Entity):
 ```python
 class Organization(Entity):
     """组织机构"""
-    labels = {
-        "zh": "机构",
-        "en": "Organization",
-        "ja": "機関"
-    }
+
+    labels = {"zh": "机构", "en": "Organization", "ja": "機関"}
 
     # 必填
     name: str
     org_type: str  # government / hospital / bank / insurance /
-                   # notary / court / funeral_home / embassy / consulate
+    # notary / court / funeral_home / embassy / consulate
     jurisdiction: Location
 
     # 可选
@@ -159,11 +162,8 @@ class Organization(Entity):
 ```python
 class Document(Entity):
     """文件/证件"""
-    labels = {
-        "zh": "文件",
-        "en": "Document",
-        "ja": "書類"
-    }
+
+    labels = {"zh": "文件", "en": "Document", "ja": "書類"}
 
     # 必填
     doc_type: str  # 见下方文档类型表
@@ -182,7 +182,7 @@ class Document(Entity):
         "death_certificate": {
             "zh": ["死亡证明", "死亡证书", "死亡医学证明书"],
             "en": ["Death Certificate", "Certificate of Death"],
-            "ja": ["死亡診断書", "死体検案書"]
+            "ja": ["死亡診断書", "死体検案書"],
         }
     }
 ```
@@ -192,6 +192,7 @@ class Document(Entity):
 ```python
 class Location(Entity):
     """地点 - 支持多级管辖"""
+
     labels = {"zh": "地点", "en": "Location", "ja": "場所"}
 
     # 层级
@@ -214,12 +215,15 @@ class Location(Entity):
 ```python
 class TimeRange:
     """时间区间 - 与 Graphiti bi-temporal model 集成"""
+
     valid_from: datetime  # 事实有效时间开始
     valid_to: Optional[datetime]  # 事实有效时间结束（None=至今有效）
     transaction_time: datetime  # 记录时间
 
+
 class TimeLimit(Entity):
     """时限"""
+
     labels = {"zh": "时限", "en": "Time Limit", "ja": "期限"}
 
     duration_days: Optional[int]
@@ -235,6 +239,7 @@ class TimeLimit(Entity):
 ```python
 class Money(Entity):
     """金额"""
+
     amount: float
     currency: str  # CNY/USD/JPY/...
     amount_in_cny: Optional[float]  # 跨境时换算
@@ -248,6 +253,7 @@ class Money(Entity):
 ```python
 class Role(Entity):
     """角色 - 人在特定场景中的身份"""
+
     labels = {"zh": "角色", "en": "Role", "ja": "役割"}
 
     role_type: str
@@ -476,9 +482,8 @@ class LegalDomain:
                 "has_will": bool,
                 "will_validity": Optional[str],  # valid/disputed/invalid
                 "risk_level": str,  # R0-R3
-            }
+            },
         },
-
         "Will": {
             "aliases": ["遗嘱", "Will", "遺言"],
             "properties": {
@@ -488,9 +493,8 @@ class LegalDomain:
                 "witnesses": list[Person],
                 "notarized": bool,
                 "validity_requirements": list[str],
-            }
+            },
         },
-
         "LegalProcedure": {
             "labels": {"zh": "法律程序", "en": "Legal Procedure"},
             "properties": {
@@ -498,9 +502,8 @@ class LegalDomain:
                 "court": Optional[Organization],
                 "statute_of_limitations": TimeLimit,
                 "filing_fee": Money,
-            }
+            },
         },
-
         "Statute": {
             "aliases": ["法条", "法规", "Statute", "Law"],
             "properties": {
@@ -510,9 +513,8 @@ class LegalDomain:
                 "effective_date": Date,
                 "superseded_by": Optional["Statute"],  # 与 Graphiti 集成
                 "source_text": str,  # 原文
-            }
+            },
         },
-
         "DebtObligation": {
             "aliases": ["债务", "Debt", "債務"],
             "properties": {
@@ -522,8 +524,8 @@ class LegalDomain:
                 "debt_type": str,  # mortgage/credit_card/loan/...
                 "secured": bool,
                 "inherited_by_estate": bool,  # 是否由遗产清偿
-            }
-        }
+            },
+        },
     }
 
     relations = {
@@ -551,9 +553,8 @@ class FinancialDomain:
                 "balance": Money,
                 "joint_owners": list[Person],
                 "inheritance_process": str,
-            }
+            },
         },
-
         "RealEstate": {
             "aliases": ["房产", "不动产", "Real Estate", "不動産"],
             "properties": {
@@ -563,9 +564,8 @@ class FinancialDomain:
                 "market_value": Money,
                 "mortgage": Optional[DebtObligation],
                 "title_deed": Document,
-            }
+            },
         },
-
         "StockPortfolio": {
             "labels": {"zh": "股票", "en": "Stock"},
             "properties": {
@@ -573,9 +573,8 @@ class FinancialDomain:
                 "account_number": str,
                 "holdings": list[dict],  # [{symbol, shares, value}]
                 "total_value": Money,
-            }
+            },
         },
-
         "TaxObligation": {
             "aliases": ["税务", "Tax", "税務"],
             "properties": {
@@ -585,9 +584,8 @@ class FinancialDomain:
                 "exemption_threshold": Money,
                 "filing_deadline": TimeLimit,
                 "filing_authority": Organization,
-            }
+            },
         },
-
         "InsurancePolicy": {
             "labels": {"zh": "保险", "en": "Insurance Policy"},
             "properties": {
@@ -597,8 +595,8 @@ class FinancialDomain:
                 "beneficiary": Person,
                 "sum_assured": Money,
                 "claim_time_limit": TimeLimit,
-            }
-        }
+            },
+        },
     }
 
     relations = {
@@ -624,9 +622,8 @@ class CrossBorderDomain:
                 "deceased_domicile": Location,  # 常住地
                 "intended_burial_location": Location,  # 拟安葬地
                 "involves_consular": bool,
-            }
+            },
         },
-
         "BodyRepatriation": {
             "aliases": ["遗体运输", "遗体回国", "Body Repatriation"],
             "properties": {
@@ -636,9 +633,8 @@ class CrossBorderDomain:
                 "required_documents": list[Document],
                 "estimated_cost": Money,
                 "duration": TimeLimit,
-            }
+            },
         },
-
         "ConsularAuthentication": {
             "aliases": ["领事认证", "海牙认证", "Apostille", "Consular Authentication"],
             "properties": {
@@ -648,9 +644,8 @@ class CrossBorderDomain:
                 "documents_to_authenticate": list[Document],
                 "processing_time": TimeLimit,
                 "fee": Money,
-            }
+            },
         },
-
         "LegalConflict": {
             "labels": {"zh": "法律冲突", "en": "Legal Conflict"},
             "properties": {
@@ -658,9 +653,8 @@ class CrossBorderDomain:
                 "jurisdictions_involved": list[Location],
                 "applicable_law": Optional[Statute],  # 冲突法指向
                 "forum_options": list[Organization],  # 可起诉地
-            }
+            },
         },
-
         "ForeignDeathCertificate": {
             "aliases": ["国外死亡证明", "Foreign Death Certificate"],
             "properties": {
@@ -669,12 +663,15 @@ class CrossBorderDomain:
                 "needs_notarization": bool,
                 "needs_apostille": bool,
                 "chinese_equivalent": Document,
-            }
-        }
+            },
+        },
     }
 
     relations = {
-        "requires_authentication": {"domain": "ForeignDeathCertificate", "range": "ConsularAuthentication"},
+        "requires_authentication": {
+            "domain": "ForeignDeathCertificate",
+            "range": "ConsularAuthentication",
+        },
         "governed_by_conflict_rules": {"domain": "CrossBorderDeath", "range": "LegalConflict"},
         "transported_via": {"domain": "CrossBorderDeath", "range": "BodyRepatriation"},
     }
@@ -700,9 +697,8 @@ class PolicyDomain:
                 "source_url": str,
                 "source_verified": bool,  # 源验证
                 "verification_date": Date,
-            }
+            },
         },
-
         "PolicyChange": {
             "labels": {"zh": "政策变更", "en": "Policy Change"},
             "properties": {
@@ -711,9 +707,8 @@ class PolicyDomain:
                 "change_date": Date,
                 "change_type": str,  # amendment/repeal/replacement/new
                 "affected_procedures": list[str],
-            }
+            },
         },
-
         "OfficialSource": {
             "labels": {"zh": "官方来源", "en": "Official Source"},
             "properties": {
@@ -721,8 +716,8 @@ class PolicyDomain:
                 "url": str,
                 "last_verified": Date,
                 "trust_level": str,  # high/medium/low
-            }
-        }
+            },
+        },
     }
 
     relations = {
@@ -744,25 +739,20 @@ CROSS_DOMAIN_RELATIONS = {
     "triggers_insurance_claim": {"domain": "DeathEvent", "range": "InsurancePolicy"},
     "triggers_tax_filing": {"domain": "DeathEvent", "range": "TaxObligation"},
     "triggers_account_cancellation": {"domain": "DeathEvent", "range": "DigitalAccount"},
-
     # 文档 → 多域
     "required_for_inheritance": {"domain": "DeathCertificate", "range": "LegalProcedure"},
     "required_for_insurance": {"domain": "DeathCertificate", "range": "InsurancePolicy"},
     "required_for_repatriation": {"domain": "DeathCertificate", "range": "BodyRepatriation"},
     "required_for_tax": {"domain": "DeathCertificate", "range": "TaxObligation"},
-
     # 跨境 → 多域
     "needs_legal_review": {"domain": "CrossBorderDeath", "range": "InheritanceDispute"},
     "needs_financial_review": {"domain": "CrossBorderDeath", "range": "EstateAsset"},
-
     # 政策 → 多域
     "governs_procedure": {"domain": "Policy", "range": "AftercareStage"},
     "governs_inheritance": {"domain": "Policy", "range": "InheritanceDispute"},
     "governs_medical": {"domain": "Policy", "range": "MedicalEncounter"},
-
     # 医疗 → 法律（医疗纠纷转介）
     "may_lead_to_dispute": {"domain": "MedicalEncounter", "range": "MedicalDispute"},
-
     # 人 → 多域
     "has_role_in": {"domain": "Person", "range": "Event"},
 }
@@ -783,7 +773,6 @@ ENTITY_TYPE_MAPPING = {
     "TimeLimit": "TimeLimit",
     "Money": "Money",
     "Role": "Role",
-
     # 身后事域
     "DeathEvent": "DeathEvent",
     "DeathCertificate": "DeathCertificate",
@@ -793,34 +782,29 @@ ENTITY_TYPE_MAPPING = {
     "EstateAsset": "EstateAsset",
     "FuneralService": "Service",
     "AftercareStage": "Stage",
-
     # 医疗域
     "MedicalEncounter": "Encounter",
     "MedicalInsurance": "Insurance",
     "MedicalRecord": "Document",
     "MedicalDispute": "Dispute",
-
     # 法律域
     "InheritanceDispute": "Dispute",
     "Will": "Document",
     "LegalProcedure": "Procedure",
     "Statute": "Regulation",
     "DebtObligation": "Obligation",
-
     # 财务域
     "BankAccount": "Account",
     "RealEstate": "Asset",
     "StockPortfolio": "Asset",
     "TaxObligation": "Obligation",
     "InsurancePolicy": "Policy",
-
     # 跨境域
     "CrossBorderDeath": "Event",
     "BodyRepatriation": "Procedure",
     "ConsularAuthentication": "Procedure",
     "LegalConflict": "Dispute",
     "ForeignDeathCertificate": "Document",
-
     # 政策域
     "Policy": "Regulation",
     "PolicyChange": "Event",
@@ -889,19 +873,17 @@ def extract_entities_with_ontology(text, jurisdiction):
 
 # 本体类型 → Graphiti 时态对象类型
 TEMPORAL_OBJECT_MAPPING = {
-    "Policy": "PolicyFact",       # 政策有时效
-    "Statute": "PolicyFact",      # 法条有时效
-    "TimeLimit": "PolicyFact",    # 时限随政策变
-    "Procedure": "PolicyFact",    # 流程随政策变
+    "Policy": "PolicyFact",  # 政策有时效
+    "Statute": "PolicyFact",  # 法条有时效
+    "TimeLimit": "PolicyFact",  # 时限随政策变
+    "Procedure": "PolicyFact",  # 流程随政策变
     "InsurancePolicy": "PolicyFact",
     "TaxObligation": "PolicyFact",
-
     # 以下作为 UserProgressEvent 记录
     "DeathEvent": "UserProgressEvent",
     "InheritanceDispute": "UserProgressEvent",
     "MedicalEncounter": "UserProgressEvent",
     "CrossBorderDeath": "UserProgressEvent",
-
     # 以下作为 KnowledgeVersion 记录
     "Document": "KnowledgeVersion",
     "Organization": "KnowledgeVersion",
@@ -930,20 +912,24 @@ def to_graphiti_node(entity, ontology_type):
 ```python
 # ontology/mcp_integration.py
 
+
 def query_with_ontology(query, jurisdiction, entity_types=None, relation_types=None):
     """
     MCP query_knowledge 用本体词汇表精确查询。
     与 LightRAG-Pilot.md 的 query_mode 参数集成。
     """
-    return mcp.call_tool("query_knowledge", {
-        "query": query,
-        "country": jurisdiction.country,
-        "region": jurisdiction.region,
-        "query_mode": "hybrid",
-        "entity_types": entity_types or [],  # 用本体过滤
-        "relation_types": relation_types or [],
-        "ontology_version": "v1.0",
-    })
+    return mcp.call_tool(
+        "query_knowledge",
+        {
+            "query": query,
+            "country": jurisdiction.country,
+            "region": jurisdiction.region,
+            "query_mode": "hybrid",
+            "entity_types": entity_types or [],  # 用本体过滤
+            "relation_types": relation_types or [],
+            "ontology_version": "v1.0",
+        },
+    )
 ```
 
 ## 本体版本管理
@@ -954,16 +940,19 @@ def query_with_ontology(query, jurisdiction, entity_types=None, relation_types=N
 ONTOLOGY_VERSION = "v1.0"
 ONTOLOGY_RELEASE_DATE = "2026-07"
 
+
 # 本体变更也要记录到 Graphiti
 def register_ontology_change(old_version, new_version, changes):
-    graphiti.add_event({
-        "event_type": "KnowledgeVersion",
-        "entity_type": "Ontology",
-        "old_version": old_version,
-        "new_version": new_version,
-        "changes": changes,  # 新增/修改/废弃的实体类型
-        "transaction_time": datetime.utcnow(),
-    })
+    graphiti.add_event(
+        {
+            "event_type": "KnowledgeVersion",
+            "entity_type": "Ontology",
+            "old_version": old_version,
+            "new_version": new_version,
+            "changes": changes,  # 新增/修改/废弃的实体类型
+            "transaction_time": datetime.utcnow(),
+        }
+    )
 ```
 
 ## 多语言标签表（核心同义词归一）

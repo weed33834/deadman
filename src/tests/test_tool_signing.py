@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import pytest
+
 from deadman.mcp_server import signing as signing_module
 from deadman.mcp_server.signing import (
     REGISTERED_MANIFESTS,

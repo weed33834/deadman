@@ -266,9 +266,7 @@ class EndingNoteStore:
                 )
                 # target 维度删除：别人共享给我的
                 await session.execute(
-                    delete(EndingNoteIncoming).where(
-                        EndingNoteIncoming.target_user_id == user_id
-                    )
+                    delete(EndingNoteIncoming).where(EndingNoteIncoming.target_user_id == user_id)
                 )
                 await session.execute(
                     delete(EndingNotePendingDelivery).where(
@@ -329,9 +327,7 @@ class EndingNoteStore:
 
         await best_effort_db_write(_op, "同步 ending note share 到 DB", logger)
 
-    async def _delete_share_from_db(
-        self, owner_user_id: str, target_user_id: str
-    ) -> None:
+    async def _delete_share_from_db(self, owner_user_id: str, target_user_id: str) -> None:
         """从 DB 删除 EndingNoteShare + EndingNoteIncoming（best-effort）。"""
 
         async def _op() -> None:
@@ -343,9 +339,7 @@ class EndingNoteStore:
             share_id = f"{owner_user_id}:{target_user_id}"
             incoming_id = f"{target_user_id}:{owner_user_id}"
             async with get_async_session_factory()() as session:
-                await session.execute(
-                    delete(EndingNoteShare).where(EndingNoteShare.id == share_id)
-                )
+                await session.execute(delete(EndingNoteShare).where(EndingNoteShare.id == share_id))
                 await session.execute(
                     delete(EndingNoteIncoming).where(EndingNoteIncoming.id == incoming_id)
                 )

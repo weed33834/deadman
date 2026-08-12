@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import deadman.orchestration.handoff as handoff_module
 import pytest
+
+import deadman.orchestration.handoff as handoff_module
 from deadman.orchestration.handoff import (
     HANDOFF_FALLBACK_TRUNCATE,
     HandoffContext,

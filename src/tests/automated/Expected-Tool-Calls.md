@@ -221,16 +221,16 @@ def evaluate_tool_calls(expected_calls, actual_calls):
     order_ok = order_match(expected_calls, actual_calls)
     unnecessary = unnecessary_calls(expected_calls, actual_calls)
     result_match_rate = result_match(expected_calls, actual_calls)
-    
+
     # 综合判定
     passed = (
         selection_acc == 1.0  # 所有必须工具都调用
-        and arg_acc >= 0.8    # 参数 80% 正确
-        and order_ok          # 顺序正确
+        and arg_acc >= 0.8  # 参数 80% 正确
+        and order_ok  # 顺序正确
         and unnecessary.get("unnecessary_count", 0) <= 1  # 至多 1 个冗余调用
         and "violations" not in unnecessary  # 没有调用禁止工具
     )
-    
+
     return {
         "passed": passed,
         "metrics": {
@@ -238,8 +238,8 @@ def evaluate_tool_calls(expected_calls, actual_calls):
             "argument_accuracy": arg_acc,
             "order_match": order_ok,
             "unnecessary_calls": unnecessary.get("unnecessary_count", 0),
-            "result_match_rate": result_match_rate
-        }
+            "result_match_rate": result_match_rate,
+        },
     }
 ```
 
@@ -252,13 +252,13 @@ def extract_tool_calls_from_trace(trace_id):
     """从 trace 中提取所有 tool span"""
     spans = load_trace(trace_id)
     tool_spans = [s for s in spans if s["span_type"] == "tool"]
-    
+
     return [
         {
             "tool": s["attributes"]["tool_name"],
             "args": s["attributes"].get("args_summary", {}),
             "result": s["attributes"].get("result_summary", {}),
-            "timestamp": s["start_time"]
+            "timestamp": s["start_time"],
         }
         for s in sorted(tool_spans, key=lambda x: x["start_time"])
     ]

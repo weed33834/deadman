@@ -33,6 +33,7 @@ from deadman.db.session import get_db_session
 # Fixtures
 # =====================================================================
 
+
 @pytest.fixture
 async def sqlite_db(monkeypatch):
     """配置 SQLite 内存库并初始化表结构。
@@ -68,6 +69,7 @@ async def initialized_db(sqlite_db):
 # =====================================================================
 # 1. 优雅降级
 # =====================================================================
+
 
 class TestGracefulDegradation:
     """DATABASE_URL 未配置时，DB 层完全 no-op。"""
@@ -113,6 +115,7 @@ class TestGracefulDegradation:
 # 2. 引擎与表结构
 # =====================================================================
 
+
 class TestEngineAndSchema:
     async def test_init_db_creates_all_tables(self, initialized_db):
         """init_db 应创建所有 7 张表。"""
@@ -151,6 +154,7 @@ class TestEngineAndSchema:
 # 3. ORM 模型 CRUD
 # =====================================================================
 
+
 class TestUserModel:
     async def test_create_and_query_user(self, initialized_db):
         factory = db_engine_mod.get_async_session_factory()
@@ -181,19 +185,33 @@ class TestUserModel:
         factory = db_engine_mod.get_async_session_factory()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         async with factory() as session:
-            session.add(User(
-                user_id="u1", email="a@x.com", email_hmac="dup_hmac",
-                password_hash="h", salt="s", display_name="A",
-                created_at=now, updated_at=now,
-            ))
+            session.add(
+                User(
+                    user_id="u1",
+                    email="a@x.com",
+                    email_hmac="dup_hmac",
+                    password_hash="h",
+                    salt="s",
+                    display_name="A",
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
             await session.commit()
 
         async with factory() as session:
-            session.add(User(
-                user_id="u2", email="b@x.com", email_hmac="dup_hmac",
-                password_hash="h", salt="s", display_name="B",
-                created_at=now, updated_at=now,
-            ))
+            session.add(
+                User(
+                    user_id="u2",
+                    email="b@x.com",
+                    email_hmac="dup_hmac",
+                    password_hash="h",
+                    salt="s",
+                    display_name="B",
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
             from sqlalchemy.exc import IntegrityError
 
             with pytest.raises(IntegrityError):
@@ -235,13 +253,15 @@ class TestNotificationModels:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         async with factory() as session:
             for i in range(5):
-                session.add(NotificationSentLog(
-                    id=f"log-{i}",
-                    user_id="user-001",
-                    channel="telegram",
-                    content=f"消息{i}",
-                    sent_at=now - timedelta(hours=i),
-                ))
+                session.add(
+                    NotificationSentLog(
+                        id=f"log-{i}",
+                        user_id="user-001",
+                        channel="telegram",
+                        content=f"消息{i}",
+                        sent_at=now - timedelta(hours=i),
+                    )
+                )
             await session.commit()
 
         async with factory() as session:
@@ -259,15 +279,17 @@ class TestNotificationModels:
         factory = db_engine_mod.get_async_session_factory()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         async with factory() as session:
-            session.add(NotificationLastSession(
-                user_id="user-001",
-                ended_at=now,
-                safety_triggered=False,
-                emotion_intensity=0.3,
-                involved_sensitive_death=False,
-                created_at=now,
-                updated_at=now,
-            ))
+            session.add(
+                NotificationLastSession(
+                    user_id="user-001",
+                    ended_at=now,
+                    safety_triggered=False,
+                    emotion_intensity=0.3,
+                    involved_sensitive_death=False,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
             await session.commit()
 
         async with factory() as session:
@@ -279,6 +301,7 @@ class TestNotificationModels:
 # =====================================================================
 # 4. UserRepository 双写
 # =====================================================================
+
 
 class TestUserRepository:
     async def test_create_dual_write_file_and_db(self, initialized_db, tmp_path, monkeypatch):
@@ -358,6 +381,7 @@ class TestUserRepository:
 # 5. Alembic 迁移
 # =====================================================================
 
+
 class TestAlembicMigration:
     def test_revision_chain(self):
         """初始迁移 revision/down_revision 正确。"""
@@ -384,14 +408,16 @@ class TestAlembicMigration:
             "notification_last_sessions",
             "password_reset_tokens",
         ]:
-            assert f'op.create_table(\n        "{table}"' in content or f'op.create_table("{table}"' in content, (
-                f"迁移缺少 create_table({table})"
-            )
+            assert (
+                f'op.create_table(\n        "{table}"' in content
+                or f'op.create_table("{table}"' in content
+            ), f"迁移缺少 create_table({table})"
 
 
 # =====================================================================
 # 6. 日志脱敏
 # =====================================================================
+
 
 class TestUrlMasking:
     def test_mask_url_hides_password(self):
@@ -418,6 +444,7 @@ class TestUrlMasking:
 # =====================================================================
 # 7. CronScheduler DB 双写
 # =====================================================================
+
 
 class TestCronSchedulerDualWrite:
     """验证 CronScheduler 在 DB 启用时双写文件 + DB。"""

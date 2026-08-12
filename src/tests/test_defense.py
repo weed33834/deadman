@@ -1197,6 +1197,7 @@ class TestShamirSecretSharing:
 
     def test_split_validates_k_le_n(self):
         import pytest
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
 
         with pytest.raises(ValueError):
@@ -1204,6 +1205,7 @@ class TestShamirSecretSharing:
 
     def test_split_validates_k_ge_2(self):
         import pytest
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
 
         with pytest.raises(ValueError):
@@ -1211,6 +1213,7 @@ class TestShamirSecretSharing:
 
     def test_split_validates_n_le_255(self):
         import pytest
+
         from deadman.infrastructure.defense.master_key_backup import ShamirSecretSharing
 
         with pytest.raises(ValueError):
@@ -1263,6 +1266,7 @@ class TestMasterKeyBackup:
         import os
 
         import pytest
+
         from deadman.infrastructure.defense.master_key_backup import MasterKeyBackup
 
         backup = MasterKeyBackup(store_path=tmp_path / "backup")
@@ -1317,6 +1321,7 @@ class TestMasterKeyBackup:
         import os
 
         import pytest
+
         from deadman.infrastructure.defense.master_key_backup import (
             MasterKeyBackup,
         )

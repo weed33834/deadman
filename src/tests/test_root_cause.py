@@ -15,6 +15,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from deadman.observability.root_cause import (
     RootCauseAnalyzer,
     RootCauseReport,

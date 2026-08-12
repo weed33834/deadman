@@ -508,45 +508,45 @@ from pathlib import Path
 
 mcp = FastMCP("deadman-platform")
 
+
 @mcp.tool()
 def check_rules(agent_name: str, output_text: str, context: dict = None) -> dict:
     """校验智能体输出是否符合规则"""
     rules_dir = Path("src/rules")
     violations = []
     warnings = []
-    
+
     # 加载规则并校验
     for rule_file in rules_dir.glob("*.md"):
         rule_content = rule_file.read_text()
         # 正则 + 关键词 + LLM 三层校验
         # ...
-    
-    return {
-        "passed": len(violations) == 0,
-        "violations": violations,
-        "warnings": warnings
-    }
+
+    return {"passed": len(violations) == 0, "violations": violations, "warnings": warnings}
+
 
 @mcp.tool()
-def query_knowledge(country: str, region: str = None, topic: str = None, fallback_to_search: bool = True) -> dict:
+def query_knowledge(
+    country: str, region: str = None, topic: str = None, fallback_to_search: bool = True
+) -> dict:
     """查询地域知识库"""
     knowledge_dir = Path(f"src/knowledge/regions/{country}")
     if region:
         target_file = knowledge_dir / f"{region}.md"
     else:
         target_file = knowledge_dir / "overview.md"
-    
+
     if not target_file.exists():
         return {
             "found": False,
             "needs_research": True,
-            "research_suggestion": f"建议触发policy-researcher搜索{country}/{region or '国家'}政策"
+            "research_suggestion": f"建议触发policy-researcher搜索{country}/{region or '国家'}政策",
         }
-    
+
     content = target_file.read_text()
     # 解析 frontmatter 获取 last_updated
     # ...
-    
+
     return {
         "found": True,
         "data": {
@@ -554,14 +554,22 @@ def query_knowledge(country: str, region: str = None, topic: str = None, fallbac
             "last_updated": "...",
             "sources": [],
             "trust_level": "high",
-            "freshness_status": "fresh"
-        }
+            "freshness_status": "fresh",
+        },
     }
 
+
 @mcp.tool()
-def init_transfer(from_agent: str, to_agent: str, reason: str, user_situation: str,
-                  confirmed_facts: str, completed_items: str, current_question: str,
-                  additional_context: str = None) -> dict:
+def init_transfer(
+    from_agent: str,
+    to_agent: str,
+    reason: str,
+    user_situation: str,
+    confirmed_facts: str,
+    completed_items: str,
+    current_question: str,
+    additional_context: str = None,
+) -> dict:
     """初始化转介"""
     summary = {
         "转介自": from_agent,
@@ -570,19 +578,20 @@ def init_transfer(from_agent: str, to_agent: str, reason: str, user_situation: s
         "已确认": confirmed_facts,
         "已完成事项": completed_items,
         "当前问题": current_question,
-        "上下文传递": additional_context or ""
+        "上下文传递": additional_context or "",
     }
     # 校验 7 字段完整性
     fields_complete = sum(1 for v in summary.values() if v)
     fields_missing = [k for k, v in summary.items() if not v]
-    
+
     return {
         "transfer_summary": summary,
         "fields_complete": fields_complete,
         "fields_missing": fields_missing,
         "transfer_id": str(uuid4()),
-        "user_confirmation_required": True
+        "user_confirmation_required": True,
     }
+
 
 # ... 其他工具
 

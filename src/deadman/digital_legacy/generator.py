@@ -37,24 +37,32 @@ def _disposition_steps(asset: DigitalAsset) -> list[str]:
     steps: list[str] = []
 
     # 通用前置
-    steps.append("收集该资产的标识信息（账号 / 邮箱 / 绑定手机），与死亡证明、亲属关系证明一并归档。")
+    steps.append(
+        "收集该资产的标识信息（账号 / 邮箱 / 绑定手机），与死亡证明、亲属关系证明一并归档。"
+    )
 
     if cat == AssetCategory.CRYPTO.value:
         steps.append("定位私钥 / 助记词离线备份；切勿在线粘贴或截图。")
         if action in (AssetAction.TRANSFER.value, AssetAction.KEEP.value):
             steps.append("由指定继承人按钱包官方流程导入助记词接管；平台无法重置，务必提前演练。")
     elif cat == AssetCategory.FINANCIAL.value:
-        steps.append("联系开户机构客服 / 网点，按官方继承流程提交材料（遗嘱、死亡证明、继承权公文书）。")
+        steps.append(
+            "联系开户机构客服 / 网点，按官方继承流程提交材料（遗嘱、死亡证明、继承权公文书）。"
+        )
         steps.append("切勿共享登录密码；继承由机构核验身份后办理。")
     elif cat == AssetCategory.SOCIAL.value:
         if action == AssetAction.MEMORIALIZE.value:
-            steps.append("在平台设置中指定遗产联系人 / 申请纪念化（如适用），或联系平台支持提交死亡证明。")
+            steps.append(
+                "在平台设置中指定遗产联系人 / 申请纪念化（如适用），或联系平台支持提交死亡证明。"
+            )
         elif action == AssetAction.CLOSE.value:
             steps.append("通过平台帮助中心的「账号注销 / 继承」流程提交申请，附死亡证明。")
     elif cat == AssetCategory.SUBSCRIPTION.value:
         steps.append("登录后取消自动续费 / 关闭订阅，避免逝者账户持续扣费。")
     elif cat == AssetCategory.DEVICE.value:
-        steps.append("提前设置遗产联系人（如 Apple Legacy Contact、Google 遗嘱联系人），或离线记录解锁方式。")
+        steps.append(
+            "提前设置遗产联系人（如 Apple Legacy Contact、Google 遗嘱联系人），或离线记录解锁方式。"
+        )
 
     if action == AssetAction.DECIDE.value:
         steps.append("尚未决定处置方式：请与指定继承人确认后回填 action_on_death。")

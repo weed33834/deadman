@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import asyncio
 
-import deadman.security.honeypot as honeypot_module
 import pytest
+
+import deadman.security.honeypot as honeypot_module
 from deadman.security.honeypot import (
     HONEYPOT_TOOL_DEFINITIONS,
     HONEYPOT_TOOLS,

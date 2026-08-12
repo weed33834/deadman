@@ -85,12 +85,13 @@ from opentelemetry.trace import SpanKind
 
 tracer = trace.get_tracer("deadman")
 
+
 def handle_user_request(user_input, user_id, platform):
     with tracer.start_as_current_span("user_request", kind=SpanKind.SERVER) as root:
         root.set_attribute("user_id_hash", hash(user_id))
         root.set_attribute("platform", platform)
         root.set_attribute("user_input_pii_redacted", True)
-        
+
         # 调用 death-aftercare
         with tracer.start_as_current_span("agent.death-aftercare") as agent_span:
             agent_span.set_attribute("agent.name", "death-aftercare")
