@@ -1386,3 +1386,17 @@ function speakMobile(text) {
     })
     .catch(() => { if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance((text||'').slice(0,500)); u.lang='zh-CN'; window.speechSynthesis.speak(u); } });
 }
+
+// 移动端首次运行引导
+function dismissMobileGuide() {
+  document.getElementById('mobileFirstRun').style.display = 'none';
+  localStorage.setItem('deadman_mobile_first_run', '1');
+}
+(function initMobileGuide() {
+  try {
+    if (localStorage.getItem('deadman_mobile_first_run') !== '1') {
+      var g = document.getElementById('mobileFirstRun');
+      if (g) g.style.display = 'flex';
+    }
+  } catch (e) {}
+})();

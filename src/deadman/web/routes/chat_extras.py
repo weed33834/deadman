@@ -298,6 +298,8 @@ async def chat_command(
     cmd, tokens = parts[0].lower(), parts[1:]
     if cmd == "help":
         return await _cmd_help()
+    if cmd in ("manual", "guide"):
+        return await _cmd_manual()
     if cmd == "prompt":
         return _cmd_prompt(tokens)
     if cmd == "expert":
@@ -1117,3 +1119,55 @@ async def _cmd_memorial(tokens: list[str]) -> dict[str, Any]:
         return {"ok": True, "kind": "text", "text": text[:1500]}
     except Exception as exc:
         return {"ok": False, "kind": "text", "text": f"悼文生成失败: {exc}"}
+
+
+_MANUAL = """# 📖 对话命令手册（完整版）
+
+> 本平台为**对话优先**设计：多数功能无需点页面，直接聊天或输入命令即可完成。
+
+## 一、资源 / 配置
+| 命令 | 作用 |
+|---|---|
+| /prompt list | 查看提示词列表 |
+| /prompt get <名> | 查看某提示词 |
+| /prompt set <名> <内容> | 修改/新建提示词（人设/规则） |
+| /expert list | 查看自定义专家 |
+| /expert new <id> <名> <人设> | 新增专家 |
+| /expert delete <id> | 删除专家 |
+| /skill list / enable <名> / disable <名> | 技能管理 |
+
+## 二、查询 / 信息
+| 命令 | 作用 |
+|---|---|
+| /hotline [省份] [功能] | 查官方热线 |
+| /institution [省] [城市] | 查机构 |
+| /custom list / get <地区> / presets | 民俗规则（丧葬/婚嫁/烧七） |
+| /family list / add <姓名> | 亲属图谱 |
+
+## 三、业务数据
+| 命令 | 作用 |
+|---|---|
+| /vault list / add <名称> <类别> | 数字遗产保险库 |
+| /note list / set <章节> <内容> | 终活笔记 |
+| /docs list | 已管理文档 |
+| /switch status | Dead Man Switch |
+| /task list / add <cron> <内容> | 定时任务 |
+
+## 四、创作 / 工具
+| 命令 | 作用 |
+|---|---|
+| /memorial <姓名> <关系> <回忆> | 悼文生成 |
+| /plot <python代码> | 沙箱画图 |
+| /image <描述> | AI 图像生成 |
+| /browse <网址> | 浏览网页并总结 |
+| /custom add（在管理台）| 自定义民俗 |
+
+## 五、其他
+- /help：本平台命令总览
+- /manual：完整手册（本页）
+- 可直接中文提问，Agent 会自动调用工具完成
+"""
+
+
+async def _cmd_manual() -> dict[str, Any]:
+    return {"ok": True, "kind": "text", "text": _MANUAL}

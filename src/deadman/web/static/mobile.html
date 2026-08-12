@@ -868,6 +868,18 @@ body {
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+<div id="mobileFirstRun" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%">
+    <div style="font-size:17px;font-weight:700;margin-bottom:10px">欢迎 · 傻瓜式操作</div>
+    <div style="font-size:13px;line-height:1.8;color:#555;margin-bottom:14px">
+      <div>🗣 直接说话或输入问题，就能办理身后事/医疗事务</div>
+      <div>📜 <b>/custom</b> 查民俗 · <b>/family</b> 亲属 · <b>/help</b> 全部命令</div>
+      <div>🔐 <b>/vault</b> 遗产 · <b>/note</b> 终活笔记 · <b>/task</b> 定时</div>
+      <div>🕯 <b>/memorial</b> 悼文 · <b>/plot</b> 画图</div>
+    </div>
+    <button style="width:100%;padding:12px;background:#8b6f47;color:#fff;border:none;border-radius:12px;font-size:14px" onclick="dismissMobileGuide()">知道了，开始使用</button>
+  </div>
+</div>
 
 <script src="/mobile.js"></script>
 </body>
