@@ -116,7 +116,9 @@ class TestPlot:
         try:
             from deadman.sandbox import SandboxManager
 
-            if SandboxManager().get_active_backend() == "docker":
+            _mgr = SandboxManager()
+            _mgr.get_active_backend()  # 确定实际生效后端
+            if _mgr.active_backend == "docker":
                 pytest.skip("Docker 沙箱镜像无 matplotlib，跳过绘图断言")
         except Exception:
             pass
