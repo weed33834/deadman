@@ -197,6 +197,8 @@
   .input-tools { max-width: 720px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
   .quick-chips { max-width: 720px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; }
   .quick-chips .tool-chip { animation: msg-in .3s var(--ease) both; }
+  .chat-tip { max-width: 720px; margin: 0 auto 8px; font-size: 11px; color: var(--ink-muted); }
+  .chat-tip code { background: var(--paper-warm); padding: 1px 5px; border-radius: 4px; }
   .tool-chip {
     padding: 4px 12px; font-size: 12px; background: #fff; color: var(--ink-soft);
     border: 1px solid var(--line); border-radius: var(--radius-pill); cursor: pointer;
@@ -784,8 +786,11 @@
           <button class="tool-chip" onclick="quickAction('撰写悼文')">🕯 悼文</button>
           <button class="tool-chip" onclick="runHotline()">☎ 官方热线</button>
           <button class="tool-chip" onclick="runPlotDemo()">📈 画个图</button>
+          <button class="tool-chip" onclick="quickCmd('/custom list')">📜 民俗</button>
+          <button class="tool-chip" onclick="quickCmd('/family list')">👨‍👩‍👧 亲属</button>
+          <button class="tool-chip" onclick="quickCmd('/help')">❓ 命令</button>
         </div>
-        <div class="input-tools" id="inputTools">
+        <div class="chat-tip" id="chatTip">💡 傻瓜式操作：直接聊天即可完成一切；输入「/help」查看全部命令</div>
           <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
           <button class="tool-chip" id="searchToggle" onclick="toggleSearch()" title="联网搜索最新信息">🔍 联网</button>
           <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
@@ -1797,6 +1802,8 @@ function clearConversation() {
 }
 // 快捷动作：填入提示并发送
 function quickAction(text) { input.value = text; send(); }
+// 快捷命令：填入斜杠命令并发送
+function quickCmd(cmd) { input.value = cmd; send(); }
 // 快捷动作：直接查官方热线（走对话命令）
 function runHotline() { input.value = "/hotline"; send(); }
 // 快捷动作：画一个示例图

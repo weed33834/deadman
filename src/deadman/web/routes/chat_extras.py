@@ -296,6 +296,8 @@ async def chat_command(
     if not parts:
         return {"ok": False, "kind": "text", "text": "命令为空。可用: /prompt /expert /skill"}
     cmd, tokens = parts[0].lower(), parts[1:]
+    if cmd == "help":
+        return await _cmd_help()
     if cmd == "prompt":
         return _cmd_prompt(tokens)
     if cmd == "expert":
@@ -311,8 +313,12 @@ async def chat_command(
     if cmd in ("family", "kinship", "亲属"):
         return _cmd_family(tokens)
     if cmd in ("vault", "legacy", "资产"):
+        if tokens and tokens[0] == "add":
+            return await _cmd_vault_add(tokens[1:])
         return _cmd_vault(tokens)
     if cmd in ("note", "ending", "终活"):
+        if tokens and tokens[0] == "set":
+            return await _cmd_note_set(tokens[1:])
         return _cmd_note(tokens)
     if cmd in ("task", "schedule", "定时"):
         return await _cmd_task(tokens)
@@ -320,6 +326,8 @@ async def chat_command(
         return _cmd_switch(tokens)
     if cmd in ("docs", "文档"):
         return _cmd_docs(tokens)
+    if cmd in ("memorial", "悼文"):
+        return await _cmd_memorial(tokens)
     return {
         "ok": False,
         "kind": "text",
@@ -977,3 +985,135 @@ def _cmd_docs(tokens: list[str]) -> dict[str, Any]:
         return {"ok": True, "kind": "text", "text": "\n".join(md)}
     except Exception as exc:
         return {"ok": False, "kind": "text", "text": f"文档读取失败: {exc}"}
+
+
+# =====================================================================
+# 执行类命令 + /help 总览（对话傻瓜式操作）
+# =====================================================================
+
+_HELP_TEXT = """**对话命令总览**（输入 /命令 即可，无需点页面）
+
+**资源/配置**
+- /prompt list | get <名> | set <名> <内容>   —— 提示词
+- /expert list | new <id> <名> <人设> | delete <id> —— 自定义专家
+- /skill list | enable|disable <名>            —— 技能
+
+**查询/信息**
+- /hotline [省份] [功能] · /institution [省] [城市]
+- /custom list | get <地区> | presets · /family list | add <姓名>
+
+**业务数据**
+- /vault list | add <名称> <类别> · /note list | set <章节> <内容>
+- /docs list · /switch status · /task list | add <cron> <内容>
+
+**创作/工具**
+- /plot <python代码> · /image <描述> · /browse <网址> · /memorial <姓名> <关系> <回忆>
+- /canvas（画布页）· /plot（画图）
+
+**示例**："帮我查北京殡葬热线" → 直接用中文问即可，Agent 会自动调用工具。
+"""
+
+
+async def _cmd_help() -> dict[str, Any]:
+    return {"ok": True, "kind": "text", "text": _HELP_TEXT}
+
+
+async def _cmd_vault_add(tokens: list[str]) -> dict[str, Any]:
+    """数字遗产新增：/vault add <名称> <类别(账号/密码/文档/其他)>"""
+    if len(tokens) < 2:
+        return {"ok": False, "kind": "text", "text": "用法: /vault add <名称> <类别>"}
+    name = tokens[0]
+    category = tokens[1] if len(tokens) > 1 else "其他"
+    try:
+        from ...digital_legacy import AssetAction, DigitalAsset, DigitalLegacyStore
+
+        store = DigitalLegacyStore(user_id=_USER)
+        store.add_asset(
+            DigitalAsset(
+                id=f"a_{int(time.time() * 1000) % 10**8}",
+                category=category,
+                name=name,
+                access_hint="",
+                action_on_death=AssetAction.DECIDE.value,
+            )
+        )
+        return {
+            "ok": True,
+            "kind": "text",
+            "text": f"已新增数字遗产项：{name}（{category}）。可用 /vault list 查看。",
+        }
+    except Exception:
+        # 兜底走 VaultStore
+        from ...vault.store import VaultStore
+
+        try:
+            VaultStore().add_item(_USER, category, name, b"", [])
+            return {"ok": True, "kind": "text", "text": f"已新增保险库条目：{name}（{category}）。"}
+        except Exception as exc2:
+            return {"ok": False, "kind": "text", "text": f"新增失败: {exc2}"}
+
+
+async def _cmd_note_set(tokens: list[str]) -> dict[str, Any]:
+    """终活笔记保存：/note set <章节> <内容>"""
+    if len(tokens) < 2:
+        return {
+            "ok": False,
+            "kind": "text",
+            "text": "用法: /note set <章节(如 遗嘱意愿/医疗意愿/身后安排)> <内容>",
+        }
+    section = tokens[0]
+    content = " ".join(tokens[1:])
+    try:
+        from datetime import datetime, timezone
+
+        from ...ending_note.models import EndingNote
+        from ...ending_note.store import EndingNoteStore
+
+        store = EndingNoteStore()
+        note = store.load(_USER)
+        if note is None:
+            note = EndingNote(
+                note_id=f"n-{int(time.time())}",
+                user_id=_USER,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+        # 写入 personal_info 下的自定义字段（通用文本）
+        if not note.personal_info:
+            note.personal_info = {}
+        note.personal_info[section] = content
+        note.updated_at = datetime.now(timezone.utc)
+        store.save(note)
+        return {"ok": True, "kind": "text", "text": f"已保存终活笔记「{section}」。"}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"保存失败: {exc}"}
+
+
+async def _cmd_memorial(tokens: list[str]) -> dict[str, Any]:
+    """悼文生成：/memorial <姓名> <关系> <回忆…>"""
+    if len(tokens) < 2:
+        return {
+            "ok": False,
+            "kind": "text",
+            "text": "用法: /memorial <姓名> <关系> <回忆…>，如 /memorial 父亲 儿子 他爱读书、常浇花",
+        }
+    name = tokens[0]
+    relationship = tokens[1]
+    memories = "，".join(tokens[2:]).split("、") if len(tokens) > 2 else []
+    try:
+        from ...memorial_writer.generator import MemorialGenerator
+        from ...memorial_writer.models import MemorialRequest
+
+        req = MemorialRequest(
+            doc_type="eulogy",
+            decedent_name=name,
+            relationship=relationship,
+            personality_traits=[],
+            memories=memories,
+            tone="warm",
+        )
+        result = await MemorialGenerator().generate(req)
+        text = getattr(result, "text", "") or "（生成失败）"
+        return {"ok": True, "kind": "text", "text": text[:1500]}
+    except Exception as exc:
+        return {"ok": False, "kind": "text", "text": f"悼文生成失败: {exc}"}
