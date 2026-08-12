@@ -1,6 +1,6 @@
 # deadman
 
-<p align="center"><img src="assets/logo.svg" alt="deadman Logo" width="360"></p>
+<p align="center"><img src="assets/logo.png" alt="deadman Logo" width="360"></p>
 
 <p align="center">
   <strong>An end-of-life & medical-navigation multi-agent guidance platform</strong><br>
@@ -16,7 +16,7 @@
 <p align="center">
   [![tests](https://github.com/weed33834/deadman/actions/workflows/tests.yml/badge.svg)](https://github.com/weed33834/deadman/actions/workflows/tests.yml)
   [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+  [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
   [![Version](https://img.shields.io/badge/version-5.4.0-6b5d4f.svg)](CHANGELOG.md)
   [![Tests](https://img.shields.io/badge/pytest-2926%20passed-brightgreen)]()
   [![MCP](https://img.shields.io/badge/MCP-Server%2BClient-blueviolet)]()
@@ -127,7 +127,7 @@ To make this repo easy to find, add these as **repository topics/tags** on GitHu
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE).
 
 ---
 

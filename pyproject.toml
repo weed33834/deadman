@@ -8,7 +8,7 @@ version = "5.4.0"
 description = "deadman - An end-of-life & medical-navigation multi-agent guidance platform: after-death procedure wizard, digital legacy & vault, grief companion, folk-custom rules & kinship graph, conversation-first UX. Framework-agnostic, runs on any agent platform."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [{name = "deadman Team"}]
 keywords = [
     "deadman",
@@ -50,7 +50,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Topic :: Other/Nonlisted Topic",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

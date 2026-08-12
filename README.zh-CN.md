@@ -1,6 +1,6 @@
 # deadman
 
-<p align="center"><img src="assets/logo.svg" alt="deadman Logo" width="360"></p>
+<p align="center"><img src="assets/logo.png" alt="deadman Logo" width="360"></p>
 
 <p align="center">
   <a href="README.md"><img alt="English" src="https://img.shields.io/badge/English-README-blue"></a>

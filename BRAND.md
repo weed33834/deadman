@@ -37,11 +37,11 @@ def get_brand_name(user_language: str) -> str:
 
 ## Logo
 
-Logo 源文件：`assets/logo.svg`（居中展示见 README 顶部）。
+Logo 文件：`assets/logo.svg`（矢量源）与 `assets/logo.png`（位图，各平台通用），居中展示见 README 顶部。
 
 设计说明：
 - 印章圆形 + 指引之光（蜡烛/陪伴符号）：契合"身后事陪伴引导"主题。
 - 配色沿用品牌色：陶土 `#9a5b3f` / 印章红 `#b0553f` / 金 `#c9a66b` / 墨 `#201c17`。
 - 用途：README / 文档 / Web 页头 / 移动端图标。
 
-![deadman Logo](assets/logo.svg)
+![deadman Logo](assets/logo.png)
