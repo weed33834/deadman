@@ -1,5 +1,7 @@
 # deadman
 
+<p align="center"><img src="assets/logo.svg" alt="deadman Logo" width="360"></p>
+
 > 身后事 + 医疗导航多智能体引导平台。不绑定任何厂商，适用于所有支持 agent 的平台。
 
 [![tests](https://github.com/weed33834/deadman/actions/workflows/tests.yml/badge.svg)](https://github.com/weed33834/deadman/actions/workflows/tests.yml)

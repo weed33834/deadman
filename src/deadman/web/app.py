@@ -429,6 +429,11 @@ async def mobile_index():
     return FileResponse(_STATIC_DIR / "mobile.html", media_type="text/html; charset=utf-8")
 
 
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon_svg():
+    return FileResponse(_STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
+
 @app.get("/admin", include_in_schema=False)
 @app.get("/admin/", include_in_schema=False)
 async def admin_index():
