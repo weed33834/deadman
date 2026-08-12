@@ -330,6 +330,14 @@ async def chat_command(
         return _cmd_docs(tokens)
     if cmd in ("memorial", "悼文"):
         return await _cmd_memorial(tokens)
+    if cmd in ("cases", "遗码"):
+        return _cmd_cases(tokens)
+    if cmd in ("letters", "信函"):
+        return _cmd_letters(tokens)
+    if cmd in ("score", "评分", "plan"):
+        return _cmd_score(tokens)
+    if cmd in ("support", "工单", "客服"):
+        return _cmd_support(tokens)
     return {
         "ok": False,
         "kind": "text",
@@ -1171,3 +1179,72 @@ _MANUAL = """# 📖 对话命令手册（完整版）
 
 async def _cmd_manual() -> dict[str, Any]:
     return {"ok": True, "kind": "text", "text": _MANUAL}
+
+
+# =====================================================================
+# 补齐剩余页面命令：/cases /letters /score /support
+# =====================================================================
+
+
+def _cmd_cases(tokens: list[str]) -> dict[str, Any]:
+    """遗码通：/cases list"""
+    try:
+        from ...decedent_id.registry import DecedentRegistry
+
+        reg = DecedentRegistry()
+        cases = reg.list_cases(_USER) if hasattr(reg, "list_cases") else []
+        if not cases:
+            return {"ok": True, "kind": "text", "text": "暂无逝者案例。可在「遗码通」页创建。"}
+        md = ["**遗码通 · 逝者案例**\n"]
+        for c in cases[:10]:
+            d = c.to_dict() if hasattr(c, "to_dict") else c
+            md.append(f"- **{d.get('decedent_name', d.get('name', '?'))}**（{d.get('case_id', d.get('id', ''))}）")
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": True, "kind": "text", "text": f"遗码通：{exc}"}
+
+
+def _cmd_letters(tokens: list[str]) -> dict[str, Any]:
+    """通知信函：/letters list"""
+    try:
+        from ...notification_letters.generator import LETTER_TYPES
+
+        types = [t.get("type") for t in LETTER_TYPES if isinstance(t, dict)]
+        if not types:
+            types = [str(t) for t in LETTER_TYPES]
+        return {"ok": True, "kind": "text", "text": "通知信函类型：\n" + "\n".join(f"- {t}" for t in types) + "\n\n可在「通知信函」页生成。"}
+    except Exception as exc:
+        return {"ok": True, "kind": "text", "text": f"通知信函：可在「通知信函」页查看（{exc}）"}
+
+
+def _cmd_score(tokens: list[str]) -> dict[str, Any]:
+    """规划完整度：/score"""
+    try:
+        from ...plan_score.scorer import PlanScorer
+
+        s = PlanScorer()
+        detail = s.score(_USER) if hasattr(s, "score") else None
+        if detail is None:
+            return {"ok": True, "kind": "text", "text": "规划完整度：可在「规划评分」页查看（暂无评分数据）。"}
+        score = getattr(detail, "total", None) if not isinstance(detail, dict) else detail.get("total")
+        return {"ok": True, "kind": "text", "text": f"身后事规划完整度：{score}%。可在「规划评分」页查看明细。"}
+    except Exception as exc:
+        return {"ok": True, "kind": "text", "text": f"规划完整度：可在「规划评分」页查看（{exc}）"}
+
+
+def _cmd_support(tokens: list[str]) -> dict[str, Any]:
+    """客服工单：/support list"""
+    try:
+        from ...support.store import TicketStore
+
+        store = TicketStore()
+        tickets = store.list_user_tickets(_USER) if hasattr(store, "list_user_tickets") else []
+        if not tickets:
+            return {"ok": True, "kind": "text", "text": "暂无客服工单。可在「客服工单」页提交。"}
+        md = ["**客服工单**\n"]
+        for t in tickets[:10]:
+            d = t.to_dict() if hasattr(t, "to_dict") else t
+            md.append(f"- {d.get('subject', d.get('title', '?'))}（{d.get('status', '')}）")
+        return {"ok": True, "kind": "text", "text": "\n".join(md)}
+    except Exception as exc:
+        return {"ok": True, "kind": "text", "text": f"客服工单：{exc}"}
