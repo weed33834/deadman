@@ -131,6 +131,28 @@ retrieval-guardrails(L7) > tone(L8) > notification-guardrails(L4 补充)
 
 `textproc/` 模块（零必装依赖，jieba 可选）：中文分词、清洗归一化、停用词、**关键词提取（TF-IDF + TextRank）**、余弦相似度、**BM25 + 向量 RRF 混合检索**。通过 `/api/text/*` 暴露，供标签生成 / 搜索联想 / 知识库检索复用。
 
+## 界面预览（Screenshots）
+
+> AI 实际驱动浏览器录制的真实界面。完整演示视频：`docs/screenshots/demo.webm`（PC 端）+ `docs/screenshots/mobile.webm`。
+
+### 对话主界面（傻瓜式操作，直接聊天完成一切）
+![对话主界面](docs/screenshots/chat-home.png)
+
+### 对话命令（/help、/custom 等 25 个命令全部可用）
+![对话命令](docs/screenshots/chat-command.png)
+
+### 民俗/规则定制
+![民俗规则](docs/screenshots/customs.png)　![对话查民俗](docs/screenshots/custom-chat.png)
+
+### 亲属图谱可视化
+![亲属图谱](docs/screenshots/kinship-graph.png)
+
+### 管理台
+![管理台总览](docs/screenshots/admin-overview.png)　![工具管理](docs/screenshots/admin-tools.png)
+
+### 移动端 /m
+![移动端](docs/screenshots/mobile.png)
+
 ## 系统架构
 
 ```
