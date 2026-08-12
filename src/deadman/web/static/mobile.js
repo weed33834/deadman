@@ -297,7 +297,9 @@ function appendBubble(text, type) {
   const el = document.createElement('div');
   el.className = 'chat-bubble ' + type;
   if (type === 'bot') {
-    el.innerHTML = md(text || '');
+    el.innerHTML = md(text || '') + '<span style="opacity:.5;font-size:11px"> · 点此朗读</span>';
+    el.style.cursor = 'pointer';
+    el.onclick = () => speakMobile(text);
   } else {
     el.textContent = text;
   }
@@ -1266,6 +1268,7 @@ const _ACTION_MAP = {
   'history-back': () => history.back(),
   'show-agent-selector': () => showAgentSelector(),
   'send-message': () => sendMessage(),
+  'voice-input': () => toggleMobileVoice(),
   'show-letter-types': () => showLetterTypes(),
   'show-memorial-types': () => showMemorialTypes(),
   'load-hotlines': () => loadHotlines(),
@@ -1337,3 +1340,49 @@ document.addEventListener('input', function(e) {
   }
 });
 
+
+// ============================================================
+// 移动端语音输入 + 朗读（傻瓜式操作）
+// ============================================================
+let _mRec = null, _mChunks = [], _mStream = null, _mRecording = false;
+async function toggleMobileVoice() {
+  const btn = document.getElementById('micBtn');
+  if (!window.MediaRecorder) { appendBubble('当前浏览器不支持语音', 'error'); return; }
+  if (_mRecording) { if (_mRec && _mRec.state !== 'inactive') _mRec.stop(); else _mRecording = false; return; }
+  try {
+    _mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _mRec = new MediaRecorder(_mStream); _mChunks = [];
+    _mRec.ondataavailable = e => { if (e.data.size) _mChunks.push(e.data); };
+    _mRec.onstop = async () => {
+      _mRecording = false; if (btn) btn.textContent = '🎤';
+      _mStream.getTracks().forEach(t => t.stop());
+      if (!_mChunks.length) return;
+      const fd = new FormData();
+      const blob = new Blob(_mChunks, { type: _mRec.mimeType || 'audio/webm' });
+      const ext = blob.type.includes('ogg') ? '.ogg' : '.webm';
+      fd.append('audio', blob, 'rec' + ext); fd.append('language', 'auto');
+      try {
+        const r = await fetch(`${API_BASE}/api/voice/transcribe`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.text) {
+          const input = document.getElementById('chatInput');
+          input.value = (input.value ? input.value + ' ' : '') + d.text;
+          input.focus();
+        } else appendBubble('未识别到语音', 'error');
+      } catch (e) { appendBubble('语音转写失败', 'error'); }
+    };
+    _mRec.start(); _mRecording = true; if (btn) btn.textContent = '🔴';
+  } catch (e) { appendBubble('无法访问麦克风', 'error'); }
+}
+
+// 朗读 bot 消息（点击气泡）
+function speakMobile(text) {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  fetch(`${API_BASE}/api/voice/speak?text=${encodeURIComponent((text||'').slice(0,500))}&voice_id=gentle_female`)
+    .then(r => r.ok && r.headers.get('content-type').includes('audio') ? r.blob() : null)
+    .then(blob => {
+      if (blob) { new Audio(URL.createObjectURL(blob)).play(); return; }
+      if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance((text||'').slice(0,500)); u.lang='zh-CN'; window.speechSynthesis.speak(u); }
+    })
+    .catch(() => { if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance((text||'').slice(0,500)); u.lang='zh-CN'; window.speechSynthesis.speak(u); } });
+}

@@ -2002,6 +2002,11 @@ async function speakMsg(btn) {
   } else { btn.textContent = "🔊 朗读"; toast("朗读不可用"); }
 }
 
+function dismissFirstRun() { document.getElementById("firstRun").style.display = "none"; localStorage.setItem("deadman_first_run", "1"); }
+(function initFirstRun() {
+  try { if (localStorage.getItem("deadman_first_run") !== "1") document.getElementById("firstRun").style.display = "flex"; } catch (e) {}
+})();
+
 // 轻提示
 function toast(msg) {
   let t = document.getElementById("toast");
@@ -4258,5 +4263,20 @@ initBackToTop();
 // 等 fetchCurrentUser 完成后再检查 onboarding（避免未登录用户被弹）
 setTimeout(checkOnboardingNeeded, 800);
 </script>
+<div class="modal-overlay" id="firstRun" style="display:none">
+  <div class="onboarding-modal" style="width:520px">
+    <div class="modal-title" style="font-family:'Songti SC',serif">欢迎 · 傻瓜式对话操作</div>
+    <div class="muted" style="line-height:1.8;margin-bottom:12px">
+      本平台<b>不用点任何页面</b>——直接在这里聊天，就能完成身后事/医疗导航相关的一切：
+    </div>
+    <div style="line-height:1.9;margin-bottom:14px">
+      <div>🧭 <b>直接问</b>："北京殡葬流程"、"医保怎么报销"、"帮我写悼文"</div>
+      <div>📜 <b>记民俗</b>：/custom list · /custom get 头七 · /family add 父亲</div>
+      <div>🔐 <b>管遗产</b>：/vault add 账号 密码 · /note set 遗嘱意愿 …</div>
+      <div>🛠 <b>全能</b>：/plot 画图 · /image 生成图 · /browse 网页 · /task 定时 · /help 全部命令</div>
+    </div>
+    <button class="btn green" style="width:100%" onclick="dismissFirstRun()">知道了，开始使用</button>
+  </div>
+</div>
 </body>
 </html>
