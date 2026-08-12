@@ -137,12 +137,20 @@ def pytest_collection_modifyitems(items):
         return
     _NETWORK_MODULES = {
         # 真实网络
-        "test_a2a_v12", "test_domestic_llm_providers", "test_web_search",
-        "test_web_search_cn", "test_wechat_connector", "test_gateway",
-        "test_marketplace", "test_redteam",
+        "test_a2a_v12",
+        "test_domestic_llm_providers",
+        "test_web_search",
+        "test_web_search_cn",
+        "test_wechat_connector",
+        "test_gateway",
+        "test_marketplace",
+        "test_redteam",
         # 子进程/编排 e2e
-        "test_mcp_client", "test_e2e_full_journey", "test_e2e_edge_cases",
-        "test_e2e_orchestration_pipeline", "test_phase17_integration",
+        "test_mcp_client",
+        "test_e2e_full_journey",
+        "test_e2e_edge_cases",
+        "test_e2e_orchestration_pipeline",
+        "test_phase17_integration",
     }
     skip = []
     for item in items:
@@ -152,4 +160,6 @@ def pytest_collection_modifyitems(items):
             skip.append(item)
     if skip:
         for item in skip:
-            item.add_marker(pytest.mark.skip(reason="CI 沙箱无网络/子进程，跳过网络类测试（本地仍运行）"))
+            item.add_marker(
+                pytest.mark.skip(reason="CI 沙箱无网络/子进程，跳过网络类测试（本地仍运行）")
+            )

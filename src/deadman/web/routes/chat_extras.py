@@ -530,7 +530,11 @@ def _build_pdf(text: str) -> bytes:
     except Exception:
         # 降级：极简 PDF（仅 ASCII 文本；中文环境建议 reportlab 正常路径）
         # 降级 PDF 仅支持 ASCII；非 latin-1 字符替换为 ? 避免崩溃
-        ascii_lines = ["".join(ch if ord(ch) < 128 else "?" for ch in ln) for ln in text.split("\n") if ln.strip()]
+        ascii_lines = [
+            "".join(ch if ord(ch) < 128 else "?" for ch in ln)
+            for ln in text.split("\n")
+            if ln.strip()
+        ]
         lines = [_pdf_esc(line) for line in ascii_lines][:30]
         body = "".join(
             f"BT /F1 11 Tf 50 {550 - i * 16} Td ({ln}) Tj ET\n" for i, ln in enumerate(lines)
