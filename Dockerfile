@@ -41,7 +41,7 @@ RUN pip install --upgrade pip setuptools wheel
 # 利用 .dockerignore 排除 tests/ 与缓存，缩小构建上下文
 WORKDIR /build
 COPY pyproject.toml ./
-COPY src/src/ ./src/src/
+COPY src/ ./src/
 
 # 安装当前包 + 企业级扩展④ [db] extras（SQLAlchemy/asyncpg/alembic）
 # [db] extras 使镜像内置数据库迁移能力，DATABASE_URL 空时零开销降级
@@ -65,7 +65,7 @@ ARG VCS_REF=unknown
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH="/app/src/src" \
+    PYTHONPATH="/app/src" \
     DEADMAN_VERSION=${DEADMAN_VERSION} \
     # === MCP Server ===
     MCP_SERVER_HOST=0.0.0.0 \
