@@ -17,10 +17,9 @@ import json
 import logging
 import secrets
 import time
+from functools import partial
 from pathlib import Path
 from typing import Any
-
-from functools import partial
 
 from fastapi import APIRouter, Body, Depends
 
