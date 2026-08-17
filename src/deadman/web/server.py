@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .._version import __version__ as DEADMAN_VERSION
 from ..config import settings
 from .rate_limiter import RateLimiter
 from .schemas import ChatRequest, LoginRequest, RegisterRequest, validate_body
@@ -3798,7 +3799,7 @@ class WebServer:
         """
         return {
             "platform": "deadman",
-            "version": "5.0.0",
+            "version": DEADMAN_VERSION,
             "is_ai": True,  # transparency-framework L5 强制
             "disclaimer": (
                 "本平台是信息引导工具，不代办、不代查、不出具法律意见、不与殡葬机构分成。"

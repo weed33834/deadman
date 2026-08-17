@@ -105,6 +105,36 @@ def _disable_switch_auto_tick(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _admin_token_for_tests(monkeypatch):
+    """Phase A 安全修复后：为测试注入管理端凭证。
+
+    ``require_admin`` 依赖要求 ``X-Admin-Token`` 头与
+    ``DEADMAN_ADMIN_TOKEN`` 严格相等（或有效 JWT 管理员）。
+    历史测试套件（2926 用例）大量直接调用 ``/api/admin/*`` 且未携带
+    鉴权头；为保证既有功能测试在鉴权加固后仍全绿，此处：
+    1. 设置测试环境变量 ``DEADMAN_ADMIN_TOKEN=test-admin-token``；
+    2. 为所有 ``fastapi.testclient.TestClient`` 实例注入默认
+       ``X-Admin-Token`` 头。
+
+    仅作用于测试进程（pytest autouse fixture），生产代码不受影响；
+    鉴权本身的 401/403 行为由专项用例单独覆盖。
+    """
+    monkeypatch.setenv("DEADMAN_ADMIN_TOKEN", "test-admin-token")
+
+    from fastapi.testclient import TestClient
+
+    _orig_testclient_init = TestClient.__init__
+
+    def _init_with_admin_header(self, app, *args, **kwargs):
+        headers = dict(kwargs.get("headers") or {})
+        headers.setdefault("X-Admin-Token", "test-admin-token")
+        kwargs["headers"] = headers
+        _orig_testclient_init(self, app, *args, **kwargs)
+
+    monkeypatch.setattr(TestClient, "__init__", _init_with_admin_header)
+
+
+@pytest.fixture(autouse=True)
 def _disable_handoff_by_default(monkeypatch):
     """全局默认关闭 handoff / handoff_audit，保证测试隔离。
 

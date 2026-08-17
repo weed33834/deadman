@@ -23,13 +23,18 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends, Header
 
 from ...errors import DeadmanHTTPException
+from ..deps import require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["admin-resources"])
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["admin-resources"],
+    dependencies=[Depends(require_admin)],
+)
 
 _ADMIN_DIR = Path.home() / ".deadman" / "admin"
 
@@ -923,11 +928,17 @@ async def tool_load(
     description: str = Body(default="", embed=True, description="工具描述"),
     handler_code: str = Body(default=None, embed=True, description="async handler 源码"),
     input_schema: dict[str, Any] = Body(default={}, embed=True, description="JSON Schema"),  # noqa: B008
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ) -> dict[str, Any]:
     """POST /api/admin/tools/load —— 热加载工具（注册 async handler 到 mcp）
 
-    需 DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED=1 且配置 DEADMAN_ADMIN_TOKEN。
+    需 DEADMAN_DYNAMIC_TOOL_REGISTRATION_ENABLED=1、配置 DEADMAN_ADMIN_TOKEN，
+    且请求必须携带与 DEADMAN_ADMIN_TOKEN 严格相等的 ``X-Admin-Token`` 头。
     handler_code 需定义 `async def handler(**kwargs) -> dict`。
+
+    安全约束（2026-08 修复）：本端点直接 exec 任意源码，属于系统最高危端点，
+    除 router 级 require_admin 认证外，**仅允许 admin token 持有者调用**，
+    普通 JWT 登录用户一律拒绝。
     """
     from ...mcp_server import server as mcp_mod
 
@@ -939,6 +950,11 @@ async def tool_load(
         )
     if not mcp_mod.ADMIN_TOKEN:
         raise DeadmanHTTPException("DM-TOOL-4030", message="未配置 DEADMAN_ADMIN_TOKEN")
+    # 关键修复：严格比对调用方 token，禁止仅凭"已配置"放行
+    if x_admin_token != mcp_mod.ADMIN_TOKEN:
+        raise DeadmanHTTPException(
+            "DM-TOOL-4030", message="X-Admin-Token 无效或缺失，仅管理员可热加载工具"
+        )
     ns: dict[str, Any] = {}
     try:
         exec(compile(handler_code, "<tool_load>", "exec"), ns)

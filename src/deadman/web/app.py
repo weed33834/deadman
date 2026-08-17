@@ -56,6 +56,7 @@ from fastapi.responses import (
 )
 from pydantic import BaseModel, Field
 
+from .._version import __version__ as DEADMAN_VERSION
 from ..config import settings
 from .deps import get_current_user, get_jwt_manager, get_optional_user, get_user_store
 from .routes import admin as _admin_routes
@@ -289,7 +290,7 @@ def _build_app() -> FastAPI:
 
     app = FastAPI(
         title="deadman",
-        version="5.1.0",
+        version=DEADMAN_VERSION,
         description="身后事多智能体引导平台 — AG-UI Web API",
         lifespan=lifespan,
     )
@@ -341,7 +342,7 @@ async def healthz():
 
     Kubernetes 用此判断是否需要重启容器；失败才重启，故不应因依赖抖动误杀。
     """
-    return {"status": "alive", "service": "deadman", "version": "5.1.0"}
+    return {"status": "alive", "service": "deadman", "version": DEADMAN_VERSION}
 
 
 @app.get("/readyz", tags=["ops"], include_in_schema=False)
@@ -402,7 +403,7 @@ async def readyz():
         content={
             "status": "ready" if ok else "not_ready",
             "checks": checks,
-            "version": "5.1.0",
+            "version": DEADMAN_VERSION,
         },
     )
 

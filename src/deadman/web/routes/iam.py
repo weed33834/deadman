@@ -17,16 +17,22 @@ import json
 import logging
 import secrets
 import time
+from functools import partial
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 
 from ...errors import DeadmanHTTPException
+from ..deps import require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin/iam", tags=["iam"])
+router = APIRouter(
+    prefix="/api/admin/iam",
+    tags=["iam"],
+    dependencies=[Depends(partial(require_admin, strict=True))],
+)
 
 # 角色
 ROLES = ["admin", "developer", "tester", "viewer", "user"]

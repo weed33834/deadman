@@ -17,7 +17,7 @@
   [![tests](https://github.com/weed33834/deadman/actions/workflows/tests.yml/badge.svg)](https://github.com/weed33834/deadman/actions/workflows/tests.yml)
   [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-  [![Version](https://img.shields.io/badge/version-5.4.0-6b5d4f.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-6.0.0-6b5d4f.svg)](CHANGELOG.md)
   [![Tests](https://img.shields.io/badge/pytest-2926%20passed-brightgreen)]()
   [![MCP](https://img.shields.io/badge/MCP-Server%2BClient-blueviolet)]()
 </p>
