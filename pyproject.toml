@@ -164,6 +164,12 @@ deadman-a2a-server = "deadman.a2a.server:main"
 deadman-web-server = "deadman.web.app:main"
 deadman-web-server-legacy = "deadman.web.server:main"
 
+# 插件入口点组：插件系统（deadman.plugins.loader）扫描本组发现已安装插件。
+# 当前内置插件在 deadman 发行版内（逻辑可插拔化）；Phase C 将迁为独立
+# 发行版（deadman-plugin-*），各自声明本组入口点即可被核心发现。
+[project.entry-points."deadman.plugins"]
+deadman-mcp = "deadman.mcp_server:plugin"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["deadman*"]
