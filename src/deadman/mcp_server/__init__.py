@@ -13,11 +13,12 @@ P3 扩展层（全部默认关闭，通过 DEADMAN_*_ENABLED 环境变量开启�
 
 from __future__ import annotations
 
+from .plugin import plugin  # 插件外观（entry point 目标）
 from .server import (
     McpServer,
     ToolDef,
     main,
-    mcp,  # 全局 server 单例，已注册 11 个工具
+    mcp,  # 全局 server 单例，已注册 15 个工具
 )
 
-__all__ = ["McpServer", "ToolDef", "main", "mcp"]
+__all__ = ["McpServer", "ToolDef", "main", "mcp", "plugin"]
