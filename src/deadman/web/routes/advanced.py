@@ -20,13 +20,18 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 
 from ...errors import DeadmanHTTPException
+from ..deps import require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["advanced"])
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["advanced"],
+    dependencies=[Depends(require_admin)],
+)
 
 _ADMIN_DIR = Path.home() / ".deadman" / "admin"
 

@@ -4,4 +4,4 @@ Conversation-first, framework-agnostic AI platform for after-death procedures,
 digital legacy, grief companionship, folk-custom rules and kinship graphs.
 """
 
-__version__ = "5.4.0"
+from ._version import __version__  # noqa: F401  —— 单一版本源，勿在此硬编码

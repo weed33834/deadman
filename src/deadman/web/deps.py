@@ -20,9 +20,10 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..auth.jwt import JWTManager
@@ -34,6 +35,7 @@ __all__ = [
     "get_jwt_manager",
     "get_current_user",
     "get_optional_user",
+    "require_admin",
     "bearer_scheme",
 ]
 
@@ -104,3 +106,45 @@ def get_optional_user(
     """
     token = cred.credentials if cred else None
     return _resolve_user(token)
+
+
+def require_admin(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    strict: bool = False,
+) -> dict[str, Any]:
+    """管理员级认证依赖：``/api/admin/*`` 全族端点必须挂载本依赖。
+
+    两种通过方式（满足其一即可）：
+    1. ``X-Admin-Token`` 头与 ``DEADMAN_ADMIN_TOKEN`` 严格相等
+       （与 :meth:`deadman.mcp_server.server._check_admin_token` 语义一致）；
+    2. 有效的 JWT 用户（``Authorization: Bearer <token>``）。``strict=True``
+       时要求用户 ``is_admin`` 为真，否则仅要求已认证。
+
+    未配置 ``DEADMAN_ADMIN_TOKEN`` 且无 JWT 时抛 401；提供错误的
+    ``X-Admin-Token`` 时同样抛 401（防探测，不区分"未配置"与"错误"）。
+    """
+    if x_admin_token:
+        admin_token = os.environ.get("DEADMAN_ADMIN_TOKEN", "")
+        if admin_token and x_admin_token == admin_token:
+            return {"role": "admin", "source": "admin_token"}
+        raise HTTPException(
+            status_code=401,
+            detail="X-Admin-Token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = cred.credentials if cred else None
+    user = _resolve_user(token)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="未认证或 token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if strict and not user.get("is_admin", False):
+        raise HTTPException(
+            status_code=403,
+            detail="需要管理员权限",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"role": "user", "source": "jwt", "user": user}

@@ -24,6 +24,7 @@ import logging
 import uuid
 from typing import Any
 
+from .._version import __version__ as DEADMAN_VERSION
 from ..config import settings
 from .models import (
     A2A_V12_ENABLED,
@@ -64,7 +65,7 @@ def _build_default_card() -> AgentCard:
     return AgentCard(
         name="deadman-platform",
         description="身后事多智能体引导平台 - 协助处理逝者身后事全流程",
-        version="5.0.0",
+        version=DEADMAN_VERSION,
         url=f"http://{settings.mcp_server_host}:{settings.mcp_server_port}/a2a",
         skills=[
             AgentCardSkill(
