@@ -147,8 +147,10 @@ db = [
     "alembic>=1.13",
 ]
 # 文本处理增强（textproc/*）：jieba 中文分词（未安装时自动退化为单字/词混合分词，
-# 关键词/检索算法纯 Python 零依赖兜底，始终可用）
-text = ["jieba>=0.42"]
+# BM25 检索基于成熟库 rank-bm25，不再手写 IDF/词频实现
+text = ["jieba>=0.42", "rank-bm25>=0.2"]
+# 限流（web/rate_limiter.py、infrastructure/rate_limiter.py）：基于 limits 库滑动窗口/令牌桶
+rate-limit = ["limits>=3.0"]
 # 文档导出（PDF/Word）
 doc-export = ["reportlab>=4.0", "python-docx>=1.1"]
 # 沙箱绘图
