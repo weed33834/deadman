@@ -96,9 +96,9 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
         "sdk": "openai",
     },
     # 聚合网关 - newapi（OpenAI 兼容，多厂商模型：auto / DeepSeek-V4-* / glm-5.* 等）
-    # 公开网关地址非密钥；密钥走 NEWAPI_API_KEY 环境变量（绝不硬编码）
+    # 网关地址走 NEWAPI_BASE_URL 环境变量（默认空，避免指向不明第三方）；密钥走 NEWAPI_API_KEY
     "newapi": {
-        "base_url": "https://api.hcnsec.cn/v1",
+        "base_url": os.getenv("NEWAPI_BASE_URL", ""),
         "env_key": "NEWAPI_API_KEY",
         "sdk": "openai",
     },
@@ -316,7 +316,7 @@ PROVIDER_MODELS: dict[str, list[dict[str, Any]]] = {
     ],
     "newapi": [
         # 聚合网关，模型随网关侧渠道变化；下列为已验证可用模型
-        # 数据源: https://api.hcnsec.cn/v1/models
+        # 数据源: {NEWAPI_BASE_URL}/models（需自行配置网关地址）
         {
             "id": "auto",
             "name": "newapi 自动路由 (Auto)",
