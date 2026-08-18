@@ -94,7 +94,11 @@ class Bm25Index:
             if s <= 0:
                 continue
             results.append(
-                {"id": self._ids[int(pos)], "score": round(s, 4), "text": self._docs[self._ids[int(pos)]]}
+                {
+                    "id": self._ids[int(pos)],
+                    "score": round(s, 4),
+                    "text": self._docs[self._ids[int(pos)]],
+                }
             )
             if len(results) >= top_k:
                 break
