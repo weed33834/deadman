@@ -1,20 +1,20 @@
 """BM25 检索 —— deep-spec 20 D.1。
 
-关键词侧标配 BM25（自实现，零依赖）。中文文档需先分词后索引。
+关键词侧标配 BM25，内部基于成熟库 rank-bm25（BM25Okapi），
+不再维护手写 IDF/词频实现。中文文档需先分词后索引（tokenize_words）。
 """
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
 from typing import Any
+
+from rank_bm25 import BM25Okapi
 
 from .tokenize import tokenize_words
 
 
-@dataclass
 class Bm25Index:
-    """BM25 索引（经典 Robertson-Sparck Jones 变体）。
+    """BM25 索引（基于 rank_bm25.BM25Okapi 的轻量封装）。
 
     用法::
 
@@ -24,39 +24,37 @@ class Bm25Index:
         results = idx.search("死亡证明怎么办", top_k=5)
     """
 
-    k1: float = 1.5
-    b: float = 0.75
-    _docs: dict[str, str] = field(default_factory=dict)  # id -> 原文
-    _terms: dict[str, dict[str, int]] = field(default_factory=dict)  # term -> {docid: tf}
-    _doc_len: dict[str, int] = field(default_factory=dict)
-    _avgdl: float = 0.0
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self._docs: dict[str, str] = {}  # id -> 原文（保序）
+        self._corpus: list[list[str]] = []  # 平行数组：分词后文档
+        self._ids: list[str] = []  # 平行数组：文档 id
+        self._index: BM25Okapi | None = None
+        self._dirty = True
+
+    # -- 索引维护 ---------------------------------------------------------
 
     def add(self, doc_id: str, text: str) -> None:
         words = tokenize_words(text)
         self._docs[doc_id] = text
-        tf: dict[str, int] = {}
-        for w in words:
-            tf[w] = tf.get(w, 0) + 1
-        self._terms.update({w: self._terms.get(w, {}) for w in tf})
-        for w, c in tf.items():
-            self._terms[w][doc_id] = c
-        self._doc_len[doc_id] = len(words)
-        total = sum(self._doc_len.values())
-        n = len(self._doc_len) or 1
-        self._avgdl = total / n
+        if doc_id in self._ids:
+            # 覆盖既有文档：替换原文与词序列
+            pos = self._ids.index(doc_id)
+            self._corpus[pos] = words
+        else:
+            self._ids.append(doc_id)
+            self._corpus.append(words)
+        self._dirty = True
 
     def remove(self, doc_id: str) -> bool:
         if doc_id not in self._docs:
             return False
         del self._docs[doc_id]
-        for term, posting in list(self._terms.items()):
-            posting.pop(doc_id, None)
-            if not posting:
-                del self._terms[term]
-        self._doc_len.pop(doc_id, None)
-        total = sum(self._doc_len.values())
-        n = len(self._doc_len) or 1
-        self._avgdl = total / n
+        pos = self._ids.index(doc_id)
+        del self._ids[pos]
+        del self._corpus[pos]
+        self._dirty = True
         return True
 
     def add_batch(self, docs: dict[str, str]) -> None:
@@ -64,35 +62,49 @@ class Bm25Index:
             self.add(did, text)
 
     def __len__(self) -> int:
-        return len(self._docs)
+        return len(self._ids)
 
-    def _score(self, query_terms: list[str], doc_id: str) -> float:
-        dl = self._doc_len.get(doc_id, 0)
-        n = len(self._doc_len) or 1
-        score = 0.0
-        for term in set(query_terms):
-            posting = self._terms.get(term, {})
-            if doc_id not in posting:
-                continue
-            tf = posting[doc_id]
-            df = len(posting)
-            idf = math.log((n - df + 0.5) / (df + 0.5) + 1)
-            denom = tf + self.k1 * (1 - self.b + self.b * (dl / (self.avgdl if self.avgdl else 1)))
-            score += idf * ((tf * (self.k1 + 1)) / denom)
-        return score
+    # -- 检索 -------------------------------------------------------------
+
+    def _ensure_index(self) -> BM25Okapi | None:
+        """惰性重建 BM25Okapi；空索引返回 None。"""
+        if not self._ids:
+            self._index = None
+            self._dirty = False
+            return None
+        if self._index is None or self._dirty:
+            self._index = BM25Okapi(self._corpus, k1=self.k1, b=self.b)
+            self._dirty = False
+        return self._index
 
     def search(self, query: str, top_k: int = 10) -> list[dict[str, Any]]:
         q_terms = tokenize_words(query)
         if not q_terms:
             return []
-        scored = [(self._score(q_terms, did), did) for did in self._docs]
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {"id": did, "score": round(s, 4), "text": self._docs[did]}
-            for s, did in scored[:top_k]
-            if s > 0
-        ]
+        index = self._ensure_index()
+        if index is None:
+            return []
+        import numpy as np
+
+        scores = np.asarray(index.get_scores(q_terms), dtype=float)
+        order = scores.argsort()[::-1]
+        results: list[dict[str, Any]] = []
+        for pos in order:
+            s = float(scores[pos])
+            if s <= 0:
+                continue
+            results.append(
+                {
+                    "id": self._ids[int(pos)],
+                    "score": round(s, 4),
+                    "text": self._docs[self._ids[int(pos)]],
+                }
+            )
+            if len(results) >= top_k:
+                break
+        return results
 
     @property
     def avgdl(self) -> float:
-        return self._avgdl
+        index = self._ensure_index()
+        return float(index.avgdl) if index is not None else 0.0
