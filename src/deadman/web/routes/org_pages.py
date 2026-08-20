@@ -324,5 +324,13 @@ async def org_kb_query(
     """机构文档 RAG 问答检索：在机构自建知识上检索 Top-k 块（viewer+ 只读）。"""
     if not q:
         return {"results": [], "count": 0}
-    results = _get_rag().query(ctx["tenant_id"], q, top_k=top_k)
-    return {"query": q, "results": results, "count": len(results)}
+    from ...research.query_rewrite import rewrite_query
+
+    rewritten, was_rewritten = await rewrite_query(q)
+    results = _get_rag().query(ctx["tenant_id"], rewritten, top_k=top_k)
+    return {
+        "query": q,
+        "rewritten_query": rewritten if was_rewritten else None,
+        "results": results,
+        "count": len(results),
+    }
