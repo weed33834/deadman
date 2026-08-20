@@ -161,6 +161,15 @@ async def _wrap_deep_research(question: str = "", max_sources: int = 8, **_: Any
     return {"ok": True, **report.to_dict()}
 
 
+async def _wrap_data_analysis(data: Any = None, question: str = "", **_: Any) -> Any:
+    """数据分析：对表格数据（dict 列表）做描述性统计。"""
+    from ..research.data_analysis import analyze
+
+    if not isinstance(data, list):
+        return {"ok": False, "error": "data 需为对象数组（表格行）"}
+    return analyze(data, question=question)
+
+
 # 注册表:工具名 → wrapper
 _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search": _wrap_web_search,
@@ -171,6 +180,7 @@ _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search_official": _wrap_web_search_official,
     "digital_legacy": _wrap_digital_legacy,
     "deep_research": _wrap_deep_research,
+    "data_analysis": _wrap_data_analysis,
 }
 
 

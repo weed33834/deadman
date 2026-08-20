@@ -290,7 +290,7 @@ class TestHandleWhoami:
         assert "不代办" in result["disclaimer"]
         assert result["platform"] == "deadman"
         assert "agents" in result
-        assert len(result["agents"]) == 6
+        assert len(result["agents"]) == 8
         assert "death-aftercare" in result["agents"]
         assert result["rules_count"] == 15
         assert "supported_languages" in result

@@ -61,6 +61,7 @@ AGENT_NAMES: list[str] = [
     "cross_border_specialist",
     "medical_guide",
     "deep_researcher",
+    "data_analyst",
 ]
 
 # 默认智能体（兜底路由）
@@ -79,6 +80,7 @@ _AWARENESS_INTENT_TO_AGENT: dict[str, str] = {
     "memorial": "death_aftercare",
     "knowledge": "policy_researcher",
     "research": "deep_researcher",
+    "data": "data_analyst",
     "general": "death_aftercare",
 }
 
