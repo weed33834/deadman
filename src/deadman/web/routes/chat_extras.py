@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+from html import escape
 import json
 import logging
 import os
@@ -551,7 +552,7 @@ def _build_pdf(text: str) -> bytes:
 
 
 def _xml_esc(s: str) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return escape(str(s))
 
 
 def _pdf_esc(s: str) -> str:

@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from html import escape
 import logging
 import os
 import threading
@@ -2533,7 +2534,7 @@ class WebServer:
                     self._send_json(500, {"error": f"读取失败: {exc}"})
                     return
                 # HTML escape 防注入
-                escaped = raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                escaped = escape(raw)
                 html = (
                     "<!DOCTYPE html><html lang='zh-CN'><head>"
                     "<meta charset='UTF-8'>"

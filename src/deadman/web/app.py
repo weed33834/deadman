@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+from html import escape
 import json
 import logging
 import os
@@ -478,7 +479,7 @@ def _render_docs_page(name: str) -> HTMLResponse:
         raw = md_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"读取失败: {exc}") from exc
-    escaped = raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    escaped = escape(raw)
     html = (
         "<!DOCTYPE html><html lang='zh-CN'><head>"
         "<meta charset='UTF-8'>"
