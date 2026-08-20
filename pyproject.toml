@@ -1,0 +1,255 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deadman"
+version = "0.1.0"
+description = "deadman - An end-of-life & medical-navigation multi-agent guidance platform: after-death procedure wizard, digital legacy & vault, grief companion, folk-custom rules & kinship graph, conversation-first UX. Framework-agnostic, runs on any agent platform."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "deadman Team"}]
+keywords = [
+    "deadman",
+    "aftercare",
+    "end-of-life",
+    "funeral",
+    "digital-legacy",
+    "digital-immortality",
+    "grief-companion",
+    "grief-support",
+    "medicare",
+    "medical-navigation",
+    "folk-customs",
+    "kinship",
+    "family-tree",
+    "genealogy",
+    "multi-agent",
+    "ai-agent",
+    "llm",
+    "rag",
+    "knowledge-base",
+    "mcp",
+    "model-context-protocol",
+    "langgraph",
+    "fastapi",
+    "conversational-ai",
+    "voice",
+    "tts",
+    "asr",
+    "sandbox",
+    "data-visualization",
+    "memory",
+    "evaluation",
+    "iam",
+    "i18n",
+    "awareness",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Other/Nonlisted Topic",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    # MCP 协议（fastmcp>=3.0 用于 @mcp.tool_auto 自动 schema 生成，v5.1 P8 引入）
+    "mcp>=1.0",
+    "fastmcp>=3.0",
+    # LangGraph 编排
+    "langgraph>=1.0",
+    "langchain-core>=1.0",
+    # 可观测性
+    "opentelemetry-api>=1.30",
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp>=1.30",
+    # 结构化日志（structlog 与 stdlib logging 集成；orchestration/nodes.py 等核心模块无条件依赖）
+    "structlog>=24.0",
+    # 知识图谱
+    # lightrag 和 graphiti 按需安装，不强制
+    # 评估
+    "pyyaml>=6.0",
+    "pydantic>=2.5",
+    # LLM 官方 SDK（多厂商统一封装 + fallback）
+    "openai>=1.50",
+    "anthropic>=0.50",
+    # 工具
+    "httpx>=0.28",
+    "tenacity>=9.0",
+    # requests：对齐本地 LLM 网关（alignment/local_llm）探测与转发，运行时按需 lazy 导入
+    "requests>=2.28",
+    # HTML 解析（替代 web_search 中手写正则解析）
+    "beautifulsoup4>=4.12",
+    # JWT 会话管理（替代手写 HMAC 实现）
+    "PyJWT>=2.8",
+    # 限流（web/rate_limiter.py 被 server/middleware 核心引用，须为核心依赖）
+    "limits>=3.0",
+    # Windows 无系统时区数据库，zoneinfo 解析需要 tzdata
+    "tzdata>=2024.1; platform_system == 'Windows'",
+    # Cron 表达式解析（替代手写 5 字段解析器）
+    "croniter>=2.0",
+    # AES-CBC 加密（WeChat 消息加密 / ending_note 生产级加密）
+    "cryptography>=41.0",
+    # 异步邮件发送（Dead Man Switch 状态变更通知律师/继承人）
+    "aiosmtplib>=3.0",
+    # Web 框架（FastAPI + uvicorn，替代 stdlib http.server）
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    # Prometheus 指标（HTTP RED 指标：请求计数/延迟直方图，官方客户端）
+    "prometheus_client>=0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.15",
+]
+lightrag = ["lightrag-hku>=1.0"]
+graphiti = ["graphiti-core>=0.5"]
+langfuse = ["langfuse>=4.0"]
+sqlite-checkpoint = ["langgraph-checkpoint-sqlite>=3.0"]
+mcp = ["duckduckgo-search>=8.0"]
+ragas = ["ragas>=0.2,<1.0", "datasets>=2.0", "langchain-community<0.4"]
+# P1-2: Sentry 错误监控（sentry-sdk[fastapi] 含 ASGI auto-instrumentation）
+sentry = ["sentry-sdk[fastapi]>=2.0"]
+# 技能市场（marketplace/skill_manager）：frontmatter 解析技能 .md 的 YAML frontmatter
+# 未安装时降级到正则解析
+skills = ["python-frontmatter>=1.0"]
+# 多模态（multimodal/*）：各 SDK 均为 lazy 探测，未安装时对应能力自动降级
+# dashscope=通义千问 VL 视觉理解；edge-tts=语音合成；pywhispercpp=本地 ASR；
+# azure-cognitiveservices-speech=微软语音；torch/sentence-transformers=本地推理与 embedding
+multimodal = [
+    "dashscope>=1.14",
+    "edge-tts>=6.1",
+    "pywhispercpp>=1.0",
+    "azure-cognitiveservices-speech>=1.30",
+    "torch>=2.0",
+    "sentence-transformers>=2.5",
+]
+# 企业级扩展③：文档提取增强（pdfplumber 解析压缩 PDF / python-docx 解析 Word / pytesseract+Pillow OCR 图片）
+# 未安装时降级到 stdlib 正则解析或标记 [needs_ocr] / [unsupported_docx_format]
+doc-extract = [
+    "pdfplumber>=0.11",
+    "python-docx>=1.1",
+    "pytesseract>=0.3.10",
+    "Pillow>=10.0",
+]
+# 企业级扩展④：主数据库迁移（PostgreSQL + SQLAlchemy 2.0 async ORM + Alembic 迁移）
+# DATABASE_URL 留空时所有现有文件存储原样工作（零侵入），配置后 DB 层激活并支持双写
+db = [
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "aiosqlite>=0.20",  # 测试/本地内存数据库
+    "alembic>=1.13",
+]
+# 文本处理增强（textproc/*）：jieba 中文分词（未安装时自动退化为单字/词混合分词，
+# BM25 检索基于成熟库 rank-bm25，不再手写 IDF/词频实现
+text = ["jieba>=0.42", "rank-bm25>=0.2"]
+# 文档导出（PDF/Word）
+doc-export = ["reportlab>=4.0", "python-docx>=1.1"]
+# 沙箱绘图
+plot = ["matplotlib>=3.7", "numpy>=1.24"]
+all = [
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text,doc-export,plot]",
+]
+
+[project.scripts]
+deadman = "deadman.cli:main"
+deadman-mcp-server = "deadman.mcp_server.server:main"
+deadman-a2a-server = "deadman.a2a.server:main"
+deadman-web-server = "deadman.web.app:main"
+# B2B-IMPLEMENTATION Step 8.1：旧 stdlib http.server 入口已移除，统一走 uvicorn deadman.web.app:app
+
+# 插件入口点组：插件系统（deadman.plugins.loader）扫描本组发现已安装插件。
+# 当前内置插件在 deadman 发行版内（逻辑可插拔化）；Phase C 将迁为独立
+# 发行版（deadman-plugin-*），各自声明本组入口点即可被核心发现。
+[project.entry-points."deadman.plugins"]
+deadman-mcp = "deadman.mcp_server:plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["deadman*"]
+
+[tool.setuptools.package-data]
+deadman = ["web/static/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# 显式声明启用规则集，避免依赖 ruff 默认配置漂移
+# E  pycodestyle errors / W warnings
+# F  pyflakes (undefined name / unused import / unused var)
+# I  isort (import 顺序)
+# B  bugbear (correctness / 常见 bug 模式)
+# C4 comprehensions (列表/字典/集合推导简化)
+# UP pyupgrade (语法现代化, 跟进 py310+)
+# SIM simplify (代码简化)
+# RUF ruff 专有规则
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RUF"]
+# 中文项目大量使用全角标点（，。：；！？"''）作为注释/字符串中的正常字符，
+# RUF001/002/003 会把每一个全角字符都标为 ambiguous-unicode-character，
+# 产生大量噪声告警（本项目 13000+ 处），无实际收益，整体忽略。
+ignore = [
+    "RUF001",  # ambiguous-unicode-character-string
+    "RUF002",  # ambiguous-unicode-character-docstring
+    "RUF003",  # ambiguous-unicode-character-comment
+    # RUF022 unsorted-dunder-all：项目 __all__ 惯例按子模块分组排列（带注释），
+    # 字母序排序会破坏分组可读性，整体忽略。
+    "RUF022",
+    # RUF012 mutable-class-default：项目类常量（FABRICATION_PATTERNS /
+    # CRISIS_KEYWORDS / VOTER_WEIGHTS / FORBIDDEN_WORDS 等）按 UPPER_SNAKE_CASE
+    # 命名约定表达"只读常量"意图，运行时不修改；统一改 ClassVar 需 16+ 处改动
+    # 且引入额外 import，收益微小，整体忽略。
+    "RUF012",
+    # SIM102 collapsible-if：剩余 17 处均为 if 块内含多行 body 或注释的有意嵌套
+    # （ruff 自动 fix 因副作用风险不覆盖），强行合并降低可读性，整体忽略。
+    "SIM102",
+    # E501 line-too-long 由 line-length=100 控制，长字符串/URL 单独豁免
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试文件允许宽松一些
+"src/tests/*" = ["E501"]
+# test_org_jwt.py: 临时 FastAPI app 中 Depends 参数默认值是标准框架模式
+"src/tests/test_org_jwt.py" = ["B008"]
+# test_tenant_isolation.py: 同上，临时 FastAPI app 中 Depends(require_org_role) 为标准模式
+"src/tests/test_tenant_isolation.py" = ["B008"]
+# test_org_cases.py: 同上，临时 FastAPI app 中 Depends(require_org_role) 为标准模式
+"src/tests/test_org_cases.py" = ["B008"]
+# multimodal 模块：asr/tts/vision/ocr/image_gen 大量使用
+#   try: import openai / pywhispercpp / diffusers / azure.cognitiveservices.speech ...
+# 模式探测可选依赖是否安装，import 本身即为副作用，变量未在文件内引用是预期行为。
+"src/deadman/multimodal/*" = ["F401"]
+# web/app.py + web/deps.py + web/routes/orgs.py: FastAPI Depends() 在参数默认值是框架标准模式，B008 误报
+"src/deadman/web/app.py" = ["B008"]
+"src/deadman/web/deps.py" = ["B008"]
+"src/deadman/web/routes/orgs.py" = ["B008"]
+# org_customers / org_cases / org_pages: 同上，require_org_role + Depends 为标准框架模式
+"src/deadman/web/routes/org_customers.py" = ["B008"]
+"src/deadman/web/routes/org_cases.py" = ["B008"]
+"src/deadman/web/routes/org_pages.py" = ["B008"]
+# test_org_pages.py: 同上，临时 FastAPI app 中 Depends(require_org_role) 为标准模式
+"src/tests/test_org_pages.py" = ["B008"]
+# org_export / test_org_export: require_org_role + Depends 为标准框架模式
+"src/deadman/web/routes/org_export.py" = ["B008"]
+"src/tests/test_org_export.py" = ["B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["src/tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"'). Used for RAGAS / red-team / integration tests that burn tokens.",
+    "ragas: marks tests that require ragas package installed.",
+    "integration: marks tests that require external services (LLM API / Neo4j / Chroma).",
+]

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deadman 管理台</title>
+<style>
+:root{
+  --paper:#f6f4f0; --paper-warm:#f1eee9; --line:#e4ded3; --ink:#201c17;
+  --accent:#9a5b3f; --accent-deep:#7c4630; --accent-soft:#c89a82;
+  --muted:#8c8578; --ok:#5e7d63; --warn:#b0893c; --bad:#b0553f; --ok-bg:#eef2ec;
+  --radius-s:10px; --radius-m:14px; --radius-pill:999px;
+  --shadow-s:0 1px 2px rgba(32,28,23,.05);
+  --shadow-m:0 1px 2px rgba(32,28,23,.04),0 10px 30px rgba(32,28,23,.07);
+  --ring:0 0 0 3px rgba(154,91,63,.18);
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--paper);color:var(--ink);font-size:14px}
+a{color:var(--accent);text-decoration:none}
+.topbar{height:56px;display:flex;align-items:center;padding:0 20px;background:#211d18;color:#f2ede4;gap:14px}
+.topbar h1{font-size:17px;letter-spacing:1px;font-weight:600}
+.topbar .spacer{flex:1}
+.topbar a.ret{font-size:13px;color:var(--accent-soft);padding:6px 12px;border:1px solid var(--accent-soft);border-radius:var(--radius-s)}
+.wrap{display:flex;min-height:calc(100vh - 56px)}
+.side{width:200px;background:#211d18;color:#f2ede4;padding:14px 12px;flex-shrink:0;overflow:auto}
+.side .g{font-size:11px;opacity:.55;padding:14px 8px 4px;letter-spacing:1px}
+.side .item{padding:9px 12px;cursor:pointer;font-size:13px;border-radius:var(--radius-s);border-left:3px solid transparent;color:#d8d2c6;margin-bottom:2px;transition:background .2s var(--ease)}
+.side .item:hover{background:rgba(255,255,255,.07)}
+.side .item.active{border-left-color:var(--accent-soft);background:rgba(154,91,63,.22);color:#fff}
+.main{flex:1;padding:20px;overflow:auto}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius-m);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-s)}
+.card h2{font-size:15px;margin-bottom:12px;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.card h2 .tag{font-size:11px;background:var(--accent);color:#fff;padding:2px 9px;border-radius:var(--radius-pill);font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-s);padding:13px}
+.stat .k{font-size:12px;color:var(--muted)} .stat .v{font-size:20px;font-weight:600;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--paper-warm);font-weight:600;color:var(--accent-deep)}
+tbody tr{transition:background .15s var(--ease)} tbody tr:hover{background:#faf7f2}
+.pill{display:inline-block;padding:2px 9px;border-radius:var(--radius-pill);font-size:11px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.off{background:var(--paper-warm);color:var(--muted)}
+.pill.warn{background:#f6f0e2;color:var(--warn)} .pill.bad{background:#f7eae6;color:var(--bad)}
+.btn{padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-s);cursor:pointer;font-size:13px;transition:all .2s var(--ease)}
+.btn:hover{background:var(--accent-deep)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.green{background:var(--ok)} .btn.red{background:var(--bad)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+pre{background:#221e19;color:#e8e0d2;padding:12px;border-radius:var(--radius-s);overflow:auto;font-size:12px;max-height:420px;white-space:pre-wrap}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--radius-s);background:#fff;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:var(--ring)}
+textarea{resize:vertical;min-height:80px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:12px} .row .field{flex:1}
+.muted{color:var(--muted);font-size:12px}
+.msg{padding:8px 12px;border-radius:var(--radius-s);margin:8px 0;font-size:13px}
+.wf-bar{position:absolute;top:4px;height:14px;border-radius:4px;background:linear-gradient(90deg,var(--accent-soft),var(--accent));min-width:2px}
+.wf-scale{height:4px;background:var(--line);border-radius:2px;margin:4px 0 8px;font-size:10px;color:var(--muted)}
+.msg.ok{background:var(--ok-bg);color:var(--ok)} .msg.err{background:#f7eae6;color:var(--bad)} .msg.info{background:#eef0f5;color:#4a5568}
+@media(max-width:820px){.side{width:56px}.side .g,.side .item span{display:none}.side .item{padding:13px;text-align:center}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>管理台</h1>
+  <span class="muted" style="opacity:.7;color:#d8d2c6">身后事多智能体引导平台 · 运营控制台</span>
+  <span class="spacer"></span>
+  <a class="ret" href="/">← 返回主站</a>
+</div>
+<div class="wrap">
+  <div class="side" id="side"></div>
+  <div class="main" id="main"></div>
+</div>
+<script>
+const PANELS=[
+ {id:"overview",label:"总览",g:"总览",icon:"◎"},
+ {id:"prompts",label:"提示词",g:"资源管理",icon:"✎"},
+ {id:"agents",label:"Agent",g:"资源管理",icon:"✥"},
+ {id:"tools",label:"工具",g:"资源管理",icon:"⚙"},
+ {id:"voices",label:"音色",g:"资源管理",icon:"♪"},
+ {id:"text",label:"文本与知识",g:"资源管理",icon:"✂"},
+ {id:"models",label:"模型",g:"资源管理",icon:"▦"},
+ {id:"mcp",label:"MCP客户端",g:"资源管理",icon:"⇄"},
+ {id:"memory",label:"记忆",g:"观测",icon:"☲"},
+ {id:"monitoring",label:"监控·日志",g:"观测",icon:"▤"},
+ {id:"traces",label:"链路追踪",g:"观测",icon:"⛓"},
+ {id:"evaluation",label:"评估",g:"观测",icon:"✓"},
+ {id:"scheduler",label:"定时任务",g:"系统",icon:"⏰"},
+ {id:"alerts",label:"告警",g:"系统",icon:"🔔"},
+ {id:"iam",label:"用户权限",g:"系统",icon:"👥"},
+ {id:"settings",label:"设置",g:"系统",icon:"⚑"},
+ {id:"backup",label:"备份",g:"系统",icon:"⧉"},
+];
+let current="overview";
+const el=id=>document.getElementById(id);
+function api(path,opts){opts=opts||{};return fetch(path,opts).then(r=>r.json().then(d=>({ok:r.ok,status:r.status,data:d})))}
+function renderSide(){let last="";el("side").innerHTML=PANELS.map(p=>{let h=p.g!==last?`<div class="g">${p.g}</div>`:"";last=p.g;return h+`<div class="item ${p.id===current?"active":""}" onclick="go('${p.id}')">${p.icon}<span> ${p.label}</span></div>`}).join("")}
+function go(id){current=id;renderSide();renderPanel()}
+function card(t,tag,b){return `<div class="card"><h2>${t}${tag?`<span class="tag">${tag}</span>`:""}</h2>${b}</div>`}
+function stat(k,v,d){return `<div class="stat"><div class="k">${k}</div><div class="v">${v??"-"}</div>${d?`<div class="d">${d}</div>`:""}</div>`}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.className="msg"},6000)}
+
+async function renderPanel(){
+  const fns={overview:renderOverview,prompts:renderPrompts,agents:renderAgents,tools:renderTools,voices:renderVoices,text:renderText,knowledge:renderText,models:renderModels,mcp:renderMcp,memory:renderMemory,monitoring:renderMonitoring,logs:renderMonitoring,traces:renderTraces,evaluation:renderEvaluation,scheduler:renderScheduler,alerts:renderAlerts,iam:renderIam,settings:renderSettings,backup:renderBackup};
+  try{await fns[current]()}catch(e){el("main").innerHTML=`<div class="card"><h2>加载失败</h2><div class="muted">${esc(e)}</div></div>`}
+}
+async function renderOverview(){
+  const d=(await api("/api/admin/overview")).data||{}; const llm=d.llm||{};
+  el("main").innerHTML=card("服务概览","总览",`<div class="grid">
+   ${stat("主模型",`${llm.provider||"-"} / ${llm.model||"-"}`)}${stat("主智能体",(d.agents&&d.agents.main)||0,"并列 6 个")}
+   ${stat("注册Agent",(d.agents&&d.agents.registry)||0)}${stat("工具",(d.tools&&d.tools.total)||0,"启用 "+(d.tools&&d.tools.enabled)||0)}
+   ${stat("外部MCP",d.external_mcp_servers||0)}</div>`)+card("管理入口","",`<div class="muted">本控制台支持对提示词/Agent/工具/音色/模型做真实增删改调与试跑测试，并支持全量配置备份迁移。左侧导航进入各资源管理面板。</div>`);
+}
+let promptsList=[],promptSelName="";
+async function renderPrompts(){
+  const d=(await api("/api/admin/prompts")).data||{};
+  promptsList=(d.all||[]);
+  promptSelName=promptSelName&&promptsList.some(p=>p.name===promptSelName)?promptSelName:(promptsList[0]?promptsList[0].name:"");
+  const opts=promptsList.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}${p.builtin?"·内":""}</option>`).join("");
+  el("main").innerHTML=card("提示词列表","PromptManager · 增删改调",`
+   <div class="row"><div class="field"><label>选择提示词</label><select id="pSel" onchange="promptSelName=this.value;renderPromptDetail()">${opts}</select></div>
+   <div class="field"><label>新建提示词名</label><input type="text" id="newPromptName" placeholder="my-prompt"></div>
+   <div class="field"><label></label><button class="btn green" onclick="createPrompt()">+ 新建</button></div></div><div id="promptDetail"></div>`);
+  await renderPromptDetail();
+}
+async function renderPromptDetail(){
+  if(!promptSelName){el("promptDetail").innerHTML="";return}
+  const r=await api("/api/admin/prompts/"+encodeURIComponent(promptSelName)); const p=r.data||{}; const builtin=!!p.builtin;
+  el("promptDetail").innerHTML=`<div class="msg info">${builtin?"内置资源（只读，可试跑）":"自定义资源"}</div>
+   <div class="field"><label>内容 / System Prompt</label><textarea id="pContent" rows="9">${esc(p.content||"")}</textarea></div>
+   <div class="field"><label>描述</label><input type="text" id="pDesc" value="${esc(p.description||"")}"></div>
+   <div class="row"><div class="field"><label>测试输入</label><input type="text" id="pTestInput" placeholder="输入测试文本"></div>
+   <div class="field"><label></label><button class="btn" onclick="savePrompt()" ${builtin?'disabled':''}>保存</button>
+   <button class="btn ghost" onclick="testPrompt()">🧪 试跑</button><button class="btn red" onclick="deletePrompt()" ${builtin?'disabled':''}>删除</button></div></div>
+   <div class="row"><div class="field"><label>AI 动作</label><select id="pAiAction"><option value="generate">从描述生成</option><option value="optimize">优化</option><option value="rewrite">改写语气</option><option value="translate">翻译</option><option value="review">防注入审查</option></select></div>
+   <div class="field"><label>描述/原文</label><input type="text" id="pAiDesc" placeholder="例如：写一个资深法务顾问的 system prompt"></div>
+   <div class="field"><label></label><button class="btn" onclick="aiPrompt()">🤖 AI 生成</button></div></div><div id="pOut"></div>
+   <div class="field" style="margin-top:8px"><label>版本历史（M2 · diff/回滚）</label><div id="pVersions">加载中…</div></div>`;
+  loadPromptVersions(promptSelName);
+}
+async function loadPromptVersions(name){
+  const d=(await api("/api/admin/prompts/"+encodeURIComponent(name)+"/versions")).data||{};
+  const vs=(d.versions||[]).slice().reverse();
+  el("pVersions").innerHTML=`当前 v${d.current_version||0}<br>`+
+   vs.map(v=>`<div class="row" style="align-items:center;margin-top:6px"><div class="field" style="margin:0"><code>v${v.version}</code> <span class="muted">${esc((v.content||"").slice(0,40))}</span> <span class="muted">${esc(v.ts||"")}</span></div>
+   <div class="field" style="margin:0;flex:0 0 auto"><button class="btn sm ghost" onclick="rollbackPrompt('${name}',${v.version})">回滚</button></div></div>`).join("")||'<div class="muted">暂无历史版本</div>';
+}
+async function rollbackPrompt(name,version){
+  if(!confirm("回滚到 v"+version+"？当前内容将进入历史。"))return;
+  const r=await api("/api/admin/prompts/"+encodeURIComponent(name)+"/rollback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({version})});
+  if(r.ok){toast("已回滚");renderPromptDetail()}else toast(JSON.stringify(r.data));
+}
+async function createPrompt(){
+  const name=el("newPromptName").value.trim(); if(!name){alert("请输入名称");return}
+  const r=await api("/api/admin/prompts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,content:"",description:""})});
+  if(r.ok){promptSelName=name;renderPrompts()}else alert(JSON.stringify(r.data));
+}
+async function savePrompt(){
+  const r=await api("/api/admin/prompts/"+encodeURIComponent(promptSelName),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:el("pContent").value,description:el("pDesc").value})});
+  msg("pOut",r.ok?("已保存 v"+r.data.version):JSON.stringify(r.data),r.ok?"ok":"err");
+}
+async function deletePrompt(){if(!confirm("确认删除提示词 "+promptSelName+"？"))return;const r=await api("/api/admin/prompts/"+encodeURIComponent(promptSelName),{method:"DELETE"});if(r.ok){promptSelName="";renderPrompts()}else alert(JSON.stringify(r.data));}
+async function testPrompt(){
+  const r=await api("/api/admin/prompts/"+encodeURIComponent(promptSelName)+"/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input_text:el("pTestInput").value||"你好"})});const d=r.data||{};
+  el("pOut").innerHTML=`<div class="msg ${d.ok?"ok":"err"}">试跑 ${d.ok?`成功，耗时 ${d.duration_ms}ms`:"失败"}</div><pre>${esc(d.ok?d.output:(d.error||JSON.stringify(d)))}</pre>`;
+}
+async function aiPrompt(){
+  const r=await api("/api/admin/prompts/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({description:el("pAiDesc").value,action:el("pAiAction").value})});const d=r.data||{};
+  if(r.ok)el("pOut").innerHTML=`<div class="msg ok">AI 已生成草稿</div><pre>${esc(d.draft?.content||"")}</pre>`;else el("pOut").innerHTML=`<div class="msg err">AI 生成失败：${esc(JSON.stringify(d))}</div>`;
+}
+async function renderAgents(){
+  const d=(await api("/api/admin/agents")).data||{};
+  const rows=(d.agents||[]).map(a=>`<tr><td class="mono">${esc(a.id)}</td><td>${esc(a.name||a.id)}</td>
+   <td><span class="pill ${a.type==="builtin"?"ok":"warn"}">${a.type==="builtin"?"内置":"自定义"}</span></td>
+   <td>${esc(a.system_prompt||a.description||"-").slice(0,40)}</td>
+   <td><button class="btn sm ghost" onclick="testAgent('${esc(a.id)}')">试跑</button><button class="btn sm red" onclick="deleteAgent('${esc(a.id)}','${a.type}')">删除</button></td></tr>`).join("");
+  el("main").innerHTML=card("Agent 列表","AgentManager · 增删改调试",`<table><tr><th>ID</th><th>名称</th><th>类型</th><th>系统提示</th><th>操作</th></tr>${rows||`<tr><td colspan="5" class="muted">暂无</td></tr>`}</table>`)+
+  card("创建 / 编辑 Agent","",`<div class="row"><div class="field"><label>Agent ID</label><input type="text" id="agId" placeholder="my-agent"></div><div class="field"><label>名称</label><input type="text" id="agName" placeholder="我的智能体"></div></div>
+   <div class="field"><label>系统提示</label><textarea id="agPrompt" rows="4" placeholder="你是一位专业的助手…"></textarea></div>
+   <div class="row"><div class="field"><label>温度</label><input type="number" id="agTemp" value="0.3" step="0.1"></div><div class="field"><label>max_steps</label><input type="number" id="agSteps" value="10"></div></div>
+   <button class="btn green" onclick="saveAgent()">保存 Agent</button><div id="agOut" style="margin-top:8px"></div>`)+
+  card("导入 Agent（yaml）","P2.13",`<div class="field"><label>agent.yaml 内容</label><textarea id="agYaml" rows="4" placeholder="agent:\n  id: imp1\n  name: 导入Agent\n  system_prompt: 你是一个专家"></textarea></div><button class="btn" onclick="importAgent()">⭱ 导入</button><div id="agImpOut"></div>`)+
+  card("AI 生成 Agent","描述 → agent.yaml",`<div class="row"><div class="field"><label>描述</label><input type="text" id="agGen" placeholder="帮我做一个能写周报的 agent"></div><div class="field"><label></label><button class="btn" onclick="genAgent()">🤖 生成</button></div></div><pre id="agGenOut" style="margin-top:8px">（描述后点击生成）</pre>`);
+}
+async function saveAgent(){const r=await api("/api/admin/agents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:el("agId").value,name:el("agName").value,system_prompt:el("agPrompt").value,temperature:parseFloat(el("agTemp").value),max_steps:parseInt(el("agSteps").value)})});msg("agOut",r.ok?"已保存 Agent "+(r.data.agent?.id||""):JSON.stringify(r.data),r.ok?"ok":"err");renderAgents();}
+async function genAgent(){
+  const desc=el("agGen").value.trim(); if(!desc){alert("请输入描述");return}
+  el("agGenOut").textContent="生成中…";
+  const r=await api("/api/admin/agents/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({description:desc})});
+  el("agGenOut").textContent = r.ok ? (r.data.agent_yaml||"（未生成）") : JSON.stringify(r.data);
+}
+async function importAgent(){
+  const yaml_text=el("agYaml").value; if(!yaml_text){alert("请输入 yaml");return}
+  const r=await api("/api/admin/agents/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({yaml_text})});
+  el("agImpOut").innerHTML=r.ok?`<div class="msg ok">已导入 ${(r.data.agent||{}).id}</div>`:`<div class="msg err">${esc(JSON.stringify(r.data))}</div>`;
+  renderAgents();
+}
+async function testAgent(id){const input=prompt("测试对话输入：");if(input===null)return;const r=await api("/api/admin/agents/"+encodeURIComponent(id)+"/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:input})});const d=r.data||{};alert("Agent 试跑结果（前 400 字）：\n\n"+String(d.output||d.reply||d.error||JSON.stringify(d)).slice(0,400));}
+async function deleteAgent(id,type){if(type==="builtin"){alert("内置 Agent 不可删除");return}if(!confirm("删除 Agent "+id+"？"))return;await api("/api/admin/agents/"+encodeURIComponent(id),{method:"DELETE"});renderAgents();}
+async function renderTools(){
+  const d=(await api("/api/admin/tools")).data||{}; const local=(d.local&&d.local.tools)||[];
+  const rows=local.map(t=>`<tr><td class="mono">${esc(t.name)}</td><td>${esc(t.description)}</td>
+   <td><span class="pill ${t.enabled?"ok":"off"}">${t.enabled?"启用":"禁用"}</span></td>
+   <td><button class="btn sm ghost" onclick="toggleTool('${esc(t.name)}',${!t.enabled})">${t.enabled?"禁用":"启用"}</button>
+   <button class="btn sm" onclick="showToolTest('${esc(t.name)}','${esc(JSON.stringify(t.input_schema||{}))}')">🧪 试跑</button></td></tr>`).join("");
+  el("main").innerHTML=card("工具注册表","ToolManager · TestRunner",`<table><tr><th>工具名</th><th>描述</th><th>状态</th><th>操作</th></tr>${rows}</table><div id="toolTestPanel"></div>`)+
+  card("工具热加载","M4 · 动态注册",`<div class="row"><div class="field"><label>工具名</label><input type="text" id="tlName" placeholder="my_tool"></div><div class="field"><label>描述</label><input type="text" id="tlDesc" placeholder="工具描述"></div></div>
+   <div class="field"><label>handler 源码（async def handler(**kwargs) -> dict）</label><textarea id="tlCode" rows="4" placeholder="async def handler(name='world', **kw):\n    return {'greeting': 'hi '+name}"></textarea></div>
+   <button class="btn" onclick="toolLoad()">⚡ 热加载</button><div id="tlMsg"></div>`);
+}
+async function showToolTest(name,schemaStr){let schema={};try{schema=JSON.parse(schemaStr)}catch(e){}
+  const props=schema.properties||{};
+  const argInputs=Object.entries(props).map(([k,v])=>`<div class="field"><label>${esc(k)}${(schema.required||[]).includes(k)?" *":""} — ${esc(v.description||v.type||"")}</label><input type="text" data-arg="${esc(k)}" data-type="${esc(v.type||"string")}" placeholder="${esc(v.type||"")}"></div>`).join("");
+  el("toolTestPanel").innerHTML=card("试跑 "+esc(name),"TestRunner",`${argInputs||'<div class="muted">该工具无需参数</div>'}
+   <button class="btn" onclick="runToolTest('${esc(name)}')">▶ 执行试跑</button><div id="toolTestOut"></div>
+   <div class="field" style="margin-top:8px"><label>试跑审计记录</label><pre id="toolRuns" style="max-height:160px">加载中…</pre></div>`);
+}
+async function runToolTest(name){const args={};document.querySelectorAll("#toolTestPanel [data-arg]").forEach(i=>{const v=i.value.trim();if(v==="")return;args[i.dataset.arg]=(i.dataset.type==="number")?parseFloat(v):(i.dataset.type==="integer")?parseInt(v):v});
+  const r=await api("/api/admin/tools/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,arguments:args})});const d=r.data||{};
+  el("toolTestOut").innerHTML=`<div class="msg ${d.ok?"ok":"warn"}">执行完成，耗时 ${d.duration_ms}ms</div><pre>${esc(JSON.stringify(d.result,null,2))}</pre>`;
+  const rr=await api("/api/admin/tools/runs");el("toolRuns").textContent=JSON.stringify((rr.data&&rr.data.runs||[]).slice(-5).reverse(),null,2);}
+async function toggleTool(name,enabled){await api("/api/admin/tools/"+encodeURIComponent(name)+"/toggle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled})});renderTools()}
+async function toolLoad(){
+  const r=await api("/api/admin/tools/load",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:el("tlName").value,description:el("tlDesc").value,handler_code:el("tlCode").value,input_schema:{}})});
+  msg("tlMsg",r.ok?"已热加载工具（如未启用动态注册会提示）："+JSON.stringify(r.data.result||""):JSON.stringify(r.data),r.ok?"ok":"err");
+  renderTools();
+}
+async function renderVoices(){
+  const d=(await api("/api/admin/voices")).data||{};
+  const rows=(d.voices||[]).map(v=>`<tr><td class="mono">${esc(v.id)}</td><td>${esc(v.name)}</td><td>${esc(v.gender||"-")} / ${esc(v.language||"-")}</td>
+   <td>${(v.style||[]).map(s=>`<span class="pill off">${esc(s)}</span>`).join(" ")}</td>
+   <td><span class="pill ${v.is_system?"ok":"warn"}">${v.is_system?"预置":"自定义"}</span>${v.is_default?'<span class="pill warn">默认</span>':""}</td>
+   <td><button class="btn sm ghost" onclick="voiceDefault('${esc(v.id)}')">设默认</button><button class="btn sm red" onclick="deleteVoice('${esc(v.id)}','${v.is_system}')">删除</button></td></tr>`).join("");
+  el("main").innerHTML=card("音色资产","VoiceManager · 增删改调",`<table><tr><th>ID</th><th>名称</th><th>性别/语言</th><th>风格</th><th>类型</th><th>操作</th></tr>${rows}</table>`)+
+  card("新增音色","",`<div class="row"><div class="field"><label>ID</label><input type="text" id="vId" placeholder="my-voice"></div><div class="field"><label>名称</label><input type="text" id="vName" placeholder="温柔女声"></div><div class="field"><label>voice_id</label><input type="text" id="vVid" placeholder="provider-voice-id"></div></div>
+   <div class="row"><div class="field"><label>性别</label><select id="vGender"><option>female</option><option>male</option></select></div><div class="field"><label>语言</label><input type="text" id="vLang" value="zh-CN"></div><div class="field"><label>风格</label><input type="text" id="vStyle" placeholder="温柔,家书"></div></div>
+   <button class="btn green" onclick="addVoice()">+ 新增音色</button><div id="vMsg"></div>`);
+}
+async function addVoice(){const r=await api("/api/admin/voices",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:el("vId").value,name:el("vName").value,voice_id:el("vVid").value,gender:el("vGender").value,language:el("vLang").value,style:el("vStyle").value.split(",").map(s=>s.trim()).filter(Boolean)})});msg("vMsg",r.ok?"已新增音色":"失败："+JSON.stringify(r.data),r.ok?"ok":"err");renderVoices();}
+async function voiceDefault(id){await api("/api/admin/voices/"+encodeURIComponent(id)+"/set-default",{method:"POST"});renderVoices()}
+async function deleteVoice(id,isSystem){if(isSystem==="true"){alert("预置音色不可删除");return}if(!confirm("删除音色 "+id+"？"))return;await api("/api/admin/voices/"+encodeURIComponent(id),{method:"DELETE"});renderVoices()}
+async function renderText(){
+  const st=(await api("/api/text/status")).data||{};
+  el("main").innerHTML=card("底层文本能力","deep-spec 20 · textproc",`<div class="grid">${stat("jieba 分词",st.jieba_available?"可用":"退化","中文分词")}${stat("知识库文档",st.knowledge_docs,"可检索 .md 数")}${stat("算法",(st.capabilities||[]).join(" / "))}</div>`)+
+  card("关键词提取","TF-IDF + TextRank",`<div class="field"><label>输入文本</label><textarea id="txKw" rows="3" placeholder="身后事办理流程包括死亡证明、户口注销、遗产继承…"></textarea></div><button class="btn" onclick="runKeywords()">提取关键词</button><div id="txKwOut"></div>`)+
+  card("文本一键分析","清洗/分词/句子/关键词",`<div class="field"><label>输入文本</label><textarea id="txAna" rows="3" placeholder="办理死亡证明需要哪些材料？医保报销流程。"></textarea></div><button class="btn" onclick="runAnalyze()">分析</button><div id="txAnaOut"></div>`)+
+  card("知识库混合检索","BM25 + 向量 RRF",`<div class="row"><div class="field"><label>查询</label><input type="text" id="txQ" placeholder="死亡证明怎么办"></div><div class="field"><label>向量混合</label><select id="txVec"><option value="false">仅 BM25</option><option value="true">BM25+向量</option></select></div><div class="field"><label></label><button class="btn" onclick="runSearch()">检索</button></div></div><div id="txSearchOut"></div>`);
+  renderKbDocs();
+}
+async function runKeywords(){const r=await api("/api/text/keywords",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:el("txKw").value,top_n:8})});el("txKwOut").innerHTML=`<pre>${esc(JSON.stringify((r.data||{}).keywords,null,2))}</pre>`;}
+async function runAnalyze(){const r=await api("/api/text/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:el("txAna").value})});const d=r.data||{};el("txAnaOut").innerHTML=`<div class="grid"><div class="stat"><div class="k">字符</div><div class="v">${d.char_count}</div></div><div class="stat"><div class="k">分词</div><div class="v">${d.word_count}</div></div><div class="stat"><div class="k">句子</div><div class="v">${d.sentence_count}</div></div></div><div class="field" style="margin-top:8px"><label>关键词</label><pre>${esc(JSON.stringify(d.keywords||[],null,2))}</pre></div><div class="field"><label>分词结果</label><pre>${esc((d.words||[]).join(" / "))}</pre></div>`;}
+async function runSearch(){const r=await api("/api/text/search",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:el("txQ").value,top_k:6,use_vector:el("txVec").value==="true"})});const d=r.data||{};const rows=(d.results||[]).map(x=>`<tr><td class="mono">${esc(x.id)}</td><td>${x.rrf}</td><td>BM25#${x.bm25_rank??"-"}</td><td>向量#${x.vector_rank??"-"}</td></tr>`).join("");el("txSearchOut").innerHTML=`<div class="muted">命中 BM25:${d.bm25_hits} · 向量:${d.vector_hits} · 权重 ${JSON.stringify(d.weights||{})}</div><table style="margin-top:8px"><tr><th>文档</th><th>RRF</th><th>BM25</th><th>向量</th></tr>${rows||'<tr><td colspan="4" class="muted">无结果</td></tr>'}</table>`;}
+async function renderModels(){
+  const d=(await api("/api/admin/models")).data||{};const cur=d.current||{};const cat=d.catalog||{};
+  const providers=Object.keys(cat).map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
+  el("main").innerHTML=card("模型配置","ModelConfig · 切换 + 连通性测试",`
+   <div class="row"><div class="field"><label>Provider</label><select id="mProvider">${providers}<option>${esc(cur.provider)}</option></select></div>
+   <div class="field"><label>模型</label><input type="text" id="mModel" value="${esc(cur.model)}"></div>
+   <div class="field"><label>API Key（留空保留）</label><input type="password" id="mKey"></div></div>
+   <div class="row"><div class="field"><label>Base URL</label><input type="text" id="mBase" value="${esc(cur.base_url||"")}" placeholder="https://api.openai.com/v1"></div>
+   <div class="field"><label></label><button class="btn green" onclick="applyModel()">应用主模型</button><button class="btn ghost" onclick="pingModel()">🔌 连通性测试</button></div></div>
+   <div id="mMsg"></div><div id="mPing"></div>
+   <div class="field" style="margin-top:10px"><label>多 key 轮换池（每行一个）</label><textarea id="mKeys" rows="2" placeholder="sk-...&#10;sk-..."></textarea></div>
+   <div class="field"><label>Fallback 链（provider:model，逗号分隔）</label><input type="text" id="mFallback" placeholder="openai:gpt-4o,anthropic:claude"></div>
+   <button class="btn ghost" onclick="saveModelConfig()">保存模型配置</button><div id="mCfgMsg"></div>
+    <table style="margin-top:10px"><tr><th>厂商</th><th>可用模型</th></tr>${Object.entries(cat).map(([p,m])=>`<tr><td>${esc(p)}</td><td class="mono">${esc((m&&m.models||[]).map(x=>x.id).join(", ")||"-")}</td></tr>`).join("")}</table>`);
+  loadModelConfig();
+ }
+ async function saveModelConfig(){
+  const r=await api("/api/admin/models/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({key_pool:el("mKeys").value.split("\n").map(x=>x.trim()).filter(Boolean),fallback_chain:el("mFallback").value.split(",").map(x=>x.trim()).filter(Boolean)})});
+  msg("mCfgMsg",r.ok?"已保存 key 池 / fallback 链":"失败："+JSON.stringify(r.data),r.ok?"ok":"err");
+}
+async function loadModelConfig(){
+  try{const d=(await api("/api/admin/models/config")).data||{};if(el("mKeys"))el("mKeys").value=(d.key_pool||[]).join("\n");if(el("mFallback"))el("mFallback").value=(d.fallback_chain||[]).join(",");}catch(e){}
+}
+async function applyModel(){msg("mMsg","应用中…","info");const r=await api("/api/admin/models",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:el("mProvider").value,model:el("mModel").value,api_key:el("mKey").value,base_url:el("mBase").value})});msg("mMsg",r.ok?("✓ 已应用 "+r.data.provider+"/"+r.data.model):"✗ "+JSON.stringify(r.data),r.ok?"ok":"err");}
+async function pingModel(){el("mPing").innerHTML="<div class='msg info'>连通性测试中…</div>";const r=await api("/api/admin/models/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:el("mProvider").value,model:el("mModel").value,api_key:el("mKey").value,base_url:el("mBase").value})});const d=r.data||{};el("mPing").innerHTML=`<div class="msg ${d.ok?"ok":"err"}">${d.ok?("✓ 连通，延迟 "+d.latency_ms+"ms，回复："+esc(d.reply||"")):("✗ 不可达：")+esc(d.error||"")}</div>`;}
+async function renderMcp(){
+  const d=(await api("/api/mcp/servers")).data||{};
+  const rows=(d.servers||[]).map(s=>{const c=s.config||{};return `<tr><td class="mono">${esc(c.name)}</td><td>${esc(c.transport)}</td><td class="mono">${esc(c.command||c.url||"-")}</td><td><span class="pill ${s.connected?"ok":"off"}">${s.connected?"已连接":"未连接"}</span></td><td>${s.tool_count||0}</td><td><button class="btn sm ghost" onclick="mcpAct('${esc(c.name)}','connect')">连接</button><button class="btn sm" onclick="mcpAct('${esc(c.name)}','remove')">删除</button></td></tr>`}).join("");
+  el("main").innerHTML=card("外部 MCP Server","MCP Client · 接入",`<div class="row"><div class="field"><label>连接名</label><input type="text" id="mcName" placeholder="filesystem"></div><div class="field"><label>传输</label><select id="mcTransport"><option>stdio</option><option>http</option><option>sse</option></select></div><div class="field"><label>命令/URL</label><input type="text" id="mcCmd" placeholder="npx 或 http://host:port/mcp"></div><div class="field"><label>args</label><input type="text" id="mcArgs" placeholder="-y @modelcontextprotocol/server-filesystem /tmp"></div></div>
+   <button class="btn green" onclick="addMcp()">+ 添加并连接</button><div id="mcMsg"></div>
+   <table style="margin-top:10px"><tr><th>名称</th><th>传输</th><th>命令/地址</th><th>状态</th><th>工具数</th><th>操作</th></tr>${rows||`<tr><td colspan="6" class="muted">暂无。配置 DEADMAN_MCP_CLIENTS 或在此添加。</td></tr>`}</table>`);
+}
+async function addMcp(){const args=(el("mcArgs").value.trim()||"").split(/\s+/).filter(Boolean);const cfg={name:el("mcName").value.trim(),transport:el("mcTransport").value,command:el("mcCmd").value.trim(),args,url:el("mcCmd").value.trim()};const r=await api("/api/mcp/servers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});msg("mcMsg",r.ok?("✓ 已连接 "+cfg.name+"，注册工具 "+(r.data&&r.data.tool_count||0)):"✗ "+JSON.stringify(r.data),r.ok?"ok":"err");renderMcp();}
+async function mcpAct(name,act){if(act==="remove")await api("/api/mcp/servers/"+encodeURIComponent(name),{method:"DELETE"});else await api("/api/mcp/servers/"+encodeURIComponent(name)+"/"+act,{method:"POST"});renderMcp()}
+async function renderMemory(){const d=(await api("/api/admin/memory")).data||{};el("main").innerHTML=card("记忆系统","MemoryManager",`<div class="grid">${stat("working",d.working)}${stat("episodic",d.episodic)}${stat("semantic 事实",d.semantic_facts)}${stat("semantic 画像",d.semantic_profiles)}${stat("procedural",d.procedural)}${stat("Graphiti",d.graphiti_enabled?"启用":"关闭")}${stat("LightRAG",d.lightrag_enabled?"启用":"关闭")}</div>`);}
+async function renderMonitoring(){const d=(await api("/api/admin/monitoring")).data||{};const conv=d.conversation||{};const h=d.health||{};const healthRows=Object.entries(h||{}).map(([k,v])=>`<tr><td class="mono">${esc(k)}</td><td><span class="pill ${v.status==="ok"?"ok":v.status==="no_data"?"off":"warn"}">${esc(v.status)}</span></td></tr>`).join("");el("main").innerHTML=card("对话维度统计","Monitoring",`<div class="grid">${stat("总对话",conv.total_conversations)}${stat("降级",conv.degraded_count)}${stat("token",conv.token_usage_total&&conv.token_usage_total.total_tokens)}</div>`)+card("全领域健康","data/*_health.json",`<table><tr><th>领域</th><th>状态</th></tr>${healthRows||"<tr><td class='muted' colspan='2'>暂无</td></tr>"}</table>`);
+  renderLogsAppend();
+}
+async function renderKbDocs(){const d=(await api("/api/admin/knowledge/docs")).data||{};const rows=(d.docs||[]).map(x=>`<tr><td class="mono">${esc(x.path)}</td><td>${x.size} B</td><td><button class="btn sm red" onclick="kbDel('${esc(x.path)}')">删除</button></td></tr>`).join("");el("main").innerHTML+=card("知识库文档","P5.6 · 管理",`<div class="row"><div class="field"><label>相对路径</label><input type="text" id="kbPath" placeholder="regions/CN/新文档.md"></div><div class="field"><label>内容</label><input type="text" id="kbContent" placeholder="文档内容…"></div><div class="field"><label></label><button class="btn green" onclick="kbAdd()">+ 新增</button></div></div><div id="kbMsg"></div><table><tr><th>路径</th><th>大小</th><th></th></tr>${rows||'<tr><td colspan="3" class="muted">暂无</td></tr>'}</table>`);}
+async function renderLogsAppend(){const d=(await api("/api/admin/logs?limit=100")).data||{};const rows=(d.logs||[]).slice().reverse().map(l=>`<tr><td class="mono" style="white-space:pre-wrap;word-break:break-all">${esc(l)}</td></tr>`).join("");el("main").innerHTML+=card("日志查看器","P8.9 · "+(d.file||'').split('/').pop()||'',`<div class="row"><div class="field"><label>关键词</label><input type="text" id="logQ" placeholder="error…"></div><div class="field"><label></label><button class="btn" onclick="searchLogs()">查询</button></div></div><table><tr><th>日志</th></tr>${rows||'<tr><td class="muted">暂无（设置 DEADMAN_LOG_FILE）</td></tr>'}</table>`);}
+async function renderEvaluation(){const d=(await api("/api/admin/evaluation")).data||{};const ps=d.plan_score||{};el("main").innerHTML=card("评估看板","Evaluation",`<div class="grid">${stat("SelfCheck",d.selfcheck_available?"可用":"不可用")}${stat("用例数",d.case_count)}${stat("规划完整度",ps.score!=null?ps.score:"-")}</div>`)+card("规划完整度明细","",`<pre>${esc(JSON.stringify(ps,null,2))}</pre>`);}
+async function renderSettings(){const d=(await api("/api/admin/settings")).data||{};const env=d.env||{};const fields=Object.entries(env).filter(([k])=>k!=="sensitive_masked").map(([k,v])=>`<div class="field"><label>${esc(k)}${v.masked?' <span class="pill warn">敏感</span>':""}</label><input type="text" id="env_${esc(k)}" value="${esc(v.value||"")}"></div>`).join("");
+  const ec=(await api("/api/admin/error-codes")).data||{};const codes=(ec.codes||[]).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.http_status}</td><td><span class="pill ${c.severity==="warn"?"warn":"bad"}">${esc(c.severity)}</span></td><td>${esc(c.message)}</td></tr>`).join("");
+  el("main").innerHTML=card("系统设置","env · 可热加载",`${fields}<button class="btn green" onclick="saveSettings()">保存设置</button><div id="setMsg"></div><div class="muted" style="margin-top:8px">保存后当前进程立即热生效，并持久化到 .env。敏感项（含 KEY 的环境变量）不回显明文。</div>`)+
+  card("统一错误码注册表","deep-spec 21 · 三段式 DM-模块-序号",`<table><tr><th>错误码</th><th>HTTP</th><th>级别</th><th>说明</th></tr>${codes||'<tr><td colspan="4" class="muted">暂无</td></tr>'}</table>`);}
+async function saveSettings(){const body={};document.querySelectorAll("[id^=env_]").forEach(i=>{body[i.id.slice(4)]={value:i.value}});const r=await api("/api/admin/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});msg("setMsg",r.ok?"已保存并热加载":"失败："+JSON.stringify(r.data),r.ok?"ok":"err");}
+async function renderBackup(){el("main").innerHTML=card("备份 / 迁移","全量配置包",`<div class="muted">导出包含：提示词 / Agent / 音色 / 工具试跑记录 / 模型覆盖 / MCP 客户端配置。</div><div style="margin-top:12px;display:flex;gap:12px"><button class="btn green" onclick="exportBackup()">⭳ 导出配置包</button><button class="btn" onclick="document.getElementById('impFile').click()">⭱ 导入配置包</button><input type="file" id="impFile" accept=".json" style="display:none" onchange="importBackup(this)"></div><div id="bkMsg"></div>`);}
+async function exportBackup(){const r=await api("/api/admin/backup/export");const d=r.data||{};if(!r.ok){msg("bkMsg","导出失败","err");return}const blob=new Blob([JSON.stringify(d.package,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="deadman-backup-"+Date.now()+".json";a.click();msg("bkMsg","已导出配置包","ok");}
+async function importBackup(input){const f=input.files[0];if(!f)return;const r=await api("/api/admin/backup/import",{method:"POST",headers:{"Content-Type":"application/json"},body:await f.text()});msg("bkMsg",r.ok?("已导入："+r.data.imported.join(", ")):("失败："+JSON.stringify(r.data)),r.ok?"ok":"err");}
+// ===== 链路追踪（M10）=====
+async function renderTraces(){
+  const d=(await api("/api/admin/traces?limit=30")).data||{};
+  const rows=(d.spans||[]).slice().reverse().map(sp=>`<tr>
+    <td class="mono">${esc(sp.span_id||"")}</td><td>${esc(sp.trace_id||"")}</td>
+    <td>${esc(sp.name||sp.type||"")}</td><td>${esc(sp.agent||"")}</td>
+    <td>${sp.duration_ms!=null?sp.duration_ms+"ms":""}</td></tr>`).join("");
+  el("main").innerHTML=card("链路追踪","M10 · Trace 查看器",`
+   <div class="row"><div class="field"><label>按 trace_id 查询</label><input type="text" id="trTrace" placeholder="trace_id"></div>
+   <div class="field"><label></label><button class="btn" onclick="searchTrace()">查询</button></div></div>
+   <div id="trDetail"></div>
+   <div class="field" style="margin-top:10px"><label>最近 ${(d.spans||[]).length} 条 span（共 ${d.total||0}）</label>
+   <table><tr><th>span_id</th><th>trace_id</th><th>名称</th><th>agent</th><th>耗时</th></tr>${rows||'<tr><td colspan="5" class="muted">暂无 span（对话后产生）</td></tr>'}</table></div>`);
+}
+async function searchTrace(){
+  const tid=el("trTrace").value.trim(); if(!tid) return;
+  const d=(await api("/api/admin/traces?trace_id="+encodeURIComponent(tid))).data||{};
+  const spans=(d.spans||[]);
+  // 瀑布图：按 start_time 相对定位
+  let min=Infinity, max=0;
+  spans.forEach(s=>{const t=s._start_iso?new Date(s._start_iso).getTime():0; if(t){min=Math.min(min,t);max=Math.max(max,t+(s.duration_ms||0));}});
+  const total=max-min||1;
+  const rows=spans.map(s=>{const t=s._start_iso?new Date(s._start_iso).getTime():0; const left=((t-min)/total*100); const w=Math.max(1,((s.duration_ms||1)/total*100));
+    return `<tr><td class="mono" style="width:120px">${esc(s.span_id||"")}</td><td style="width:180px">${esc(s.name||s.type||"")}</td>
+      <td style="position:relative;height:22px"><div class="wf-bar" style="left:${left}%;width:${w}%"></div></td>
+      <td style="width:80px">${s.duration_ms!=null?s.duration_ms+"ms":""}</td></tr>`;}).join("");
+  el("trDetail").innerHTML=`<div class="msg info">trace ${esc(tid)}：${d.span_count||0} 个 span（瀑布图）</div>
+   <div class="wf-scale"><span>0</span><span style="float:right">${(total/1000).toFixed(2)}s</span></div>
+   <table><tr><th>span_id</th><th>名称</th><th>耗时瀑布</th><th>耗时</th></tr>${rows||'<tr><td colspan="4" class="muted">无结果</td></tr>'}</table>`;
+}
+
+// ===== 定时任务（G11）=====
+async function renderScheduler(){
+  const d=(await api("/api/scheduler/jobs?user_id=default")).data||{};
+  const rows=(d.jobs||[]).map(j=>`<tr><td class="mono">${esc(j.job_id)}</td><td>${esc(j.schedule)}</td><td>${esc(j.content)}</td><td><span class="pill ${j.confirmed?"ok":"warn"}">${j.confirmed?"已激活":"待确认"}</span></td>
+   <td><button class="btn sm ghost" onclick="schedConfirm('${esc(j.job_id)}')">确认</button><button class="btn sm red" onclick="schedCancel('${esc(j.job_id)}')">取消</button></td></tr>`).join("");
+  el("main").innerHTML=card("定时任务","G11 · 调度器",`
+   <div class="row"><div class="field"><label>cron 表达式（5 字段）</label><input type="text" id="scCron" placeholder="0 9 * * *"></div>
+   <div class="field"><label>任务内容</label><input type="text" id="scContent" placeholder="提醒办理丧葬费"></div>
+   <div class="field"><label></label><button class="btn green" onclick="schedAdd()">+ 提议任务</button></div></div>
+   <div id="scMsg"></div>
+   <div class="field" style="margin-top:10px"><label>任务列表</label>
+   <table><tr><th>ID</th><th>调度</th><th>内容</th><th>状态</th><th>操作</th></tr>${rows||'<tr><td colspan="5" class="muted">暂无任务</td></tr>'}</table></div>
+   <div class="muted" style="margin-top:8px">双重确认制：提议后需「确认」才激活；每用户最多 5 条、最小间隔 24h、最长持续 30 天。</div>`);
+}
+async function schedAdd(){const r=await api("/api/scheduler/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({schedule:el("scCron").value,content:el("scContent").value,user_id:"default"})});msg("scMsg",r.ok||r.status<400?("已提议，请确认："+(r.data.message||"")):JSON.stringify(r.data),r.ok?"ok":"err");renderScheduler();}
+async function schedConfirm(id){await api("/api/scheduler/jobs/"+encodeURIComponent(id)+"/confirm?user_id=default",{method:"POST"});renderScheduler();}
+async function schedCancel(id){await api("/api/scheduler/jobs/"+encodeURIComponent(id)+"?user_id=default",{method:"DELETE"});renderScheduler();}
+
+// ===== 用户权限 IAM（M11）=====
+async function renderIam(){
+  const u=(await api("/api/admin/iam/users")).data||{};
+  const ur=(u.users||[]).map(x=>`<tr><td class="mono">${esc(x.user_id||"")}</td><td>${esc(x.email||"")}</td><td>${esc(x.display_name||"")}</td>
+   <td><select onchange="iamSetRole('${esc(x.user_id)}',this.value)"><option ${x.role==="admin"?"selected":""}>admin</option><option ${x.role==="developer"?"selected":""}>developer</option><option ${x.role==="tester"?"selected":""}>tester</option><option ${x.role==="viewer"?"selected":""}>viewer</option><option ${x.role==="user"?"selected":""}>user</option></select></td></tr>`).join("");
+  const k=(await api("/api/admin/iam/keys")).data||{};
+  const kr=(k.keys||[]).map(x=>`<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.masked)}</td><td>${esc(x.label)}</td><td>${esc(x.created_at)}</td><td><button class="btn sm red" onclick="iamRevokeKey('${esc(x.id)}')">吊销</button></td></tr>`).join("");
+  const p=(await api("/api/admin/iam/permissions")).data||{};
+  const pr=Object.entries(p.matrix||{}).map(([mod,acts])=>`<tr><td>${esc(mod)}</td><td class="mono">${esc(Object.keys(acts).join(" / "))}</td></tr>`).join("");
+  el("main").innerHTML=card("用户与权限","M11 · IAM",`<table><tr><th>user_id</th><th>邮箱</th><th>显示名</th><th>角色</th></tr>${ur||'<tr><td colspan="4" class="muted">暂无用户</td></tr>'}</table>`)+
+  card("API Key","生成/吊销",`<div class="row"><div class="field"><label>用途标签</label><input type="text" id="iamKeyLabel" placeholder="dev"></div><div class="field"><label></label><button class="btn green" onclick="iamGenKey()">+ 生成</button></div></div>
+   <div id="iamKeyOut"></div><table style="margin-top:10px"><tr><th>ID</th><th>Key</th><th>标签</th><th>创建时间</th><th></th></tr>${kr||'<tr><td colspan="5" class="muted">暂无 Key</td></tr>'}</table>`)+
+  card("权限矩阵","模块 × 角色",`<table><tr><th>模块</th><th>可执行角色</th></tr>${pr}</table>`);
+}
+async function iamSetRole(id,role){await api("/api/admin/iam/users/"+encodeURIComponent(id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({role})});toast("已更新角色");}
+async function iamGenKey(){const r=await api("/api/admin/iam/keys",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({label:el("iamKeyLabel").value})});el("iamKeyOut").innerHTML=`<div class="msg ok">新 Key（仅显示一次）：<code>${esc((r.data||{}).api_key||"")}</code></div>`;renderIam();}
+async function iamRevokeKey(id){await api("/api/admin/iam/keys/"+encodeURIComponent(id),{method:"DELETE"});renderIam();}
+function toast(t){let e=document.getElementById('admtoast');if(!e){e=document.createElement('div');e.id='admtoast';document.body.appendChild(e)}e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2000);}
+
+// ===== 知识库文档管理（P5.6）=====
+async function renderKnowledge(){
+  const d=(await api("/api/admin/knowledge/docs")).data||{};
+  const rows=(d.docs||[]).map(x=>`<tr><td class="mono">${esc(x.path)}</td><td>${x.size} B</td><td><button class="btn sm red" onclick="kbDel('${esc(x.path)}')">删除</button></td></tr>`).join("");
+  el("main").innerHTML=card("知识库文档","P5.6 · 管理",`
+   <div class="row"><div class="field"><label>相对路径</label><input type="text" id="kbPath" placeholder="regions/CN/新文档.md"></div>
+   <div class="field"><label>内容</label><input type="text" id="kbContent" placeholder="文档内容…"></div>
+   <div class="field"><label></label><button class="btn green" onclick="kbAdd()">+ 新增</button></div></div>
+   <div id="kbMsg"></div>
+   <table style="margin-top:10px"><tr><th>路径</th><th>大小</th><th></th></tr>${rows||'<tr><td colspan="3" class="muted">暂无文档</td></tr>'}</table>`);
+}
+async function kbAdd(){const r=await api("/api/admin/knowledge/docs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:el("kbPath").value,content:el("kbContent").value})});msg("kbMsg",r.ok?"已新增":"失败："+JSON.stringify(r.data),r.ok?"ok":"err");renderKnowledge();}
+async function kbDel(path){if(!confirm("删除 "+path+"？"))return;await api("/api/admin/knowledge/docs?path="+encodeURIComponent(path),{method:"DELETE"});renderKnowledge();}
+
+// ===== 日志查看器（P8.9）=====
+async function renderLogs(){
+  const d=(await api("/api/admin/logs?limit=200")).data||{};
+  const rows=(d.logs||[]).slice().reverse().map(l=>`<tr><td class="mono" style="white-space:pre-wrap;word-break:break-all">${esc(l)}</td></tr>`).join("");
+  el("main").innerHTML=card("日志查看器","P8.9 · "+esc((d.file||"").split('/').pop()||''),`
+   <div class="row"><div class="field"><label>级别</label><select id="logLevel"><option value="">全部</option><option>ERROR</option><option>WARNING</option><option>INFO</option></select></div>
+   <div class="field"><label>关键词</label><input type="text" id="logQ" placeholder="trace_id / error…"></div>
+   <div class="field"><label></label><button class="btn" onclick="searchLogs()">查询</button></div></div>
+   <div id="logOut"><table><tr><th>日志</th></tr>${rows||`<tr><td class="muted">暂无（设置 DEADMAN_LOG_FILE 指向日志文件）</td></tr>`}</table></div>`);
+}
+async function searchLogs(){
+  const q=el("logQ").value.trim(); const lv=el("logLevel").value;
+  const d=(await api("/api/admin/logs?limit=200&level="+lv+"&q="+encodeURIComponent(q))).data||{};
+  const rows=(d.logs||[]).slice().reverse().map(l=>`<tr><td class="mono" style="white-space:pre-wrap;word-break:break-all">${esc(l)}</td></tr>`).join("");
+  el("logOut").innerHTML=`<table><tr><th>日志（${d.total_available||0} 条）</th></tr>${rows||'<tr><td class="muted">无匹配</td></tr>'}</table>`;
+}
+
+// ===== 告警规则（M9）=====
+async function renderAlerts(){
+  const d=(await api("/api/admin/alerts")).data||{};
+  const rows=(d.alerts||[]).map(x=>`<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.metric)}</td><td>${esc(x.op)} ${esc(x.threshold)}</td><td>${esc(x.channel)}</td><td><span class="pill ${x.enabled?"ok":"off"}">${x.enabled?"启用":"停用"}</span></td><td><button class="btn sm red" onclick="alertDel('${esc(x.id)}')">删除</button></td></tr>`).join("");
+  el("main").innerHTML=card("告警规则","M9 · 管理",`
+   <div class="row"><div class="field"><label>指标</label><input type="text" id="alMetric" placeholder="tool_fail_rate"></div>
+   <div class="field"><label>阈值</label><input type="number" id="alTh" value="10"></div>
+   <div class="field"><label>渠道</label><select id="alChannel"><option>log</option><option>email</option><option>webhook</option></select></div>
+   <div class="field"><label></label><button class="btn green" onclick="alertAdd()">+ 新增</button></div></div>
+   <div id="alMsg"></div>
+   <table style="margin-top:10px"><tr><th>ID</th><th>指标</th><th>条件</th><th>渠道</th><th>状态</th><th></th></tr>${rows||'<tr><td colspan="6" class="muted">暂无规则</td></tr>'}</table>`);
+}
+async function alertAdd(){const r=await api("/api/admin/alerts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rule:{metric:el("alMetric").value,threshold:parseFloat(el("alTh").value),op:">",channel:el("alChannel").value}})});msg("alMsg",r.ok?"已新增规则":"失败："+JSON.stringify(r.data),r.ok?"ok":"err");renderAlerts();}
+async function alertDel(id){await api("/api/admin/alerts/"+encodeURIComponent(id),{method:"DELETE"});renderAlerts();}
+
+renderSide();renderPanel();
+</script>
+</body>
+</html>

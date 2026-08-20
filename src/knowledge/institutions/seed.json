@@ -1,0 +1,576 @@
+{
+ "_meta": {
+  "description": "殡葬机构种子数据 - 北京/上海/重庆主要殡仪馆",
+  "confidence_note": "0.7 = 中可信（公开政务/媒体报道整理，建议办理前核实）",
+  "phone_note": "未列电话的机构请通过 12345 政务热线或当地殡葬服务热线核实",
+  "compliance": "数据来自公开政务平台/媒体报道整理，不编造电话/地址；不确定的字段留空",
+  "sources": [
+   "北京市民政局殡葬管理处公开信息",
+   "上海殡葬服务热线 021-962200 公开查询",
+   "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告"
+  ]
+ },
+ "institutions": [
+  {
+   "institution_id": "bj_baobaoshan_fh",
+   "name": "北京市八宝山殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "石景山区",
+   "address": "北京市石景山区石景山路9号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_dongjiao_fh",
+   "name": "北京市东郊殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "朝阳区",
+   "address": "北京市朝阳区平房北街133号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_huilongguan_fh",
+   "name": "北京市回龙观殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "昌平区",
+   "address": "北京市昌平区回龙观",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_changping_fh",
+   "name": "北京市昌平殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "昌平区",
+   "address": "北京市昌平区昌平镇水屯村北",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_tongzhou_fh",
+   "name": "北京市通州殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "通州区",
+   "address": "北京市通州区通州镇北苑",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_daxing_fh",
+   "name": "北京市大兴殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "大兴区",
+   "address": "北京市大兴区黄村镇",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_miyun_fh",
+   "name": "北京市密云殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "密云区",
+   "address": "北京市密云区密云镇",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "bj_yanqing_fh",
+   "name": "北京市延庆殡仪馆",
+   "type": "funeral_home",
+   "province": "北京",
+   "city": "北京",
+   "district": "延庆区",
+   "address": "北京市延庆区延庆镇",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "北京市民政局殡葬管理处公开信息 2025",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "sh_yishan_fh",
+   "name": "上海市益善殡仪馆",
+   "type": "funeral_home",
+   "province": "上海",
+   "city": "上海",
+   "district": "徐汇区",
+   "address": "上海市徐汇区老沪闵路1149号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "上海殡葬服务热线 021-962200 公开查询 2026",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "sh_longhua_fh",
+   "name": "上海市龙华殡仪馆",
+   "type": "funeral_home",
+   "province": "上海",
+   "city": "上海",
+   "district": "徐汇区",
+   "address": "上海市徐汇区漕溪路210号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "上海殡葬服务热线 021-962200 公开查询 2026",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "sh_baoxing_fh",
+   "name": "上海市宝兴殡仪馆",
+   "type": "funeral_home",
+   "province": "上海",
+   "city": "上海",
+   "district": "虹口区",
+   "address": "上海市虹口区西宝兴路833号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "上海殡葬服务热线 021-962200 公开查询 2026",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "sh_zhuanqiao_fh",
+   "name": "上海市颛桥殡仪馆",
+   "type": "funeral_home",
+   "province": "上海",
+   "city": "上海",
+   "district": "闵行区",
+   "address": "上海市闵行区颛桥镇",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "上海殡葬服务热线 021-962200 公开查询 2026",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "sh_songjiang_fh",
+   "name": "上海市松江殡仪馆",
+   "type": "funeral_home",
+   "province": "上海",
+   "city": "上海",
+   "district": "松江区",
+   "address": "上海市松江区松江镇",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "上海殡葬服务热线 021-962200 公开查询 2026",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "cq_shiqiaopu_fh",
+   "name": "重庆市石桥铺殡仪馆",
+   "type": "funeral_home",
+   "province": "重庆",
+   "city": "重庆",
+   "district": "九龙坡区",
+   "address": "重庆市九龙坡区石桥铺",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "cq_jiangbei_fh",
+   "name": "重庆市江北殡仪馆",
+   "type": "funeral_home",
+   "province": "重庆",
+   "city": "重庆",
+   "district": "江北区",
+   "address": "重庆市江北区",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "cq_beibei_fh",
+   "name": "重庆市北碚殡仪馆",
+   "type": "funeral_home",
+   "province": "重庆",
+   "city": "重庆",
+   "district": "北碚区",
+   "address": "重庆市北碚区",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "cq_shapingba_fh",
+   "name": "重庆市沙坪坝殡仪馆",
+   "type": "funeral_home",
+   "province": "重庆",
+   "city": "重庆",
+   "district": "沙坪坝区",
+   "address": "重庆市沙坪坝区",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "cq_banan_fh",
+   "name": "重庆市巴南殡仪馆",
+   "type": "funeral_home",
+   "province": "重庆",
+   "city": "重庆",
+   "district": "巴南区",
+   "address": "重庆市巴南区",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "重庆市民政局 2026.4 渝逝有安平台 96000 公开通告",
+   "confidence": 0.7
+  },
+  {
+   "institution_id": "gd_gz_swzc",
+   "name": "广州市殡葬服务中心（市殡仪馆）",
+   "type": "funeral_home",
+   "province": "广东",
+   "city": "广州",
+   "district": "天河区",
+   "address": "广州市天河区燕岭路418号",
+   "phone": "020-87284111",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存",
+    "殡仪服务"
+   ],
+   "price_public": true,
+   "source": "广东省民政厅 2026.5 殡仪馆信息公开表 + 广州市民政局 2024.1 服务名录",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "gd_sz_binyi",
+   "name": "深圳市殡葬服务中心（深圳殡仪馆）",
+   "type": "funeral_home",
+   "province": "广东",
+   "city": "深圳",
+   "district": "龙岗区",
+   "address": "广东省深圳市龙岗区南湾街道龙岗大道布吉段3031号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "广东省民政厅 2026.5 殡仪馆信息公开表",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "gd_fs_binyi",
+   "name": "佛山市殡仪馆",
+   "type": "funeral_home",
+   "province": "广东",
+   "city": "佛山",
+   "district": "禅城区",
+   "address": "佛山市禅城区江湾二路圣安街7号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "广东省民政厅 2026.5 殡仪馆信息公开表",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "gd_sd_binyi",
+   "name": "佛山市顺德区殡仪馆",
+   "type": "funeral_home",
+   "province": "广东",
+   "city": "佛山",
+   "district": "顺德区",
+   "address": "佛山市顺德区大良街道金沙大道3号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "广东省民政厅 2026.5 殡仪馆信息公开表",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "gd_zh_binyi",
+   "name": "珠海市殡仪馆",
+   "type": "funeral_home",
+   "province": "广东",
+   "city": "珠海",
+   "district": "香洲区",
+   "address": "珠海市香洲区拱北粤海中路2075号",
+   "phone": null,
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "广东省民政厅 2026.5 殡仪馆信息公开表",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "sc_cd_binyi",
+   "name": "成都市殡仪馆",
+   "type": "funeral_home",
+   "province": "四川",
+   "city": "成都",
+   "district": "市本级",
+   "address": "成都市",
+   "phone": "028-83501234",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "成都市民政局 2026.6 殡葬服务机构名单公示（川发改价格〔2026〕173号）",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "sc_cd_dongjiao",
+   "name": "成都市东郊殡仪馆",
+   "type": "funeral_home",
+   "province": "四川",
+   "city": "成都",
+   "district": "锦江区",
+   "address": "成都市锦江区",
+   "phone": "028-85914444",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "成都市民政局 2026.6 殡葬服务机构名单公示",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "sc_ly_binyi",
+   "name": "简阳市殡仪馆",
+   "type": "funeral_home",
+   "province": "四川",
+   "city": "成都",
+   "district": "简阳市",
+   "address": "成都市简阳市",
+   "phone": "028-27596068",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "成都市民政局 2026.6 殡葬服务机构名单公示",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "sc_pz_binyi",
+   "name": "彭州市殡仪馆",
+   "type": "funeral_home",
+   "province": "四川",
+   "city": "成都",
+   "district": "彭州市",
+   "address": "成都市彭州市",
+   "phone": "028-83871322",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "成都市民政局 2026.6 殡葬服务机构名单公示",
+   "confidence": 0.9
+  },
+  {
+   "institution_id": "sc_djy_binyi",
+   "name": "都江堰市殡仪馆",
+   "type": "funeral_home",
+   "province": "四川",
+   "city": "成都",
+   "district": "都江堰市",
+   "address": "成都市都江堰市",
+   "phone": "028-87231276",
+   "services": [
+    "遗体接运",
+    "遗体存放",
+    "告别仪式",
+    "火化",
+    "骨灰寄存"
+   ],
+   "price_public": true,
+   "source": "成都市民政局 2026.6 殡葬服务机构名单公示",
+   "confidence": 0.9
+  }
+ ]
+}

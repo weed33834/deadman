@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deadman 机构工作台</title>
+<style>
+:root{
+  --paper:#f7f5f0; --paper-warm:#f1ece4; --line:#e7e0d4; --ink:#26211c;
+  --ink-soft:#4a4238;
+  --accent:#9a5b3f; --accent-deep:#7c4630; --accent-soft:#c89a82;
+  --gold:#b98d4f; --sage:#5e7d63; --sage-deep:#45614a; --warn:#b0893c; --bad:#b0553f;
+  --sage-bg:#eef2ec; --warn-bg:#f6f0e2; --bad-bg:#f7eae6;
+  --radius-s:10px; --radius-m:16px; --radius-pill:999px;
+  --shadow-s:0 1px 2px rgba(38,33,28,.05);
+  --shadow-m:0 2px 6px rgba(38,33,28,.04),0 18px 40px rgba(38,33,28,.08);
+  --ring:0 0 0 3px rgba(154,91,63,.18);
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:
+  radial-gradient(1200px 600px at 85% -10%, rgba(184,141,79,.10), transparent 60%),
+  radial-gradient(900px 500px at -10% 110%, rgba(94,125,99,.08), transparent 55%),
+  var(--paper);color:var(--ink);font-size:14px;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+h1,h2,.serif{font-family:"Noto Serif SC","Songti SC","STSong",serif}
+
+/* ============ 顶栏 ============ */
+.topbar{height:62px;display:flex;align-items:center;padding:0 24px;background:
+  linear-gradient(90deg,#211d18,#2c251e);color:#f4eee2;gap:14px;position:sticky;top:0;z-index:20;
+  box-shadow:0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(20,16,12,.25)}
+.topbar .brand{display:flex;align-items:center;gap:10px}
+.topbar .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--accent));
+  display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;box-shadow:0 2px 8px rgba(185,141,79,.35)}
+.topbar h1{font-size:16px;letter-spacing:2px;font-weight:600}
+.topbar .orgname{font-size:12px;color:var(--accent-soft);letter-spacing:.5px}
+.topbar .spacer{flex:1}
+.topbar .who{display:flex;align-items:center;gap:8px;font-size:13px}
+.topbar .who .role{font-size:11px;background:rgba(154,91,63,.35);color:#f2d9c8;padding:3px 10px;border-radius:var(--radius-pill)}
+.topbar a.ret{font-size:12px;color:var(--accent-soft);padding:6px 12px;border:1px solid rgba(200,154,130,.5);border-radius:var(--radius-s);transition:all .2s var(--ease)}
+.topbar a.ret:hover{background:rgba(200,154,130,.12)}
+
+/* ============ 布局 ============ */
+.wrap{display:flex;min-height:calc(100vh - 62px)}
+.side{width:208px;padding:20px 14px;flex-shrink:0;border-right:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(255,255,255,.12))}
+.side .g{font-size:11px;color:var(--gold);letter-spacing:3px;padding:16px 10px 6px;font-weight:600;opacity:.85}
+.side .item{display:flex;align-items:center;gap:11px;padding:10px 13px;cursor:pointer;font-size:13.5px;
+  border-radius:var(--radius-s);color:var(--ink-soft);margin-bottom:3px;transition:all .2s var(--ease);
+  border:1px solid transparent}
+.side .item .ic{width:18px;text-align:center;font-size:15px;opacity:.8}
+.side .item:hover{background:#fff;box-shadow:var(--shadow-s);color:var(--ink)}
+.side .item.active{background:linear-gradient(120deg,#fff,#faf5ee);border-color:var(--line);
+  color:var(--accent-deep);font-weight:600;box-shadow:var(--shadow-s)}
+.side .item.active .ic{opacity:1}
+.side .foot{margin-top:26px;padding:14px;border-radius:var(--radius-m);border:1px dashed var(--line);
+  font-size:11px;color:var(--muted,#9a9183);line-height:1.7;text-align:center}
+.side .foot .dot{color:var(--sage);font-weight:700}
+.main{flex:1;padding:26px 30px 60px;overflow:auto;min-width:0}
+
+/* ============ 卡片 ============ */
+.page-head{margin-bottom:20px}
+.page-head .kicker{font-size:11px;letter-spacing:4px;color:var(--gold);font-weight:600}
+.page-head h2{font-size:24px;margin-top:4px;letter-spacing:1px}
+.page-head .sub{font-size:12.5px;color:var(--muted,#9a9183);margin-top:6px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius-m);padding:20px;margin-bottom:18px;
+  box-shadow:var(--shadow-s)}
+.card h3{font-size:14px;margin-bottom:14px;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.card h3 .tag{font-size:11px;background:var(--accent);color:#fff;padding:2px 10px;border-radius:var(--radius-pill);font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.stat{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:var(--radius-m);
+  padding:16px 18px;box-shadow:var(--shadow-s);transition:transform .25s var(--ease),box-shadow .25s var(--ease)}
+.stat:hover{transform:translateY(-3px);box-shadow:var(--shadow-m)}
+.stat::after{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--gold),var(--accent-soft));opacity:.55}
+.stat .k{font-size:12px;color:var(--muted,#9a9183)}
+.stat .v{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:.5px;font-family:"Noto Serif SC","Songti SC",serif}
+.stat .d{font-size:11.5px;color:var(--sage-deep);margin-top:5px}
+
+/* ============ 表格 ============ */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{background:var(--paper-warm);font-weight:600;color:var(--accent-deep);font-size:12px;letter-spacing:.5px}
+tbody tr{transition:background .15s var(--ease)} tbody tr:hover{background:#faf6ef}
+tbody tr:last-child td{border-bottom:none}
+.pill{display:inline-block;padding:2px 11px;border-radius:var(--radius-pill);font-size:11px;letter-spacing:.3px}
+.pill.ok{background:var(--sage-bg);color:var(--sage-deep)} .pill.off{background:var(--paper-warm);color:var(--muted,#9a9183)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.accent{background:rgba(154,91,63,.12);color:var(--accent-deep)}
+
+/* ============ 按钮 ============ */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--accent);color:#fff;border:none;
+  border-radius:var(--radius-s);cursor:pointer;font-size:13px;transition:all .2s var(--ease);font-family:inherit}
+.btn:hover{background:var(--accent-deep);transform:translateY(-1px);box-shadow:0 6px 16px rgba(154,91,63,.25)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.ghost:hover{background:#faf6ef;box-shadow:none}
+.btn.green{background:var(--sage)} .btn.green:hover{background:var(--sage-deep)}
+.btn.red{background:var(--bad)} .btn.sm{padding:5px 11px;font-size:12px}
+.btn.danger-ghost{background:transparent;color:var(--bad);border:1px solid #e2c9c0}
+.btn.danger-ghost:hover{background:var(--bad-bg);box-shadow:none}
+.btn-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+
+/* ============ 表单 ============ */
+input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{
+  width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-s);background:#fff;
+  font-size:13px;font-family:inherit;outline:none;transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:var(--ring)}
+textarea{resize:vertical;min-height:90px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:500}
+.row{display:flex;gap:12px} .row .field{flex:1}
+.muted{color:var(--muted,#9a9183);font-size:12px}
+.msg{padding:9px 14px;border-radius:var(--radius-s);margin:10px 0;font-size:13px}
+.msg.ok{background:var(--sage-bg);color:var(--sage-deep)} .msg.err{background:var(--bad-bg);color:var(--bad)}
+.msg.info{background:#eef0f5;color:#4a5568}
+
+/* ============ 状态分布条 ============ */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-row .lbl{width:92px;font-size:12px;color:var(--ink-soft)}
+.bar-row .track{flex:1;height:8px;background:var(--paper-warm);border-radius:4px;overflow:hidden}
+.bar-row .fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent-soft),var(--accent));
+  transition:width .5s var(--ease);min-width:2px}
+.bar-row .num{width:30px;text-align:right;font-size:12px;color:var(--ink-soft);font-weight:600}
+
+/* ============ 客户/案件条目 ============ */
+.row-list{display:flex;flex-direction:column;gap:10px}
+.row-item{display:flex;align-items:center;gap:14px;padding:13px 16px;background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius-m);transition:all .2s var(--ease)}
+.row-item:hover{box-shadow:var(--shadow-s);border-color:#ddd2c2}
+.row-item .avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent-soft),var(--accent));color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600}
+.row-item .body{flex:1;min-width:0}
+.row-item .title{font-size:14px;font-weight:600}
+.row-item .meta{font-size:11.5px;color:var(--muted,#9a9183);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap}
+
+/* ============ 模态 ============ */
+.modal-bg{position:fixed;inset:0;background:rgba(32,28,23,.45);backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:center;z-index:50;padding:8vh 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--radius-m);padding:26px;width:100%;max-width:520px;
+  box-shadow:0 30px 80px rgba(20,16,12,.35);animation:pop .25s var(--ease)}
+.modal h3{font-size:17px;margin-bottom:18px;letter-spacing:1px}
+.modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+
+/* ============ 登录 ============ */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(900px 500px at 80% 10%, rgba(185,141,79,.12), transparent 60%),
+             radial-gradient(700px 500px at 10% 90%, rgba(94,125,99,.10), transparent 55%),var(--paper)}
+.login-card{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);border-radius:20px;
+  padding:40px 38px;box-shadow:var(--shadow-m)}
+.login-card .logo{width:56px;height:56px;border-radius:16px;margin:0 auto 20px;
+  background:linear-gradient(135deg,var(--gold),var(--accent));display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:#fff;box-shadow:0 10px 30px rgba(154,91,63,.3)}
+.login-card h1{text-align:center;font-size:22px;letter-spacing:3px}
+.login-card .sub{text-align:center;font-size:12.5px;color:var(--muted,#9a9183);margin:8px 0 26px;line-height:1.7}
+.login-card .btn{width:100%;justify-content:center;margin-top:8px;padding:11px}
+.login-card .hint{margin-top:16px;font-size:11.5px;color:var(--muted,#9a9183);text-align:center;line-height:1.8}
+
+/* ============ 空态 ============ */
+.empty{padding:44px 20px;text-align:center;color:var(--muted,#9a9183);font-size:13px}
+.empty .ic{font-size:34px;display:block;margin-bottom:10px;opacity:.55}
+
+@media(max-width:860px){
+  .side{width:64px;padding:20px 8px}.side .g,.side .item span,.side .foot{display:none}
+  .side .item{justify-content:center;padding:12px}.side .item .ic{margin:0}
+  .main{padding:20px 16px 50px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录视图 ============ -->
+<div class="login-wrap" id="loginView" style="display:none">
+  <div class="login-card">
+    <div class="logo">枯</div>
+    <h1>机构工作台</h1>
+    <div class="sub">身后事多智能体引导平台 · 业务办案工作台<br>请使用机构成员账号登录</div>
+    <div id="loginMsg"></div>
+    <div class="field"><label>邮箱</label><input type="email" id="loginEmail" placeholder="your@email.com"></div>
+    <div class="field"><label>密码</label><input type="password" id="loginPassword" placeholder="密码" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn" onclick="doLogin()">登录</button>
+    <div class="hint">已绑定唯一机构的账号将自动进入工作台；<br>多机构账号登录后需选择机构。</div>
+  </div>
+</div>
+
+<!-- ============ 机构选择视图 ============ -->
+<div class="login-wrap" id="pickView" style="display:none">
+  <div class="login-card">
+    <div class="logo">枯</div>
+    <h1>选择机构</h1>
+    <div class="sub">您的账号关联了多个机构，请选择要进入的工作台</div>
+    <div id="orgList"></div>
+  </div>
+</div>
+
+<!-- ============ 工作台视图 ============ -->
+<div id="workView" style="display:none">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">枯</div>
+      <div>
+        <h1>机构工作台</h1>
+        <div class="orgname" id="orgName">—</div>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <div class="who">
+      <span id="whoAmI">—</span>
+      <span class="role" id="rolePill">viewer</span>
+      <a class="ret" href="javascript:;" onclick="logout()">退出</a>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="side" id="side"></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+const PANELS=[
+ {id:"dashboard",label:"仪表盘",g:"工作台",icon:"◈"},
+ {id:"customers",label:"客户",g:"工作台",icon:"☗"},
+ {id:"cases",label:"案件",g:"工作台",icon:"◉"},
+ {id:"kb",label:"知识库",g:"工作台",icon:"✎"},
+ {id:"members",label:"成员",g:"团队",icon:"♢"},
+ {id:"audit",label:"审计",g:"团队",icon:"▤"},
+ {id:"settings",label:"设置",g:"团队",icon:"⚑"},
+];
+let current="dashboard";
+const el=id=>document.getElementById(id);
+const TOKEN_KEY="org_token";
+const ROLES={viewer:"查看者",consultant:"顾问",case_manager:"办案员",org_admin:"管理员"};
+
+function token(){return localStorage.getItem(TOKEN_KEY)||""}
+function api(path,opts){
+  opts=opts||{};opts.headers=Object.assign({"Content-Type":"application/json",Authorization:"Bearer "+token()},opts.headers||{});
+  return fetch(path,opts).then(async r=>{
+    let d=null;try{d=await r.json()}catch(e){}
+    return {ok:r.ok,status:r.status,data:d};
+  });
+}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.innerHTML=t}
+function statusPill(s){const m={created:["created","待受理","warn"],assigned:["assigned","已分配","accent"],in_progress:["in_progress","进行中","ok"],pending_input:["pending_input","待补充","warn"],closed:["closed","已归档","off"],cancelled:["cancelled","已取消","off"]};
+  const x=m[s]||[s,s,"off"];return `<span class="pill ${x[2]}">${x[1]}</span>`}
+function roleName(r){return ROLES[r]||r}
+const CASE_TYPES={funeral:"治丧",estate:"遗产继承",insurance:"保险理赔",notarization:"公证",other:"其他"};
+const PRIORITIES={low:"低",normal:"普通",high:"高",urgent:"紧急"};
+const STAGES={planning:"规划中",funeral:"治丧中",settlement:"善后办理",done:"已办结"};
+const caseTypeName=c=>CASE_TYPES[c]||c||"-";
+const priorityName=p=>PRIORITIES[p]||p||"-";
+const stageName=s=>STAGES[s]||s||"-";
+
+/* ============ 启动 ============ */
+async function init(){
+  if(!token()){showLogin();return}
+  const invite = new URLSearchParams(location.search).get("invite");
+  if(invite){
+    const ar=await api("/api/orgs/invites/accept",{method:"POST",body:JSON.stringify({token:invite})});
+    if(ar.ok){
+      history.replaceState({},"",location.pathname);
+      const sw=await api("/api/orgs/switch",{method:"POST",body:JSON.stringify({org_id:ar.data.org_id})});
+      if(sw.ok) localStorage.setItem(TOKEN_KEY,sw.data.token);
+    }
+  }
+  const r=await api("/api/orgs/me");
+  if(r.ok && r.data && r.data.tenant_id){showWork(r.data);return}
+  const ms=await api("/api/orgs/memberships");
+  if(ms.ok && ms.data && ms.data.count>0) showPick(ms.data.memberships);
+  else showLogin();
+}
+function showLogin(){el("loginView").style.display="";el("pickView").style.display="none";el("workView").style.display="none"}
+function showPick(memberships){
+  el("loginView").style.display="none";el("workView").style.display="none";
+  el("pickView").style.display="";
+  el("orgList").innerHTML=`<div class="row-list">${memberships.map(m=>`
+    <div class="row-item" style="cursor:pointer" onclick="pickOrg('${esc(m.org_id)}')">
+      <div class="avatar" style="background:linear-gradient(135deg,var(--sage),var(--sage-deep))">${esc((m.org_name||"机").slice(0,1))}</div>
+      <div class="body">
+        <div class="title">${esc(m.org_name||"未命名机构")}</div>
+        <div class="meta"><span class="pill accent">${roleName(m.org_role)}</span></div>
+      </div>
+    </div>`).join("")}</div>`;
+}
+async function pickOrg(orgId){
+  const r=await api("/api/orgs/switch",{method:"POST",body:JSON.stringify({org_id:orgId})});
+  if(!r.ok){el("orgList").innerHTML=`<div class="msg err">${esc((r.data&&r.data.detail)||"切换失败")}</div>`;return}
+  localStorage.setItem(TOKEN_KEY,r.data.token);
+  await init();
+}
+async function doLogin(){
+  const email=el("loginEmail").value.trim(),password=el("loginPassword").value;
+  if(!email||!password){msg("loginMsg","请输入邮箱与密码","err");return}
+  const r=await api("/api/auth/login",{method:"POST",body:JSON.stringify({email,password})});
+  if(!r.ok){msg("loginMsg",esc((r.data&&r.data.detail)||"登录失败"),"err");return}
+  localStorage.setItem(TOKEN_KEY,r.data.token);
+  await init();
+}
+function logout(){localStorage.removeItem(TOKEN_KEY);showLogin()}
+function showWork(ctx){
+  el("loginView").style.display="none";el("pickView").style.display="none";el("workView").style.display="";
+  el("orgName").textContent=(ctx.org&&ctx.org.name)||"我的机构";
+  el("rolePill").textContent=roleName(ctx.org_role);
+  el("whoAmI").textContent=ctx.user_id||"";
+  renderSide();renderPanel();
+}
+function renderSide(){let last="";el("side").innerHTML=PANELS.map(p=>{
+  let h=p.g!==last?`<div class="g">${p.g}</div>`:"";last=p.g;
+  return h+`<div class="item ${p.id===current?"active":""}" onclick="go('${p.id}')"><span class="ic">${p.icon}</span><span>${p.label}</span></div>`}).join("")+
+  `<div class="foot">本系统为身后事业务提供<b>严谨、庄重、有温度</b>的服务支持。</div>`}
+function go(id){current=id;renderSide();renderPanel()}
+function card(t,b){return `<div class="card"><h3>${t}</h3>${b}</div>`}
+function stat(k,v,d){return `<div class="stat"><div class="k">${k}</div><div class="v">${v??"-"}</div>${d?`<div class="d">${d}</div>`:""}</div>`}
+function empty(ic,t){return `<div class="empty"><span class="ic">${ic}</span>${t}</div>`}
+
+async function renderPanel(){
+  const fns={dashboard:renderDashboard,customers:renderCustomers,cases:renderCases,kb:renderKb,members:renderMembers,audit:renderAudit,settings:renderSettings};
+  try{await fns[current]()}catch(e){el("main").innerHTML=card("出错了",`<div class="msg err">${esc(e.message||e)}</div>`)}
+}
+
+/* ============ 仪表盘 ============ */
+async function renderDashboard(){
+  const d=(await api("/api/org/dashboard")).data||{};
+  const sb=d.status_breakdown||{};
+  const order=["created","assigned","in_progress","pending_input","closed","cancelled"];
+  const labels={created:"待受理",assigned:"已分配",in_progress:"进行中",pending_input:"待补充",closed:"已归档",cancelled:"已取消"};
+  const maxV=Math.max(1,...Object.values(sb));
+  const bars=order.filter(s=>sb[s]!=null).map(s=>`
+    <div class="bar-row"><span class="lbl">${labels[s]||s}</span>
+    <div class="track"><div class="fill" style="width:${(sb[s]/maxV*100).toFixed(1)}%"></div></div>
+    <span class="num">${sb[s]}</span></div>`).join("")||empty("◍","暂无案件");
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">OVERVIEW</div><h2>仪表盘</h2>
+   <div class="sub">今日概览 · 客户与案件进展一目了然</div></div>
+   <div class="grid">
+     ${stat("客户总数",d.customer_count??0,"建档客户")}
+     ${stat("全部案件",d.case_count??0,"含已归档")}
+     ${stat("进行中",d.active_count??0,"受理中案件")}
+     ${stat("我的待办",d.my_todos??0,"分配给我")}
+     ${stat("高优待办",d.due_soon??0,"高优先级")}
+   </div>
+   <div class="card"><h3>案件状态分布</h3>${bars}</div>
+   ${card("最近更新案件",renderCaseRows(d.recent_cases||[]))}`;
+}
+function renderCaseRows(cases){
+  if(!cases.length)return empty("◍","暂无案件，去「案件」面板创建");
+  return `<table><thead><tr><th>客户</th><th>类型</th><th>状态</th><th>负责人</th><th>更新时间</th></tr></thead>
+  <tbody>${cases.map(c=>`<tr>
+    <td>${esc(c.customer_name||c.customer_id||"-")}</td>
+    <td>${esc(caseTypeName(c.case_type))}</td>
+    <td>${statusPill(c.status)}</td>
+    <td>${esc(c.assignee_user_id||"未分配")}</td>
+    <td class="muted">${esc((c.updated_at||"").slice(0,10))}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ============ 客户 ============ */
+async function renderCustomers(){
+  const r=await api("/api/org/customers");
+  if(r.status===403){el("main").innerHTML=card("客户",`<div class="msg info">${esc((r.data&&r.data.detail)||"当前角色无权访问客户管理")}</div>`);return}
+  const rows=r.data&&r.data.customers||[];
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">CUSTOMERS</div><h2>客户</h2>
+   <div class="sub">共 ${rows.length} 位客户</div></div>
+   <div class="btn-row"><button class="btn" onclick="openCustomerForm()">＋ 新建客户</button></div>
+   ${rows.length?`<div class="row-list">${rows.map(c=>`
+     <div class="row-item">
+       <div class="avatar">${esc((c.display_name||"客").slice(0,1))}</div>
+       <div class="body">
+         <div class="title">${esc(c.display_name||"-")}</div>
+         <div class="meta">
+           <span>${esc(c.province||"省份未填")}</span>
+           <span>阶段：${esc(stageName(c.stage))}</span>
+           ${(c.tags||[]).map(t=>`<span class="pill accent">${esc(t)}</span>`).join("")}
+         </div>
+       </div>
+       <button class="btn sm ghost" onclick="openCustomerCases('${esc(c.id)}','${esc(c.display_name)}')">案件</button>
+     </div>`).join("")}</div>`:empty("☗","暂无客户，点击右上角「新建客户」开始")}`;
+}
+function openCustomerForm(){
+  el("modalBox").innerHTML=`<h3>新建客户</h3><div id="cFormMsg"></div>
+    <div class="field"><label>姓名 *</label><input type="text" id="cName" placeholder="客户姓名"></div>
+    <div class="row">
+      <div class="field"><label>省份</label><input type="text" id="cProvince" placeholder="如 广东省"></div>
+      <div class="field"><label>阶段</label><select id="cStage">
+        <option value="planning">规划中</option><option value="funeral">治丧中</option>
+        <option value="settlement">善后办理</option><option value="done">已办结</option></select></div>
+    </div>
+    <div class="field"><label>标签（逗号分隔）</label><input type="text" id="cTags" placeholder="VIP, 高净值"></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="createCustomer()">保存</button></div>`;
+  openModal();
+}
+async function createCustomer(){
+  const name=el("cName").value.trim();
+  if(!name){msg("cFormMsg","请填写客户姓名","err");return}
+  const r=await api("/api/org/customers",{method:"POST",body:JSON.stringify({
+    display_name:name,province:el("cProvince").value.trim(),stage:el("cStage").value,
+    tags:el("cTags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean)})});
+  if(!r.ok){msg("cFormMsg",esc((r.data&&r.data.detail)||"创建失败"),"err");return}
+  closeModal();renderCustomers();
+}
+async function openCustomerCases(id,name){
+  const r=await api("/api/org/customers/"+id+"/profile");
+  const p=r.data||{};const cases=p.cases||[];
+  el("modalBox").innerHTML=`<h3>${esc(name)} 的案件</h3>
+    <div style="margin-bottom:14px" class="muted">共 ${cases.length} 个案件</div>
+    ${cases.length?cases.map(c=>`
+      <div class="row-item" style="margin-bottom:10px">
+        <div class="body">
+          <div class="title">${esc(caseTypeName(c.case_type))} ${statusPill(c.status)}</div>
+          <div class="meta"><span>负责人：${esc(c.assignee_user_id||"未分配")}</span>
+            <span>更新：${esc((c.updated_at||"").slice(0,10))}</span></div>
+        </div></div>`).join(""):empty("◍","该客户暂无案件")}
+    <div class="actions"><button class="btn" onclick="openCaseForm('${esc(id)}')">为该客户办案</button>
+      <button class="btn ghost" onclick="closeModal()">关闭</button></div>`;
+  openModal();
+}
+
+/* ============ 案件 ============ */
+async function renderCases(){
+  const r=await api("/api/org/cases");
+  if(r.status===403){el("main").innerHTML=card("案件",`<div class="msg info">${esc((r.data&&r.data.detail)||"当前角色无权访问案件管理")}</div>`);return}
+  const rows=r.data&&r.data.cases||[];
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">CASES</div><h2>案件</h2>
+   <div class="sub">共 ${rows.length} 个案件</div></div>
+   <div class="btn-row"><button class="btn" onclick="openCaseForm()">＋ 新建案件</button></div>
+   ${rows.length?`<div class="row-list">${rows.map(c=>`
+     <div class="row-item">
+       <div class="avatar" style="background:linear-gradient(135deg,var(--sage),var(--sage-deep))">案</div>
+       <div class="body">
+         <div class="title">${esc(caseTypeName(c.case_type))} ${statusPill(c.status)}</div>
+         <div class="meta">
+           <span>客户：${esc(c.customer_name||c.customer_id||"-")}</span>
+           <span>负责人：${esc(c.assignee_user_id||"未分配")}</span>
+           <span>优先级：<span class="pill ${c.priority==="high"||c.priority==="urgent"?"warn":"off"}">${esc(priorityName(c.priority))}</span></span>
+           <span>更新：${esc((c.updated_at||"").slice(0,10))}</span>
+         </div>
+       </div>
+       <button class="btn sm ghost" onclick="caseActions('${esc(c.id)}')">操作</button>
+     </div>`).join("")}</div>`:empty("◉","暂无案件，去「客户」面板为某位客户办案")}`;
+}
+async function openCaseForm(customerId){
+  const cr=await api("/api/org/customers");const custs=(cr.data&&cr.data.customers)||[];
+  el("modalBox").innerHTML=`<h3>新建案件</h3><div id="kFormMsg"></div>
+    <div class="field"><label>客户 *</label><select id="caseCustomer">
+      ${custs.map(c=>`<option value="${esc(c.id)}" ${c.id===customerId?"selected":""}>${esc(c.display_name)}</option>`).join("")||`<option value="">暂无客户</option>`}</select></div>
+    <div class="row">
+      <div class="field"><label>案件类型</label><select id="caseType">
+        <option value="funeral">治丧</option><option value="estate">遗产继承</option>
+        <option value="insurance">保险理赔</option><option value="notarization">公证</option>
+        <option value="other">其他</option></select></div>
+      <div class="field"><label>优先级</label><select id="casePriority">
+        <option value="normal">普通</option><option value="high">高</option><option value="urgent">紧急</option></select></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="createCase()">保存</button></div>`;
+  openModal();
+}
+async function createCase(){
+  const customerId=el("caseCustomer").value;
+  if(!customerId){msg("kFormMsg","请先选择客户（需先创建客户）","err");return}
+  const r=await api("/api/org/cases",{method:"POST",body:JSON.stringify({
+    customer_id:customerId,case_type:el("caseType").value,priority:el("casePriority").value})});
+  if(!r.ok){msg("kFormMsg",esc((r.data&&r.data.detail)||"创建失败"),"err");return}
+  closeModal();renderCases();
+}
+async function caseActions(caseId){
+  const cr=await api("/api/org/customers");const custs=(cr.data&&cr.data.customers)||[];
+  el("modalBox").innerHTML=`<h3>案件操作</h3><div id="caMsg"></div>
+    <div class="field"><label>状态流转</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm ghost" onclick="setStatus('${esc(caseId)}','assigned')">分配</button>
+        <button class="btn sm ghost" onclick="setStatus('${esc(caseId)}','in_progress')">进行中</button>
+        <button class="btn sm ghost" onclick="setStatus('${esc(caseId)}','pending_input')">待补充</button>
+        <button class="btn sm ghost" onclick="setStatus('${esc(caseId)}','closed')">归档</button>
+        <button class="btn sm ghost" onclick="setStatus('${esc(caseId)}','cancelled')">取消</button>
+      </div></div>
+    <div class="field"><label>分配负责人（用户ID）</label><input type="text" id="assignee" placeholder="成员 user_id"></div>
+    <div class="btn-row"><button class="btn sm" onclick="assignCase('${esc(caseId)}')">分配</button></div>
+    <div class="field"><label>生成材料包</label><div class="muted" style="margin-bottom:8px">复用悼词/通知信函生成器</div>
+      <div class="row">
+        <div class="field"><label>类型</label><select id="genType">
+          <option value="memorial">悼词</option><option value="letter">通知信函</option></select></div>
+        <div class="field"><label>逝者姓名</label><input type="text" id="genName" placeholder="逝者姓名"></div>
+      </div>
+      <button class="btn sm green" onclick="genMaterial('${esc(caseId)}')">生成</button></div>
+    <div class="field"><label>案件时间线</label><div id="caseEvents" style="max-height:180px;overflow:auto"></div></div>
+    <div class="actions"><button class="btn ghost" onclick="closeModal()">关闭</button></div>`;
+  openModal();loadEvents(caseId);
+}
+async function loadEvents(caseId){
+  const r=await api("/api/org/cases/"+caseId+"/events");
+  const evs=(r.data&&r.data.events)||[];
+  el("caseEvents").innerHTML=evs.length?`<div class="row-list">${evs.slice(0,12).map(e=>`
+    <div style="font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px">
+      <b>${esc(e.action||"")}</b>
+      <div class="muted">${esc((e.created_at||"").slice(0,16))} · ${esc(e.actor_user_id||"")}</div>
+      ${e.detail&&Object.keys(e.detail).length?`<div class="muted">${esc(JSON.stringify(e.detail))}</div>`:""}</div>`).join("")}</div>`
+    :`<div class="muted">暂无事件</div>`;
+}
+async function setStatus(caseId,s){
+  const r=await api("/api/org/cases/"+caseId+"/status",{method:"POST",body:JSON.stringify({to_status:s})});
+  if(!r.ok){msg("caMsg",esc((r.data&&r.data.detail)||"流转失败"),"err");return}
+  msg("caMsg","状态已更新","ok");loadEvents(caseId);
+}
+async function assignCase(caseId){
+  const uid=el("assignee").value.trim();
+  if(!uid){msg("caMsg","请填写负责人 user_id","err");return}
+  const r=await api("/api/org/cases/"+caseId+"/assign",{method:"POST",body:JSON.stringify({assignee_user_id:uid})});
+  if(!r.ok){msg("caMsg",esc((r.data&&r.data.detail)||"分配失败"),"err");return}
+  msg("caMsg","已分配","ok");loadEvents(caseId);
+}
+async function genMaterial(caseId){
+  const name=el("genName").value.trim();
+  if(!name){msg("caMsg","请填写逝者姓名","err");return}
+  const gen=el("genType").value;
+  const body=gen==="letter"?{generator:"letter",decedent_name:name,letter_type:"notice"}
+                           :{generator:"memorial",doc_type:"eulogy",decedent_name:name};
+  const r=await api("/api/org/cases/"+caseId+"/material",{method:"POST",body:JSON.stringify(body)});
+  if(!r.ok){msg("caMsg",esc((r.data&&r.data.detail)||"生成失败"),"err");return}
+  const m=(r.data.material||{});
+  msg("caMsg",`已生成材料：<b>${esc(m.doc_type||"")}</b>（${(m.content||"").length} 字）`,"ok");
+}
+
+/* ============ 知识库 ============ */
+async function renderKb(){
+  const r=await api("/api/org/kb");
+  const d=r.data||{};
+  const plat=d.platform||[],priv=d.private||[];
+  const canEdit=(await api("/api/orgs/me")).data.org_role!=="viewer";
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">KNOWLEDGE</div><h2>知识库</h2>
+   <div class="sub">平台政策库（${plat.length} 篇）+ 机构自建（${priv.length} 篇）</div></div>
+   ${canEdit?`<div class="btn-row"><button class="btn" onclick="openKbForm()">＋ 新建机构知识</button></div>`:""}
+   <div class="card"><h3>机构自建知识 <span class="tag">可编辑</span></h3>
+     ${priv.length?`<div class="row-list">${priv.map(doc=>`
+       <div class="row-item">
+         <div class="avatar" style="background:linear-gradient(135deg,var(--gold),var(--accent))">文</div>
+         <div class="body">
+           <div class="title">${esc(doc.title)} <span class="pill accent">${esc(doc.category||"民俗")}</span></div>
+           <div class="meta"><span>更新：${esc((doc.updated_at||"").slice(0,10))}</span>
+             <span>${(doc.tags||[]).map(t=>`<span class="pill off">${esc(t)}</span>`).join("")}</span></div>
+         </div>
+         ${canEdit?`<div class="btn-row" style="margin:0;gap:6px">
+           <button class="btn sm ghost" onclick="viewDoc('${esc(doc.id)}')">查看</button>
+           <button class="btn sm ghost" onclick="openKbForm('${esc(doc.id)}')">编辑</button>
+           <button class="btn sm danger-ghost" onclick="delDoc('${esc(doc.id)}')">删除</button></div>`:""}
+       </div>`).join("")}</div>`
+     :empty("✎","机构还没有自建知识，点击右上角「新建」添加民俗模板、SOP 或价格说明")}
+   </div>
+   <div class="card"><h3>平台政策库 <span class="tag">只读</span></h3>
+     ${plat.length?`<table><thead><tr><th>文档</th><th>分类</th><th>大小</th></tr></thead>
+     <tbody>${plat.map(p=>`<tr><td>${esc(p.title)}</td><td>${esc(p.category)}</td>
+       <td class="muted">${(p.size/1024).toFixed(1)} KB</td></tr>`).join("")}</tbody></table>`
+     :empty("✎","平台政策库为空")}
+   </div>`;
+}
+function openKbForm(docId){
+  const isEdit=!!docId;
+  el("modalBox").innerHTML=`<h3>${isEdit?"编辑":"新建"}机构知识</h3><div id="kbMsg"></div>
+    <div class="field"><label>标题 *</label><input type="text" id="kbTitle" value="${isEdit?esc(docId):""}" placeholder="如 广东农村殡葬习俗SOP"></div>
+    <div class="field"><label>分类</label><select id="kbCat">
+      <option>民俗</option><option>SOP</option><option>价格</option><option>政策</option></select></div>
+    <div class="field"><label>标签（逗号分隔）</label><input type="text" id="kbTags" placeholder="习俗, 广东"></div>
+    <div class="field"><label>内容</label><textarea id="kbContent" placeholder="机构内部参考资料……"></textarea></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="saveKb(${isEdit?"`+JSON.stringify(docId)+`":"''"})">保存</button></div>`;
+  openModal();
+  if(isEdit) loadKbDoc(docId);
+}
+async function loadKbDoc(docId){
+  const r=await api("/api/org/kb");
+  const doc=(r.data&&r.data.private||[]).find(x=>x.id===docId);
+  if(!doc)return;
+  el("kbTitle").value=doc.title;el("kbCat").value=doc.category||"民俗";
+  el("kbTags").value=(doc.tags||[]).join(", ");el("kbContent").value=doc.content||"";
+}
+async function saveKb(docId){
+  const title=el("kbTitle").value.trim();
+  if(!title){msg("kbMsg","请填写标题","err");return}
+  const id=docId||encodeURIComponent(title);
+  const r=await api("/api/org/kb/"+id,{method:"POST",body:JSON.stringify({
+    title,category:el("kbCat").value,content:el("kbContent").value,
+    tags:el("kbTags").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean)})});
+  if(!r.ok){msg("kbMsg",esc((r.data&&r.data.detail)||"保存失败"),"err");return}
+  closeModal();renderKb();
+}
+async function delDoc(docId){
+  if(!confirm("确定删除这篇机构知识？"))return
+  const r=await api("/api/org/kb/"+docId,{method:"DELETE"});
+  if(!r.ok){alert((r.data&&r.data.detail)||"删除失败");return}
+  renderKb();
+}
+function viewDoc(docId){
+  api("/api/org/kb").then(r=>{
+    const doc=(r.data&&r.data.private||[]).find(x=>x.id===docId);
+    el("modalBox").innerHTML=`<h3>${esc(doc?doc.title:docId)}</h3>
+      <div class="muted" style="margin-bottom:12px">分类：${esc(doc?doc.category:"")} · 更新：${esc(doc?doc.updated_at:"")}</div>
+      <pre style="white-space:pre-wrap;font-size:13px;line-height:1.8;max-height:50vh;overflow:auto">${esc(doc?doc.content:"")}</pre>
+      <div class="actions"><button class="btn ghost" onclick="closeModal()">关闭</button></div>`;
+    openModal();
+  });
+}
+
+/* ============ 成员 ============ */
+async function renderMembers(){
+  const r=await api("/api/org/members");
+  if(r.status===403){el("main").innerHTML=card("成员",`<div class="msg info">${esc((r.data&&r.data.detail)||"仅机构管理员可查看成员")}</div>`);return}
+  const rows=(r.data&&r.data.members)||[];
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">TEAM</div><h2>成员</h2>
+   <div class="sub">共 ${rows.length} 位成员</div></div>
+   <div class="btn-row"><button class="btn" onclick="openInviteForm()">＋ 邀请成员</button></div>
+   ${rows.length?`<table><thead><tr><th>成员</th><th>角色</th><th>状态</th><th>加入时间</th><th>操作</th></tr></thead>
+   <tbody>${rows.map(m=>`<tr>
+     <td><b>${esc(m.display_name||m.user_id)}</b><div class="muted">${esc(m.user_id)}</div></td>
+     <td><span class="pill accent">${roleName(m.org_role)}</span></td>
+     <td>${m.status==="active"?`<span class="pill ok">在职</span>`:`<span class="pill bad">已停用</span>`}</td>
+     <td class="muted">${m.joined_at?new Date(m.joined_at*1000).toLocaleDateString():new Date(0).toLocaleDateString()}</td>
+     <td><button class="btn sm ghost" onclick="openMemberActions('${esc(m.user_id)}','${esc(m.display_name||m.user_id)}')">管理</button></td>
+   </tr>`).join("")}</tbody></table>`:empty("♢","暂无成员，点击右上角「邀请成员」添加团队成员")}`;
+}
+async function openInviteForm(){
+  el("modalBox").innerHTML=`<h3>邀请成员</h3><div id="invMsg"></div>
+    <div class="field"><label>邮箱 *</label><input type="email" id="invEmail" placeholder="member@company.com"></div>
+    <div class="field"><label>角色</label><select id="invRole">
+      <option value="viewer">查看者</option><option value="consultant">顾问</option>
+      <option value="case_manager">办案员</option><option value="org_admin">管理员</option></select></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="sendInvite()">生成邀请链接</button></div>`;
+  openModal();
+}
+async function sendInvite(){
+  const email=el("invEmail").value.trim();
+  if(!email){msg("invMsg","请填写邮箱","err");return}
+  const me=await api("/api/orgs/me");
+  const orgId=(me.data&&me.data.tenant_id)||"";
+  if(!orgId){msg("invMsg","未绑定机构","err");return}
+  const r=await api("/api/orgs/"+orgId+"/members/invite",{method:"POST",body:JSON.stringify({email,role:el("invRole").value})});
+  if(!r.ok){msg("invMsg",esc((r.data&&r.data.detail)||"邀请失败"),"err");return}
+  el("modalBox").innerHTML=`<h3>邀请已生成</h3><div id="invMsg"></div>
+    <div class="field"><label>邀请链接（24 小时有效）</label>
+      <input type="text" readonly value="/org?invite=${esc(r.data.token)}" style="font-family:monospace"></div>
+    <div class="field"><label>令牌</label><div class="muted mono">${esc(r.data.token)}</div></div>
+    <div class="actions"><button class="btn ghost" onclick="closeModal()">关闭</button></div>`;
+}
+async function openMemberActions(uid,uname){
+  el("modalBox").innerHTML=`<h3>管理成员 · ${esc(uname)}</h3><div id="maMsg"></div>
+    <div class="field"><label>角色</label><select id="maRole">
+      <option value="viewer">查看者</option><option value="consultant">顾问</option>
+      <option value="case_manager">办案员</option><option value="org_admin">管理员</option></select></div>
+    <div class="field"><label>状态</label><select id="maStatus">
+      <option value="active">在职</option><option value="disabled">停用</option></select></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="updateMember('${esc(uid)}')">保存</button>
+      <button class="btn sm bad" onclick="removeMember('${esc(uid)}')">移除</button></div>`;
+  openModal();
+}
+async function updateMember(uid){
+  const me=await api("/api/orgs/me");
+  const orgId=(me.data&&me.data.tenant_id)||"";
+  const r=await api("/api/orgs/"+orgId+"/members/"+uid,{method:"PATCH",body:JSON.stringify({org_role:el("maRole").value,status:el("maStatus").value})});
+  if(!r.ok){msg("maMsg",esc((r.data&&r.data.detail)||"保存失败"),"err");return}
+  closeModal();renderMembers();
+}
+async function removeMember(uid){
+  if(!confirm("确定移除该成员？客户数据仍保留在机构。"))return
+  const me=await api("/api/orgs/me");
+  const orgId=(me.data&&me.data.tenant_id)||"";
+  const r=await api("/api/orgs/"+orgId+"/members/"+uid,{method:"DELETE"});
+  if(!r.ok){msg("maMsg",esc((r.data&&r.data.detail)||"移除失败"),"err");return}
+  closeModal();renderMembers();
+}
+
+/* ============ 审计 ============ */
+async function renderAudit(){
+  const r=await api("/api/org/audit");
+  if(r.status===403){el("main").innerHTML=card("审计",`<div class="msg info">${esc((r.data&&r.data.detail)||"仅机构管理员可查看审计")}</div>`);return}
+  const rows=(r.data&&r.data.events)||[];
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">AUDIT</div><h2>审计</h2>
+   <div class="sub">案件操作留痕，共 ${r.data&&r.data.count||rows.length} 条</div></div>
+   ${rows.length?`<table><thead><tr><th>时间</th><th>操作</th><th>案件</th><th>操作人</th><th>详情</th></tr></thead>
+   <tbody>${rows.map(e=>`<tr>
+     <td class="muted">${esc((e.created_at||"").slice(0,19))}</td>
+     <td><span class="pill accent">${esc(e.action||"")}</span></td>
+     <td class="muted">${esc(e.case_type||"")} · ${esc((e.case_id||"").slice(0,8))}</td>
+     <td class="muted">${esc(e.actor_user_id||"-")}</td>
+     <td class="muted">${e.detail&&Object.keys(e.detail).length?esc(JSON.stringify(e.detail)):"-"}</td>
+   </tr>`).join("")}</tbody></table>`:empty("▤","暂无审计事件")}`;
+}
+
+/* ============ 设置 ============ */
+async function exportOrgData(){
+  msg("setMsg","正在打包全量数据…","");
+  const r=await api("/api/org/export",{method:"POST",body:"{}"});
+  if(!r.ok){msg("setMsg",esc((r.data&&r.data.detail)||"导出失败"),"err");return}
+  const job=r.data&&r.data.job_id;if(!job){msg("setMsg","导出任务未返回 job_id","err");return}
+  const poll=async()=>{
+    const s=await api("/api/org/export/status?job_id="+job);
+    const b=s.data||{};
+    if(b.status==="done"&&b.download_url){window.location=b.download_url;msg("setMsg","导出完成，正在下载…","ok");return}
+    if(b.status==="error"){msg("setMsg",esc(b.error||"导出失败"),"err");return}
+    msg("setMsg","打包中…（"+((b.progress!=null)?(b.progress+"%"):"进行中")+"）","");
+    setTimeout(poll,1200);
+  };
+  poll();
+}
+async function exportAuditLogs(fmt){
+  const r=await fetch("/api/org/audit-logs/export?format="+fmt,{headers:{Authorization:"Bearer "+token()}});
+  if(!r.ok){let d=null;try{d=await r.json()}catch(e){}msg("setMsg",esc((d&&d.detail)||"导出失败"),"err");return}
+  const blob=await r.blob();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="audit_log."+(fmt==="csv"?"csv":"json");
+  a.click();URL.revokeObjectURL(a.href);
+  msg("setMsg","审计日志已导出（"+fmt.toUpperCase()+"）","ok");
+}
+async function renderSettings(){
+  const me=await api("/api/orgs/me");
+  const ctx=me.data||{};
+  const org=ctx.org||{};
+  el("main").innerHTML=`
+   <div class="page-head"><div class="kicker">SETTINGS</div><h2>设置</h2></div>
+   <div id="setMsg"></div>
+   <div class="card"><h3>机构资料</h3>
+     <table><tbody>
+       <tr><th style="width:140px">机构名称</th><td>${esc(org.name||"未命名机构")}</td></tr>
+       <tr><th>机构标识</th><td>${esc(org.slug||org.org_id||"-")}</td></tr>
+       <tr><th>机构 ID</th><td class="mono">${esc(org.org_id||"-")}</td></tr>
+       <tr><th>套餐</th><td><span class="pill accent">${esc(org.plan||"free")}</span></td></tr>
+       <tr><th>状态</th><td>${org.status==="active"?`<span class="pill ok">正常</span>`:`<span class="pill bad">${esc(org.status||"-")}</span>`}</td></tr>
+       <tr><th>我的角色</th><td><span class="pill accent">${roleName(ctx.org_role)}</span></td></tr>
+       <tr><th>我的账号</th><td>${esc(ctx.user_id||"-")}</td></tr>
+     </tbody></table></div>
+   <div class="card"><h3>数据导出</h3><div class="muted" style="margin-bottom:12px">
+     审计日志导出（CSV/JSON）与机构全量数据打包（zip），仅含本机构数据。</div>
+     <div class="btn-row">
+       <button class="btn sm" onclick="exportAuditLogs('csv')">导出审计日志 CSV</button>
+       <button class="btn sm" onclick="exportAuditLogs('json')">导出审计日志 JSON</button>
+       <button class="btn sm green" onclick="exportOrgData()">导出全量数据 zip</button>
+     </div></div>`;
+}
+
+/* ============ 模态 ============ */
+function openModal(){el("modalBg").classList.add("open")}
+function closeModal(){el("modalBg").classList.remove("open")}
+
+init();
+</script>
+</body>
+</html>

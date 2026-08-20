@@ -1,0 +1,45 @@
+# Prometheus 告警规则（企业级扩展②）
+# 基于 deadman /metrics 暴露的 HTTP RED 指标（http_requests_total / http_request_duration_seconds）
+
+groups:
+  - name: deadman-availability
+    rules:
+      # 服务不可达（target down 持续 1 分钟）
+      - alert: DeadmanDown
+        expr: up{job="deadman"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "deadman 服务不可达"
+          description: "{{ $labels.instance }} 已 down 超过 1 分钟。"
+
+  - name: deadman-errors
+    rules:
+      # 5xx 错误率 > 5%（持续 5 分钟）
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx 错误率过高"
+          description: "5xx 错误率 {{ $value | humanizePercentage }} 超过 5%，持续 5 分钟。"
+
+  - name: deadman-latency
+    rules:
+      # p99 延迟 > 1s（持续 5 分钟）
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 延迟过高"
+          description: "HTTP P99 延迟 {{ $value }}s 超过 1s，持续 5 分钟。"
