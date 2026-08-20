@@ -187,6 +187,22 @@ async def change_case_status(
     return case
 
 
+@router.get("/{case_id}/suggest")
+async def suggest_case_next(
+    case_id: str,
+    ctx: dict = Depends(require_org_role("case_manager")),
+):
+    """LLM 智能办案：根据案件状态建议下一步动作（可一键采纳推进）。"""
+    from ...org.smart_case import suggest_next_action
+
+    case_repo = get_case_repo()
+    case = await case_repo.get(ctx["tenant_id"], case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="案件不存在或不属于该机构")
+    suggestion = await suggest_next_action(case)
+    return {"case_id": case_id, "suggestion": suggestion}
+
+
 @router.post("/{case_id}/assign")
 async def assign_case(
     case_id: str,
