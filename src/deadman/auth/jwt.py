@@ -21,9 +21,11 @@ from typing import Any
 
 import jwt
 
+from ..infrastructure.multi_tenant import DATA_ROOT
+
 # 刷新阈值：剩余有效期小于 1 天时刷新
 _REFRESH_THRESHOLD_SECONDS = 24 * 3600
-_DEFAULT_SECRET_FILE = Path.home() / ".deadman" / "auth" / "jwt_secret"
+_DEFAULT_SECRET_FILE = DATA_ROOT / "auth" / "jwt_secret"
 
 
 class JWTManager:
@@ -60,6 +62,7 @@ class JWTManager:
         payload: dict[str, Any] = {
             "user_id": user.get("user_id"),
             "email": user.get("email"),
+            "display_name": user.get("display_name"),
             "role": user.get("role", "user"),
             "family_id": user.get("family_id"),
             "tenant_id": tenant_id,

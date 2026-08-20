@@ -294,6 +294,8 @@ async def orgs_me(
             org = found.to_dict()
     return {
         "user_id": payload.get("user_id"),
+        "email": payload.get("email"),
+        "display_name": payload.get("display_name"),
         "tenant_id": tenant_id,
         "org_role": payload.get("org_role"),
         "org": org,

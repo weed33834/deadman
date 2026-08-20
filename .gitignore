@@ -91,3 +91,6 @@ config.local.*
 *.local.yaml
 *.local.yml
 *.local.json
+
+# playwright-cli 浏览器测试产物（截图/快照/日志）
+.playwright-cli/

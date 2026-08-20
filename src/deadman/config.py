@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def _tenant_default_path(sub_path: str) -> Path:
-    """业务数据目录默认值：按租户路由（single 模式回到 ~/.deadman/<sub>）。
+    """业务数据目录默认值：按租户路由（single 模式回到 DATA_ROOT/<sub>）。
 
     仅作为 env 未显式指定时的静态兜底；请求级租户目录由各 store 构造时
     动态调用 resolve_tenant_path 解析（见 Step 4）。
@@ -16,6 +16,14 @@ def _tenant_default_path(sub_path: str) -> Path:
     from .infrastructure.multi_tenant import resolve_tenant_path
 
     return resolve_tenant_path(sub_path)
+
+
+def _data_root() -> Path:
+    """业务数据根目录：默认 ~/.deadman，可用 DEADMAN_DATA_ROOT 覆盖。
+
+    与 multi_tenant.DATA_ROOT 同源，保证各 store 目录与租户路径落在同一根下。
+    """
+    return Path(os.getenv("DEADMAN_DATA_ROOT", str(Path.home() / ".deadman")))
 
 
 def _load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
@@ -156,13 +164,13 @@ class Settings:
     telegram_bot_token: str = os.getenv("DEADMAN_TELEGRAM_BOT_TOKEN", "")
     # 主动通知护栏数据目录（consent / unsubscribes / sent_log / last_session）
     notification_data_dir: Path = Path(
-        os.getenv("DEADMAN_NOTIFICATION_DATA_DIR", str(Path.home() / ".deadman" / "notifications"))
+        os.getenv("DEADMAN_NOTIFICATION_DATA_DIR", str(_data_root() / "notifications"))
     )
 
     # === 用户认证与会话（Phase 8，遵守 legal-compliance-framework PIPL）===
     # 用户数据目录：~/.deadman/auth/users.json + jwt_secret
     auth_data_dir: Path = Path(
-        os.getenv("DEADMAN_AUTH_DATA_DIR", str(Path.home() / ".deadman" / "auth"))
+        os.getenv("DEADMAN_AUTH_DATA_DIR", str(_data_root() / "auth"))
     )
     # JWT 签名密钥（留空则自动生成并持久化到 auth_data_dir/jwt_secret）
     # 生产环境建议通过环境变量显式注入，避免单机密钥漂移
@@ -188,7 +196,7 @@ class Settings:
 
     # === 机构域数据（To B：机构/成员/邀请；客户与案件走 DB，见 B2B-IMPLEMENTATION Step 5）===
     org_data_dir: Path = Path(
-        os.getenv("DEADMAN_ORG_DATA_DIR", str(Path.home() / ".deadman" / "org"))
+        os.getenv("DEADMAN_ORG_DATA_DIR", str(_data_root() / "org"))
     )
 
     # === To B 私有化授权码（B2B-IMPLEMENTATION Step 7.1）===

@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..infrastructure.multi_tenant import DATA_ROOT
 from ..utils.jsonio import atomic_write_json
 
 # PBKDF2 参数（NIST 推荐 >= 100000，OWASP 2023 同步推荐）
@@ -37,7 +38,7 @@ _PBKDF2_KEY_LEN = 32  # 256 bit
 _SERVER_SECRET_FILE = "jwt_secret"
 
 # 默认数据目录
-_DEFAULT_DATA_DIR = Path.home() / ".deadman" / "auth"
+_DEFAULT_DATA_DIR = DATA_ROOT / "auth"
 
 
 class UserStore:

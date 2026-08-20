@@ -77,37 +77,43 @@ def get_invite_store() -> InviteStore:
     return InviteStore(data_dir=settings.org_data_dir)
 
 
-def get_customer_repo():
-    """客户 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
+def _db_or_file(db_module: str, db_cls: str, file_cls):
+    """DB 仓库与文件仓库分发：DB 启用且可导入时用 DB 版，否则回退文件存储。
+
+    DB 层（sqlalchemy）为可选依赖，缺失/异常时回退文件存储，保证机构功能零侵入运行。
+    """
     from ..db.engine import db_enabled
-    from ..db.repositories import CustomerRepository as DbCustomerRepository
-    from ..org.file_customers import CustomerRepository as FileCustomerRepository
 
     if db_enabled():
-        return DbCustomerRepository()
-    return FileCustomerRepository(data_dir=settings.org_data_dir)
+        try:
+            import importlib
+
+            mod = importlib.import_module(db_module)
+            return getattr(mod, db_cls)()
+        except Exception:
+            pass  # DB 层异常 → 文件降级
+    return file_cls(data_dir=settings.org_data_dir)
+
+
+def get_customer_repo():
+    """客户 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
+    from ..org.file_customers import CustomerRepository as FileCustomerRepository
+
+    return _db_or_file("deadman.db.repositories", "CustomerRepository", FileCustomerRepository)
 
 
 def get_case_repo():
     """案件 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
-    from ..db.engine import db_enabled
-    from ..db.repositories import CaseRepository as DbCaseRepository
     from ..org.file_customers import CaseRepository as FileCaseRepository
 
-    if db_enabled():
-        return DbCaseRepository()
-    return FileCaseRepository(data_dir=settings.org_data_dir)
+    return _db_or_file("deadman.db.repositories", "CaseRepository", FileCaseRepository)
 
 
 def get_case_event_repo():
     """案件事件 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
-    from ..db.engine import db_enabled
-    from ..db.repositories import CaseEventRepository as DbEventRepository
     from ..org.file_customers import CaseEventRepository as FileEventRepository
 
-    if db_enabled():
-        return DbEventRepository()
-    return FileEventRepository(data_dir=settings.org_data_dir)
+    return _db_or_file("deadman.db.repositories", "CaseEventRepository", FileEventRepository)
 
 
 def _resolve_user(token: str | None) -> dict[str, Any] | None:

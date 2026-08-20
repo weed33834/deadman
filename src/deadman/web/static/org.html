@@ -247,6 +247,10 @@ function api(path,opts){
   });
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function fmtDate(ts){ // unix 秒 → YYYY-MM-DD（统一日期格式，避免本地化美式 8/20/2026）
+  if(!ts)return"—";const d=new Date(ts*1000);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
 function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.innerHTML=t}
 function statusPill(s){const m={created:["created","待受理","warn"],assigned:["assigned","已分配","accent"],in_progress:["in_progress","进行中","ok"],pending_input:["pending_input","待补充","warn"],closed:["closed","已归档","off"],cancelled:["cancelled","已取消","off"]};
   const x=m[s]||[s,s,"off"];return `<span class="pill ${x[2]}">${x[1]}</span>`}
@@ -308,7 +312,7 @@ function showWork(ctx){
   el("loginView").style.display="none";el("pickView").style.display="none";el("workView").style.display="";
   el("orgName").textContent=(ctx.org&&ctx.org.name)||"我的机构";
   el("rolePill").textContent=roleName(ctx.org_role);
-  el("whoAmI").textContent=ctx.user_id||"";
+  el("whoAmI").textContent=ctx.display_name||ctx.user_id||"";
   renderSide();renderPanel();
 }
 function renderSide(){let last="";el("side").innerHTML=PANELS.map(p=>{
@@ -511,14 +515,14 @@ async function loadEvents(caseId){
 async function setStatus(caseId,s){
   const r=await api("/api/org/cases/"+caseId+"/status",{method:"POST",body:JSON.stringify({to_status:s})});
   if(!r.ok){msg("caMsg",esc((r.data&&r.data.detail)||"流转失败"),"err");return}
-  msg("caMsg","状态已更新","ok");loadEvents(caseId);
+  msg("caMsg","状态已更新","ok");loadEvents(caseId);renderCases();
 }
 async function assignCase(caseId){
   const uid=el("assignee").value.trim();
   if(!uid){msg("caMsg","请填写负责人 user_id","err");return}
   const r=await api("/api/org/cases/"+caseId+"/assign",{method:"POST",body:JSON.stringify({assignee_user_id:uid})});
   if(!r.ok){msg("caMsg",esc((r.data&&r.data.detail)||"分配失败"),"err");return}
-  msg("caMsg","已分配","ok");loadEvents(caseId);
+  msg("caMsg","已分配","ok");loadEvents(caseId);renderCases();
 }
 async function genMaterial(caseId){
   const name=el("genName").value.trim();
@@ -627,7 +631,7 @@ async function renderMembers(){
      <td><b>${esc(m.display_name||m.user_id)}</b><div class="muted">${esc(m.user_id)}</div></td>
      <td><span class="pill accent">${roleName(m.org_role)}</span></td>
      <td>${m.status==="active"?`<span class="pill ok">在职</span>`:`<span class="pill bad">已停用</span>`}</td>
-     <td class="muted">${m.joined_at?new Date(m.joined_at*1000).toLocaleDateString():new Date(0).toLocaleDateString()}</td>
+      <td class="muted">${m.joined_at?fmtDate(m.joined_at):"—"}</td>
      <td><button class="btn sm ghost" onclick="openMemberActions('${esc(m.user_id)}','${esc(m.display_name||m.user_id)}')">管理</button></td>
    </tr>`).join("")}</tbody></table>`:empty("♢","暂无成员，点击右上角「邀请成员」添加团队成员")}`;
 }

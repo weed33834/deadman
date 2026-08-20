@@ -51,6 +51,7 @@ from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
     PlainTextResponse,
+    Response,
     RedirectResponse,
     StreamingResponse,
 )
@@ -439,6 +440,12 @@ async def readyz():
 # =====================================================================
 # 静态文件 / 文档页面
 # =====================================================================
+
+
+@app.head("/", include_in_schema=False)
+async def root_head():
+    """HEAD / → 空 200（健康检查/监控探针用）。"""
+    return Response(status_code=200)
 
 
 @app.get("/", include_in_schema=False)

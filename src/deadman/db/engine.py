@@ -12,20 +12,31 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-
 from ..config import settings
 
 logger = logging.getLogger(__name__)
 
+# sqlalchemy 属可选依赖（主数据库为「零侵入降级」设计）：
+# 未安装时 db_enabled()=False，所有 DB 路径回退文件存储，避免机构等功能 500。
+try:
+    from sqlalchemy.ext.asyncio import (  # type: ignore
+        AsyncEngine,
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+
+    _HAS_SQLALCHEMY = True
+except ImportError:
+    _HAS_SQLALCHEMY = False
+    AsyncEngine = Any  # type: ignore
+    AsyncSession = Any  # type: ignore
+    async_sessionmaker = Any  # type: ignore
+    create_async_engine = None  # type: ignore
+
 # 全局单例（惰性初始化，避免 import 时立即建连）
-_engine: AsyncEngine | None = None
-_session_factory: async_sessionmaker[AsyncSession] | None = None
+_engine: "AsyncEngine | None" = None
+_session_factory: "async_sessionmaker[AsyncSession] | None" = None
 
 
 def db_enabled() -> bool:
@@ -34,7 +45,7 @@ def db_enabled() -> bool:
     DATABASE_URL 非空且 sqlalchemy 已安装时返回 True。
     任何 DB 操作前都应先检查此函数，实现零侵入降级。
     """
-    return bool(settings.database_url)
+    return _HAS_SQLALCHEMY and bool(settings.database_url)
 
 
 def _build_engine() -> AsyncEngine:

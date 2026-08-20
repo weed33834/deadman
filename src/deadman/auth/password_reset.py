@@ -22,7 +22,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-_DEFAULT_DATA_DIR = Path.home() / ".deadman" / "auth"
+from ..infrastructure.multi_tenant import DATA_ROOT
+
+_DEFAULT_DATA_DIR = DATA_ROOT / "auth"
 _DEFAULT_TTL_MINUTES = 30
 
 

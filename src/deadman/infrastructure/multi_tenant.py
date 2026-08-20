@@ -36,12 +36,16 @@ logger = logging.getLogger(__name__)
 # 默认租户 ID(单租户场景平滑迁移,所有数据落到 ~/.deadman/)
 DEFAULT_TENANT_ID = os.environ.get("DEADMAN_DEFAULT_TENANT_ID", "default")
 
-# 租户模式:single=单机/C 端/私有化(路径走 ~/.deadman/);multi=SaaS 多租户(路径走 tenants/<tid>/)
+# 业务数据根目录：默认 ~/.deadman。可用 DEADMAN_DATA_ROOT 显式覆盖，
+# 便于在 HOME 易失的沙箱/容器/CI 里把数据落在稳定目录（见 resolve_tenant_path）。
+DATA_ROOT = Path(os.environ.get("DEADMAN_DATA_ROOT", str(Path.home() / ".deadman")))
+
+# 租户模式:single=单机/C 端/私有化(路径走 DATA_ROOT);multi=SaaS 多租户(路径走 DATA_ROOT/tenants/<tid>/)
 TENANT_MODE: str = os.environ.get("DEADMAN_TENANT_MODE", "single")
 
 # 租户数据根目录
 TENANTS_ROOT = Path(
-    os.environ.get("DEADMAN_TENANTS_ROOT", str(Path.home() / ".deadman" / "tenants"))
+    os.environ.get("DEADMAN_TENANTS_ROOT", str(DATA_ROOT / "tenants"))
 )
 
 
@@ -145,9 +149,9 @@ def resolve_tenant_path(sub_path: str, tenant_id: str | None = None, strict: boo
             "请通过 TenantMiddleware / TenantContext 绑定租户后再写入。"
         )
     if not is_multi_tenant_enabled():
-        # 关闭:数据落到 ~/.deadman/<sub_path>(向后兼容)
-        return Path.home() / ".deadman" / sub_path
-    # 启用:数据落到 ~/.deadman/tenants/<tenant_id>/<sub_path>
+        # 关闭:数据落到 DATA_ROOT/<sub_path>(默认 ~/.deadman,可被 DEADMAN_DATA_ROOT 覆盖)
+        return DATA_ROOT / sub_path
+    # 启用:数据落到 DATA_ROOT/tenants/<tenant_id>/<sub_path>
     return TENANTS_ROOT / tid / sub_path
 
 

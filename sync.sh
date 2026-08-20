@@ -4,7 +4,8 @@
 #   - github  : https://github.com/weed33834/deadman    (主仓，唯一事实源)
 #   - gitcode : https://gitcode.com/badhope/deadman     (镜像)
 #   - gitee   : https://gitee.com/badhope/deadman       (镜像)
-# 凭据存于 ~/.git-credentials (credential.helper store)，remote URL 不含 token
+# 凭据存于仓库本地 credential.helper（`git config credential.helper` 指向
+# workspace 内 0600 的 .git-credentials，见仓库 README 开发说明），remote URL 不含 token。
 # 小版本迭代：每个提交对应一个 0.x 小版本；可选第二个参数作为 tag 一并推送。
 
 set -e
