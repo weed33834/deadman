@@ -5,6 +5,8 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>deadman 机构工作台</title>
+<script>window.APP_TOKEN_KEY="org_token";</script>
+<script src="/static/js/common.js"></script>
 <style>
 :root{
   --paper:#f7f5f0; --paper-warm:#f1ece4; --line:#e7e0d4; --ink:#26211c;
@@ -234,23 +236,10 @@ const PANELS=[
  {id:"settings",label:"设置",g:"团队",icon:"⚑"},
 ];
 let current="dashboard";
-const el=id=>document.getElementById(id);
-const TOKEN_KEY="org_token";
+const TOKEN_KEY=window.APP_TOKEN_KEY;  // 与 common.js 会话键一致
 const ROLES={viewer:"查看者",consultant:"顾问",case_manager:"办案员",org_admin:"管理员"};
 
-function token(){return localStorage.getItem(TOKEN_KEY)||""}
-function api(path,opts){
-  opts=opts||{};opts.headers=Object.assign({"Content-Type":"application/json",Authorization:"Bearer "+token()},opts.headers||{});
-  return fetch(path,opts).then(async r=>{
-    let d=null;try{d=await r.json()}catch(e){}
-    return {ok:r.ok,status:r.status,data:d};
-  });
-}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function fmtDate(ts){ // unix 秒 → YYYY-MM-DD（统一日期格式，避免本地化美式 8/20/2026）
-  if(!ts)return"—";const d=new Date(ts*1000);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
+// el / token / api / esc / fmtDate 已由 /static/js/common.js 提供，此处不再重复定义
 function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.innerHTML=t}
 function statusPill(s){const m={created:["created","待受理","warn"],assigned:["assigned","已分配","accent"],in_progress:["in_progress","进行中","ok"],pending_input:["pending_input","待补充","warn"],closed:["closed","已归档","off"],cancelled:["cancelled","已取消","off"]};
   const x=m[s]||[s,s,"off"];return `<span class="pill ${x[2]}">${x[1]}</span>`}

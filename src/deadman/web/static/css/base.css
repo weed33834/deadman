@@ -1,0 +1,28 @@
+/* deadman 共享基础样式（原各 HTML 内联 <style> 中重复的 reset / 设计 token / 通用组件收敛于此）。
+   页面在各自内联 CSS 前 <link> 本文件，随后可用这些 CSS 变量与基础类。 */
+:root {
+  --bg: #f7f5f1;
+  --panel: #ffffff;
+  --line: #e7e2d8;
+  --text: #2f2a24;
+  --muted: #9a9183;
+  --accent: #6b5d4f;
+  --sage: #7f8b6f;
+  --sage-deep: #5c6b52;
+  --danger: #b3543f;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+.pill.ok { background: #e7f0e5; color: #3d6b3a; }
+.pill.bad { background: #f6e3e0; color: #b3543f; }
+.pill.accent { background: #ede9e2; color: var(--accent); }
+.muted { color: var(--muted); font-size: 12.5px; }

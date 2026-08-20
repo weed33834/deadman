@@ -45,6 +45,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -296,6 +297,9 @@ def _build_app() -> FastAPI:
 
 
 app = _build_app()
+
+# 共享静态资源（css/js），供各前端页面 <link>/<script src="/static/..."> 使用
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 # =====================================================================
