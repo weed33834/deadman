@@ -24,7 +24,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
-import copy
 import json
 import logging
 import os
@@ -87,15 +86,21 @@ from .routes import voice as _voice_routes
 
 logger = logging.getLogger(__name__)
 
-# 静态文件目录（与 web/server.py 同源）
+# 静态文件目录
 _STATIC_DIR = Path(__file__).parent / "static"
 
-# 复用现有 WebServer 单例 —— 复用 _handle_chat / _stream_chat /
-# _record_conversation_stats / _conversation_stats 等复杂业务逻辑，
-# 避免重复造轮子。
-from .server import web_server  # noqa: E402
+# 聊天/身份/CLI 原生服务（从废弃 web.server 抽出，见 services/chat.py）
+from .services.chat import (  # noqa: E402
+    cli as _svc_cli,
+    get_conversation_stats as _svc_get_stats,
+    handle_chat as _svc_handle_chat,
+    maybe_start_switch_auto_ticker as _svc_start_ticker,
+    stop_switch_auto_ticker as _svc_stop_ticker,
+    stream_chat_events as _svc_stream_events,
+    whoami as _svc_whoami,
+)
 
-# 移动端 UA 关键字（与 web/server.py 一致）
+# 移动端 UA 关键字
 _MOBILE_UA = ("android", "iphone", "ipod", "windows phone", "mobile")
 
 
@@ -188,56 +193,12 @@ def _ending_note_disclaimer() -> str:
 
 
 def _maybe_start_switch_auto_ticker() -> threading.Thread | None:
-    """启动 SwitchAutoTicker 后台线程（复用 web/server.py 的实现）"""
-    from .server import _maybe_start_switch_auto_ticker as _start
-
-    return _start()
+    """启动 SwitchAutoTicker 后台线程（委托 web.services.chat）。"""
+    return _svc_start_ticker()
 
 
 def _stop_switch_auto_ticker(thread: threading.Thread | None) -> None:
-    from .server import _stop_switch_auto_ticker as _stop
-
-    _stop(thread)
-
-
-# =====================================================================
-# SSE 流式：wfile 适配器（让现有 _stream_chat 写入 async 生成器）
-# =====================================================================
-
-
-class _WfileAdapter:
-    """把 ``wfile.write(bytes)`` / ``wfile.flush()`` 桥接到 asyncio.Queue。
-
-    现有 ``web_server._stream_chat(wfile, ...)`` 期望 ``wfile`` 提供
-    同步 ``write(bytes)`` 与 ``flush()`` 接口。本适配器把每次写入
-    投递到队列，由 :func:`StreamingResponse` 异步消费。
-    """
-
-    def __init__(self) -> None:
-        self.queue: asyncio.Queue[bytes | None] = asyncio.Queue()
-        self._closed = False
-
-    def write(self, data: Any) -> int:
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-        elif not isinstance(data, (bytes, bytearray)):
-            data = str(data).encode("utf-8")
-        self.queue.put_nowait(bytes(data))
-        return len(data)
-
-    def flush(self) -> None:
-        pass
-
-    def close(self) -> None:
-        """发送终止哨兵（None），让 :func:`event_stream` 消费者退出。
-
-        ``web_server._stream_chat`` 是被复用的同步实现，结束后不会主动
-        通知消费者；由调用方在 ``finally`` 中调用本方法投递 None，
-        保证 SSE 流必然终止（否则消费者永久阻塞在 ``queue.get()``）。
-        """
-        if not self._closed:
-            self._closed = True
-            self.queue.put_nowait(None)
+    _svc_stop_ticker(thread)
 
 
 # =====================================================================
@@ -569,7 +530,7 @@ async def api_health():
 
 @app.get("/api/whoami", tags=["info"])
 async def api_whoami():
-    return web_server._handle_whoami()
+    return _svc_whoami()
 
 
 @app.get("/api/agents", tags=["info"])
@@ -888,7 +849,7 @@ def _extract_bearer(authorization: str | None) -> str | None:
 async def api_chat(req: ChatRequest, user: dict | None = Depends(get_optional_user)):
     """POST /api/chat → {response, agent, metadata}
 
-    复用 ``web_server._handle_chat`` —— 走完整 orchestration graph 规则链。
+    走 ``web.services.chat.handle_chat`` —— 完整 orchestration graph 规则链。
     优先用认证用户（token 有效），否则降级 anonymous。
     """
     query_text = req.query
@@ -897,12 +858,12 @@ async def api_chat(req: ChatRequest, user: dict | None = Depends(get_optional_us
     user_id = user.get("user_id") if user else None
     if not query_text:
         return {"error": "query 不能为空"}
-    return await web_server._handle_chat(agent, query_text, history, user_id)
+    return await _svc_handle_chat(agent, query_text, history, user_id)
 
 
 @app.post("/api/whoami_post", tags=["chat"], include_in_schema=False)
 async def api_whoami_post():
-    return web_server._handle_whoami()
+    return _svc_whoami()
 
 
 @app.get(
@@ -925,36 +886,14 @@ async def api_stream(
 ):
     """GET /api/stream?query=...&agent=... → SSE 流式响应
 
-    复用 ``web_server._stream_chat`` —— 通过 :class:`_WfileAdapter`
-    把同步 ``wfile.write`` 桥接到 ``StreamingResponse`` 的 async 生成器。
+    直接消费 ``web.services.chat.stream_chat_events`` 异步生成器（原生 async，
+    不再经 _WfileAdapter 桥接废弃 server）。
     """
     user_id = user.get("user_id") if user else None
 
     async def event_stream():
-        adapter = _WfileAdapter()
-
-        # 在后台 task 跑 _stream_chat，主协程从队列消费。
-        # _stream_chat 是被复用的同步实现，结束后不会主动通知消费者，
-        # 故在 finally 中调用 adapter.close() 投递 None 哨兵，
-        # 保证下方 while 循环必然退出（否则永久阻塞在 queue.get()）。
-        async def _run_stream() -> None:
-            try:
-                await web_server._stream_chat(adapter, query, agent, user_id)
-            finally:
-                adapter.close()
-
-        task = asyncio.create_task(_run_stream())
-        try:
-            while True:
-                chunk = await adapter.queue.get()
-                if chunk is None:
-                    break
-                yield chunk
-        finally:
-            if not task.done():
-                task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await task
+        async for sse_line in _svc_stream_events(agent, query, user_id):
+            yield sse_line.encode("utf-8")
 
     return StreamingResponse(
         event_stream(),
@@ -971,13 +910,13 @@ async def api_stream(
 async def api_cli(command: str, req: CliRequest):
     """POST /api/cli/<command> → 通用 CLI 代理（白名单 + subprocess）
 
-    复用 ``web_server._handle_cli`` —— 仅允许 ``_CLI_COMMANDS`` 白名单内的只读/
+    走 ``web.services.chat.cli`` —— 仅允许 ``_CLI_COMMANDS`` 白名单内的只读/
     测试子命令，subprocess 调用 ``python -m deadman.cli <command>``。前端「自测
-    网格」(TEST_GROUPS) 由此驱动。_handle_cli 内部为阻塞式 subprocess.run，用
+    网格」(TEST_GROUPS) 由此驱动。内部为阻塞式 subprocess.run，用
     ``asyncio.to_thread`` 包裹避免阻塞事件循环。
     """
     payload: dict[str, Any] = req.model_dump(exclude_none=True)
-    result = await asyncio.to_thread(web_server._handle_cli, command, payload)
+    result = await asyncio.to_thread(_svc_cli, command, payload)
     return result
 
 
@@ -1059,7 +998,7 @@ async def slo_dashboard():
 async def dashboard():
     """P9：对话维度 dashboard 概览页（agent/risk/span/token/termination）"""
     try:
-        return copy.deepcopy(web_server._conversation_stats)
+        return _svc_get_stats()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

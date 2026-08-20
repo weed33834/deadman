@@ -43,16 +43,12 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
-import sys
 import threading
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .._version import __version__ as DEADMAN_VERSION
 from ..config import settings
 from .rate_limiter import RateLimiter
 from .schemas import ChatRequest, LoginRequest, RegisterRequest, validate_body
@@ -806,19 +802,15 @@ class WebServer:
                     self._send_json(500, {"error": str(exc)})
 
             def _handle_dashboard(self) -> None:
-                """P9：对话维度 dashboard - 返回 _conversation_stats 的深拷贝快照
+                """P9：对话维度 dashboard - 返回对话统计快照（统一读 web.services.chat）。
 
                 数据由 _handle_chat / _stream_chat 在 graph 跑完后通过
-                server_ref._record_conversation_stats(...) 累加，包含：
-                - agent_calls / risk_tier_counts / span_type_counts
-                - token_usage_total / termination_triggers
-                - total_conversations / degraded_count / recent_spans
+                record_conversation_stats(...) 累加（app.py 与旧 http 路径共享）。
                 """
-                import copy
+                from .services.chat import get_conversation_stats as _svc_stats
 
                 try:
-                    snapshot = copy.deepcopy(server_ref._conversation_stats)
-                    self._send_json(200, snapshot)
+                    self._send_json(200, _svc_stats())
                 except Exception as exc:
                     self._send_json(500, {"error": str(exc)})
 
@@ -3641,238 +3633,25 @@ class WebServer:
         history: list,
         user_id: str | None = None,
     ) -> dict[str, Any]:
-        """处理对话 - 走 orchestration/graph 完整规则链
+        """委托给 web.services.chat.handle_chat（原逻辑已迁移为原生 async 服务）。"""
+        from .services.chat import handle_chat as _handle_chat_svc
 
-        关键变更：不再直接调 llm_client.chat()，而是：
-        1. 构造 ConversationState（含 user_input / current_agent / user_id / history）
-        2. 调 build_main_graph().ainvoke(state)
-        3. 从 state 提取 response / agent / risk_tier / safety_triggered
-        4. 调 MemoryManager.after_turn 更新记忆
+        return await _handle_chat_svc(agent, query, history, user_id)
 
-        graph 失败时降级到 llm_client，但用 SoulLoader.default_soul()
-        作为最低身份约束（不再用硬编码 system prompt）。
-        """
-        if not query:
-            return {"error": "query 不能为空"}
-
-        from ..memory.manager import MemoryManager
-        from ..orchestration.graph import build_main_graph
-        from ..orchestration.state import ConversationState
-
-        # 构造 state
-        session_id = f"web-{user_id or 'anon'}-{int(time.time())}"
-        # 智能体名归一化：前端用短横线，graph 内部 AGENT_NAMES 用下划线
-        agent_normalized = (agent or "death-aftercare").replace("-", "_")
-        state = ConversationState(
-            user_input=query,
-            current_agent=agent_normalized,
-            session_id=session_id,
-            # 以下字段不在 ConversationState TypedDict 定义中，
-            # 但 total=False 运行时允许透传（节点用 .get() 读取，未定义字段被忽略）
-            agent_name=agent_normalized,  # type: ignore[typeddict-unknown-key]
-            user_id=user_id or "anonymous",  # type: ignore[typeddict-unknown-key]
-            history=list(history[-10:]),  # type: ignore[typeddict-unknown-key]
-        )
-
-        # 走 graph（含 input_guard / router / agent_node / rule_check / output_guard / respond）
-        try:
-            graph = build_main_graph()
-            # P9-fix：LangGraph checkpointer 要求 configurable.thread_id
-            # 用 session_id 作为 thread_id（无 session_id 时用 user_id 兜底）
-            thread_id = state.get("session_id") or state.get("user_id") or "default"
-            result_state = await graph.ainvoke(
-                state, config={"configurable": {"thread_id": thread_id}}
-            )
-
-            # 提取响应
-            response = result_state.get("final_response") or result_state.get("draft_response", "")
-            actual_agent = result_state.get("current_agent") or agent_normalized
-            # 转回短横线格式（与前端 agent ID 一致）
-            actual_agent = actual_agent.replace("_", "-")
-
-            # risk_tier / safety_triggered / rule_violations 来自 rule_check
-            rule_check = result_state.get("rule_check")
-            if rule_check is not None:
-                risk_tier = getattr(getattr(rule_check, "risk_tier", None), "value", "R0")
-                safety_triggered = bool(getattr(rule_check, "safety_triggered", False))
-                rule_violations = list(getattr(rule_check, "violations", []) or [])
-            else:
-                risk_tier = "R0"
-                safety_triggered = False
-                rule_violations = []
-
-            # 更新记忆（best-effort，失败不影响响应）
-            try:
-                mm = MemoryManager()
-                await mm.after_turn(
-                    user_id=user_id or "anonymous",
-                    user_input=query,
-                    assistant_response=response,
-                    agent=actual_agent,
-                    session_id=session_id,
-                    risk_tier=risk_tier,
-                )
-            except Exception as exc:
-                logger.warning("MemoryManager.after_turn 失败（不影响响应）: %s", exc)
-
-            # P9：累加对话级统计（best-effort，失败不影响响应）
-            self._record_conversation_stats(
-                agent=actual_agent,
-                risk_tier=risk_tier,
-                trace_spans=list(result_state.get("trace_spans") or []),
-                subagent_called=list(result_state.get("subagent_called") or []),
-                metrics=dict(result_state.get("metrics") or {}),
-                degraded=False,
-                forced_terminate=bool(result_state.get("forced_terminate")),
-            )
-
-            return {
-                "response": response,
-                "agent": actual_agent,
-                "risk_tier": risk_tier,
-                "safety_triggered": safety_triggered,
-                "rule_violations": rule_violations,
-                "degraded": False,
-            }
-        except Exception as exc:
-            logger.exception("graph 调用失败")
-            # 降级：仍调 llm_client 但明确标记 degraded，不再用硬编码 system prompt
-            # 而是用 SoulLoader.default_soul() 作为最低身份约束
-            from ..llm import llm_client
-            from ..soul_loader import SoulLoader
-
-            if not llm_client.api_key:
-                return {
-                    "response": "服务暂不可用（LLM 未配置）。",
-                    "agent": agent,
-                    "degraded": True,
-                    "error": "llm_not_configured",
-                }
-            messages: list[dict[str, str]] = (
-                [
-                    {"role": "system", "content": SoulLoader().default_soul()},
-                ]
-                + [
-                    {"role": item.get("role", "user"), "content": item.get("content", "")}
-                    for item in history[-10:]
-                    if item.get("role") in ("user", "assistant") and item.get("content")
-                ]
-                + [{"role": "user", "content": query}]
-            )
-            try:
-                response = await llm_client.chat(messages, temperature=0.3)
-                # P9：累加对话级统计 - 降级路径
-                self._record_conversation_stats(
-                    agent=agent,
-                    risk_tier="R0",
-                    trace_spans=[],
-                    subagent_called=[],
-                    metrics={},
-                    degraded=True,
-                    forced_terminate=False,
-                )
-                return {
-                    "response": response,
-                    "agent": agent,
-                    "degraded": True,
-                    "degraded_reason": "graph_failed_using_fallback",
-                    "error": str(exc),
-                }
-            except Exception as fallback_exc:
-                # P9：累加对话级统计 - 双重降级路径
-                self._record_conversation_stats(
-                    agent=agent,
-                    risk_tier="R0",
-                    trace_spans=[],
-                    subagent_called=[],
-                    metrics={},
-                    degraded=True,
-                    forced_terminate=False,
-                )
-                return {
-                    "response": f"服务暂不可用: {fallback_exc}",
-                    "agent": agent,
-                    "degraded": True,
-                    "error": str(fallback_exc),
-                }
 
     def _handle_whoami(self) -> dict[str, Any]:
-        """GET/POST /api/whoami - 平台身份告知（transparency-framework L5 强制）
+        """委托给 web.services.chat.whoami。"""
+        from .services.chat import whoami as _whoami
 
-        返回平台基本信息，明确告知是 AI（transparency-framework 要求），
-        附带服务边界免责声明（service-boundary-framework 四项禁止）。
-        """
-        return {
-            "platform": "deadman",
-            "version": DEADMAN_VERSION,
-            "is_ai": True,  # transparency-framework L5 强制
-            "disclaimer": (
-                "本平台是信息引导工具，不代办、不代查、不出具法律意见、不与殡葬机构分成。"
-            ),
-            "rules_count": 15,
-            "agents": [
-                "death-aftercare",
-                "legal-advisor",
-                "financial-analyst",
-                "policy-researcher",
-                "cross-border-specialist",
-                "medical-guide",
-            ],
-            "supported_languages": ["zh-CN", "en-US"],
-        }
+        return _whoami()
+
 
     def _handle_cli(self, command: str, req: dict[str, Any]) -> dict[str, Any]:
-        """通用 CLI 代理 - subprocess 调用 deadman.cli <command>
+        """委托给 web.services.chat.cli（白名单 CLI 代理）。"""
+        from .services.chat import cli as _cli
 
-        安全：command 必须在 _CLI_COMMANDS 白名单中
-        返回：{"ok": bool, "output": str, "command": str, "returncode": int}
-        """
-        if command not in _CLI_COMMANDS:
-            return {
-                "ok": False,
-                "error": f"不允许的命令: {command}",
-                "allowed": sorted(_CLI_COMMANDS),
-            }
+        return _cli(command, req)
 
-        # 构造命令行参数
-        cmd_args = [sys.executable, "-m", "deadman.cli", command]
-
-        # 从 req 中提取额外参数（如 --provider, --model, --name, --timeout 等）
-        extra_args = req.get("args", [])
-        if isinstance(extra_args, list):
-            cmd_args.extend(str(a) for a in extra_args)
-
-        timeout = req.get("timeout", 60)
-
-        try:
-            proc = subprocess.run(
-                cmd_args,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=str(settings.project_root),
-            )
-            return {
-                "ok": proc.returncode == 0,
-                "output": proc.stdout,
-                "stderr": proc.stderr,
-                "command": command,
-                "returncode": proc.returncode,
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                "ok": False,
-                "error": f"命令超时（{timeout}s）",
-                "command": command,
-                "returncode": -1,
-            }
-        except Exception as exc:
-            return {
-                "ok": False,
-                "error": f"{type(exc).__name__}: {exc}",
-                "command": command,
-                "returncode": -1,
-            }
 
     async def _stream_chat(
         self,
@@ -3881,218 +3660,22 @@ class WebServer:
         agent: str,
         user_id: str | None = None,
     ) -> None:
-        """SSE 流式推送对话 - 走完整 graph 规则链（Phase 14 P0 修复）
+        """委托给 web.services.chat.stream_chat_events，逐条写回 wfile（兼容旧 http 路径）。"""
+        from .services.chat import stream_chat_events as _stream
 
-        关键变更（PM v2 P0-gap-1）：原实现硬编码 system prompt 直接调
-        llm_client.chat_stream()，绕过 input_guard/router/agent_node/rule_check/
-        output_guard/respond 全部规则节点。现统一走 build_main_graph().ainvoke(state)，
-        与 /api/chat 同等约束（safety-protocol L0 / integrity L1 / compliance L3 全部生效）。
-
-        由于 graph 当前不支持 token 级 astream，采用「先 graph 完整跑 → 再 SSE 分块推送」
-        的折中方案：用户感知是流式输出（按句号/换行切块），但规则链 100% 生效。
-        后续若 graph 支持 astream 事件，可改为真正的 token 级流式。
-        """
-        if not query:
-            wfile.write(
-                b"event: error\ndata: " + json.dumps({"error": "query 不能为空"}).encode() + b"\n\n"
-            )
-            wfile.flush()
-            return
-
-        from ..llm import llm_client
-        from ..memory.manager import MemoryManager
-        from ..orchestration.graph import build_main_graph
-        from ..orchestration.state import ConversationState
-        from ..soul_loader import SoulLoader
-
-        # 智能体名归一化
-        agent_normalized = (agent or "death-aftercare").replace("-", "_")
-        session_id = f"web-stream-{user_id or 'anon'}-{int(time.time())}"
-        state = ConversationState(
-            user_input=query,
-            current_agent=agent_normalized,
-            session_id=session_id,
-            agent_name=agent_normalized,  # type: ignore[typeddict-unknown-key]
-            user_id=user_id or "anonymous",  # type: ignore[typeddict-unknown-key]
-            history=[],  # type: ignore[typeddict-unknown-key]
-        )
-
-        response_text = ""
-        degraded = False
-        risk_tier = "R0"
-        safety_triggered = False
-        # P3：从 graph 结果中抽取 trace_spans，供前端渲染"思考过程"面板
-        # trace_spans 形如 [{"span_type": "rule", "name": "node.router", "attributes": {...}}]
-        # 前端按 span_type 区分渲染：rule/agent/transfer/root → 不同图标与配色
-        trace_spans: list[dict[str, Any]] = []
-        trace_metrics: dict[str, Any] = {}
-        subagent_called: list[str] = []
-        draft_response = ""
-
-        # 走 graph（与 _handle_chat 一致的规则链）
-        try:
-            graph = build_main_graph()
-            # P9-fix：LangGraph checkpointer 要求 configurable.thread_id
-            thread_id = state.get("session_id") or state.get("user_id") or "default"
-            result_state = await graph.ainvoke(
-                state, config={"configurable": {"thread_id": thread_id}}
-            )
-            response_text = result_state.get("final_response") or result_state.get(
-                "draft_response", ""
-            )
-            draft_response = result_state.get("draft_response", "") or ""
-            rule_check = result_state.get("rule_check")
-            if rule_check is not None:
-                risk_tier = getattr(getattr(rule_check, "risk_tier", None), "value", "R0")
-                safety_triggered = bool(getattr(rule_check, "safety_triggered", False))
-            # P3：抽取 trace_spans / metrics / subagent_called（降级时保持空）
-            trace_spans = list(result_state.get("trace_spans") or [])
-            trace_metrics = dict(result_state.get("metrics") or {})
-            subagent_called = list(result_state.get("subagent_called") or [])
-            # 更新记忆
-            try:
-                mm = MemoryManager()
-                await mm.after_turn(
-                    user_id=user_id or "anonymous",
-                    user_input=query,
-                    assistant_response=response_text,
-                    agent=agent_normalized.replace("_", "-"),
-                    session_id=session_id,
-                    risk_tier=risk_tier,
-                )
-            except Exception as exc:
-                logger.warning("stream MemoryManager.after_turn 失败: %s", exc)
-            # P9：累加对话级统计 - graph 走通路径（best-effort）
-            self._record_conversation_stats(
-                agent=agent_normalized.replace("_", "-"),
-                risk_tier=risk_tier,
-                trace_spans=trace_spans,
-                subagent_called=subagent_called,
-                metrics=trace_metrics,
-                degraded=False,
-                forced_terminate=bool(result_state.get("forced_terminate")),
-            )
-        except Exception:
-            logger.exception("stream graph 调用失败，降级到 SoulLoader")
-            degraded = True
-            # 降级路径：用 SoulLoader.default_soul() 而非硬编码
-            if not llm_client.api_key:
-                wfile.write(
-                    b"event: error\ndata: "
-                    + json.dumps({"error": "LLM API key 未配置"}).encode()
-                    + b"\n\n"
-                )
-                wfile.flush()
-                return
-            messages = [
-                {"role": "system", "content": SoulLoader().default_soul()},
-                {"role": "user", "content": query},
-            ]
-            try:
-                response_text = await llm_client.chat(messages, temperature=0.3)
-            except Exception as fallback_exc:
-                err = json.dumps(
-                    {"error": f"服务暂不可用: {fallback_exc}"},
-                    ensure_ascii=False,
-                )
-                wfile.write(f"event: error\ndata: {err}\n\n".encode())
-                wfile.flush()
-                return
-            # P9：累加对话级统计 - 降级路径（best-effort）
-            self._record_conversation_stats(
-                agent=agent_normalized.replace("_", "-"),
-                risk_tier="R0",
-                trace_spans=[],
-                subagent_called=[],
-                metrics={},
-                degraded=True,
-                forced_terminate=False,
-            )
-
-        # 流式推送：按句号/换行/分号切块，模拟 token 级流式
-        # 这样既保留了 SSE 的「逐块可见」体验，又确保规则链 100% 生效
-        chunks = self._split_for_streaming(response_text)
-        for chunk in chunks:
-            data = json.dumps(
-                {"chunk": chunk, "degraded": degraded, "risk_tier": risk_tier},
-                ensure_ascii=False,
-            )
-            wfile.write(f"data: {data}\n\n".encode())
+        async for sse_line in _stream(agent, query, user_id):
+            wfile.write(sse_line.encode("utf-8"))
             wfile.flush()
 
-        # P3：推送 trace 事件 - 把 graph 内部 trace_spans / metrics / subagent_called
-        # 一并推给前端，前端据此渲染"Agent 思考过程"可折叠时间线 + 工具调用卡片
-        # （借鉴 OpenHands ExpandableMessage：消息下方可展开查看 reasoning / tool calls）
-        # 降级路径（无 result_state）下 trace_spans 为空，前端自然不渲染面板
-        if trace_spans or subagent_called or trace_metrics:
-            trace_payload = {
-                "spans": trace_spans,
-                "metrics": trace_metrics,
-                "subagent_called": subagent_called,
-                "draft_response": draft_response,
-                "agent": agent_normalized.replace("_", "-"),
-                "degraded": degraded,
-            }
-            trace_data = json.dumps(trace_payload, ensure_ascii=False)
-            try:
-                wfile.write(f"event: trace\ndata: {trace_data}\n\n".encode())
-                wfile.flush()
-            except Exception as exc:  # pragma: no cover - 客户端断开等
-                logger.debug("trace 推送失败（客户端可能已断开）: %s", exc)
-
-        # 结束事件：附带 safety_triggered 标记，前端可据此显示危机资源
-        done_data = json.dumps(
-            {
-                "degraded": degraded,
-                "risk_tier": risk_tier,
-                "safety_triggered": safety_triggered,
-                "agent": agent_normalized.replace("_", "-"),
-                "has_trace": bool(trace_spans or subagent_called),
-            },
-            ensure_ascii=False,
-        )
-        wfile.write(f"event: done\ndata: {done_data}\n\n".encode())
-        wfile.flush()
 
     @staticmethod
     def _split_for_streaming(text: str) -> list[str]:
-        """把完整响应切成适合 SSE 流式推送的小块
+        """委托给 web.services.chat.split_for_streaming。"""
+        from .services.chat import split_for_streaming as _split
 
-        切分规则（按优先级）：
-        1. 换行符
-        2. 中文句号/问号/叹号（。！？）
-        3. 英文句号/问号/叹号（.!?）后跟空格或行尾
-        4. 中文分号/逗号（；，）
-        5. 兜底：每 120 字符一块
+        return _split(text)
 
-        保留分隔符在块尾，避免前端拼接时丢失标点。
-        """
-        if not text:
-            return [""]
-        chunks: list[str] = []
-        buf: list[str] = []
-        buf_len = 0
-        for ch in text:
-            buf.append(ch)
-            buf_len += 1
-            # 命中切分点
-            if ch in "\n。！？!?；;" and buf_len >= 4:
-                chunks.append("".join(buf))
-                buf = []
-                buf_len = 0
-            elif ch == "," and buf_len >= 12:
-                # 英文逗号且当前块已较长，切分
-                chunks.append("".join(buf))
-                buf = []
-                buf_len = 0
-            elif buf_len >= 120:
-                # 兜底：每 120 字符切一刀
-                chunks.append("".join(buf))
-                buf = []
-                buf_len = 0
-        if buf:
-            chunks.append("".join(buf))
-        return chunks
+
 
     # ================================================================
     # P9: 对话维度统计累加（dashboard 概览页用）
@@ -4109,83 +3692,19 @@ class WebServer:
         degraded: bool,
         forced_terminate: bool = False,
     ) -> None:
-        """P9：累加对话级统计到 _conversation_stats
+        """委托给 web.services.chat.record_conversation_stats。"""
+        from .services.chat import record_conversation_stats as _record
 
-        在 graph 跑完后调用，best-effort：失败不阻塞 chat 流程。
-        统计维度：
-        - agent_calls: 每个智能体被调用次数
-        - risk_tier_counts: R0/R1/R2/R3 分布
-        - span_type_counts: rule/agent/transfer/root 分布
-        - token_usage_total: 累计 prompt/completion/total tokens
-        - termination_triggers: 终止条件触发次数（按 source 统计）
-        - total_conversations: 总对话轮数
-        - degraded_count: 降级模式次数
-        - recent_spans: 最近 20 条对话 trace 摘要
-        """
-        try:
-            stats = self._conversation_stats
-            # 1. agent_calls
-            agent_key = agent or "unknown"
-            stats["agent_calls"][agent_key] = stats["agent_calls"].get(agent_key, 0) + 1
-            # 2. risk_tier_counts
-            tier = risk_tier or "R0"
-            stats["risk_tier_counts"][tier] = stats["risk_tier_counts"].get(tier, 0) + 1
-            # 3. span_type_counts
-            for span in trace_spans or []:
-                if not isinstance(span, dict):
-                    continue
-                st = span.get("span_type")
-                if st:
-                    stats["span_type_counts"][st] = stats["span_type_counts"].get(st, 0) + 1
-            # 4. token_usage_total
-            tu = (metrics or {}).get("token_usage") or {}
-            if isinstance(tu, dict):
-                for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
-                    stats["token_usage_total"][k] = stats["token_usage_total"].get(k, 0) + int(
-                        tu.get(k, 0) or 0
-                    )
-            # 5. termination_triggers
-            if forced_terminate:
-                source = "forced_terminate"
-                # 从 trace_spans 里找最后一条含 termination 信息的 span
-                for span in reversed(trace_spans or []):
-                    if not isinstance(span, dict):
-                        continue
-                    attrs = span.get("attributes") or {}
-                    if not isinstance(attrs, dict):
-                        continue
-                    if attrs.get("termination_source"):
-                        source = str(attrs["termination_source"])
-                        break
-                    if attrs.get("termination"):
-                        source = str(attrs["termination"])
-                        break
-                stats["termination_triggers"][source] = (
-                    stats["termination_triggers"].get(source, 0) + 1
-                )
-            # 6. total_conversations
-            stats["total_conversations"] = stats["total_conversations"] + 1
-            # 7. degraded_count
-            if degraded:
-                stats["degraded_count"] = stats["degraded_count"] + 1
-            # 8. recent_spans（最多 20 条）
-            stats["recent_spans"].append(
-                {
-                    "agent": agent_key,
-                    "span_count": len(trace_spans or []),
-                    "subagent_count": len(subagent_called or []),
-                    "risk_tier": tier,
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                }
-            )
-            if len(stats["recent_spans"]) > 20:
-                stats["recent_spans"] = stats["recent_spans"][-20:]
-        except Exception as exc:
-            logger.warning("_record_conversation_stats 失败（不影响响应）: %s", exc)
+        _record(
+            agent=agent,
+            risk_tier=risk_tier,
+            trace_spans=trace_spans,
+            subagent_called=subagent_called,
+            metrics=metrics,
+            degraded=degraded,
+            forced_terminate=forced_terminate,
+        )
 
-    # ================================================================
-    # Phase 8: 用户认证与会话
-    # ================================================================
 
     def _get_user_store(self):
         """懒加载 UserStore（用 settings.auth_data_dir，便于测试 monkeypatch）"""
