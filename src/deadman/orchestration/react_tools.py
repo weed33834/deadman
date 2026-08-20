@@ -170,6 +170,16 @@ async def _wrap_data_analysis(data: Any = None, question: str = "", **_: Any) ->
     return analyze(data, question=question)
 
 
+async def _wrap_supervisor(question: str = "", **_: Any) -> Any:
+    """Supervisor 层级编排：拆解复杂请求→委派子智能体→聚合。"""
+    from ..orchestration.supervisor import supervise
+
+    if not question or not question.strip():
+        return {"ok": False, "error": "question required"}
+    result = await supervise(question.strip())
+    return {"ok": True, **result.to_dict()}
+
+
 # 注册表:工具名 → wrapper
 _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search": _wrap_web_search,
@@ -181,6 +191,7 @@ _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "digital_legacy": _wrap_digital_legacy,
     "deep_research": _wrap_deep_research,
     "data_analysis": _wrap_data_analysis,
+    "supervisor": _wrap_supervisor,
 }
 
 
