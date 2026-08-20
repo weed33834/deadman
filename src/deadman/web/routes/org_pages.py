@@ -25,11 +25,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ...config import settings
+from ...research.org_doc_rag import OrgDocRag
 from ..deps import (
     get_case_event_repo,
     get_case_repo,
@@ -239,6 +240,16 @@ class _OrgKb:
 
 _kb = _OrgKb()
 
+_rag: OrgDocRag | None = None
+
+
+def _get_rag() -> OrgDocRag:
+    """机构文档 RAG（懒加载单例）。"""
+    global _rag
+    if _rag is None:
+        _rag = OrgDocRag()
+    return _rag
+
 
 def _platform_kb() -> list[dict[str, Any]]:
     """平台公共库：src/knowledge/regions/ 下的政策文档（只读）。"""
@@ -282,11 +293,13 @@ async def org_kb_upsert(
     req: KbDoc,
     ctx: dict = Depends(require_org_role("case_manager")),
 ):
-    """创建/更新机构私有知识（case_manager+）。"""
+    """创建/更新机构私有知识（case_manager+）。同步写入 RAG 索引。"""
     try:
         doc = _kb.upsert(ctx["tenant_id"], doc_id, req.model_dump(), ctx["user_id"])
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
+    # 同步索引到机构 RAG（供「机构文档问答」检索）
+    _get_rag().index_document(ctx["tenant_id"], doc_id, req.title, req.content or "")
     return doc
 
 
@@ -295,7 +308,21 @@ async def org_kb_delete(
     doc_id: str,
     ctx: dict = Depends(require_org_role("case_manager")),
 ):
-    """删除机构私有知识（case_manager+）。"""
+    """删除机构私有知识（case_manager+）。同步移除 RAG 索引。"""
     if not _kb.delete(ctx["tenant_id"], doc_id):
         raise HTTPException(status_code=404, detail="文档不存在或不属于该机构")
+    _get_rag().delete_document(ctx["tenant_id"], doc_id)
     return {"deleted": True, "doc_id": doc_id}
+
+
+@router.get("/api/org/kb/query")
+async def org_kb_query(
+    q: str = Query(default=""),
+    top_k: int = Query(default=5, ge=1, le=20),
+    ctx: dict = Depends(require_org_role("viewer")),
+):
+    """机构文档 RAG 问答检索：在机构自建知识上检索 Top-k 块（viewer+ 只读）。"""
+    if not q:
+        return {"results": [], "count": 0}
+    results = _get_rag().query(ctx["tenant_id"], q, top_k=top_k)
+    return {"query": q, "results": results, "count": len(results)}
