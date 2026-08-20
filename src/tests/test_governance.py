@@ -55,7 +55,7 @@ def enable_governance(monkeypatch, tmp_path):
 
     mc_mod._mcr_instance = None
     dc_mod._dcr_instance = None
-    rc_mod._ra_instance = None
+    rc_mod.get_risk_assessment.reset()
     tr_mod._tr_instance = None
     arl_mod._arl_instance = None
     ap_mod._am_instance = None
@@ -71,7 +71,7 @@ def enable_governance(monkeypatch, tmp_path):
     get_flags()._cache_loaded_at = 0.0
     mc_mod._mcr_instance = None
     dc_mod._dcr_instance = None
-    rc_mod._ra_instance = None
+    rc_mod.get_risk_assessment.reset()
     tr_mod._tr_instance = None
     arl_mod._arl_instance = None
     ap_mod._am_instance = None

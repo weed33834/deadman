@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from ..utils.dates import parse_dt
 from .expr import CronExpr
 
 logger = logging.getLogger(__name__)
@@ -115,14 +116,7 @@ class CronJob:
         """从 dict 反序列化"""
 
         def _parse_dt(v: Any) -> datetime | None:
-            if v is None or v == "":
-                return None
-            if isinstance(v, datetime):
-                return v
-            try:
-                return datetime.fromisoformat(str(v))
-            except (ValueError, TypeError):
-                return None
+            return parse_dt(v)
 
         return cls(
             job_id=str(d["job_id"]),

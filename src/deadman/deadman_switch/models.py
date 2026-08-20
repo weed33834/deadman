@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from ..utils.dates import parse_dt
+
 
 class SwitchState(str, Enum):
     """Dead Man Switch 状态枚举（str 子类便于 JSON 序列化）"""
@@ -192,12 +194,7 @@ class SwitchRecord:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SwitchRecord:
         def _parse_dt(v: Any) -> datetime | None:
-            if not v:
-                return None
-            try:
-                return datetime.fromisoformat(v)
-            except (TypeError, ValueError):
-                return None
+            return parse_dt(v)
 
         return cls(
             user_id=d["user_id"],

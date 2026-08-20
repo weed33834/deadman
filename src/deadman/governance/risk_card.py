@@ -34,6 +34,7 @@ from typing import Any
 from ..infrastructure.feature_flags import is_enabled
 from ..infrastructure.multi_tenant import resolve_data_path
 from ..utils.jsonio import atomic_write_json
+from ..utils.singleton import singleton
 
 logger = logging.getLogger(__name__)
 
@@ -379,15 +380,7 @@ class RiskAssessment:
             logger.error("Save risk cards failed: %s", e)
 
 
-# 全局单例
-_ra_instance: RiskAssessment | None = None
-_ra_lock = threading.Lock()
-
-
+# 全局单例（线程安全，见 utils.singleton；测试隔离用 get_risk_assessment.reset()）
+@singleton
 def get_risk_assessment() -> RiskAssessment:
-    global _ra_instance
-    if _ra_instance is None:
-        with _ra_lock:
-            if _ra_instance is None:
-                _ra_instance = RiskAssessment()
-    return _ra_instance
+    return RiskAssessment()

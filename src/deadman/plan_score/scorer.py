@@ -29,6 +29,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from ..utils.dates import parse_dt
 from .models import Category, PlanScore, SubScore
 
 logger = logging.getLogger(__name__)
@@ -603,20 +604,5 @@ class PlanScorer:
 # 辅助：ISO 时间戳解析（兼容带/不带时区）
 # ======================================================================
 def _parse_iso(ts: str) -> datetime | None:
-    """解析 ISO 8601 时间戳，失败返回 None
-
-    兼容：
-        - "2026-07-21T12:34:56+00:00"（带时区）
-        - "2026-07-21T12:34:56"（无时区，按 UTC 处理）
-        - "2026-07-21T12:34:56.123456+00:00"（带微秒）
-    """
-    if not ts:
-        return None
-    try:
-        dt = datetime.fromisoformat(ts)
-    except (TypeError, ValueError):
-        return None
-    # 若带时区，转 UTC 后去掉 tzinfo，与 datetime.now(timezone.utc).replace(tzinfo=None) 对齐
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
+    """解析 ISO 8601 时间戳（统一走 utils.dates，带时区转 UTC naive）。"""
+    return parse_dt(ts, to_utc_naive=True)

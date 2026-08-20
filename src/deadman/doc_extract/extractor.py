@@ -64,6 +64,8 @@ except ImportError:
     _PIL_Image = None  # type: ignore[assignment]
     _HAS_OCR = False
 
+from ..utils.dates import parse_dt
+from ..utils.pii import mask_text_pii
 from ..vault.store import VaultStore
 
 logger = logging.getLogger(__name__)
@@ -375,48 +377,11 @@ class DocumentExtractor:
     # PII 脱敏
     # ==================================================================
     def _mask_pii_in_text(self, text: str) -> str:
-        """文本级 PII 脱敏
+        """文本级 PII 脱敏（身份证/手机号/银行卡/邮箱），统一走 utils.pii。
 
-        - 身份证号 18 位 → 前 6 后 4 中间 *
-        - 手机号 11 位 → 前 3 后 4 中间 *
-        - 银行账号 16-19 位 → 前 4 后 4 中间 *
-        - 邮箱 → 前 1 后域名 *
-
-        注：脱敏后保留长度信息以辅助用户校对，但不还原完整号码。
+        脱敏后保留长度/首尾信息以辅助用户校对，但不还原完整号码。
         """
-        if not text:
-            return ""
-
-        # 1. 身份证号 18 位（前 6 位地区码 + 8 位生日 + 3 位序号 + 1 位校验）
-        #    不严格要求最后一位是 X/数字，避免漏脱敏
-        text = re.sub(
-            r"\b(\d{6})\d{8}(\d{3}[\dXx])\b",
-            lambda m: f"{m.group(1)}********{m.group(2)}",
-            text,
-        )
-
-        # 2. 手机号 11 位（1 开头）
-        text = re.sub(
-            r"\b(1[3-9]\d)\d{4}(\d{4})\b",
-            lambda m: f"{m.group(1)}****{m.group(2)}",
-            text,
-        )
-
-        # 3. 银行账号 16-19 位（连续数字）
-        def _mask_bank(m: re.Match) -> str:
-            digits = m.group(0)
-            return f"{digits[:4]}{'*' * (len(digits) - 8)}{digits[-4:]}"
-
-        text = re.sub(r"\b\d{16,19}\b", _mask_bank, text)
-
-        # 4. 邮箱（前 1 字符 + *** + @域名）
-        text = re.sub(
-            r"\b([a-zA-Z0-9._%+-])[a-zA-Z0-9._%+-]*@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b",
-            lambda m: f"{m.group(1)}***@{m.group(2)}",
-            text,
-        )
-
-        return text
+        return mask_text_pii(text)
 
     # ==================================================================
     # LLM 提取
@@ -663,12 +628,8 @@ class DocumentExtractor:
         """索引条目转 ExtractedDocument（无 source_text_masked）"""
 
         def _parse_dt(v: Any) -> datetime:
-            if not v:
-                return datetime.now(timezone.utc).replace(tzinfo=None)
-            try:
-                return datetime.fromisoformat(v)
-            except (TypeError, ValueError):
-                return datetime.now(timezone.utc).replace(tzinfo=None)
+            # 统一解析，失败回退当前时间（与原实现语义一致）
+            return parse_dt(v) or datetime.now(timezone.utc).replace(tzinfo=None)
 
         return ExtractedDocument(
             doc_id=entry["doc_id"],

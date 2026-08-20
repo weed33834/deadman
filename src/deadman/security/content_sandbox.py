@@ -35,6 +35,8 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from ..utils.pii import mask_text_pii_detected
+
 logger = logging.getLogger(__name__)
 
 # =====================================================================
@@ -168,61 +170,12 @@ class ContentSandbox:
     # ------------------------------------------------------------------
 
     def _sanitize_pii(self, content: str) -> tuple[str, bool]:
-        """PII 脱敏
+        """PII 脱敏：统一走 utils.pii（手机号/身份证/银行卡/邮箱）。
 
-        复用 memory.manager.sanitize_before_store 做 dict 级脱敏，
-        但外部内容通常是纯文本，因此对纯文本做正则脱敏：
-        - 手机号 1[3-9]xxxxxxxxx → 1xx****xxxx
-        - 身份证 r'\\d{17}[\\dXx]' → 前 6 + **** + 后 4
-        - 银行卡 r'\\d{16,19}' → 前 4 + **** + 后 4
-        - 邮箱 r'\\S+@\\S+' → 前 2 + ****@域名
-
-        Args:
-            content: 原始内容
-
-        Returns:
-            (脱敏后内容, 是否检测到 PII)
+        返回 (脱敏后内容, 是否检测到 PII)。原先本方法自维护的正则已收敛到 utils.pii，
+        避免与 doc_extract / notification_letters 的规则漂移。
         """
-        pii_found = False
-        sanitized = content
-
-        # 手机号：1[3-9]xxxxxxxxx
-        phone_pattern = re.compile(r"1[3-9]\d{9}")
-        if phone_pattern.search(sanitized):
-            pii_found = True
-            sanitized = phone_pattern.sub(
-                lambda m: m.group()[:3] + "****" + m.group()[-4:],
-                sanitized,
-            )
-
-        # 身份证：\d{17}[\dXx]（18 位）
-        id_pattern = re.compile(r"\d{17}[\dXx]")
-        if id_pattern.search(sanitized):
-            pii_found = True
-            sanitized = id_pattern.sub(
-                lambda m: m.group()[:6] + "********" + m.group()[-4:],
-                sanitized,
-            )
-
-        # 银行卡：\d{16,19}
-        card_pattern = re.compile(r"\d{16,19}")
-        if card_pattern.search(sanitized):
-            pii_found = True
-            sanitized = card_pattern.sub(
-                lambda m: m.group()[:4] + "****" + m.group()[-4:],
-                sanitized,
-            )
-
-        # 邮箱
-        email_pattern = re.compile(r"(\S{1,2})\S*@(\S+)")
-        if email_pattern.search(sanitized) and "@" in sanitized:
-            pii_found = True
-            sanitized = email_pattern.sub(
-                lambda m: m.group(1) + "****@" + m.group(2),
-                sanitized,
-            )
-
-        return sanitized, pii_found
+        return mask_text_pii_detected(content)
 
     def _detect_injection(self, content: str) -> bool:
         """检测 prompt injection 痕迹

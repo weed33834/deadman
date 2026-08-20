@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..org.case_flow import validate_transition
+from ..utils.dates import parse_dt
 from ..utils.db_retry import best_effort_db_write
 from .engine import db_enabled, get_async_session_factory
 from .models import Case, CaseEvent, Customer, User
@@ -552,15 +553,8 @@ class CaseEventRepository(BaseRepository):
 # 辅助函数
 # =====================================================================
 def _parse_dt(v: Any) -> datetime | None:
-    """解析 ISO 格式 datetime 字符串（兼容文件存储格式）。"""
-    if v is None or v == "":
-        return None
-    if isinstance(v, datetime):
-        return v
-    try:
-        return datetime.fromisoformat(str(v))
-    except (ValueError, TypeError):
-        return None
+    """解析 ISO 格式 datetime 字符串（统一走 utils.dates）。"""
+    return parse_dt(v)
 
 
 def _user_to_public_view(user: User) -> dict[str, Any]:

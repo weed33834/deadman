@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 
+from ..utils.pii import mask_text_pii
 from .models import (
     DEFAULT_DISCLAIMER,
     LetterRequest,
@@ -38,14 +39,8 @@ _PLACEHOLDER_RE = re.compile(r"\[([^\[\]]+)\]")
 
 
 # ====================================================================
-# PII 正则（与 doc_extract/extractor.py 一致）
+# PII 脱敏统一走 utils.pii（原先与 doc_extract 重复的正则已收敛）
 # ====================================================================
-# 身份证号 18 位
-_ID_CARD_RE = re.compile(r"\b(\d{6})\d{8}(\d{3}[\dXx])\b")
-# 手机号 11 位（1 开头）
-_PHONE_RE = re.compile(r"\b(1[3-9]\d)\d{4}(\d{4})\b")
-# 银行账号 16-19 位连续数字
-_BANK_RE = re.compile(r"\b\d{16,19}\b")
 
 
 # ====================================================================
@@ -215,31 +210,12 @@ class LetterGenerator:
     # ==================================================================
     @staticmethod
     def _mask_pii(text: str) -> str:
-        """PII 二次脱敏
-
-        规则：
-            - 身份证号 18 位 → 前 6 + ******** + 后 4
-            - 手机号 11 位 → 前 3 + **** + 后 4
-            - 银行账号 16-19 位 → 前 4 + **** + 后 4
+        """PII 二次脱敏（身份证/手机号/银行卡/邮箱），统一走 utils.pii。
 
         注：调用方传入的 decedent_id_masked 已脱敏，
             本方法对生成文本做兜底扫描，防止 LLM 输出意外 PII。
         """
-        if not text:
-            return ""
-
-        # 身份证号
-        text = _ID_CARD_RE.sub(lambda m: f"{m.group(1)}********{m.group(2)}", text)
-        # 手机号
-        text = _PHONE_RE.sub(lambda m: f"{m.group(1)}****{m.group(2)}", text)
-
-        # 银行账号
-        def _mask_bank(m: re.Match) -> str:
-            digits = m.group(0)
-            return f"{digits[:4]}{'*' * (len(digits) - 8)}{digits[-4:]}"
-
-        text = _BANK_RE.sub(_mask_bank, text)
-        return text
+        return mask_text_pii(text)
 
     # ==================================================================
     # LLM 语气优化（可选）

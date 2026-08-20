@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..utils.dates import parse_dt
+
 logger = logging.getLogger(__name__)
 
 
@@ -302,12 +304,8 @@ class DecedentRegistry:
     @staticmethod
     def _entry_to_record(entry: dict[str, Any]) -> DecedentRecord:
         def _parse_dt(v: Any) -> datetime:
-            if not v:
-                return datetime.now(timezone.utc).replace(tzinfo=None)
-            try:
-                return datetime.fromisoformat(v)
-            except (TypeError, ValueError):
-                return datetime.now(timezone.utc).replace(tzinfo=None)
+            # 统一解析，失败回退当前时间（与原实现语义一致）
+            return parse_dt(v) or datetime.now(timezone.utc).replace(tzinfo=None)
 
         return DecedentRecord(
             case_id=entry["case_id"],

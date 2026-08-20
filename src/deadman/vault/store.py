@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils import crypto
+from ..utils.dates import parse_dt
 from ..utils.db_retry import best_effort_db_write
 
 logger = logging.getLogger(__name__)
@@ -440,12 +441,7 @@ class VaultStore:
         """把索引条目 + 加密内容转回 VaultItem"""
 
         def _parse_dt(v: Any) -> datetime | None:
-            if not v:
-                return None
-            try:
-                return datetime.fromisoformat(v)
-            except (TypeError, ValueError):
-                return None
+            return parse_dt(v)
 
         return VaultItem(
             item_id=entry["item_id"],
