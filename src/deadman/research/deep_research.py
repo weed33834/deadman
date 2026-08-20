@@ -16,10 +16,26 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# 语义缓存：近义问题复用研究结果（省 LLM/检索）
+_cache: "SemanticCache | None" = None
+_cache_lock = threading.Lock()
+
+
+def _get_cache() -> "SemanticCache":
+    global _cache
+    if _cache is None:
+        with _cache_lock:
+            if _cache is None:
+                from ..utils.semantic_cache import SemanticCache
+
+                _cache = SemanticCache(max_entries=128, ttl_seconds=1800, similarity_threshold=0.9)
+    return _cache
 
 
 @dataclass
@@ -222,17 +238,28 @@ async def deep_research(
     max_sources: int = 8,
     max_sub_queries: int = 4,
 ) -> ResearchReport:
-    """深度研究入口：拆解 → 检索 → 交叉验证 → 合成报告。"""
+    """深度研究入口：拆解 → 检索 → 交叉验证 → 合成报告。
+
+    语义缓存：近义问题命中直接复用结果（省 LLM/检索）；结果落缓存。
+    """
     if not question or not question.strip():
         return ResearchReport(question=question or "", warnings=["问题不能为空"])
+    q = question.strip()
 
-    sub_queries = await decompose_question(question.strip(), max_sub_queries=max_sub_queries)
+    cache = _get_cache()
+    cached = cache.get(q)
+    if cached is not None:
+        cached_report = ResearchReport(**cached) if isinstance(cached, dict) else cached
+        cached_report.warnings = [*(cached_report.warnings or []), "(来自语义缓存)"]
+        return cached_report
+
+    sub_queries = await decompose_question(q, max_sub_queries=max_sub_queries)
     sources = await gather_sources(sub_queries, max_sources=max_sources)
-    confidence, warnings = await cross_verify(sources, question)
-    findings, degraded = await synthesize_report(question, sources, confidence)
+    confidence, warnings = await cross_verify(sources, q)
+    findings, degraded = await synthesize_report(q, sources, confidence)
 
-    return ResearchReport(
-        question=question.strip(),
+    report = ResearchReport(
+        question=q,
         findings=findings,
         sources=sources,
         sub_queries=sub_queries,
@@ -240,3 +267,5 @@ async def deep_research(
         degraded=degraded,
         warnings=warnings,
     )
+    cache.put(q, report.to_dict())
+    return report

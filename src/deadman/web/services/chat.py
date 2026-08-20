@@ -488,6 +488,7 @@ def whoami() -> dict[str, Any]:
             "policy-researcher",
             "cross-border-specialist",
             "medical-guide",
+            "deep-researcher",
         ],
         "supported_languages": ["zh-CN", "en-US"],
     }

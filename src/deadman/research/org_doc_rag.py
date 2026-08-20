@@ -146,10 +146,12 @@ class OrgDocRag:
     # -- 检索 ------------------------------------------------------------
 
     def query(self, org_id: str, question: str, top_k: int = 5) -> list[dict[str, Any]]:
-        """在指定机构的文档分块上检索，返回 Top-k 块（含评分与来源）。
+        """在指定机构的文档分块上检索 + 重排，返回 Top-k 块（含评分与来源）。
 
-        评分用「查询词命中数重叠」（tokenize_words 后计数），对每机构小语料更稳健
-        （rank-bm25 对短文档常给出 ≤0 评分被过滤）。后续接 vector 语义召回时再升级。
+        两段式：
+        1. 召回：查询词命中数重叠打分（对短文档稳健，rank-bm25 对短文档常 ≤0）。
+        2. 精排：``rerank`` 在召回候选中按查询词位置集中度 / 覆盖率 / 块长重排，
+           提升"答案集中在某一段"的命中（P1 Reranker）。
         """
         if not question:
             return []
@@ -168,7 +170,6 @@ class OrgDocRag:
             if not content:
                 continue
             c_terms = set(tokenize_words(content))
-            # 命中 = 查询词 ∩ 块词 去停用词后计数；再按块长做轻微归一，避免超长块占优
             overlap = len(q_terms & c_terms)
             if overlap <= 0:
                 continue
@@ -183,5 +184,40 @@ class OrgDocRag:
                     "overlap": overlap,
                 }
             )
-        scored.sort(key=lambda x: x["score"], reverse=True)
-        return scored[:top_k]
+        if not scored:
+            return []
+        # 重排候选池：初检前 top_k*3，避免重排开销
+        candidate_pool = sorted(scored, key=lambda x: x["score"], reverse=True)[: top_k * 3]
+        ranked = self._rerank(question, candidate_pool)
+        return ranked[:top_k]
+
+    @staticmethod
+    def _rerank(question: str, candidates: list[dict[str, Any]], top_k: int = 5) -> list[dict[str, Any]]:
+        """轻量重排：查询词覆盖率 + 命中密度主导，返回 Top-k。
+
+        覆盖率（命中查询词比例）与命中密度（命中词占块词比例）越高越优，
+        自包含的"答案块"（覆盖多查询词、关键词集中）优先。
+        """
+        from ..textproc.tokenize import tokenize_words
+
+        q_terms = set(tokenize_words(question))
+        if not q_terms:
+            return candidates[:top_k]
+        scored: list[tuple[float, dict[str, Any]]] = []
+        for cand in candidates:
+            content = cand.get("content", "")
+            c_terms = tokenize_words(content)
+            if not c_terms:
+                continue
+            hits = [t for t in c_terms if t in q_terms]
+            if not hits:
+                continue
+            coverage = len(set(hits)) / len(q_terms)          # 覆盖多少查询词
+            density = len(hits) / max(len(c_terms), 1)         # 命中密度
+            length_penalty = 1.0 / (1.0 + len(c_terms) / 200.0)  # 过长块轻微惩罚
+            score = 0.6 * coverage + 0.3 * density + 0.1 * length_penalty
+            out = dict(cand)
+            out["rerank_score"] = round(score, 4)
+            scored.append((score, out))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [s[1] for s in scored[:top_k]]
