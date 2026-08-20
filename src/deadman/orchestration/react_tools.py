@@ -151,6 +151,16 @@ async def _wrap_web_search_official(query: str, max_results: int = 5, **_: Any) 
     return await fn(query=query, max_results=max_results)
 
 
+async def _wrap_deep_research(question: str = "", max_sources: int = 8, **_: Any) -> Any:
+    """Deep Research 深度研究：迭代检索多源 + 交叉验证 + 带引用报告。"""
+    from ..research.deep_research import deep_research
+
+    if not question or not question.strip():
+        return {"ok": False, "error": "question required"}
+    report = await deep_research(question.strip(), max_sources=max_sources)
+    return {"ok": True, **report.to_dict()}
+
+
 # 注册表:工具名 → wrapper
 _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search": _wrap_web_search,
@@ -160,15 +170,12 @@ _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "knowledge_query": _wrap_query_knowledge,  # 别名
     "web_search_official": _wrap_web_search_official,
     "digital_legacy": _wrap_digital_legacy,
+    "deep_research": _wrap_deep_research,
 }
 
 
 async def _wrap_awareness(text: str = "", **_: Any) -> Any:
-    """思维意识识别：识别用户意图与安全状态，返回推荐能力路由。
-
-    供智能体在分发动作前自省：用户当下想要什么（遗嘱/办事/陪伴/数字遗产/
-    死人开关/纪念/知识查询），是否处于危机（L0 触发哀伤陪伴护栏）。
-    """
+    """思维意识识别：识别用户意图与安全状态，返回推荐能力路由。"""
     from ..awareness import assess
 
     if not text:
@@ -179,7 +186,6 @@ async def _wrap_awareness(text: str = "", **_: Any) -> Any:
 
 # awareness 工具在 _wrap_awareness 定义后再注册（避免导入期未定义）
 _TOOL_WRAPPERS["awareness"] = _wrap_awareness
-
 
 def register_default_react_tools() -> None:
     """懒注册默认工具集。

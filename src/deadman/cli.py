@@ -910,6 +910,30 @@ def cmd_knowledge_list(args):
     print(f"\n知识库文件总数: {len(files)}")
 
 
+async def cmd_research(args):
+    """Deep Research 深度研究 - 迭代检索 + 交叉验证 + 带引用报告。"""
+    import json
+
+    from .research.deep_research import deep_research
+
+    print(f"\n=== Deep Research 深度研究 ===")
+    print(f"问题: {args.question}")
+    report = await deep_research(args.question, max_sources=args.max_sources)
+    if args.json:
+        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        return
+    print(f"子查询: {report.sub_queries}")
+    print(f"来源数: {len(report.sources)} · 可信度: {report.confidence} · 降级: {report.degraded}")
+    if report.warnings:
+        for w in report.warnings:
+            print(f"[提醒] {w}")
+    print("\n" + report.findings)
+    if report.sources:
+        print("\n=== 来源 ===")
+        for i, s in enumerate(report.sources, 1):
+            print(f"[{i}] {s.title} ({s.url})")
+
+
 def cmd_knowledge_search(args):
     """知识库检索测试 - 真实反馈检索命中
 
@@ -4102,6 +4126,12 @@ def main():
     ks_parser.add_argument("--country", help="国家过滤(CN/US/JP)")
     ks_parser.add_argument("--region", help="地区过滤")
 
+    # research 子命令 - Deep Research 深度研究
+    rs_parser = subparsers.add_parser("research", help="Deep Research 深度研究(迭代检索+交叉验证+引用报告)")
+    rs_parser.add_argument("question", help="研究问题")
+    rs_parser.add_argument("--max-sources", type=int, default=8, help="最大来源数(默认 8)")
+    rs_parser.add_argument("--json", action="store_true", help="以 JSON 输出报告")
+
     # knowledge-freshness 子命令 - 知识库新鲜度检查
     subparsers.add_parser("knowledge-freshness", help="检查知识库文件新鲜度(过期检测)")
 
@@ -4403,6 +4433,9 @@ def main():
         cmd_knowledge_list(args)
     elif args.command == "knowledge-search":
         cmd_knowledge_search(args)
+
+    elif args.command == "research":
+        asyncio.run(cmd_research(args))
     elif args.command == "knowledge-freshness":
         cmd_knowledge_freshness(args)
     elif args.command == "tool-list":
