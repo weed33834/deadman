@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -118,10 +120,13 @@ class TestPlot:
 
             _mgr = SandboxManager()
             _mgr.get_active_backend()  # 确定实际生效后端
-            if _mgr.active_backend == "docker":
-                pytest.skip("Docker 沙箱镜像无 matplotlib，跳过绘图断言")
         except Exception:
-            pass
+            pytest.skip("沙箱后端探测失败")
+        if _mgr.active_backend == "docker":
+            if sys.platform == "win32":
+                # Windows 容器不支持 --read-only，Docker 绘图路径在 windows runner 上不可用
+                pytest.skip("Windows 容器不支持 read-only 挂载，跳过 Docker 绘图断言")
+            pytest.skip("Docker 沙箱镜像无 matplotlib，跳过绘图断言")
         r = client.post(
             "/api/chat/plot",
             json={

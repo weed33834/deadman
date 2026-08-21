@@ -100,7 +100,8 @@ class TestRecordComplete:
         record = dm.record_complete(key, result={"bytes": 100})
         assert record.status == ExecutionStatus.COMPLETED
         assert record.result == {"bytes": 100}
-        assert record.duration_ms > 0
+        # Windows 时钟粒度下亚毫秒操作可能记为 0.0，非负即合法
+        assert record.duration_ms >= 0
 
     def test_record_complete_failure(self, tmp_path):
         dm = DurableExecutionManager(log_path=tmp_path / "log.jsonl")
