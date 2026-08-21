@@ -6,8 +6,7 @@
 核心导出：
     - ConversationState: LangGraph 全局状态 TypedDict
     - create_initial_state: 创建初始状态的便捷函数
-    - build_main_graph: 构建主编排图（自动选择 LangGraph / SequentialExecutor）
-    - SequentialExecutor: 降级模式顺序执行器
+    - build_main_graph: 构建主编排图（LangGraph StateGraph）
     - LANGGRAPH_AVAILABLE: LangGraph 是否可用
     - 各节点函数: input_guard_node / router_node / agent_node / ...
     - 各路由函数: route_to_agent / after_rule_check / after_user_confirm
@@ -25,7 +24,6 @@ from __future__ import annotations
 
 from .graph import (
     LANGGRAPH_AVAILABLE,
-    SequentialExecutor,
     build_main_graph,
 )
 from .nodes import (
@@ -50,7 +48,6 @@ __all__ = [
     "create_initial_state",
     # 图构建
     "build_main_graph",
-    "SequentialExecutor",
     "LANGGRAPH_AVAILABLE",
     # 节点函数
     "input_guard_node",

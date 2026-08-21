@@ -1174,7 +1174,7 @@ async def agent_node(state: ConversationState) -> dict[str, Any]:
             logger.warning("写入 scratchpad 失败，跳过: %s", e)
 
     # P4: 节点执行后递增 step_count + 更新 stuck_count
-    # 借鉴 OpenManus BaseAgent.max_steps；LangGraph 与 SequentialExecutor 共用此逻辑
+    # 借鉴 OpenManus BaseAgent.max_steps；编排图共用此逻辑
     step_count = state.get("step_count", 0) + 1
     updates["step_count"] = step_count
     last_agent = state.get("last_agent_for_stuck", "")

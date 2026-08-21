@@ -40,12 +40,8 @@ from deadman.rules_loader import SAFETY_OVERRIDE_RESPONSE
 async def _run_graph_to_completion(graph, state, max_iterations: int = 10):
     """运行图，自动处理 interrupt_before 暂停（user_confirm_node）。
 
-    SequentialExecutor 在 interrupt_before 命中的节点前会暂停并设置
-    ``_seq_executor_next``；再次调用 ainvoke 从断点恢复。
-    LangGraph 模式同理（返回带 next 的 state）。
-
-    两种模式都通过 default_graph_config 传入 thread_id（LangGraph checkpointer
-    要求；SequentialExecutor 忽略）。
+    LangGraph 在 interrupt_before 命中的节点前暂停；
+    再次调用 ainvoke（带同一 thread_id 的 config）从断点恢复。
     """
     import uuid
 
@@ -63,7 +59,7 @@ async def _run_graph_to_completion(graph, state, max_iterations: int = 10):
 
 
 def _build_graph():
-    """构建主图（LangGraph 或 SequentialExecutor 降级模式）"""
+    """构建主图（LangGraph StateGraph 单一实现）"""
     return build_main_graph()
 
 
@@ -543,12 +539,12 @@ class TestMultiTurnSession:
 
 
 # =====================================================================
-# 降级模式验证（SequentialExecutor vs LangGraph）
+# 执行模式验证
 # =====================================================================
 
 
 class TestExecutionMode:
-    """验证两种执行模式（LangGraph / SequentialExecutor）都能跑通"""
+    """验证编排图构建与执行跑通"""
 
     async def test_build_main_graph_returns_executor(self, patch_llm):
         """build_main_graph 返回可执行对象"""

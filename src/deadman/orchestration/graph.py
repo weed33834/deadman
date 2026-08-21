@@ -1,10 +1,8 @@
-"""主 Graph 构建 - LangGraph StateGraph + 降级顺序执行器
+"""主 Graph 构建 - LangGraph StateGraph（单一实现）
 
-LangGraph 是可选依赖：
-- 若 langgraph 可用，用 StateGraph 构建完整的状态图，支持条件路由、
-  interrupt_before、checkpointer 等高级特性。
-- 若 langgraph 不可用，降级为 SequentialExecutor，按节点顺序执行，
-  支持条件路由和 interrupt_before 的基本语义。
+langgraph 是硬依赖，编排统一走 StateGraph（条件路由 / interrupt_before / checkpointer）。
+历史上曾有一个手写 SequentialExecutor 模拟器作降级路径，因 langgraph 硬依赖后
+永不可达且无人维护，已删除。
 
 图结构（对应 LangGraph-Orchestration.md）：
 
@@ -20,7 +18,6 @@ LangGraph 是可选依赖：
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from .nodes import (
@@ -98,9 +95,9 @@ try:
             "pip install langgraph-checkpoint-postgres psycopg 后可获得跨进程持久化 checkpoint。"
         )
 except ImportError:
-    logger.info(
-        "langgraph 不可用，编排将降级为 SequentialExecutor（顺序执行）模式。"
-        "安装 langgraph 后可获得完整 StateGraph 能力（条件路由/checkpoint/streaming）。"
+    logger.warning(
+        "langgraph 不可用，build_main_graph() 将抛 ImportError。"
+        "请执行: pip install 'langgraph>=1.0'"
     )
 
 # PostgresSaver 全局单例（惰性初始化，保持连接引用避免 GC 关闭）
@@ -180,252 +177,8 @@ def _increment_step(state: ConversationState) -> None:
 
 
 # =====================================================================
-# SequentialExecutor - 降级模式顺序执行器
-# =====================================================================
-
-
-class SequentialExecutor:
-    """降级模式顺序执行器 - 当 LangGraph 不可用时使用
-
-    模拟 LangGraph StateGraph 的核心行为：
-    - 按节点顺序执行
-    - 支持固定边（add_edge）和条件边（add_conditional_edges）
-    - 支持 interrupt_before（在指定节点前暂停，等待用户输入后恢复）
-    - 支持 ainvoke 异步调用
-
-    不支持的高级特性：checkpointer、streaming、subgraph、时间旅行。
-    """
-
-    def __init__(self, termination: TerminationCondition | None = None) -> None:
-        """初始化顺序执行器
-
-        Args:
-            termination: 可选的终止条件。None 时用 default_termination()
-                （等价 P4 的 MAX_STEPS + STUCK_AGENT_REPEAT_LIMIT）。
-                可传入自定义组合条件，如：
-                default_termination() | TokenUsageTermination(50_000)
-        """
-        self._nodes: dict[str, Callable[[ConversationState], Awaitable[dict[str, Any]]]] = {}
-        self._edges: dict[str, str] = {}  # 固定边：source -> target
-        self._conditional_edges: dict[
-            str, tuple[Callable[[ConversationState], str], dict[str, str]]
-        ] = {}
-        self._entry: str = ""
-        self._interrupt_before: list[str] = []
-        # P10：可注入的终止条件（默认等价 P4 行为）
-        self._termination: TerminationCondition = termination or _default_termination
-
-    def add_node(
-        self, name: str, fn: Callable[[ConversationState], Awaitable[dict[str, Any]]]
-    ) -> None:
-        """注册一个节点"""
-        self._nodes[name] = fn
-
-    def add_edge(self, source: str, target: str) -> None:
-        """添加固定边：source 执行完后无条件跳到 target"""
-        self._edges[source] = target
-
-    def add_conditional_edges(
-        self,
-        source: str,
-        router_fn: Callable[[ConversationState], str],
-        mapping: dict[str, str],
-    ) -> None:
-        """添加条件边：source 执行完后调用 router_fn，按返回值映射到下一节点"""
-        self._conditional_edges[source] = (router_fn, mapping)
-
-    def set_entry_point(self, name: str) -> None:
-        """设置入口节点"""
-        self._entry = name
-
-    def set_interrupt_before(self, nodes: list[str]) -> None:
-        """设置在哪些节点前暂停"""
-        self._interrupt_before = list(nodes)
-
-    async def ainvoke(
-        self,
-        state: ConversationState,
-        config: dict[str, Any] | None = None,
-    ) -> ConversationState:
-        """异步执行图
-
-        从入口节点开始，按边顺序执行。遇到 interrupt_before 节点时暂停并返回当前状态。
-        调用方可在更新状态后再次调用 ainvoke 恢复执行。
-
-        Args:
-            state: 初始/恢复状态
-            config: 可选配置（与 LangGraph 兼容，当前未使用）
-
-        Returns:
-            执行完成或暂停时的最终状态
-        """
-        # 检查是否从中断恢复（state 中有 _seq_executor_next 标记）
-        next_node = state.get("_seq_executor_next", self._entry)  # type: ignore[typeddict-item]
-        resuming = "_seq_executor_next" in state  # 是否为恢复执行
-        current: str | None = next_node if isinstance(next_node, str) else self._entry
-        # 恢复时清除标记，避免下次再次触发同一节点的 interrupt
-        if resuming:
-            state.pop("_seq_executor_next", None)  # type: ignore[typeddict-item]
-
-        while current and current != END:
-            # interrupt_before：在执行节点前暂停（恢复执行的首个节点跳过此检查）
-            if not resuming and current in self._interrupt_before:
-                # 标记恢复点，调用方可通过再次调用 ainvoke 恢复
-                state["_seq_executor_next"] = current  # type: ignore[typeddict-item]
-                logger.info("SequentialExecutor 在节点 %s 前暂停（interrupt_before）", current)
-                return state
-            # 后续节点正常检查 interrupt
-            resuming = False
-
-            # P4: 卡死检测 - 执行节点前检查是否已卡死
-            stuck, stuck_reason = _is_stuck(state)
-            if stuck and current != NODE_RESPOND:
-                logger.warning(
-                    "SequentialExecutor 检测到卡死 reason=%s，强制跳转到 respond 节点",
-                    stuck_reason,
-                )
-                state["forced_terminate"] = True
-                # 兜底响应：若 draft_response 为空则填入
-                if not state.get("draft_response"):
-                    state["draft_response"] = (
-                        "抱歉，系统在处理您的请求时检测到循环或超限，"
-                        "已强制终止本轮处理。请尝试重新表述您的问题，"
-                        "或拆分为更具体的小问题逐个询问。"
-                    )
-                # 追加 trace span 便于排查
-                spans = state.get("trace_spans", [])
-                spans.append(
-                    {
-                        "span_type": "system",
-                        "name": "forced_terminate",
-                        "attributes": {
-                            "reason": stuck_reason,
-                            "step_count": state.get("step_count", 0),
-                        },
-                    }
-                )
-                state["trace_spans"] = spans
-                current = NODE_RESPOND
-                continue
-
-            # 执行节点
-            node_fn = self._nodes.get(current)
-            if node_fn is not None:
-                try:
-                    result = await node_fn(state)
-                    if isinstance(result, dict):
-                        state.update(dict(result))  # type: ignore[typeddict-item]
-                except Exception as e:
-                    logger.error("节点 %s 执行异常: %s", current, e, exc_info=True)
-                    # 异常不中断流程，继续到下一节点
-            else:
-                logger.warning("节点 %s 未注册，跳过", current)
-
-            # P4: 节点执行后递增 step_count + 更新 stuck_count
-            _increment_step(state)
-
-            # 确定下一节点
-            if current in self._conditional_edges:
-                router_fn, mapping = self._conditional_edges[current]
-                try:
-                    route_key = router_fn(state)
-                except Exception as e:
-                    logger.error("路由函数 %s 执行异常: %s", current, e, exc_info=True)
-                    route_key = ""
-                current = mapping.get(route_key, END)
-            elif current in self._edges:
-                current = self._edges[current]
-            else:
-                # 没有出边，结束
-                current = END  # type: ignore[assignment]
-
-        # 清理恢复标记
-        state.pop("_seq_executor_next", None)  # type: ignore[typeddict-item]
-        return state
-
-    def invoke(
-        self, state: ConversationState, config: dict[str, Any] | None = None
-    ) -> ConversationState:
-        """同步执行图（包装 ainvoke，用 asyncio.run）
-
-        便捷方法，内部调用 asyncio.run(self.ainvoke(state, config))。
-        不应在已有事件循环的环境中使用（会抛 RuntimeError）。
-        """
-        import asyncio
-
-        return asyncio.run(self.ainvoke(state, config))
-
-
-# =====================================================================
 # build_main_graph - 构建主编排图
 # =====================================================================
-
-
-def _build_sequential_executor() -> SequentialExecutor:
-    """构建 SequentialExecutor（降级模式）
-
-    按照与 LangGraph 版本相同的图结构注册节点和边。
-    """
-    executor = SequentialExecutor()
-
-    # === 注册节点 ===
-    executor.add_node(NODE_INPUT_GUARD, input_guard_node)
-    executor.add_node(NODE_ROUTER, router_node)
-    executor.add_node(NODE_USER_CONFIRM, user_confirm_node)
-    # 6 个智能体节点都使用通用的 agent_node
-    for agent_name in AGENT_NAMES:
-        executor.add_node(agent_name, agent_node)
-    executor.add_node(NODE_RULE_CHECK, rule_check_node)
-    executor.add_node(NODE_INTEGRITY_CHECK, integrity_check_node)
-    executor.add_node(NODE_OUTPUT_GUARD, output_guard_node)
-    executor.add_node(NODE_RESPOND, respond_node)
-
-    # === 入口边 ===
-    executor.set_entry_point(NODE_INPUT_GUARD)
-    executor.add_edge(NODE_INPUT_GUARD, NODE_ROUTER)
-
-    # === 路由边（条件） - router 之后 ===
-    route_mapping: dict[str, str] = {name: name for name in AGENT_NAMES}
-    route_mapping[ROUTE_AWAIT_TRANSFER] = NODE_USER_CONFIRM
-    route_mapping[ROUTE_FORCE_TERMINATE] = NODE_RESPOND  # P4: 卡死时直接跳 respond
-    executor.add_conditional_edges(NODE_ROUTER, route_to_agent, route_mapping)
-
-    # === 用户确认转介后 ===
-    executor.add_conditional_edges(
-        NODE_USER_CONFIRM,
-        after_user_confirm,
-        {
-            ROUTE_PROCEED_TRANSFER: NODE_ROUTER,  # 用户同意，回到 router 路由到目标智能体
-            ROUTE_DECLINE_TRANSFER: NODE_RESPOND,  # 用户拒绝，直接响应
-        },
-    )
-
-    # === 智能体执行后 → 规则校验 ===
-    for agent_name in AGENT_NAMES:
-        executor.add_edge(agent_name, NODE_RULE_CHECK)
-
-    # === 规则校验后 ===
-    executor.add_conditional_edges(
-        NODE_RULE_CHECK,
-        after_rule_check,
-        {
-            ROUTE_SAFETY_OVERRIDE: NODE_RESPOND,  # L0 触发，直接响应
-            ROUTE_NEEDS_INTEGRITY: NODE_INTEGRITY_CHECK,  # 需要 5 关事实复核
-            ROUTE_PASS_THROUGH: NODE_OUTPUT_GUARD,  # 直接通过
-        },
-    )
-
-    # === 事实复核 → 输出校验 → 响应 ===
-    executor.add_edge(NODE_INTEGRITY_CHECK, NODE_OUTPUT_GUARD)
-    executor.add_edge(NODE_OUTPUT_GUARD, NODE_RESPOND)
-
-    # === 响应 → 结束 ===
-    executor.add_edge(NODE_RESPOND, END)  # type: ignore[arg-type]
-
-    # === interrupt_before 配置 ===
-    executor.set_interrupt_before(INTERRUPT_BEFORE_NODES)
-
-    return executor
 
 
 def _get_postgres_checkpointer():
@@ -579,31 +332,27 @@ def _build_langgraph():
 
 
 def build_main_graph():
-    """构建主编排图
+    """构建主编排图（LangGraph StateGraph，单一实现）
 
-    - 若 langgraph 可用，返回 langgraph.compile() 后的 StateGraph
-    - 若 langgraph 不可用，返回 SequentialExecutor（降级模式）
-
-    两种模式共享相同的节点函数和路由逻辑，对上层调用方透明。
-    调用方可通过 LANGGRAPH_AVAILABLE 判断当前模式。
+    langgraph 是 pyproject 硬依赖；不可用属于环境损坏，直接抛错而非静默降级
+    （历史上曾有手写 SequentialExecutor 模拟器，已删除——重复引擎无人维护）。
 
     Returns:
-        LangGraph 编译图（支持 invoke/ainvoke）或 SequentialExecutor
+        LangGraph 编译图（支持 invoke/ainvoke/stream）
     """
-    if LANGGRAPH_AVAILABLE:
-        try:
-            return _build_langgraph()
-        except Exception as e:
-            logger.error("LangGraph 构建失败，降级到 SequentialExecutor: %s", e, exc_info=True)
-    return _build_sequential_executor()
+    if not LANGGRAPH_AVAILABLE:
+        raise ImportError(
+            "langgraph 未安装或导入失败，无法构建编排图。请执行: pip install 'langgraph>=1.0'"
+        )
+    return _build_langgraph()
 
 
 def default_graph_config(session_id: str = "") -> dict[str, Any]:
     """生成 graph.ainvoke() 所需的默认 config。
 
-    LangGraph 模式下 checkpointer（MemorySaver）要求 config.configurable.thread_id，
+    checkpointer（MemorySaver）要求 config.configurable.thread_id，
     否则抛 ``ValueError: Checkpointer requires one or more of the following
-    'configurable' keys: thread_id``。SequentialExecutor 模式忽略此参数。
+    'configurable' keys: thread_id``。
 
     Args:
         session_id: 会话 ID；为空时自动生成临时 thread_id。
