@@ -180,7 +180,9 @@ async def _wrap_supervisor(question: str = "", **_: Any) -> Any:
     return {"ok": True, **result.to_dict()}
 
 
-async def _wrap_browser(action: str = "get_text", url: str = "", selector: str = "", text: str = "", **_: Any) -> Any:
+async def _wrap_browser(
+    action: str = "get_text", url: str = "", selector: str = "", text: str = "", **_: Any
+) -> Any:
     """浏览器自动化：navigate/get_text/screenshot/click/fill（Playwright 驱动）。"""
     from ..tools.browser import run_browser_action
 
