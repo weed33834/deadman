@@ -35,8 +35,8 @@ except ImportError:
     create_async_engine = None  # type: ignore
 
 # 全局单例（惰性初始化，避免 import 时立即建连）
-_engine: "AsyncEngine | None" = None
-_session_factory: "async_sessionmaker[AsyncSession] | None" = None
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def db_enabled() -> bool:

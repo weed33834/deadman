@@ -411,7 +411,7 @@ class MemoryManager:
                         if fact_value is None:
                             continue
                         # 只追加标量事实，dict/list 太啰嗦
-                        if isinstance(fact_value, (str, int, float)):
+                        if isinstance(fact_value, str | int | float):
                             self.file_store.append_fact(
                                 "用户事实",
                                 f"{fact_key}={fact_value}",

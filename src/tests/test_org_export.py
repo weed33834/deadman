@@ -55,9 +55,7 @@ class _OrgExportFixture:
         self.env["org"].add_member(org.org_id, user["user_id"], org_role)
 
     def _token(self, user, org, org_role="org_admin") -> str:
-        return JWTManager(secret=SECRET).issue(
-            user, tenant_id=org.org_id, org_role=org_role
-        )
+        return JWTManager(secret=SECRET).issue(user, tenant_id=org.org_id, org_role=org_role)
 
     def _auth(self, user, org, org_role="org_admin") -> dict:
         return {"Authorization": f"Bearer {self._token(user, org, org_role)}"}
@@ -83,12 +81,8 @@ def _setup_org_with_data(api, org_role="org_admin"):
     org = api._org()
     api._member(org, user, org_role)
     h = api._auth(user, org, org_role)
-    cust = api.client.post(
-        "/api/org/customers", headers=h, json={"display_name": "张三"}
-    ).json()
-    case = api.client.post(
-        "/api/org/cases", headers=h, json={"customer_id": cust["id"]}
-    ).json()
+    cust = api.client.post("/api/org/customers", headers=h, json={"display_name": "张三"}).json()
+    case = api.client.post("/api/org/cases", headers=h, json={"customer_id": cust["id"]}).json()
     api.client.post(
         f"/api/org/cases/{case['id']}/status",
         headers=h,
@@ -165,7 +159,7 @@ def test_audit_export_csv(api):
     r = api.client.get("/api/org/audit-logs/export", headers=api._auth(user, org))
     assert r.status_code == 200
     assert "text/csv" in r.headers["content-type"]
-    assert 'attachment' in r.headers["content-disposition"]
+    assert "attachment" in r.headers["content-disposition"]
     text = r.content.decode("utf-8-sig")
     assert "action" in text and "case.create" in text and "case.status_change" in text
 
@@ -208,18 +202,15 @@ def test_full_export_zip_contains_only_own_org(api):
 
     # 轮询直至 done（后台线程同进程，很快完成）
     for _ in range(100):
-        st = api.client.get(
-            f"/api/org/export/status?job_id={job['job_id']}", headers=ha
-        ).json()
+        st = api.client.get(f"/api/org/export/status?job_id={job['job_id']}", headers=ha).json()
         if st["status"] in ("done", "failed"):
             break
         import time
+
         time.sleep(0.05)
     assert st["status"] == "done", st
 
-    dl = api.client.get(
-        f"/api/org/export/{job['job_id']}/download", headers=ha
-    )
+    dl = api.client.get(f"/api/org/export/{job['job_id']}/download", headers=ha)
     assert dl.status_code == 200
     assert dl.headers["content-type"] == "application/zip"
 
@@ -240,7 +231,5 @@ def test_full_export_zip_contains_only_own_org(api):
 
 def test_full_export_unknown_job_404(api):
     user, org, _, _ = _setup_org_with_data(api)
-    r = api.client.get(
-        "/api/org/export/status?job_id=nonexistent", headers=api._auth(user, org)
-    )
+    r = api.client.get("/api/org/export/status?job_id=nonexistent", headers=api._auth(user, org))
     assert r.status_code == 404

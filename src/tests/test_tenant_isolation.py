@@ -163,9 +163,7 @@ class TestTenantMiddleware:
 
         app.add_middleware(TenantMiddleware)
         token = self._token(tenant_id="org-a", org_role="case_manager")
-        r = TestClient(app).get(
-            "/store-path", headers={"Authorization": f"Bearer {token}"}
-        )
+        r = TestClient(app).get("/store-path", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
         assert "org-a" in r.json()["store_data_dir"]
         assert "ending_notes" in r.json()["store_data_dir"]
@@ -383,7 +381,9 @@ class TestCsideStoreTenantRouting:
 
         with TenantContext(TenantInfo(tenant_id="t-sk")):
             store = SharedKnowledgeStore()
-        assert store.file_path == multi_env.TENANTS_ROOT / "t-sk" / "memory" / "SHARED_KNOWLEDGE.json"
+        assert (
+            store.file_path == multi_env.TENANTS_ROOT / "t-sk" / "memory" / "SHARED_KNOWLEDGE.json"
+        )
 
     def test_decedent_registry_routes_by_tenant(self, multi_env):
         from deadman.decedent_id.registry import DecedentRegistry

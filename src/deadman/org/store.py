@@ -123,9 +123,7 @@ class OrgStore:
 
     def list_orgs(self) -> list[Organization]:
         with self._lock:
-            return [
-                Organization.from_dict(r) for r in self._load(self.orgs_file).values()
-            ]
+            return [Organization.from_dict(r) for r in self._load(self.orgs_file).values()]
 
     def delete_org(self, org_id: str) -> bool:
         """删除机构（含成员关系；业务数据保留待手动清理）。"""
@@ -272,9 +270,7 @@ class OrgStore:
     def _atomic_write(self, path: Path, data: dict[str, dict[str, Any]]) -> None:
         tmp = path.with_suffix(path.suffix + ".tmp")
         try:
-            tmp.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
             os.replace(tmp, path)
         except Exception:
             try:

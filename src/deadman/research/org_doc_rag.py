@@ -14,10 +14,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -192,7 +191,9 @@ class OrgDocRag:
         return ranked[:top_k]
 
     @staticmethod
-    def _rerank(question: str, candidates: list[dict[str, Any]], top_k: int = 5) -> list[dict[str, Any]]:
+    def _rerank(
+        question: str, candidates: list[dict[str, Any]], top_k: int = 5
+    ) -> list[dict[str, Any]]:
         """轻量重排：查询词覆盖率 + 命中密度主导，返回 Top-k。
 
         覆盖率（命中查询词比例）与命中密度（命中词占块词比例）越高越优，
@@ -212,8 +213,8 @@ class OrgDocRag:
             hits = [t for t in c_terms if t in q_terms]
             if not hits:
                 continue
-            coverage = len(set(hits)) / len(q_terms)          # 覆盖多少查询词
-            density = len(hits) / max(len(c_terms), 1)         # 命中密度
+            coverage = len(set(hits)) / len(q_terms)  # 覆盖多少查询词
+            density = len(hits) / max(len(c_terms), 1)  # 命中密度
             length_penalty = 1.0 / (1.0 + len(c_terms) / 200.0)  # 过长块轻微惩罚
             score = 0.6 * coverage + 0.3 * density + 0.1 * length_penalty
             out = dict(cand)

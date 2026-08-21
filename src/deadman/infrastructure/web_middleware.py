@@ -435,7 +435,7 @@ def with_middleware(chain: MiddlewareChain, security_headers: SecurityHeadersMid
             if intercept is not None:
                 # 短路返回拦截响应
                 body_data = intercept.body
-                if isinstance(body_data, (dict, list)):
+                if isinstance(body_data, dict | list):
                     body_bytes = json.dumps(body_data, ensure_ascii=False).encode("utf-8")
                     content_type = "application/json; charset=utf-8"
                 elif isinstance(body_data, bytes):

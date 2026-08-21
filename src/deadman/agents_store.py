@@ -46,7 +46,7 @@ def load_local_agents() -> dict[str, LocalAgent]:
 
     返回 name -> LocalAgent。无 frontmatter 的跳过。
     """
-    agents_dir: Path = settings.project_root / "agents"
+    agents_dir: Path = settings.agents_dir
     result: dict[str, LocalAgent] = {}
     if not agents_dir.exists():
         return result

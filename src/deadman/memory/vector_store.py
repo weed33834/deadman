@@ -285,7 +285,7 @@ class ChromaVectorStore(VectorStore):
             return {}
         safe: dict[str, Any] = {}
         for k, v in meta.items():
-            if isinstance(v, (str, int, float, bool)) or v is None:
+            if isinstance(v, str | int | float | bool) or v is None:
                 safe[str(k)] = v
             else:
                 safe[str(k)] = str(v)

@@ -28,6 +28,8 @@ def test_rule_based_has_required_keys():
 
 @pytest.mark.asyncio
 async def test_generate_case_brief_fallback():
-    b = await generate_case_brief({"case_type": "funeral", "status": "in_progress"}, {"name": "王建国"})
+    b = await generate_case_brief(
+        {"case_type": "funeral", "status": "in_progress"}, {"name": "王建国"}
+    )
     assert "王建国" in b
     assert "funeral" in b

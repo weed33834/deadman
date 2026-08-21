@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import functools
 import threading
-from typing import Any, Callable, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -39,5 +40,5 @@ def singleton(factory: F) -> F:
         with _lock:
             _instance = None
 
-    setattr(get, "reset", reset)  # type: ignore[attr-defined]
+    get.reset = reset  # type: ignore[attr-defined]
     return cast(F, get)

@@ -1,4 +1,4 @@
-﻿"""To B 私有化授权码（B2B-IMPLEMENTATION Step 7.1）。
+"""To B 私有化授权码（B2B-IMPLEMENTATION Step 7.1）。
 
 形态：
     - DEADMAN_LICENSE_KEY 环境变量，或挂载文件 /app/license.lic（内容即 token）。
@@ -58,7 +58,9 @@ def verify_license(secret: str, token: str) -> dict[str, Any] | None:
     """校验授权码：签名 + 有效期。失败返回 None（不抛异常）。"""
     try:
         body, sig = token.strip().split(".", 1)
-        expected = _b64url(hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest())
+        expected = _b64url(
+            hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
+        )
         if not hmac.compare_digest(expected, sig):
             return None
         payload = json.loads(_unb64url(body).decode("utf-8"))
@@ -99,14 +101,24 @@ def license_status() -> dict[str, Any]:
     """
     token = _load_token()
     if token is None:
-        return {"status": "trial", "readonly": False, "expires_at": None,
-                "licensee": None, "plan": None}
+        return {
+            "status": "trial",
+            "readonly": False,
+            "expires_at": None,
+            "licensee": None,
+            "plan": None,
+        }
 
     secret = os.getenv(SECRET_ENV, "")
     if not secret:
         logger.warning("授权码存在但缺少 %s，无法校验 → 按试用处理", SECRET_ENV)
-        return {"status": "trial", "readonly": False, "expires_at": None,
-                "licensee": None, "plan": None}
+        return {
+            "status": "trial",
+            "readonly": False,
+            "expires_at": None,
+            "licensee": None,
+            "plan": None,
+        }
 
     payload = verify_license(secret, token)
     if payload is None:
@@ -117,22 +129,41 @@ def license_status() -> dict[str, Any]:
                 parsed = json.loads(_unb64url(body).decode("utf-8"))
                 exp = parsed.get("exp")
                 if isinstance(exp, int | float) and exp < time.time():
-                    return {"status": "expired", "readonly": True, "expires_at": int(exp),
-                            "licensee": parsed.get("licensee"), "plan": parsed.get("plan")}
+                    return {
+                        "status": "expired",
+                        "readonly": True,
+                        "expires_at": int(exp),
+                        "licensee": parsed.get("licensee"),
+                        "plan": parsed.get("plan"),
+                    }
             except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
                 pass
         logger.warning("授权码校验失败（签名不合法）→ 按试用处理")
-        return {"status": "trial", "readonly": False, "expires_at": None,
-                "licensee": None, "plan": None}
+        return {
+            "status": "trial",
+            "readonly": False,
+            "expires_at": None,
+            "licensee": None,
+            "plan": None,
+        }
 
     exp = payload.get("exp")
     if isinstance(exp, int | float) and exp < time.time():
-        return {"status": "expired", "readonly": True, "expires_at": int(exp),
-                "licensee": payload.get("licensee"), "plan": payload.get("plan")}
+        return {
+            "status": "expired",
+            "readonly": True,
+            "expires_at": int(exp),
+            "licensee": payload.get("licensee"),
+            "plan": payload.get("plan"),
+        }
 
-    return {"status": "licensed", "readonly": False,
-            "expires_at": int(exp) if isinstance(exp, int | float) else None,
-            "licensee": payload.get("licensee"), "plan": payload.get("plan")}
+    return {
+        "status": "licensed",
+        "readonly": False,
+        "expires_at": int(exp) if isinstance(exp, int | float) else None,
+        "licensee": payload.get("licensee"),
+        "plan": payload.get("plan"),
+    }
 
 
 def trial_remaining_days() -> int:

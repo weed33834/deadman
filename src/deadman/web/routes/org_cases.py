@@ -113,7 +113,9 @@ async def list_cases(
         }
         for c in rows:
             c["customer_name"] = names.get(c.get("customer_id", ""), "")
-            c["case_type_label"] = CASE_TYPE_LABELS.get(c.get("case_type", ""), c.get("case_type", ""))
+            c["case_type_label"] = CASE_TYPE_LABELS.get(
+                c.get("case_type", ""), c.get("case_type", "")
+            )
             c["priority_label"] = PRIORITY_LABELS.get(c.get("priority", ""), c.get("priority", ""))
     return {"cases": rows, "count": len(rows)}
 
@@ -160,9 +162,7 @@ async def update_case(
 ):
     """更新案件元数据（case_manager+；status 变更走 /status）。"""
     case_repo = get_case_repo()
-    case = await case_repo.update(
-        ctx["tenant_id"], case_id, req.model_dump(exclude_none=True)
-    )
+    case = await case_repo.update(ctx["tenant_id"], case_id, req.model_dump(exclude_none=True))
     if case is None:
         raise HTTPException(status_code=404, detail="案件不存在或不属于该机构")
     return case

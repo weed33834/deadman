@@ -307,7 +307,7 @@ class MetricsCollector:
         normalized_value: float
         if isinstance(value, bool):
             normalized_value = 1.0 if value else 0.0
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             normalized_value = float(value)
         else:
             # 非数值类型转为字符串后跳过数值聚合（保留在记录里便于追溯）

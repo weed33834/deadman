@@ -26,7 +26,9 @@ _PHONE_RE = re.compile(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)")
 # 银行卡 16-19 位连续数字（独立段）
 _BANK_RE = re.compile(r"(?<!\d)\d{16,19}(?!\d)")
 # 邮箱：前 1 字符 + *** + @域名（用非邮箱字符前断言，兼容紧贴中文）
-_EMAIL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\.[A-Za-z]{2,})(?!\S)")
+_EMAIL_RE = re.compile(
+    r"(?<![A-Za-z0-9._%+-])([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\.[A-Za-z]{2,})(?!\S)"
+)
 
 
 def _mask_bank(m: re.Match) -> str:
@@ -49,8 +51,12 @@ def mask_text_pii_detected(text: str) -> tuple[str, bool]:
     """文本级 PII 脱敏；返回 ``(脱敏后文本, 是否检出 PII)``（护栏用）。"""
     if not text:
         return text, False
-    if not (_ID_CARD_RE.search(text) or _PHONE_RE.search(text)
-            or _BANK_RE.search(text) or _EMAIL_RE.search(text)):
+    if not (
+        _ID_CARD_RE.search(text)
+        or _PHONE_RE.search(text)
+        or _BANK_RE.search(text)
+        or _EMAIL_RE.search(text)
+    ):
         return text, False
     return mask_text_pii(text), True
 

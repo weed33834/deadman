@@ -523,7 +523,6 @@ class NotificationGuardrail:
     async def _sync_consent_to_db(
         self, user_id: str, content: str, scope: str, recorded_at: datetime
     ) -> None:
-
         async def _op() -> None:
             import uuid
 
@@ -547,7 +546,6 @@ class NotificationGuardrail:
     async def _sync_unsubscribe_to_db(
         self, user_id: str, scope: str, recorded_at: datetime
     ) -> None:
-
         async def _op() -> None:
             import uuid
 
@@ -570,7 +568,6 @@ class NotificationGuardrail:
     async def _sync_send_to_db(
         self, user_id: str, content: str, channel: str, sent_at: datetime
     ) -> None:
-
         async def _op() -> None:
             import uuid
 
@@ -599,7 +596,6 @@ class NotificationGuardrail:
         involved_sensitive_death: bool,
         ended_at: datetime,
     ) -> None:
-
         async def _op() -> None:
             from ..db.engine import get_async_session_factory
             from ..db.models import NotificationLastSession

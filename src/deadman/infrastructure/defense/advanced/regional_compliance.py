@@ -403,7 +403,7 @@ class RegionalComplianceOrchestrator:
         # 是否需要用户同意
         exceptions_raw = rules.get("cross_border_exceptions", [])
         exceptions: list[str] = (
-            list(exceptions_raw) if isinstance(exceptions_raw, (list, tuple)) else []
+            list(exceptions_raw) if isinstance(exceptions_raw, list | tuple) else []
         )
         result.consent_required = "consent" in exceptions
 

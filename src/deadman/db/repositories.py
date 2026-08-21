@@ -254,9 +254,7 @@ class CustomerRepository(BaseRepository):
     async def get(self, org_id: str, customer_id: str) -> dict[str, Any] | None:
         """双键定位：org_id + id 同时匹配，跨机构 id 返回 None。"""
         async with get_async_session_factory()() as session:
-            stmt = select(Customer).where(
-                Customer.org_id == org_id, Customer.id == customer_id
-            )
+            stmt = select(Customer).where(Customer.org_id == org_id, Customer.id == customer_id)
             row = (await session.execute(stmt)).scalar_one_or_none()
             return _customer_to_dict(row) if row else None
 
@@ -265,11 +263,7 @@ class CustomerRepository(BaseRepository):
         from sqlalchemy import func
 
         async with get_async_session_factory()() as session:
-            stmt = (
-                select(func.count())
-                .select_from(Customer)
-                .where(Customer.org_id == org_id)
-            )
+            stmt = select(func.count()).select_from(Customer).where(Customer.org_id == org_id)
             return int((await session.execute(stmt)).scalar() or 0)
 
     # ------------------------------------------------------------------
@@ -316,9 +310,7 @@ class CustomerRepository(BaseRepository):
         if not fields:
             return None
         async with get_async_session_factory()() as session:
-            stmt = select(Customer).where(
-                Customer.org_id == org_id, Customer.id == customer_id
-            )
+            stmt = select(Customer).where(Customer.org_id == org_id, Customer.id == customer_id)
             customer = (await session.execute(stmt)).scalar_one_or_none()
             if customer is None:
                 return None
@@ -333,9 +325,7 @@ class CustomerRepository(BaseRepository):
     async def delete(self, org_id: str, customer_id: str) -> bool:
         """删除客户（org_admin 限定）；跨机构返回 False。"""
         async with get_async_session_factory()() as session:
-            stmt = select(Customer).where(
-                Customer.org_id == org_id, Customer.id == customer_id
-            )
+            stmt = select(Customer).where(Customer.org_id == org_id, Customer.id == customer_id)
             customer = (await session.execute(stmt)).scalar_one_or_none()
             if customer is None:
                 return False
@@ -418,8 +408,11 @@ class CaseRepository(BaseRepository):
             session.add(case)
             session.add(
                 _new_event(
-                    org_id, case.id, actor_user_id,
-                    "case.create", {"case_type": case_type, "customer_id": customer_id},
+                    org_id,
+                    case.id,
+                    actor_user_id,
+                    "case.create",
+                    {"case_type": case_type, "customer_id": customer_id},
                     now,
                 )
             )
@@ -474,7 +467,9 @@ class CaseRepository(BaseRepository):
                 case.closed_at = datetime.now()
             session.add(
                 _new_event(
-                    org_id, case.id, actor_user_id,
+                    org_id,
+                    case.id,
+                    actor_user_id,
                     "case.status_change",
                     {"from": from_status, "to": to_status},
                     datetime.now(),
@@ -502,7 +497,9 @@ class CaseRepository(BaseRepository):
                 case.status = "assigned"
             session.add(
                 _new_event(
-                    org_id, case.id, actor_user_id,
+                    org_id,
+                    case.id,
+                    actor_user_id,
                     "case.assign",
                     {"from": prev, "to": assignee_user_id},
                     datetime.now(),
@@ -530,9 +527,7 @@ class CaseEventRepository(BaseRepository):
             case = (await session.execute(stmt)).scalar_one_or_none()
             if case is None:
                 raise ValueError("案件不存在或不属于该机构")
-            event = _new_event(
-                org_id, case_id, actor_user_id, action, detail or {}, now
-            )
+            event = _new_event(org_id, case_id, actor_user_id, action, detail or {}, now)
             session.add(event)
             await session.commit()
             return _event_to_dict(event)

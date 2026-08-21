@@ -103,22 +103,20 @@ async def best_effort_db_write(
         try:
             await op()
             return True
-        except Exception as exc:  # noqa: BLE001 - best-effort 语义吞掉非瞬时异常
+        except Exception as exc:
             logger.warning("%s失败（best-effort）: %s", desc, exc)
             return False
 
     async for attempt in AsyncRetrying(
         stop=stop_after_attempt(max_attempts),
         wait=wait_random_exponential(multiplier=0.02, min=0.02, max=0.5),
-        retry=retry_if_exception(
-            lambda exc: isinstance(exc, _transient_exc_types())
-        ),
+        retry=retry_if_exception(lambda exc: isinstance(exc, _transient_exc_types())),
         reraise=False,
     ):
         with attempt:
             try:
                 await op()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 if isinstance(exc, _transient_exc_types()):
                     raise  # 让 tenacity 处理退避重试
                 # 非瞬时异常：放弃重试，直接吞掉并返回 False

@@ -312,9 +312,7 @@ class TestOnboardingStore:
         assert ok is True
         assert store.load("user-store-001") is None
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="POSIX 文件权限位在 Windows 无语义"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX 文件权限位在 Windows 无语义")
     def test_file_permission_0o600(self, tmp_path: Path):
         store = OnboardingStore(data_dir=tmp_path)
         profile = OnboardingProfile(

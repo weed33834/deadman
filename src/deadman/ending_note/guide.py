@@ -366,7 +366,7 @@ def _section_is_filled(value: Any) -> bool:
     """
     if value is None:
         return False
-    return not (isinstance(value, (dict, list, str)) and len(value) == 0)
+    return not (isinstance(value, dict | list | str) and len(value) == 0)
 
 
 def _dict_to_text(d: Any) -> str:
@@ -380,7 +380,7 @@ def _dict_to_text(d: Any) -> str:
         for v in d.values():
             parts.append(_dict_to_text(v))
         return " ".join(parts)
-    if isinstance(d, (list, tuple)):
+    if isinstance(d, list | tuple):
         return " ".join(_dict_to_text(x) for x in d)
     return str(d)
 

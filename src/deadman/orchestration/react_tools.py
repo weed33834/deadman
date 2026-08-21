@@ -208,6 +208,7 @@ async def _wrap_awareness(text: str = "", **_: Any) -> Any:
 # awareness 工具在 _wrap_awareness 定义后再注册（避免导入期未定义）
 _TOOL_WRAPPERS["awareness"] = _wrap_awareness
 
+
 def register_default_react_tools() -> None:
     """懒注册默认工具集。
 

@@ -65,9 +65,7 @@ class TestTicketCreateRead:
     def test_get_nonexistent_returns_none(self, store: TicketStore):
         assert store.get_ticket("tkt-nonexistent", user_id="user-001") is None
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="POSIX 文件权限位在 Windows 无语义"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX 文件权限位在 Windows 无语义")
     def test_ticket_file_written_with_0o600(self, store: TicketStore):
         t = _make_ticket(store)
         path = store.tickets_dir / f"{t.ticket_id}.json"

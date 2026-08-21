@@ -188,7 +188,6 @@ class ContentSandbox:
         Returns:
             True 表示检测到注入痕迹
         """
-        import re
 
         try:
             from ..orchestration.nodes import INJECTION_PATTERNS

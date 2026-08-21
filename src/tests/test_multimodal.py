@@ -302,9 +302,10 @@ class TestTTSService:
 
         svc = TTSService()
         result = svc.synthesize("怀念父亲", VoiceProfile.GENTLE_MALE)
-        assert isinstance(result.audio_bytes, (bytes, bytearray))
+        assert isinstance(result.audio_bytes, bytes | bytearray)
         assert len(result.audio_bytes) > 0
-        assert result.provider == "mock"  # 其他 provider 不可用 → mock
+        # 装了 edge-tts 的环境走真实 provider，否则降级 mock
+        assert result.provider in {"mock", "edge_tts"}
 
     def test_voice_profile_enum_values(self):
         from deadman.multimodal.tts import VoiceProfile

@@ -42,8 +42,15 @@ class TestOrgDocRagRerank:
 
         rag = OrgDocRag(root=tmp_path)
         # 两个块都含查询词；块2答案集中，块1分散
-        rag.index_document("orgA", "d1", "散", "死亡证明需要身份证、户口本、医院档案、派出所记录等多处材料分别说明。")
-        rag.index_document("orgA", "d2", "集中", "死亡证明：需到户籍地派出所或医院开具，材料为身份证与户口本。")
+        rag.index_document(
+            "orgA",
+            "d1",
+            "散",
+            "死亡证明需要身份证、户口本、医院档案、派出所记录等多处材料分别说明。",
+        )
+        rag.index_document(
+            "orgA", "d2", "集中", "死亡证明：需到户籍地派出所或医院开具，材料为身份证与户口本。"
+        )
         hits = rag.query("orgA", "死亡证明去哪里开具", top_k=5)
         assert hits, "应返回结果"
         assert hits[0]["doc_id"] == "d2", "重排后应优先集中答案块"

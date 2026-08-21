@@ -496,11 +496,11 @@ async def delete_agent(agent_id: str) -> dict[str, Any]:
 
 @router.post("/agents/{agent_id}/test")
 async def test_agent(agent_id: str, query: str = Body(default=None, embed=True)) -> dict[str, Any]:
-    from .server import web_server
+    from ..services.chat import handle_chat
 
     start = time.monotonic()
     try:
-        resp = await web_server._handle_chat(agent_id, query or "你好", None, None)
+        resp = await handle_chat(agent_id, query or "你好", None, None)
         resp["duration_ms"] = int((time.monotonic() - start) * 1000)
         return resp
     except Exception as exc:

@@ -110,9 +110,7 @@ class InviteStore:
     def list_invites(self, org_id: str) -> list[dict[str, Any]]:
         with self._lock:
             data = self._purge_expired(self._load())
-            return [
-                {"token": t, **e} for t, e in data.items() if e.get("org_id") == org_id
-            ]
+            return [{"token": t, **e} for t, e in data.items() if e.get("org_id") == org_id]
 
     def revoke_invite(self, token: str) -> bool:
         """吊销未使用的邀请令牌。"""

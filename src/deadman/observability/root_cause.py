@@ -381,7 +381,7 @@ class RootCauseAnalyzer:
 
             history: list[dict[str, Any]] = []
             for failure_type, count in failure_patterns.items():
-                if not isinstance(count, (int, float)) or count <= 0:
+                if not isinstance(count, int | float) or count <= 0:
                     continue
                 history.append(
                     {

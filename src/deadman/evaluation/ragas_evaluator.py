@@ -547,7 +547,7 @@ class RAGASEvaluator:
                     d = method()
                     if isinstance(d, dict):
                         for k, v in d.items():
-                            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                            if isinstance(v, int | float) and not isinstance(v, bool):
                                 scores[k] = float(v)
                         return scores
                 else:
@@ -557,7 +557,7 @@ class RAGASEvaluator:
                         row = df.to_dict(orient="records")
                         if row:
                             for k, v in row[0].items():
-                                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                                if isinstance(v, int | float) and not isinstance(v, bool):
                                     scores[k] = float(v)
                         return scores
             except Exception:
@@ -566,7 +566,7 @@ class RAGASEvaluator:
         # 0.2:dict-like
         if isinstance(ragas_result, dict):
             for k, v in ragas_result.items():
-                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                if isinstance(v, int | float) and not isinstance(v, bool):
                     scores[k] = float(v)
         return scores
 

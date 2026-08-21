@@ -1,39 +1,26 @@
-"""测试 deadman.web.server._handle_chat 走 graph 编排链
+"""测试 deadman.web.services.chat 走 graph 编排链
 
 覆盖 P0-1 修复（docs/pm-assessment.md）：
-- _handle_chat 调 build_main_graph().ainvoke 而非 llm_client.chat
+- handle_chat 调 build_main_graph().ainvoke 而非 llm_client.chat
 - 传入 state 含 user_input/agent_name/user_id/history
 - 返回值含 risk_tier
 - 调 MemoryManager.after_turn 更新记忆
 - graph 失败时降级到 llm_client 但仍返回响应
 - 降级路径用 SoulLoader.default_soul 而非硬编码 prompt
-- _handle_whoami 返回 is_ai=True 和 disclaimer
+- whoami 返回 is_ai=True 和 disclaimer
 - /api/whoami GET/POST 都能访问
 """
 
 from __future__ import annotations
 
-import http.client
 import json
-import socket
-import threading
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from deadman.types import RiskTier, RuleCheckResult
-from deadman.web.server import WebServer
 
 # =====================================================================
 # 辅助函数 / fixtures
 # =====================================================================
-
-
-@pytest.fixture
-def web_server() -> WebServer:
-    """构造一个 WebServer 实例"""
-    return WebServer()
 
 
 def _make_mock_graph(result_state: dict) -> MagicMock:
@@ -50,42 +37,18 @@ def _make_mock_mm_class() -> MagicMock:
     return mock_class
 
 
-def _get_free_port() -> int:
-    """获取一个可用端口"""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
-def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    """等待服务器就绪（轮询 /api/health）"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            conn.request("GET", "/api/health")
-            resp = conn.getresponse()
-            conn.close()
-            if resp.status == 200:
-                return True
-        except (ConnectionError, OSError):
-            pass
-        time.sleep(0.1)
-    return False
-
-
 # =====================================================================
-# _handle_chat 走 graph
+# handle_chat 走 graph
 # =====================================================================
 
 
 class TestHandleChatGraph:
-    """验证 _handle_chat 走 graph 编排链（P0-1 修复）"""
+    """验证 handle_chat 走 graph 编排链（P0-1 修复）"""
 
-    async def test_handle_chat_calls_graph(self, web_server: WebServer):
-        """_handle_chat 调 graph.ainvoke 而非 llm_client.chat"""
+    async def test_handle_chat_calls_graph(self):
+        """handle_chat 调 graph.ainvoke 而非 llm_client.chat"""
+        from deadman.web.services.chat import handle_chat
+
         mock_graph = _make_mock_graph(
             {
                 "final_response": "graph-response",
@@ -102,7 +65,7 @@ class TestHandleChatGraph:
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
             patch("deadman.llm.llm_client", mock_llm),
         ):
-            result = await web_server._handle_chat(
+            result = await handle_chat(
                 agent="death-aftercare",
                 query="test query",
                 history=[],
@@ -114,8 +77,10 @@ class TestHandleChatGraph:
         assert result["response"] == "graph-response"
         assert result["degraded"] is False
 
-    async def test_handle_chat_passes_state(self, web_server: WebServer):
+    async def test_handle_chat_passes_state(self):
         """传入 state 含 user_input/agent_name/user_id/history"""
+        from deadman.web.services.chat import handle_chat
+
         captured_state: list[dict] = []
 
         async def capture_ainvoke(state, config=None):
@@ -133,7 +98,7 @@ class TestHandleChatGraph:
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
-            await web_server._handle_chat(
+            await handle_chat(
                 agent="death-aftercare",
                 query="我的问题",
                 history=[{"role": "user", "content": "历史1"}],
@@ -152,8 +117,10 @@ class TestHandleChatGraph:
         assert len(state["history"]) == 1
         assert state["history"][0]["content"] == "历史1"
 
-    async def test_handle_chat_returns_risk_tier(self, web_server: WebServer):
+    async def test_handle_chat_returns_risk_tier(self):
         """返回值含 risk_tier"""
+        from deadman.web.services.chat import handle_chat
+
         mock_graph = _make_mock_graph(
             {
                 "final_response": "response",
@@ -171,7 +138,7 @@ class TestHandleChatGraph:
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
-            result = await web_server._handle_chat(
+            result = await handle_chat(
                 agent="death-aftercare",
                 query="test",
                 history=[],
@@ -185,8 +152,10 @@ class TestHandleChatGraph:
         assert result["safety_triggered"] is False
         assert result["degraded"] is False
 
-    async def test_handle_chat_updates_memory(self, web_server: WebServer):
+    async def test_handle_chat_updates_memory(self):
         """调 MemoryManager.after_turn 更新记忆"""
+        from deadman.web.services.chat import handle_chat
+
         mock_graph = _make_mock_graph(
             {
                 "final_response": "memory-response",
@@ -200,7 +169,7 @@ class TestHandleChatGraph:
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", mock_mm_class),
         ):
-            result = await web_server._handle_chat(
+            result = await handle_chat(
                 agent="death-aftercare",
                 query="test query",
                 history=[],
@@ -214,8 +183,10 @@ class TestHandleChatGraph:
         assert call_kwargs["assistant_response"] == "memory-response"
         assert result["degraded"] is False
 
-    async def test_handle_chat_fallback_on_graph_failure(self, web_server: WebServer):
+    async def test_handle_chat_fallback_on_graph_failure(self):
         """graph 失败时降级到 llm_client 但仍返回响应"""
+        from deadman.web.services.chat import handle_chat
+
         mock_graph = MagicMock()
         mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph boom"))
         mock_llm = MagicMock()
@@ -226,7 +197,7 @@ class TestHandleChatGraph:
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.llm.llm_client", mock_llm),
         ):
-            result = await web_server._handle_chat(
+            result = await handle_chat(
                 agent="death-aftercare",
                 query="test query",
                 history=[],
@@ -239,8 +210,10 @@ class TestHandleChatGraph:
         assert "graph boom" in result["error"]
         assert result.get("degraded_reason") == "graph_failed_using_fallback"
 
-    async def test_handle_chat_no_hardcoded_system_prompt(self, web_server: WebServer):
+    async def test_handle_chat_no_hardcoded_system_prompt(self):
         """降级路径用 SoulLoader.default_soul 而非硬编码 prompt"""
+        from deadman.web.services.chat import handle_chat
+
         mock_graph = MagicMock()
         mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph boom"))
         mock_llm = MagicMock()
@@ -251,7 +224,7 @@ class TestHandleChatGraph:
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.llm.llm_client", mock_llm),
         ):
-            result = await web_server._handle_chat(
+            result = await handle_chat(
                 agent="death-aftercare",
                 query="test query",
                 history=[],
@@ -275,16 +248,18 @@ class TestHandleChatGraph:
 
 
 # =====================================================================
-# _handle_whoami
+# whoami
 # =====================================================================
 
 
 class TestHandleWhoami:
-    """验证 _handle_whoami 平台身份告知（transparency-framework L5）"""
+    """验证 whoami 平台身份告知（transparency-framework L5）"""
 
-    def test_handle_whoami(self, web_server: WebServer):
-        """_handle_whoami 返回 is_ai=True 和 disclaimer"""
-        result = web_server._handle_whoami()
+    def test_whoami_payload(self):
+        """whoami 返回 is_ai=True 和 disclaimer"""
+        from deadman.web.services.chat import whoami
+
+        result = whoami()
         assert result["is_ai"] is True
         assert "disclaimer" in result
         assert "不代办" in result["disclaimer"]
@@ -295,50 +270,36 @@ class TestHandleWhoami:
         assert result["rules_count"] == 15
         assert "supported_languages" in result
 
-    def test_handle_whoami_get_and_post(self):
+    def test_whoami_get_and_post(self):
         """/api/whoami GET 和 POST 都能访问"""
-        port = _get_free_port()
-        server = WebServer()
-        thread = threading.Thread(
-            target=server.run,
-            args=("127.0.0.1", port),
-            daemon=True,
-        )
-        thread.start()
+        from fastapi.testclient import TestClient
 
-        try:
-            assert _wait_for_server(port), "服务器未在超时内启动"
+        from deadman.web.app import app
 
-            # GET
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request("GET", "/api/whoami")
-            resp = conn.getresponse()
-            assert resp.status == 200
-            data = json.loads(resp.read().decode("utf-8"))
-            assert data["is_ai"] is True
-            assert "disclaimer" in data
-            conn.close()
+        client = TestClient(app)
 
-            # POST
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request("POST", "/api/whoami", body="{}")
-            resp = conn.getresponse()
-            assert resp.status == 200
-            data = json.loads(resp.read().decode("utf-8"))
-            assert data["is_ai"] is True
-            assert "disclaimer" in data
-            conn.close()
-        finally:
-            pass  # daemon 线程会随进程退出
+        # GET
+        resp = client.get("/api/whoami")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_ai"] is True
+        assert "disclaimer" in data
+
+        # POST
+        resp = client.post("/api/whoami", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_ai"] is True
+        assert "disclaimer" in data
 
 
 # =====================================================================
-# P3：_stream_chat 推送 trace 事件（思考过程可视化）
+# P3：stream_chat_events 推送 trace 事件（思考过程可视化）
 # =====================================================================
 
 
 class TestStreamChatTracePush:
-    """验证 _stream_chat 在 graph 返回 trace_spans 时推送 event: trace
+    """验证 stream_chat_events 在 graph 返回 trace_spans 时推送 event: trace
 
     覆盖点：
     - graph 返回 trace_spans + subagent_called + metrics → SSE 流含 event: trace
@@ -348,27 +309,16 @@ class TestStreamChatTracePush:
     """
 
     @staticmethod
-    def _make_wfile() -> MagicMock:
-        """构造 mock wfile，记录所有 write 调用便于断言"""
-        wfile = MagicMock()
-        # write 接受 bytes，flush 不报错
-        wfile.write = MagicMock(
-            side_effect=lambda data: len(data) if isinstance(data, (bytes, bytearray)) else 0
-        )
-        wfile.flush = MagicMock()
-        return wfile
+    async def _collect(agent: str, query: str, user_id: str | None) -> str:
+        """收集 stream_chat_events 产出的全部 SSE 行"""
+        from deadman.web.services.chat import stream_chat_events
 
-    @staticmethod
-    def _collect_written(wfile: MagicMock) -> str:
-        """把所有 write 调用的 bytes 参数拼成一个字符串"""
         chunks = []
-        for call in wfile.write.call_args_list:
-            args, _ = call
-            if args and isinstance(args[0], (bytes, bytearray)):
-                chunks.append(args[0].decode("utf-8", errors="replace"))
+        async for line in stream_chat_events(agent, query, user_id):
+            chunks.append(line)
         return "".join(chunks)
 
-    async def test_stream_pushes_trace_event_when_graph_returns_spans(self, web_server: WebServer):
+    async def test_stream_pushes_trace_event_when_graph_returns_spans(self):
         """graph 返回 trace_spans 时，SSE 流应包含 event: trace"""
         mock_graph = _make_mock_graph(
             {
@@ -397,14 +347,12 @@ class TestStreamChatTracePush:
             }
         )
 
-        wfile = self._make_wfile()
         with (
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
-            await web_server._stream_chat(wfile, "test", "death-aftercare", "u1")
+            written = await self._collect("death-aftercare", "test", "u1")
 
-        written = self._collect_written(wfile)
         # 应包含 event: trace 行
         assert "event: trace" in written, f"未推送 trace 事件，实际写入:\n{written}"
         # 应包含 event: done 行
@@ -428,7 +376,7 @@ class TestStreamChatTracePush:
         assert payload["subagent_called"] == ["death-aftercare-emotional"]
         assert payload["metrics"]["tokens"] == 128
 
-    async def test_stream_done_has_has_trace_flag(self, web_server: WebServer):
+    async def test_stream_done_has_has_trace_flag(self):
         """done 事件应携带 has_trace 标记，前端据此知道是否有思考面板"""
         mock_graph = _make_mock_graph(
             {
@@ -438,14 +386,12 @@ class TestStreamChatTracePush:
                 "trace_spans": [{"span_type": "rule", "name": "x", "attributes": {}}],
             }
         )
-        wfile = self._make_wfile()
         with (
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
-            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+            written = await self._collect("death-aftercare", "q", "u1")
 
-        written = self._collect_written(wfile)
         import re as _re
 
         m = _re.search(r"event: done\ndata: (.+)\n\n", written)
@@ -454,7 +400,7 @@ class TestStreamChatTracePush:
         assert done["has_trace"] is True
         assert done["agent"] == "death-aftercare"
 
-    async def test_stream_no_trace_when_spans_empty(self, web_server: WebServer):
+    async def test_stream_no_trace_when_spans_empty(self):
         """graph 跑通但 trace_spans 为空 → 不推送 trace 事件"""
         mock_graph = _make_mock_graph(
             {
@@ -466,14 +412,12 @@ class TestStreamChatTracePush:
                 "metrics": {},
             }
         )
-        wfile = self._make_wfile()
         with (
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
         ):
-            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+            written = await self._collect("death-aftercare", "q", "u1")
 
-        written = self._collect_written(wfile)
         assert "event: trace" not in written, "空 trace 不应推送"
         # done 事件中 has_trace 应为 False
         import re as _re
@@ -483,7 +427,7 @@ class TestStreamChatTracePush:
         done = json.loads(m.group(1))
         assert done["has_trace"] is False
 
-    async def test_stream_no_trace_on_degraded_path(self, web_server: WebServer):
+    async def test_stream_no_trace_on_degraded_path(self):
         """graph 异常降级到 llm_client 时，不应推送 trace"""
         mock_graph = MagicMock()
         mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph 挂了"))
@@ -492,15 +436,13 @@ class TestStreamChatTracePush:
         mock_llm.api_key = "test-key"
         mock_llm.chat = AsyncMock(return_value="降级响应")
 
-        wfile = self._make_wfile()
         with (
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
             patch("deadman.llm.llm_client", mock_llm),
         ):
-            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+            written = await self._collect("death-aftercare", "q", "u1")
 
-        written = self._collect_written(wfile)
         assert "event: trace" not in written, "降级路径不应推送 trace"
         assert "event: done" in written
         # 降级路径的 done 仍应有 has_trace=False
@@ -512,7 +454,7 @@ class TestStreamChatTracePush:
         assert done["has_trace"] is False
         assert done["degraded"] is True
 
-    async def test_stream_no_trace_when_llm_no_key(self, web_server: WebServer):
+    async def test_stream_no_trace_when_llm_no_key(self):
         """降级路径下 LLM key 缺失 → 推送 error 事件后直接返回，无 trace 无 done"""
         mock_graph = MagicMock()
         mock_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph 挂了"))
@@ -521,15 +463,13 @@ class TestStreamChatTracePush:
         mock_llm.api_key = ""  # 无 key
         mock_llm.chat = AsyncMock(return_value="should-not-call")
 
-        wfile = self._make_wfile()
         with (
             patch("deadman.orchestration.graph.build_main_graph", return_value=mock_graph),
             patch("deadman.memory.manager.MemoryManager", _make_mock_mm_class()),
             patch("deadman.llm.llm_client", mock_llm),
         ):
-            await web_server._stream_chat(wfile, "q", "death-aftercare", "u1")
+            written = await self._collect("death-aftercare", "q", "u1")
 
-        written = self._collect_written(wfile)
         assert "event: error" in written
         assert "event: trace" not in written
         assert "event: done" not in written

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -62,7 +62,7 @@ def parse_json(text: str) -> Any | None:
     return None
 
 
-def validate(model: Type[M], data: Any) -> tuple[M | None, list[str]]:
+def validate(model: type[M], data: Any) -> tuple[M | None, list[str]]:
     """用 Pydantic 模型校验 / 构造数据。
 
     Returns:
@@ -73,7 +73,7 @@ def validate(model: Type[M], data: Any) -> tuple[M | None, list[str]]:
     try:
         return model.model_validate(data), []
     except ValidationError as exc:
-        errs = [f"{'.'.join(str(l) for l in e['loc'])}: {e['msg']}" for e in exc.errors()]
+        errs = [f"{'.'.join(str(loc) for loc in e['loc'])}: {e['msg']}" for e in exc.errors()]
         logger.debug("structured_output 校验失败: %s", errs)
         return None, errs
     except Exception as exc:  # pragma: no cover - 防御

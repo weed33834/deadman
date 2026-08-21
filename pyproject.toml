@@ -179,7 +179,19 @@ where = ["src"]
 include = ["deadman*"]
 
 [tool.setuptools.package-data]
-deadman = ["web/static/*"]
+# web 静态资源 + 随包分发的数据目录（rules/agents/knowledge/skills/prompts）
+deadman = [
+    "web/static/*",
+    "web/static/css/*",
+    "web/static/js/*",
+    "rules/**/*.md",
+    "rules/**/*.json",
+    "agents/**/*.md",
+    "knowledge/**/*.md",
+    "knowledge/**/*.json",
+    "skills/**/*",
+    "prompts/**/*.md",
+]
 
 [tool.ruff]
 line-length = 100

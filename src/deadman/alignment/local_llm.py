@@ -24,11 +24,11 @@ import json
 import logging
 import threading
 import time
-
-import httpx
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

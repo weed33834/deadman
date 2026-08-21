@@ -32,7 +32,7 @@ from deadman.memorial_writer.models import (
 )
 
 if TYPE_CHECKING:
-    from deadman.web.server import WebServer
+    from fastapi.testclient import TestClient
 
 # =====================================================================
 # 辅助：mock LLM
@@ -388,20 +388,24 @@ class TestCLIRegistration:
 
 
 # =====================================================================
-# 8. Web 端点测试（401 未认证 / 200 成功）
+# 8. Web 端点测试（401 未认证 / 200 成功，FastAPI TestClient 进程内）
 # =====================================================================
 
 
-def _make_web_server(tmp_path: Path, monkeypatch) -> WebServer:
-    """构造一个用 tmp_path 作为 auth_data_dir 的 WebServer"""
+def _make_web_client(tmp_path: Path, monkeypatch) -> TestClient:
+    """构造一个用 tmp_path 作为 auth_data_dir 的 TestClient"""
     from deadman.config import settings
-    from deadman.web.server import WebServer
 
     monkeypatch.setattr(settings, "auth_data_dir", tmp_path)
     monkeypatch.setattr(settings, "jwt_secret", "")
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
     monkeypatch.setattr(settings, "password_min_length", 8)
-    return WebServer()
+
+    from fastapi.testclient import TestClient
+
+    from deadman.web.app import app
+
+    return TestClient(app)
 
 
 class TestWebMemorialEndpoints:
@@ -409,35 +413,30 @@ class TestWebMemorialEndpoints:
 
     def test_generate_without_token_returns_401(self, tmp_path: Path, monkeypatch):
         """未认证访问 /api/memorial/generate 应返回 401"""
-        server = _make_web_server(tmp_path, monkeypatch)
-
-        # 直接调 _require_auth 验证无 token 时返回 None
-        user = server._require_auth({})
-        assert user is None
+        client = _make_web_client(tmp_path, monkeypatch)
+        resp = client.post("/api/memorial/generate", json={"doc_type": "eulogy"})
+        assert resp.status_code == 401
 
     def test_types_endpoint_requires_auth(self, tmp_path: Path, monkeypatch):
         """/api/memorial/types 也强制认证"""
-        server = _make_web_server(tmp_path, monkeypatch)
-        # 无 token → _require_auth 返回 None
-        user = server._require_auth({})
-        assert user is None
+        client = _make_web_client(tmp_path, monkeypatch)
+        resp = client.get("/api/memorial/types")
+        assert resp.status_code == 401
 
     def test_generate_with_token_returns_200(self, tmp_path: Path, monkeypatch, mock_llm_client):
         """带 token 访问 /api/memorial/generate 应正常生成"""
-        server = _make_web_server(tmp_path, monkeypatch)
+        client = _make_web_client(tmp_path, monkeypatch)
         # 注册并拿 token
-        reg_resp = asyncio.run(
-            server._handle_auth_register(
-                {
-                    "email": "alice@example.com",
-                    "password": "password123",
-                    "display_name": "Alice",
-                }
-            )
+        reg_resp = client.post(
+            "/api/auth/register",
+            json={
+                "email": "alice@example.com",
+                "password": "password123",
+                "display_name": "Alice",
+            },
         )
-        token = reg_resp["token"]
-        user = server._require_auth({"Authorization": f"Bearer {token}"})
-        assert user is not None
+        assert reg_resp.status_code == 200
+        token = reg_resp.json()["token"]
 
         # mock LLM
         import deadman.memorial_writer.generator as gen_module
@@ -447,21 +446,22 @@ class TestWebMemorialEndpoints:
         mock_llm.chat = AsyncMock(return_value="这是一篇悼文正文。")
         monkeypatch.setattr(gen_module, "llm_client", mock_llm)
 
-        # 调 generator（模拟 _handle_memorial_generate 的核心逻辑）
-        from deadman.memorial_writer.models import MemorialRequest
-
-        req = MemorialRequest(
-            doc_type="eulogy",
-            decedent_name="先父",
-            relationship="儿子",
-            personality_traits=["宽厚"],
+        # 走真实端点
+        resp = client.post(
+            "/api/memorial/generate",
+            json={
+                "doc_type": "eulogy",
+                "decedent_name": "先父",
+                "relationship": "儿子",
+                "personality_traits": ["宽厚"],
+            },
+            headers={"Authorization": f"Bearer {token}"},
         )
-        gen = MemorialGenerator()
-        result = asyncio.run(gen.generate(req))
-
-        assert result.doc_type == "eulogy"
-        assert "悼文" in result.text
-        assert result.confidence == pytest.approx(0.8)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["doc_type"] == "eulogy"
+        assert "悼文" in body["text"]
+        assert body["confidence"] == pytest.approx(0.8)
 
 
 # =====================================================================

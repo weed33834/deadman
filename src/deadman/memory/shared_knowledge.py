@@ -34,6 +34,7 @@ SHARED_KNOWLEDGE_ENABLED: bool = os.environ.get(
     "DEADMAN_SHARED_KNOWLEDGE_ENABLED", "0"
 ).lower() in ("1", "true", "yes", "on")
 
+
 # 默认存储路径:~/.deadman/memory/SHARED_KNOWLEDGE.json
 # 多租户（TENANT_MODE=multi）时按租户路由到 ~/.deadman/tenants/<tid>/memory/SHARED_KNOWLEDGE.json
 def _default_shared_knowledge_file() -> Path:
@@ -81,7 +82,9 @@ class SharedKnowledgeStore:
     """
 
     def __init__(self, file_path: Path | None = None) -> None:
-        self.file_path: Path = file_path if file_path is not None else _default_shared_knowledge_file()
+        self.file_path: Path = (
+            file_path if file_path is not None else _default_shared_knowledge_file()
+        )
         # 内存缓存:entry_id -> SharedKnowledgeEntry
         self._cache: dict[str, SharedKnowledgeEntry] = {}
         self._loaded: bool = False

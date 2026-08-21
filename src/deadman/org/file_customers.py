@@ -93,11 +93,7 @@ class CustomerRepository(_FileStoreBase):
 
     async def list_by_org(self, org_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = [
-                c
-                for c in self._customers().values()
-                if c.get("org_id") == org_id
-            ]
+            rows = [c for c in self._customers().values() if c.get("org_id") == org_id]
         rows.sort(key=lambda c: c.get("created_at", ""), reverse=True)
         return rows
 
@@ -174,9 +170,7 @@ class CaseRepository(_FileStoreBase):
         self, org_id: str, customer_id: str | None = None
     ) -> list[dict[str, Any]]:
         with self._lock:
-            rows = [
-                c for c in self._cases().values() if c.get("org_id") == org_id
-            ]
+            rows = [c for c in self._cases().values() if c.get("org_id") == org_id]
             if customer_id:
                 rows = [c for c in rows if c.get("customer_id") == customer_id]
         rows.sort(key=lambda c: c.get("created_at", ""), reverse=True)
@@ -195,9 +189,7 @@ class CaseRepository(_FileStoreBase):
             rows = [c for c in rows if c.get("status") == status]
         return len(rows)
 
-    async def create(
-        self, org_id: str, data: dict[str, Any], actor_user_id: str
-    ) -> dict[str, Any]:
+    async def create(self, org_id: str, data: dict[str, Any], actor_user_id: str) -> dict[str, Any]:
         customer_id = str(data.get("customer_id", "")).strip()
         if not customer_id:
             raise ValueError("customer_id 不能为空")
@@ -267,8 +259,11 @@ class CaseRepository(_FileStoreBase):
             all_data[case_id] = c
             _atomic_write(self.cases_file, all_data)
             self._append_event(
-                org_id, case_id, actor_user_id,
-                "case.status_change", {"from": from_status, "to": to_status},
+                org_id,
+                case_id,
+                actor_user_id,
+                "case.status_change",
+                {"from": from_status, "to": to_status},
                 c["updated_at"],
             )
             return c
@@ -291,15 +286,23 @@ class CaseRepository(_FileStoreBase):
             all_data[case_id] = c
             _atomic_write(self.cases_file, all_data)
             self._append_event(
-                org_id, case_id, actor_user_id,
-                "case.assign", {"from": prev, "to": assignee_user_id},
+                org_id,
+                case_id,
+                actor_user_id,
+                "case.assign",
+                {"from": prev, "to": assignee_user_id},
                 c["updated_at"],
             )
             return c
 
     def _append_event(
-        self, org_id: str, case_id: str, actor_user_id: str, action: str,
-        detail: dict[str, Any], created_at: str,
+        self,
+        org_id: str,
+        case_id: str,
+        actor_user_id: str,
+        action: str,
+        detail: dict[str, Any],
+        created_at: str,
     ) -> None:
         events = self._events()
         events.setdefault(case_id, []).append(

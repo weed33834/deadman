@@ -25,7 +25,8 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from ..._version import __version__ as DEADMAN_VERSION
 from ...config import settings
@@ -37,22 +38,43 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 _CLI_COMMANDS: frozenset[str] = frozenset(
     {
-        "version", "eval-list",
-        "llm-test", "llm-sync-models", "llm-cost",
-        "prompt-list", "prompt-sync",
-        "rule-test", "rule-validate",
-        "agent-list", "agent-ping",
-        "knowledge-list", "knowledge-freshness",
-        "tool-list", "mcp-ping",
-        "obs-dashboard", "obs-test", "obs-export",
-        "memory-list", "memory-test", "memory-ping",
-        "a2a-card", "a2a-test", "a2a-registry",
-        "deploy-check", "deploy-test",
-        "reflexion-list", "reflexion-test", "reflexion-ping",
-        "skill-list", "skill-validate",
-        "alignment-status", "alignment-train",
-        "governance-status", "governance-check",
-        "multimodal-status", "multimodal-test",
+        "version",
+        "eval-list",
+        "llm-test",
+        "llm-sync-models",
+        "llm-cost",
+        "prompt-list",
+        "prompt-sync",
+        "rule-test",
+        "rule-validate",
+        "agent-list",
+        "agent-ping",
+        "knowledge-list",
+        "knowledge-freshness",
+        "tool-list",
+        "mcp-ping",
+        "obs-dashboard",
+        "obs-test",
+        "obs-export",
+        "memory-list",
+        "memory-test",
+        "memory-ping",
+        "a2a-card",
+        "a2a-test",
+        "a2a-registry",
+        "deploy-check",
+        "deploy-test",
+        "reflexion-list",
+        "reflexion-test",
+        "reflexion-ping",
+        "skill-list",
+        "skill-validate",
+        "alignment-status",
+        "alignment-train",
+        "governance-status",
+        "governance-check",
+        "multimodal-status",
+        "multimodal-test",
     }
 )
 
@@ -101,8 +123,8 @@ def record_conversation_stats(
             tu = (metrics or {}).get("token_usage") or {}
             if isinstance(tu, dict):
                 for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
-                    stats["token_usage_total"][k] = (
-                        stats["token_usage_total"].get(k, 0) + int(tu.get(k, 0) or 0)
+                    stats["token_usage_total"][k] = stats["token_usage_total"].get(k, 0) + int(
+                        tu.get(k, 0) or 0
                     )
             if forced_terminate:
                 source = "forced_terminate"
@@ -217,9 +239,7 @@ async def handle_chat(
     try:
         graph = build_main_graph()
         thread_id = state.get("session_id") or state.get("user_id") or "default"
-        result_state = await graph.ainvoke(
-            state, config={"configurable": {"thread_id": thread_id}}
-        )
+        result_state = await graph.ainvoke(state, config={"configurable": {"thread_id": thread_id}})
         response = result_state.get("final_response") or result_state.get("draft_response", "")
         actual_agent = (result_state.get("current_agent") or agent_normalized).replace("_", "-")
         risk_tier, safety_triggered, rule_violations = _parse_rule_check(
@@ -349,12 +369,8 @@ async def stream_chat_events(
     try:
         graph = build_main_graph()
         thread_id = state.get("session_id") or state.get("user_id") or "default"
-        result_state = await graph.ainvoke(
-            state, config={"configurable": {"thread_id": thread_id}}
-        )
-        response_text = result_state.get("final_response") or result_state.get(
-            "draft_response", ""
-        )
+        result_state = await graph.ainvoke(state, config={"configurable": {"thread_id": thread_id}})
+        response_text = result_state.get("final_response") or result_state.get("draft_response", "")
         draft_response = result_state.get("draft_response", "") or ""
         risk_tier, safety_triggered, _ = _parse_rule_check(result_state.get("rule_check"))
         trace_spans = list(result_state.get("trace_spans") or [])
@@ -452,13 +468,11 @@ def split_for_streaming(text: str) -> list[str]:
     for ch in text:
         buf.append(ch)
         buf_len += 1
-        if ch in "\n。！？!?；;" and buf_len >= 4:
-            chunks.append("".join(buf))
-            buf, buf_len = [], 0
-        elif ch == "," and buf_len >= 12:
-            chunks.append("".join(buf))
-            buf, buf_len = [], 0
-        elif buf_len >= 120:
+        if (
+            (ch in "\n。！？!?；;" and buf_len >= 4)
+            or (ch == "," and buf_len >= 12)
+            or buf_len >= 120
+        ):
             chunks.append("".join(buf))
             buf, buf_len = [], 0
     if buf:
@@ -477,9 +491,7 @@ def whoami() -> dict[str, Any]:
         "platform": "deadman",
         "version": DEADMAN_VERSION,
         "is_ai": True,
-        "disclaimer": (
-            "本平台是信息引导工具，不代办、不代查、不出具法律意见、不与殡葬机构分成。"
-        ),
+        "disclaimer": ("本平台是信息引导工具，不代办、不代查、不出具法律意见、不与殡葬机构分成。"),
         "rules_count": 15,
         "agents": [
             "death-aftercare",
@@ -521,9 +533,19 @@ def cli(command: str, req: dict[str, Any]) -> dict[str, Any]:
             "returncode": proc.returncode,
         }
     except subprocess.TimeoutExpired:
-        return {"ok": False, "error": f"命令超时（{timeout}s）", "command": command, "returncode": -1}
+        return {
+            "ok": False,
+            "error": f"命令超时（{timeout}s）",
+            "command": command,
+            "returncode": -1,
+        }
     except Exception as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "command": command, "returncode": -1}
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "command": command,
+            "returncode": -1,
+        }
 
 
 # =====================================================================

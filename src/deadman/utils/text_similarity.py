@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from ..textproc.tokenize import tokenize  # noqa: F401  # 复用统一分词实现
+from ..textproc.tokenize import tokenize  # 复用统一分词实现
 
 __all__ = ["tokenize", "jaccard_similarity", "text_similarity", "tokenize_for_embedding"]
 

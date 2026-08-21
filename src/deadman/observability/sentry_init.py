@@ -117,7 +117,7 @@ def capture_exception(exc: Exception | None = None, **context: Any) -> None:
     try:
         with sentry_sdk.push_scope() as scope:
             for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
+                if isinstance(value, str | int | float | bool):
                     scope.set_tag(key, value)
                 else:
                     scope.set_extra(key, value)
@@ -144,7 +144,7 @@ def capture_message(message: str, level: str = "info", **context: Any) -> None:
     try:
         with sentry_sdk.push_scope() as scope:
             for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
+                if isinstance(value, str | int | float | bool):
                     scope.set_tag(key, value)
                 else:
                     scope.set_extra(key, value)

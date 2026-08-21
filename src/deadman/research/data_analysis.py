@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_numeric(v: Any) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, int | float) and not isinstance(v, bool)
 
 
 def describe(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -28,7 +28,7 @@ def describe(rows: list[dict[str, Any]]) -> dict[str, Any]:
     seen: set[str] = set()
     for r in rows:
         if isinstance(r, dict):
-            for k in r.keys():
+            for k in r:
                 if k not in seen:
                     seen.add(k)
                     col_names.append(k)
@@ -48,7 +48,7 @@ def describe(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "count": n,
                     "mean": round(mean, 4),
                     "median": round(_median(numeric), 4),
-                    "std": round(var ** 0.5, 4),
+                    "std": round(var**0.5, 4),
                     "min": min(numeric),
                     "max": max(numeric),
                 }

@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 __all__ = ["estimate_tokens", "trim_history", "build_context"]
 

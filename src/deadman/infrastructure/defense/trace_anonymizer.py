@@ -389,7 +389,7 @@ class TraceAnonymizer:
                 if isinstance(value, str) and value:
                     # hash 替代原值(可后续统计,不可反推)
                     sanitized[key] = self._hash_value(value)
-                elif isinstance(value, (dict, list)):
+                elif isinstance(value, dict | list):
                     sanitized[key] = "[REDACTED_COMPLEX]"
                 else:
                     sanitized[key] = "[REDACTED]"

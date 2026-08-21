@@ -62,9 +62,7 @@ class KbDoc(BaseModel):
 @router.get("/org", include_in_schema=False)
 async def org_index() -> FileResponse:
     """机构工作台入口页（org.html）。"""
-    return FileResponse(
-        _STATIC_DIR / "org.html", media_type="text/html; charset=utf-8"
-    )
+    return FileResponse(_STATIC_DIR / "org.html", media_type="text/html; charset=utf-8")
 
 
 # =====================================================================
@@ -84,11 +82,7 @@ async def org_dashboard(ctx: dict = Depends(require_org_role("viewer"))):
     cases = await case_repo.list_by_org(tenant_id)
 
     active = [c for c in cases if c.get("status") in _ACTIVE_STATUSES]
-    mine = [
-        c
-        for c in active
-        if c.get("assignee_user_id") == ctx["user_id"]
-    ]
+    mine = [c for c in active if c.get("assignee_user_id") == ctx["user_id"]]
     due_soon = [c for c in active if c.get("priority") == "high"]
 
     # 团队负载：按负责人聚合进行中案件
@@ -132,9 +126,7 @@ async def org_members(ctx: dict = Depends(require_org_role("org_admin"))):
     for m in members:
         d = m.to_dict()
         user = user_store.get_user(d.get("user_id", ""))
-        d["display_name"] = (user or {}).get("display_name", "") or d.get(
-            "user_id", ""
-        )
+        d["display_name"] = (user or {}).get("display_name", "") or d.get("user_id", "")
         rows.append(d)
     return {"members": rows, "count": len(rows)}
 
@@ -187,11 +179,7 @@ class _OrgKb:
 
     def list_by_org(self, org_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            return [
-                dict(doc)
-                for doc in self._load().values()
-                if doc.get("org_id") == org_id
-            ]
+            return [dict(doc) for doc in self._load().values() if doc.get("org_id") == org_id]
 
     def get(self, org_id: str, doc_id: str) -> dict[str, Any] | None:
         with self._lock:
@@ -200,9 +188,7 @@ class _OrgKb:
                 return dict(doc)
             return None
 
-    def upsert(
-        self, org_id: str, doc_id: str, data: dict[str, Any], actor: str
-    ) -> dict[str, Any]:
+    def upsert(self, org_id: str, doc_id: str, data: dict[str, Any], actor: str) -> dict[str, Any]:
         doc = {
             "id": doc_id,
             "org_id": org_id,

@@ -13,11 +13,11 @@
 
 from __future__ import annotations
 
-from html import escape
 import json
 import logging
 import os
 import time
+from html import escape
 from pathlib import Path
 from typing import Any
 

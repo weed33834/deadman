@@ -161,13 +161,12 @@ class TestAtomicWrite:
         # 模拟写入失败：把 _atomic_write 内部的 open 改成抛异常
         # 但 os.replace 之前就失败了，原文件应保持不变
         import builtins
-        import deadman.auth.store as store_module
 
         original_open = builtins.open
 
         def failing_open(file, mode="r", *args, **kwargs):
             # 只对 .tmp 文件抛异常
-            if isinstance(file, (str, Path)) and str(file).endswith(".tmp"):
+            if isinstance(file, str | Path) and str(file).endswith(".tmp"):
                 raise OSError("simulated disk full")
             return original_open(file, mode, *args, **kwargs)
 

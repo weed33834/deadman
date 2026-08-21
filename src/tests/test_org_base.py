@@ -51,9 +51,7 @@ class TestOrgStore:
 
     def test_update_org(self, org_store):
         org = org_store.create_org("A", slug="a")
-        updated = org_store.update_org(
-            org.org_id, name="A2", plan="pro", unknown_field="x"
-        )
+        updated = org_store.update_org(org.org_id, name="A2", plan="pro", unknown_field="x")
         assert updated is not None
         assert updated.name == "A2"
         assert updated.plan == "pro"

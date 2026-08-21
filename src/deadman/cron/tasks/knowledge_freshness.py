@@ -142,7 +142,7 @@ class KnowledgeFreshnessChecker:
 
     用法：
         checker = KnowledgeFreshnessChecker()
-        reports = checker.scan_regions(Path("src/knowledge/regions"))
+        reports = checker.scan_regions(settings.knowledge_dir / "regions")
         stale_reports = [r for r in reports if r.status == "stale"]
         for r in stale_reports:
             drifts = checker.check_official_sources(r)

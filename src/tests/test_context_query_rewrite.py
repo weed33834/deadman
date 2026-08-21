@@ -46,5 +46,5 @@ class TestQueryRewrite:
 
     @pytest.mark.asyncio
     async def test_rewrite_empty(self):
-        q, changed = await rewrite_query("   ")
+        _q, changed = await rewrite_query("   ")
         assert changed is False

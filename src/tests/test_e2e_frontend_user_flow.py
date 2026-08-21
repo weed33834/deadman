@@ -18,66 +18,30 @@
 
 from __future__ import annotations
 
-import http.client
 import json
-import socket
 import sys
 import threading
-import time
 
-import httpx
 import pytest
 
-from deadman.web.server import WebServer
-
 # =====================================================================
-# 辅助函数 + 模块级 server fixture
+# 辅助 + 模块级 client fixture（FastAPI TestClient，进程内）
 # =====================================================================
-
-
-def _get_free_port() -> int:
-    """获取一个可用端口"""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
-def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
-    """等待服务器就绪（轮询 /api/health）"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            conn.request("GET", "/api/health")
-            resp = conn.getresponse()
-            conn.close()
-            if resp.status == 200:
-                return True
-        except (ConnectionError, OSError):
-            pass
-        time.sleep(0.1)
-    return False
 
 
 @pytest.fixture(scope="module")
-def server_base_url() -> str:
-    """模块级 server fixture：启动一个 WebServer 实例，所有测试共享同一实例
+def client():
+    """模块级 TestClient fixture：所有测试共享同一 app 实例
 
     scope="module" 让 dashboard 累加行为可被后续测试断言（test_user_send_complex_tasks
     发完消息后 test_dashboard_data_structure 才能验证累加结果）。
     """
-    port = _get_free_port()
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
-    )
-    thread.start()
-    assert _wait_for_server(port), f"服务器未在超时内启动 (port={port})"
-    return f"http://127.0.0.1:{port}"
+    from fastapi.testclient import TestClient
+
+    from deadman.web.app import app
+
+    with TestClient(app) as c:
+        yield c
 
 
 # 复杂任务清单（模拟用户真实输入）
@@ -108,10 +72,10 @@ COMPLEX_TASKS = [
 # =====================================================================
 
 
-def test_home_html_integrity(server_base_url: str):
+def test_home_html_integrity(client):
     """1. 首页 HTML 完整性：所有 nav-item / page 容器 / 关键 JS 函数就位"""
     print("\n=== 测试 1：首页 HTML 完整性 ===")
-    r = httpx.get(f"{server_base_url}/", timeout=5)
+    r = client.get("/")
     assert r.status_code == 200, f"首页应返回 200，实际 {r.status_code}"
     html = r.text
 
@@ -154,17 +118,17 @@ def test_home_html_integrity(server_base_url: str):
     print(f"  首页 HTML 大小：{len(html)} 字符")
 
 
-def test_static_assets(server_base_url: str):
+def test_static_assets(client):
     """2. 静态资源可达性"""
     print("\n=== 测试 2：静态资源可达性 ===")
-    r = httpx.get(f"{server_base_url}/", timeout=5)
+    r = client.get("/")
     assert r.status_code == 200
     print("  ✓ / (index.html) 200")
     assert "text/html" in r.headers.get("content-type", ""), "Content-Type 应为 text/html"
     print(f"  ✓ Content-Type: {r.headers.get('content-type')}")
 
 
-def test_api_endpoints(server_base_url: str):
+def test_api_endpoints(client):
     """3. 关键 API 端点可达性"""
     print("\n=== 测试 3：关键 API 端点 ===")
     endpoints = [
@@ -178,17 +142,17 @@ def test_api_endpoints(server_base_url: str):
         "/api/hotlines",
     ]
     for path in endpoints:
-        r = httpx.get(f"{server_base_url}{path}", timeout=5)
+        r = client.get(path)
         assert r.status_code == 200, f"{path} 应返回 200，实际 {r.status_code}"
         data = r.json()
         assert isinstance(data, dict), f"{path} 应返回 dict"
         print(f"  ✓ {path} 200 (keys: {list(data.keys())[:5]})")
 
 
-def test_dashboard_empty_state(server_base_url: str):
+def test_dashboard_empty_state(client):
     """4. dashboard 空状态结构验证"""
     print("\n=== 测试 4：dashboard 空状态结构 ===")
-    r = httpx.get(f"{server_base_url}/api/dashboard", timeout=5)
+    r = client.get("/api/dashboard")
     assert r.status_code == 200
     data = r.json()
     required_keys = [
@@ -207,7 +171,7 @@ def test_dashboard_empty_state(server_base_url: str):
     print(f"  ✓ 数据结构：{json.dumps(data, ensure_ascii=False)[:200]}")
 
 
-def test_user_send_complex_tasks(server_base_url: str):
+def test_user_send_complex_tasks(client):
     """5. 模拟用户发送 3 个复杂任务，SSE 接收 + dashboard 累加验证
 
     无 LLM_API_KEY 时降级路径行为：
@@ -218,7 +182,7 @@ def test_user_send_complex_tasks(server_base_url: str):
     本测试环境无 key，但修了 thread_id bug 后 graph 应能跑通（走 agent_node 降级响应）。
     """
     print("\n=== 测试 5：模拟用户发送复杂任务（SSE 流）===")
-    dashboard_before = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
+    dashboard_before = client.get("/api/dashboard").json()
     print(f"  发送前 dashboard: total_conversations={dashboard_before['total_conversations']}")
 
     task_results = []
@@ -227,7 +191,6 @@ def test_user_send_complex_tasks(server_base_url: str):
         print(f"  query: {task['query'][:60]}...")
         print(f"  agent: {task['agent']}")
 
-        url = f"{server_base_url}/api/stream"
         params = {"query": task["query"], "agent": task["agent"]}
         full_response = ""
         events_received = []
@@ -235,10 +198,8 @@ def test_user_send_complex_tasks(server_base_url: str):
         done_data = None
         error_data = None
 
-        # SSE 流式接收（graph 跑完 + SSE 推送可能耗时，用 60s read 超时）
-        with httpx.stream(
-            "GET", url, params=params, timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5)
-        ) as r:
+        # SSE 流式接收（TestClient 底层即 httpx，stream 接口一致）
+        with client.stream("GET", "/api/stream", params=params) as r:
             assert r.status_code == 200, f"SSE 应返回 200，实际 {r.status_code}"
             buffer = ""
             for chunk in r.iter_text():
@@ -307,7 +268,7 @@ def test_user_send_complex_tasks(server_base_url: str):
 
     # 验证 dashboard 累加（done 路径才累加，error 路径不累加）
     print("\n  --- 验证 dashboard 累加 ---")
-    dashboard_after = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
+    dashboard_after = client.get("/api/dashboard").json()
     done_count = sum(1 for t in task_results if t["done"])
     print(
         f"  发送后 dashboard: total_conversations={dashboard_after['total_conversations']}, done 路径 {done_count} 个"
@@ -332,11 +293,10 @@ def test_user_send_complex_tasks(server_base_url: str):
         print("  （所有任务走 error 路径，dashboard 不累加，符合预期）")
 
 
-def test_dashboard_data_structure(server_base_url: str):
+def test_dashboard_data_structure(client):
     """6. dashboard 数据结构完整性"""
     print("\n=== 测试 6：dashboard 数据结构完整性 ===")
-    r = httpx.get(f"{server_base_url}/api/dashboard", timeout=5)
-    data = r.json()
+    data = client.get("/api/dashboard").json()
 
     assert isinstance(data["agent_calls"], dict)
     assert isinstance(data["risk_tier_counts"], dict)
@@ -356,22 +316,16 @@ def test_dashboard_data_structure(server_base_url: str):
     print(f"  ✓ 数据快照：{json.dumps(data, ensure_ascii=False, indent=2)[:500]}")
 
 
-def test_concurrent_users(server_base_url: str):
+def test_concurrent_users(client):
     """7. 并发用户场景（2 个用户同时发消息，dashboard 应正确累加）"""
     print("\n=== 测试 7：并发用户场景 ===")
-    dashboard_before = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
+    dashboard_before = client.get("/api/dashboard").json()
     results = []
 
     def send_one(query, agent, idx):
         try:
-            url = f"{server_base_url}/api/stream"
             params = {"query": query, "agent": agent}
-            with httpx.stream(
-                "GET",
-                url,
-                params=params,
-                timeout=httpx.Timeout(connect=5, read=60, write=5, pool=5),
-            ) as r:
+            with client.stream("GET", "/api/stream", params=params) as r:
                 buffer = ""
                 for chunk in r.iter_text():
                     buffer += chunk
@@ -403,7 +357,7 @@ def test_concurrent_users(server_base_url: str):
     for r in results:
         assert r[0] == "ok", f"并发请求失败：{r}"
 
-    dashboard_after = httpx.get(f"{server_base_url}/api/dashboard", timeout=5).json()
+    dashboard_after = client.get("/api/dashboard").json()
     assert dashboard_after["total_conversations"] == dashboard_before["total_conversations"] + 2
     print(
         f"  ✓ 2 个并发请求完成，dashboard 累加正确：{dashboard_before['total_conversations']} → {dashboard_after['total_conversations']}"
@@ -411,5 +365,5 @@ def test_concurrent_users(server_base_url: str):
 
 
 if __name__ == "__main__":
-    # 支持手动单独运行：通过 pytest 触发模块级 server fixture
+    # 支持手动单独运行：通过 pytest 触发模块级 client fixture
     sys.exit(pytest.main([__file__, "-v", "-s"]))

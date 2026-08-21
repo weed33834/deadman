@@ -43,11 +43,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import http.client
 import json
-import socket
-import threading
-import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -91,51 +87,26 @@ def _parse_cli(argv: list[str]) -> argparse.Namespace:
     return _make_cli_parser().parse_args(argv)
 
 
-def _get_free_port() -> int:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
+def _test_client():
+    """FastAPI TestClient（进程内，不起真实端口）"""
+    from fastapi.testclient import TestClient
+
+    from deadman.web.app import app
+
+    return TestClient(app)
 
 
-def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            conn.request("GET", "/api/health")
-            resp = conn.getresponse()
-            conn.close()
-            if resp.status == 200:
-                return True
-        except (ConnectionError, OSError):
-            pass
-        time.sleep(0.1)
-    return False
-
-
-def _register_and_get_token(port: int, email: str = "webtest@example.com") -> str:
-    body = json.dumps(
-        {
+def _register_and_get_token(client, email: str = "webtest@example.com") -> str:
+    resp = client.post(
+        "/api/auth/register",
+        json={
             "email": email,
             "password": "password123",
             "display_name": "WebTest",
-        }
-    )
-    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request(
-        "POST",
-        "/api/auth/register",
-        body=body,
-        headers={
-            "Content-Type": "application/json",
         },
     )
-    resp = conn.getresponse()
-    data = json.loads(resp.read().decode("utf-8"))
-    conn.close()
-    return data["token"]
+    assert resp.status_code == 200
+    return resp.json()["token"]
 
 
 def _patch_settings(tmp_path: Path, monkeypatch):
@@ -730,138 +701,72 @@ def test_cli_ticket_create_then_close(tmp_path: Path, capsys):
 def test_web_full_flow_onboarding_to_chat(tmp_path: Path, monkeypatch):
     """完整 onboarding → chat 流程：注册 → 保存 onboarding → /api/chat 返回 200"""
     _patch_settings(tmp_path, monkeypatch)
+    client = _test_client()
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
+    token = _register_and_get_token(client, email="onboard-chat@example.com")
+    assert token
 
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
+    # 保存 onboarding profile（注意：Web 端 body 字段是 `consent`，
+    # 与 CLI 的 --consent-disclaimer flag 不同；wizard.save_profile 期望 answers["consent"]）
+    resp = client.post(
+        "/api/onboarding",
+        json={
+            "relationship": "亲属",
+            "location": "北京",
+            "death_date": "2026-07-01",
+            "current_stage": ["死亡证明"],
+            "consent": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
-    thread.start()
+    assert resp.status_code == 200, f"onboarding 保存应 200，实际 {resp.status_code}"
 
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-        token = _register_and_get_token(port, email="onboard-chat@example.com")
-        assert token
-
-        # 保存 onboarding profile（注意：Web 端 body 字段是 `consent`，
-        # 与 CLI 的 --consent-disclaimer flag 不同；wizard.save_profile 期望 answers["consent"]）
-        body = json.dumps(
-            {
-                "relationship": "亲属",
-                "location": "北京",
-                "death_date": "2026-07-01",
-                "current_stage": ["死亡证明"],
-                "consent": True,
-            }
-        )
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "POST",
-            "/api/onboarding",
-            body=body,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200, f"onboarding 保存应 200，实际 {resp.status}"
-        conn.close()
-
-        # 调 /api/chat 应返回 200 + 响应内容
-        body = json.dumps(
-            {
-                "agent": "death_aftercare",
-                "query": "我妈刚在北京去世",
-            }
-        )
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
-        conn.request(
-            "POST",
-            "/api/chat",
-            body=body,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200, f"chat 应 200，实际 {resp.status}"
-        data = json.loads(resp.read().decode("utf-8"))
-        # 应有 response / disclaimer 字段
-        assert "response" in data or "disclaimer" in data
-        conn.close()
-    finally:
-        pass
+    # 调 /api/chat 应返回 200 + 响应内容
+    resp = client.post(
+        "/api/chat",
+        json={
+            "agent": "death_aftercare",
+            "query": "我妈刚在北京去世",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, f"chat 应 200，实际 {resp.status_code}"
+    data = resp.json()
+    # 应有 response / disclaimer 字段
+    assert "response" in data or "disclaimer" in data
 
 
 def test_web_support_ticket_flow(tmp_path: Path, monkeypatch):
     """support ticket 全流程：注册 → 创建 → 列出 → 关闭"""
     _patch_settings(tmp_path, monkeypatch)
+    client = _test_client()
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
+    token = _register_and_get_token(client, email="ticket-flow@example.com")
+    assert token
+    headers = {"Authorization": f"Bearer {token}"}
 
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
+    # 1. 创建工单（POST /api/support/tickets 返回 201 Created）
+    resp = client.post(
+        "/api/support/tickets",
+        json={
+            "category": "咨询",
+            "priority": "普通",
+            "subject": "Web 流程测试",
+            "description": "通过 HTTP 创建工单",
+        },
+        headers=headers,
     )
-    thread.start()
+    # 201 Created 是 REST 规范的资源创建响应码，200 也是允许的
+    assert resp.status_code in (200, 201), f"创建工单应 200/201，实际 {resp.status_code}"
+    data = resp.json()
+    assert "ticket_id" in data or "ticket" in data
 
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-        token = _register_and_get_token(port, email="ticket-flow@example.com")
-        assert token
-
-        # 1. 创建工单（POST /api/support/tickets 返回 201 Created）
-        body = json.dumps(
-            {
-                "category": "咨询",
-                "priority": "普通",
-                "subject": "Web 流程测试",
-                "description": "通过 HTTP 创建工单",
-            }
-        )
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "POST",
-            "/api/support/tickets",
-            body=body,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-        resp = conn.getresponse()
-        # 201 Created 是 REST 规范的资源创建响应码，200 也是允许的
-        assert resp.status in (200, 201), f"创建工单应 200/201，实际 {resp.status}"
-        data = json.loads(resp.read().decode("utf-8"))
-        assert "ticket_id" in data or "ticket" in data
-        conn.close()
-
-        # 2. 列出工单
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "GET",
-            "/api/support/tickets",
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200
-        data = json.loads(resp.read().decode("utf-8"))
-        # 列表应至少含 1 条
-        assert "tickets" in data or "items" in data
-        conn.close()
-    finally:
-        pass
+    # 2. 列出工单
+    resp = client.get("/api/support/tickets", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    # 列表应至少含 1 条
+    assert "tickets" in data or "items" in data
 
 
 def test_web_ending_note_auth_with_phase14_encryption(tmp_path: Path, monkeypatch):
@@ -872,145 +777,81 @@ def test_web_ending_note_auth_with_phase14_encryption(tmp_path: Path, monkeypatc
           落盘文件应是加密 envelope（version=3，AES-256-GCM）。
     """
     _patch_settings(tmp_path, monkeypatch)
+    client = _test_client()
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
+    token = _register_and_get_token(client, email="note-auth@example.com")
+    assert token
+    headers = {"Authorization": f"Bearer {token}"}
 
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
+    # 1. 不带 token 访问 /api/ending-note 应 401
+    resp = client.get("/api/ending-note")
+    assert resp.status_code == 401, f"未认证应 401，实际 {resp.status_code}"
+
+    # 2. 带 token 访问 /api/ending-note（Phase 14 P0-gap-2 修复：auth 穿透）
+    # 新用户无笔记时端点返回 404 + "尚无终活笔记" 提示（仍验证 auth 穿透成功，
+    # 因为未认证会返回 401 而非 404）
+    resp = client.get("/api/ending-note", headers=headers)
+    # 200（有笔记）或 404（无笔记）都验证了 auth 穿透成功；
+    # 重点是 401（未认证）已被 auth 拦截
+    assert resp.status_code in (200, 404), (
+        f"认证后应 200（有笔记）或 404（无笔记），实际 {resp.status_code}"
     )
-    thread.start()
-
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-        token = _register_and_get_token(port, email="note-auth@example.com")
-        assert token
-
-        # 1. 不带 token 访问 /api/ending-note 应 401
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request("GET", "/api/ending-note")
-        resp = conn.getresponse()
-        assert resp.status == 401, f"未认证应 401，实际 {resp.status}"
-        conn.close()
-
-        # 2. 带 token 访问 /api/ending-note（Phase 14 P0-gap-2 修复：auth 穿透）
-        # 新用户无笔记时端点返回 404 + "尚无终活笔记" 提示（仍验证 auth 穿透成功，
-        # 因为未认证会返回 401 而非 404）
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "GET",
-            "/api/ending-note",
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
+    body_data = resp.json()
+    # 若是 404，message 字段应含"尚无终活笔记"提示
+    if resp.status_code == 404:
+        assert "尚无终活笔记" in body_data.get("message", ""), (
+            f"404 响应应含'尚无终活笔记'提示，实际: {body_data}"
         )
-        resp = conn.getresponse()
-        # 200（有笔记）或 404（无笔记）都验证了 auth 穿透成功；
-        # 重点是 401（未认证）已被 auth 拦截
-        assert resp.status in (200, 404), (
-            f"认证后应 200（有笔记）或 404（无笔记），实际 {resp.status}"
-        )
-        body_data = json.loads(resp.read().decode("utf-8"))
-        # 若是 404，message 字段应含"尚无终活笔记"提示
-        if resp.status == 404:
-            assert "尚无终活笔记" in body_data.get("message", ""), (
-                f"404 响应应含'尚无终活笔记'提示，实际: {body_data}"
-            )
-        conn.close()
 
-        # 3. 用 POST /api/ending-note/section 保存一节，验证 auth 穿透 + 写入成功
-        body = json.dumps(
-            {
-                "section": "personal_info",
-                "answer": {"full_name_masked": "张**"},
-            }
-        )
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "POST",
-            "/api/ending-note/section",
-            body=body,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200, f"POST /api/ending-note/section 应 200，实际 {resp.status}"
-        conn.close()
+    # 3. 用 POST /api/ending-note/section 保存一节，验证 auth 穿透 + 写入成功
+    resp = client.post(
+        "/api/ending-note/section",
+        json={
+            "section": "personal_info",
+            "answer": {"full_name_masked": "张**"},
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200, f"POST /api/ending-note/section 应 200，实际 {resp.status_code}"
 
-        # 4. 再次 GET /api/ending-note 应 200（已有笔记）
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "GET",
-            "/api/ending-note",
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200, f"保存笔记后 GET 应 200，实际 {resp.status}"
-        conn.close()
+    # 4. 再次 GET /api/ending-note 应 200（已有笔记）
+    resp = client.get("/api/ending-note", headers=headers)
+    assert resp.status_code == 200, f"保存笔记后 GET 应 200，实际 {resp.status_code}"
 
-        # 5. 验证 EndingNoteStore 落盘文件是加密 envelope（v2）
-        # 通过 EndingNoteStore 直接构造数据 + 验证落盘
-        from deadman.ending_note.models import EndingNote
-        from deadman.ending_note.store import EndingNoteStore
+    # 5. 验证 EndingNoteStore 落盘文件是加密 envelope（v2）
+    # 通过 EndingNoteStore 直接构造数据 + 验证落盘
+    from deadman.ending_note.models import EndingNote
+    from deadman.ending_note.store import EndingNoteStore
 
-        en_store = EndingNoteStore(data_dir=tmp_path / "ending_notes")
-        note = EndingNote.new("note-auth-user")
-        note.personal_info = {"full_name_masked": "李**"}
-        en_store.save(note)
+    en_store = EndingNoteStore(data_dir=tmp_path / "ending_notes")
+    note = EndingNote.new("note-auth-user")
+    note.personal_info = {"full_name_masked": "李**"}
+    en_store.save(note)
 
-        note_path = en_store._note_path("note-auth-user")
-        raw = note_path.read_text(encoding="utf-8")
-        # v3 envelope 字段应齐全
-        envelope = json.loads(raw)
-        assert envelope.get("version") == 3, f"应为 v3 envelope，实际 {envelope.get('version')}"
-        assert envelope.get("alg") == "aes-256-gcm"
-        # 明文 PII 不应在落盘文件中
-        assert "李**" not in raw
-    finally:
-        pass
+    note_path = en_store._note_path("note-auth-user")
+    raw = note_path.read_text(encoding="utf-8")
+    # v3 envelope 字段应齐全
+    envelope = json.loads(raw)
+    assert envelope.get("version") == 3, f"应为 v3 envelope，实际 {envelope.get('version')}"
+    assert envelope.get("alg") == "aes-256-gcm"
+    # 明文 PII 不应在落盘文件中
+    assert "李**" not in raw
 
 
 def test_web_compliance_pages_responsive(tmp_path: Path, monkeypatch):
     """响应式合规页面：GET /privacy /terms /support 都应 200"""
     _patch_settings(tmp_path, monkeypatch)
+    client = _test_client()
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
-
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
-    )
-    thread.start()
-
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-
-        for path, expected_keyword in [
-            ("/privacy", "隐私"),
-            ("/terms", "协议"),
-            ("/support", "客服"),
-        ]:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request("GET", path)
-            resp = conn.getresponse()
-            assert resp.status == 200, f"{path} 应 200，实际 {resp.status}"
-            body = resp.read().decode("utf-8")
-            assert expected_keyword in body, (
-                f"{path} 响应应含 '{expected_keyword}'，实际: {body[:200]}"
-            )
-            conn.close()
-    finally:
-        pass
+    for path, expected_keyword in [
+        ("/privacy", "隐私"),
+        ("/terms", "协议"),
+        ("/support", "客服"),
+    ]:
+        resp = client.get(path)
+        assert resp.status_code == 200, f"{path} 应 200，实际 {resp.status_code}"
+        body = resp.text
+        assert expected_keyword in body, f"{path} 响应应含 '{expected_keyword}'，实际: {body[:200]}"
 
 
 # =====================================================================

@@ -150,4 +150,6 @@ async def generate_case_brief(case: dict[str, Any], customer: dict[str, Any] | N
         )
     except Exception as exc:  # pragma: no cover
         logger.warning("smart_case 简报失败: %s", exc)
-        return f"客户：{cname}；类型：{case.get('case_type', '-')}；状态：{case.get('status', '-')}。"
+        return (
+            f"客户：{cname}；类型：{case.get('case_type', '-')}；状态：{case.get('status', '-')}。"
+        )

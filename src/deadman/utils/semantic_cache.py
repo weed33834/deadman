@@ -35,7 +35,9 @@ class SemanticCache:
         self.ttl = max(0, ttl_seconds)
         self.threshold = similarity_threshold
         self._lock = threading.RLock()
-        self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()  # key -> (expires_at, value)
+        self._store: OrderedDict[str, tuple[float, Any]] = (
+            OrderedDict()
+        )  # key -> (expires_at, value)
         self.hits = 0
         self.misses = 0
 

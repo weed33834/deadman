@@ -56,6 +56,8 @@ class Settings:
 
     # === 项目根目录 ===
     project_root: Path = Path(__file__).parent.parent.parent  # 仓库根（src/ 的父级）
+    # 包内目录（pip 安装后数据随包分发，不再依赖仓库布局）
+    package_dir: Path = Path(__file__).parent
 
     # === MCP Server ===
     mcp_server_port: int = int(os.getenv("MCP_SERVER_PORT", "8000"))
@@ -169,9 +171,7 @@ class Settings:
 
     # === 用户认证与会话（Phase 8，遵守 legal-compliance-framework PIPL）===
     # 用户数据目录：~/.deadman/auth/users.json + jwt_secret
-    auth_data_dir: Path = Path(
-        os.getenv("DEADMAN_AUTH_DATA_DIR", str(_data_root() / "auth"))
-    )
+    auth_data_dir: Path = Path(os.getenv("DEADMAN_AUTH_DATA_DIR", str(_data_root() / "auth")))
     # JWT 签名密钥（留空则自动生成并持久化到 auth_data_dir/jwt_secret）
     # 生产环境建议通过环境变量显式注入，避免单机密钥漂移
     jwt_secret: str = os.getenv("DEADMAN_JWT_SECRET", "")
@@ -195,9 +195,7 @@ class Settings:
     )
 
     # === 机构域数据（To B：机构/成员/邀请；客户与案件走 DB，见 B2B-IMPLEMENTATION Step 5）===
-    org_data_dir: Path = Path(
-        os.getenv("DEADMAN_ORG_DATA_DIR", str(_data_root() / "org"))
-    )
+    org_data_dir: Path = Path(os.getenv("DEADMAN_ORG_DATA_DIR", str(_data_root() / "org")))
 
     # === To B 私有化授权码（B2B-IMPLEMENTATION Step 7.1）===
     # 签发密钥（仅校验端需要；留空则视为未知 → 自动试用）
@@ -217,18 +215,19 @@ class Settings:
     # 连接池回收秒数（避免长连接被数据库侧关闭）
     db_pool_recycle: int = int(os.getenv("DATABASE_POOL_RECYCLE", "1800"))
 
-    # 扁平化后：规则/智能体/知识库/技能/测试均在 src/ 下；data/ 与 docs/ 在仓库根
+    # 数据目录随包分发（rules/agents/knowledge/skills 已移入 deadman 包内，
+    # pip install 后可用；tests 仍留在仓库 src/tests，不随包分发）
     @property
     def rules_dir(self) -> Path:
-        return self.project_root / "src" / "rules"
+        return self.package_dir / "rules"
 
     @property
     def agents_dir(self) -> Path:
-        return self.project_root / "src" / "agents"
+        return self.package_dir / "agents"
 
     @property
     def knowledge_dir(self) -> Path:
-        return self.project_root / "src" / "knowledge"
+        return self.package_dir / "knowledge"
 
     @property
     def tests_dir(self) -> Path:
@@ -236,7 +235,7 @@ class Settings:
 
     @property
     def skills_dir(self) -> Path:
-        return self.project_root / "src" / "skills"
+        return self.package_dir / "skills"
 
 
 # 全局单例

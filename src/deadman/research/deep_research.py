@@ -18,16 +18,19 @@ import json
 import logging
 import threading
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..utils.semantic_cache import SemanticCache
 
 logger = logging.getLogger(__name__)
 
 # 语义缓存：近义问题复用研究结果（省 LLM/检索）
-_cache: "SemanticCache | None" = None
+_cache: SemanticCache | None = None
 _cache_lock = threading.Lock()
 
 
-def _get_cache() -> "SemanticCache":
+def _get_cache() -> SemanticCache:
     global _cache
     if _cache is None:
         with _cache_lock:
@@ -173,7 +176,7 @@ async def cross_verify(
         )
         out = await _llm_text(
             "你是事实核查员。根据以下来源，判断对问题的整体可信度（high/medium/low），"
-            "并指出明显不一致或需官方核实之处。输出 JSON：{\"confidence\": \"high|medium|low\", \"warnings\": [...]}",
+            '并指出明显不一致或需官方核实之处。输出 JSON：{"confidence": "high|medium|low", "warnings": [...]}',
             f"问题：{question}\n来源：\n{src_desc}",
         )
         if out:

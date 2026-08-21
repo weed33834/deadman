@@ -11,15 +11,16 @@ from __future__ import annotations
 
 import logging
 
+from .._version import __version__ as _core_version
 from ..plugins.protocol import Plugin, PluginMeta
 from ..plugins.registry import PluginRegistry
 
 logger = logging.getLogger(__name__)
 
-#: 插件元信息；版本跟随核心，避免维护第二套版本源
+#: 插件元信息；版本跟随核心，避免维护第二套版本号
 _PLUGIN_META = PluginMeta(
     name="deadman-mcp",
-    version="0.1.1",
+    version=_core_version,
     description="Model Context Protocol server（15 个工具：知识查询/联网搜索/文件读写/子智能体/沙箱等）",
     extra={"home": "src/deadman/mcp_server"},
 )

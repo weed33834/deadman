@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -35,10 +36,8 @@ def _atomic_write_bytes(path: Path, data: bytes) -> None:
             os.fsync(f.fileno())
         os.replace(tmp_path, path)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise
 
 

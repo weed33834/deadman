@@ -390,9 +390,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     org_role = payload.get("org_role")
 
         registry = get_tenant_registry()
-        tenant = registry.get(tenant_id) or TenantInfo(
-            tenant_id=tenant_id, name="default"
-        )
+        tenant = registry.get(tenant_id) or TenantInfo(tenant_id=tenant_id, name="default")
 
         with TenantContext(tenant):
             request.state.tenant_id = tenant_id

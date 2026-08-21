@@ -713,7 +713,8 @@ print(result)
         assert not guard.check_write("/usr/share/data/file.txt")
 
     @pytest.mark.skipif(
-        sys.platform == "win32", reason="resource 模块为 Unix 专属，Windows 下 apply_resource_limits 直接降级"
+        sys.platform == "win32",
+        reason="resource 模块为 Unix 专属，Windows 下 apply_resource_limits 直接降级",
     )
     def test_apply_resource_limits_returns_applied(self, monkeypatch):
         """apply_resource_limits 返回实际应用的限制。

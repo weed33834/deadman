@@ -44,9 +44,7 @@ DATA_ROOT = Path(os.environ.get("DEADMAN_DATA_ROOT", str(Path.home() / ".deadman
 TENANT_MODE: str = os.environ.get("DEADMAN_TENANT_MODE", "single")
 
 # 租户数据根目录
-TENANTS_ROOT = Path(
-    os.environ.get("DEADMAN_TENANTS_ROOT", str(DATA_ROOT / "tenants"))
-)
+TENANTS_ROOT = Path(os.environ.get("DEADMAN_TENANTS_ROOT", str(DATA_ROOT / "tenants")))
 
 
 @dataclass

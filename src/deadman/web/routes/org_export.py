@@ -63,8 +63,9 @@ async def _collect_audit_events(
     return events[:limit]
 
 
-def _filter_events(events: list[dict[str, Any]], actor: str | None, action: str | None,
-                   case_id: str | None) -> list[dict[str, Any]]:
+def _filter_events(
+    events: list[dict[str, Any]], actor: str | None, action: str | None, case_id: str | None
+) -> list[dict[str, Any]]:
     """按查询参数过滤审计事件。"""
     rows = events
     if actor:
@@ -94,21 +95,30 @@ async def org_audit_logs(
 
 def _events_to_csv(events: list[dict[str, Any]]) -> bytes:
     """审计事件转 CSV（UTF-8 BOM，Excel 可直接打开）。"""
-    fieldnames = ["created_at", "case_id", "case_type", "customer_id",
-                  "actor_user_id", "action", "detail"]
+    fieldnames = [
+        "created_at",
+        "case_id",
+        "case_type",
+        "customer_id",
+        "actor_user_id",
+        "action",
+        "detail",
+    ]
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
     writer.writeheader()
     for e in events:
-        writer.writerow({
-            "created_at": e.get("created_at", ""),
-            "case_id": e.get("case_id", ""),
-            "case_type": e.get("case_type", ""),
-            "customer_id": e.get("customer_id", ""),
-            "actor_user_id": e.get("actor_user_id", ""),
-            "action": e.get("action", ""),
-            "detail": json.dumps(e.get("detail", {}), ensure_ascii=False),
-        })
+        writer.writerow(
+            {
+                "created_at": e.get("created_at", ""),
+                "case_id": e.get("case_id", ""),
+                "case_type": e.get("case_type", ""),
+                "customer_id": e.get("customer_id", ""),
+                "actor_user_id": e.get("actor_user_id", ""),
+                "action": e.get("action", ""),
+                "detail": json.dumps(e.get("detail", {}), ensure_ascii=False),
+            }
+        )
     return ("\ufeff" + buf.getvalue()).encode("utf-8")
 
 
@@ -221,8 +231,13 @@ async def _export_org_data(job_id: str, tenant_id: str, actor: str) -> None:
         job["status"] = "done"
         job["progress"] = 1.0
         job["path"] = str(zip_path)
-    logger.info("全量导出完成: %s (%d 客户, %d 案件, %d 事件)", job_id,
-                len(customers), len(cases), len(events))
+    logger.info(
+        "全量导出完成: %s (%d 客户, %d 案件, %d 事件)",
+        job_id,
+        len(customers),
+        len(cases),
+        len(events),
+    )
 
 
 def _org_kb_list(org_id: str) -> list[dict[str, Any]]:
@@ -235,8 +250,7 @@ def _org_kb_list(org_id: str) -> list[dict[str, Any]]:
     except (json.JSONDecodeError, OSError):
         return []
     return [
-        dict(doc) for doc in data.values()
-        if isinstance(doc, dict) and doc.get("org_id") == org_id
+        dict(doc) for doc in data.values() if isinstance(doc, dict) and doc.get("org_id") == org_id
     ]
 
 

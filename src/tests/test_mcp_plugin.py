@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from deadman._version import __version__
 from deadman.mcp_server import plugin
 from deadman.plugins import Plugin, PluginRegistry
 
@@ -17,7 +18,8 @@ class TestMcpPlugin:
     def test_satisfies_protocol(self):
         assert isinstance(plugin, Plugin)
         assert plugin.meta.name == "deadman-mcp"
-        assert plugin.meta.version == "0.1.0"
+        # 版本跟随核心单一版本源，避免升版本时测试硬编码失配
+        assert plugin.meta.version == __version__
 
     def test_setup_registers_server_and_tools(self, registry: PluginRegistry):
         plugin.setup(registry)

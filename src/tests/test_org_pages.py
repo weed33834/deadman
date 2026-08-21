@@ -57,9 +57,7 @@ class _OrgApiFixture:
         self.env["org"].add_member(org.org_id, user["user_id"], org_role)
 
     def _token(self, user, org, org_role="case_manager") -> str:
-        return JWTManager(secret=SECRET).issue(
-            user, tenant_id=org.org_id, org_role=org_role
-        )
+        return JWTManager(secret=SECRET).issue(user, tenant_id=org.org_id, org_role=org_role)
 
     def _auth(self, user, org, org_role="case_manager") -> dict:
         return {"Authorization": f"Bearer {self._token(user, org, org_role)}"}
@@ -111,7 +109,10 @@ def test_unauthenticated_401(api):
 
 def test_viewer_can_read_dashboard_and_kb(api):
     user, org = _setup_org(api, "viewer")
-    assert api.client.get("/api/org/dashboard", headers=api._auth(user, org, "viewer")).status_code == 200
+    assert (
+        api.client.get("/api/org/dashboard", headers=api._auth(user, org, "viewer")).status_code
+        == 200
+    )
     assert api.client.get("/api/org/kb", headers=api._auth(user, org, "viewer")).status_code == 200
 
 
@@ -127,8 +128,14 @@ def test_viewer_cannot_write_private_kb(api):
 
 def test_consultant_cannot_view_members_or_audit(api):
     user, org = _setup_org(api, "consultant")
-    assert api.client.get("/api/org/members", headers=api._auth(user, org, "consultant")).status_code == 403
-    assert api.client.get("/api/org/audit", headers=api._auth(user, org, "consultant")).status_code == 403
+    assert (
+        api.client.get("/api/org/members", headers=api._auth(user, org, "consultant")).status_code
+        == 403
+    )
+    assert (
+        api.client.get("/api/org/audit", headers=api._auth(user, org, "consultant")).status_code
+        == 403
+    )
 
 
 # =====================================================================
@@ -139,9 +146,7 @@ def test_dashboard_aggregates(api):
     h = api._auth(user, org, "case_manager")
 
     # 建客户 + 案件
-    cust = api.client.post(
-        "/api/org/customers", headers=h, json={"display_name": "张三"}
-    ).json()
+    cust = api.client.post("/api/org/customers", headers=h, json={"display_name": "张三"}).json()
     case = api.client.post(
         "/api/org/cases",
         headers=h,
@@ -166,9 +171,7 @@ def test_dashboard_my_todos(api):
     h = api._auth(user, org, "case_manager")
 
     cust = api.client.post("/api/org/customers", headers=h, json={"display_name": "李四"}).json()
-    case = api.client.post(
-        "/api/org/cases", headers=h, json={"customer_id": cust["id"]}
-    ).json()
+    case = api.client.post("/api/org/cases", headers=h, json={"customer_id": cust["id"]}).json()
     # 分配给他人 → 不计入"我的待办"
     other = api._user("other@x.com")
     api.client.post(
@@ -224,9 +227,7 @@ def test_kb_crud(api):
 def test_kb_cross_org_isolation(api):
     user_a, org_a = _setup_org(api, "case_manager")
     ha = api._auth(user_a, org_a)
-    api.client.post(
-        "/api/org/kb/shared_doc", headers=ha, json={"title": "A机构知识"}
-    )
+    api.client.post("/api/org/kb/shared_doc", headers=ha, json={"title": "A机构知识"})
 
     user_b = api._user("b@x.com")
     org_b = api._org(name="机构B", slug="b")
@@ -235,9 +236,7 @@ def test_kb_cross_org_isolation(api):
     # B 看不到 A 的知识
     assert api.client.get("/api/org/kb", headers=hb).json()["private"] == []
     # B 无法覆盖 A 的 doc_id（404）
-    r = api.client.post(
-        "/api/org/kb/shared_doc", headers=hb, json={"title": "篡改"}
-    )
+    r = api.client.post("/api/org/kb/shared_doc", headers=hb, json={"title": "篡改"})
     assert r.status_code == 404
     # B 删除 A 的 doc → 404
     assert api.client.delete("/api/org/kb/shared_doc", headers=hb).status_code == 404
@@ -259,18 +258,14 @@ def test_audit_lists_case_events(api):
     h = api._auth(user, org, "case_manager")
 
     cust = api.client.post("/api/org/customers", headers=h, json={"display_name": "王五"}).json()
-    case = api.client.post(
-        "/api/org/cases", headers=h, json={"customer_id": cust["id"]}
-    ).json()
+    case = api.client.post("/api/org/cases", headers=h, json={"customer_id": cust["id"]}).json()
     api.client.post(
         f"/api/org/cases/{case['id']}/status",
         headers=h,
         json={"to_status": "in_progress"},
     )
 
-    evs = api.client.get(
-        "/api/org/audit", headers=api._auth(user, org, "org_admin")
-    ).json()
+    evs = api.client.get("/api/org/audit", headers=api._auth(user, org, "org_admin")).json()
     actions = {e["action"] for e in evs["events"]}
     assert "case.create" in actions
     assert "case.status_change" in actions

@@ -260,9 +260,10 @@ def cmd_onboarding_steps(args: argparse.Namespace) -> None:
 
 def cmd_knowledge_freshness_scan(args: argparse.Namespace) -> None:
     """knowledge-freshness-scan：扫描地域知识库时效"""
+    from deadman.config import settings
     from deadman.cron.tasks.knowledge_freshness import KnowledgeFreshnessChecker
 
-    regions_dir = Path(args.regions_dir)
+    regions_dir = Path(args.regions_dir) if args.regions_dir else settings.knowledge_dir / "regions"
     checker = KnowledgeFreshnessChecker()
     try:
         reports = checker.scan_regions(regions_dir)
@@ -626,8 +627,8 @@ def register_subparsers(subparsers: Any) -> None:
     )
     kf_scan_p.add_argument(
         "--regions-dir",
-        default="src/knowledge/regions",
-        help="地域知识库目录（默认 src/knowledge/regions）",
+        default=None,
+        help="地域知识库目录（默认取包内 knowledge/regions）",
     )
     kf_scan_p.set_defaults(func=cmd_knowledge_freshness_scan)
 

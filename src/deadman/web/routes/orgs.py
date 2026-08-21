@@ -68,9 +68,7 @@ def _token_expiry_iso(jwt_mgr, token: str) -> str:
     if payload is None:
         return ""
     try:
-        return datetime.fromtimestamp(
-            payload.get("exp", 0), tz=timezone.utc
-        ).isoformat()
+        return datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc).isoformat()
     except (OSError, OverflowError, ValueError):
         return ""
 
@@ -183,9 +181,7 @@ async def orgs_members_invite(
         raise HTTPException(status_code=403, detail="只能邀请加入当前机构")
     invite_store = get_invite_store()
     try:
-        token = invite_store.create_invite(
-            org_id, req.email, req.role, invited_by=ctx["user_id"]
-        )
+        token = invite_store.create_invite(org_id, req.email, req.role, invited_by=ctx["user_id"])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     return {"token": token, "org_id": org_id, "email": req.email, "role": req.role}

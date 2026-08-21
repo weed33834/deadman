@@ -118,9 +118,7 @@ async def supervise(question: str) -> SupervisorResult:
             history=[],  # type: ignore[typeddict-unknown-key]
         )
         try:
-            rs = await graph.ainvoke(
-                state, config={"configurable": {"thread_id": f"super-{i}"}}
-            )
+            rs = await graph.ainvoke(state, config={"configurable": {"thread_id": f"super-{i}"}})
             resp = rs.get("final_response") or rs.get("draft_response", "")
             results.append(
                 {"agent": task.agent.replace("_", "-"), "question": task.question, "response": resp}
@@ -128,7 +126,11 @@ async def supervise(question: str) -> SupervisorResult:
         except Exception as exc:  # pragma: no cover - 单子任务失败不阻断
             logger.warning("supervisor 子任务失败（跳过）: %s", exc)
             results.append(
-                {"agent": task.agent.replace("_", "-"), "question": task.question, "error": str(exc)}
+                {
+                    "agent": task.agent.replace("_", "-"),
+                    "question": task.question,
+                    "error": str(exc),
+                }
             )
 
     answer = _aggregate(question, tasks, results)
@@ -146,7 +148,10 @@ def _aggregate(question: str, tasks: list[SubTask], results: list[dict[str, Any]
     if not results:
         return "未能完成子任务编排。"
     if not _llm_available():
-        parts = [f"【{r.get('agent', '-')}】{r.get('response') or r.get('error', '无响应')}" for r in results]
+        parts = [
+            f"【{r.get('agent', '-')}】{r.get('response') or r.get('error', '无响应')}"
+            for r in results
+        ]
         return "\n\n".join(parts)
 
     from ..llm import llm_client

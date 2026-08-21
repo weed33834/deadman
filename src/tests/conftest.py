@@ -18,6 +18,12 @@ _SRC_DIR = str(Path(__file__).resolve().parent.parent)
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
+# === 测试套件全局禁用限流（须在 deadman.web.app 首次实例化前设置）===
+# TestClient 的客户端 IP 恒定且全套件共享同一进程内滑动窗口，
+# 上百个测试连续打点必然撞 429。限流行为本身由 test_web_middleware.py
+# 直接测 RateLimiter 类覆盖，不受此开关影响。
+os.environ.setdefault("DEADMAN_RATE_LIMIT_ENABLED", "0")
+
 
 @pytest.fixture
 def mock_llm_client():
@@ -92,7 +98,7 @@ def _reset_global_singletons():
 def _disable_switch_auto_tick(monkeypatch):
     """全局禁用 Dead Man Switch 自动 tick 后台线程。
 
-    11 个测试用例通过 ``server.run()`` 启动真实 WebServer，会触发
+    11 个测试用例曾通过 ``server.run()`` 启动真实 WebServer，会触发
     ``_maybe_start_switch_auto_ticker()`` 启动后台 asyncio 线程。该线程
     默认 sleep 300s 一轮，测试期间无法及时停止，且会扫描 ``~/.deadman``
     下的脏数据，在 event loop 关闭后抛

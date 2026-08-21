@@ -117,12 +117,12 @@ def _to_otel_value(value: Any) -> Any:
     """
     if value is None:
         return ""
-    if isinstance(value, (str, int, float, bool)):
+    if isinstance(value, str | int | float | bool):
         return value
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         # 列表内元素需同类型且为基础类型
         items = [_to_otel_value(v) for v in value]
-        if items and all(isinstance(i, (str, int, float, bool)) for i in items):
+        if items and all(isinstance(i, str | int | float | bool) for i in items):
             return items
         import json
 

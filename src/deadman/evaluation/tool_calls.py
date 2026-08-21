@@ -78,7 +78,7 @@ class ArgValidator:
                 return False
             if isinstance(value, str):
                 return len(value.strip()) > 0
-            if isinstance(value, (list, dict, tuple, set)):
+            if isinstance(value, list | dict | tuple | set):
                 return len(value) > 0
             return True
 
@@ -92,7 +92,7 @@ class ArgValidator:
                 return False
             if isinstance(value, str):
                 return str(expected) in value
-            if isinstance(value, (list, tuple, set)):
+            if isinstance(value, list | tuple | set):
                 return any(str(expected) in str(item) for item in value)
             return False
 

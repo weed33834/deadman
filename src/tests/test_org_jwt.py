@@ -120,9 +120,7 @@ class TestRequireOrgRole:
 
     def _token(self, user_id="u1", tenant_id="org-1", org_role="case_manager") -> str:
         user = {"user_id": user_id, "email": f"{user_id}@x.com", "role": "user"}
-        return JWTManager(secret=SECRET).issue(
-            user, tenant_id=tenant_id, org_role=org_role
-        )
+        return JWTManager(secret=SECRET).issue(user, tenant_id=tenant_id, org_role=org_role)
 
     def test_no_token_401(self, client):
         assert client.get("/protected").status_code == 401
@@ -232,9 +230,7 @@ class TestRequireAdminStrict:
     def test_bad_admin_token_401(self, monkeypatch):
         monkeypatch.setenv("DEADMAN_ADMIN_TOKEN", "real-token")
         with pytest.raises(HTTPException) as exc:
-            require_admin(
-                cred=None, x_admin_token="wrong-token", strict=True
-            )
+            require_admin(cred=None, x_admin_token="wrong-token", strict=True)
         assert exc.value.status_code == 401
 
 
@@ -305,9 +301,7 @@ class TestOrgSwitchEndpoint:
         env["org"].add_member(o1.org_id, u["user_id"], "viewer")
         env["org"].add_member(o2.org_id, u["user_id"], "org_admin")
         token = self._token(u["user_id"])
-        r = client.get(
-            "/api/orgs/memberships", headers={"Authorization": f"Bearer {token}"}
-        )
+        r = client.get("/api/orgs/memberships", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
         body = r.json()
         assert body["count"] == 2

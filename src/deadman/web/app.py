@@ -24,13 +24,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
-from html import escape
 import json
 import logging
 import os
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -46,16 +46,16 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
     JSONResponse,
     PlainTextResponse,
-    Response,
     RedirectResponse,
+    Response,
     StreamingResponse,
 )
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .._version import __version__ as DEADMAN_VERSION
@@ -86,21 +86,33 @@ from .routes import sessions as _sessions_routes
 from .routes import text as _text_routes
 from .routes import voice as _voice_routes
 
+# 聊天/身份/CLI 原生服务（从废弃 web.server 抽出，见 services/chat.py）
+from .services.chat import (
+    cli as _svc_cli,
+)
+from .services.chat import (
+    get_conversation_stats as _svc_get_stats,
+)
+from .services.chat import (
+    handle_chat as _svc_handle_chat,
+)
+from .services.chat import (
+    maybe_start_switch_auto_ticker as _svc_start_ticker,
+)
+from .services.chat import (
+    stop_switch_auto_ticker as _svc_stop_ticker,
+)
+from .services.chat import (
+    stream_chat_events as _svc_stream_events,
+)
+from .services.chat import (
+    whoami as _svc_whoami,
+)
+
 logger = logging.getLogger(__name__)
 
 # 静态文件目录
 _STATIC_DIR = Path(__file__).parent / "static"
-
-# 聊天/身份/CLI 原生服务（从废弃 web.server 抽出，见 services/chat.py）
-from .services.chat import (  # noqa: E402
-    cli as _svc_cli,
-    get_conversation_stats as _svc_get_stats,
-    handle_chat as _svc_handle_chat,
-    maybe_start_switch_auto_ticker as _svc_start_ticker,
-    stop_switch_auto_ticker as _svc_stop_ticker,
-    stream_chat_events as _svc_stream_events,
-    whoami as _svc_whoami,
-)
 
 # 移动端 UA 关键字
 _MOBILE_UA = ("android", "iphone", "ipod", "windows phone", "mobile")
@@ -239,8 +251,12 @@ async def lifespan(app: FastAPI):
         from ..billing.license import license_status
 
         _license = license_status()
-        logger.info("授权状态: status=%s plan=%s expires_at=%s",
-                    _license["status"], _license.get("plan"), _license.get("expires_at"))
+        logger.info(
+            "授权状态: status=%s plan=%s expires_at=%s",
+            _license["status"],
+            _license.get("plan"),
+            _license.get("expires_at"),
+        )
         if _license["status"] == "expired":
             logger.warning("授权已过期，系统进入只读模式（如需续期请联系服务商）")
     except Exception as exc:
@@ -538,6 +554,12 @@ async def api_whoami():
     return _svc_whoami()
 
 
+@app.post("/api/whoami", tags=["info"])
+async def api_whoami_post():
+    """POST /api/whoami - 与 GET 等价（旧版兼容：前端两种方法都在用）"""
+    return _svc_whoami()
+
+
 @app.get("/api/agents", tags=["info"])
 async def api_agents():
     """返回智能体列表（6 个，与 web/server.py 一致）"""
@@ -690,9 +712,7 @@ async def auth_login(req: LoginRequest):
     token = jwt_mgr.issue(user)
     # To B：用户仅绑定唯一 active 机构时自动带入机构上下文（多机构走 /api/orgs/switch）
     try:
-        active_orgs = [
-            m for m in get_org_store().list_user_orgs(user["user_id"]) if m.is_active()
-        ]
+        active_orgs = [m for m in get_org_store().list_user_orgs(user["user_id"]) if m.is_active()]
         if len(active_orgs) == 1:
             token = jwt_mgr.issue(
                 user,
@@ -864,11 +884,6 @@ async def api_chat(req: ChatRequest, user: dict | None = Depends(get_optional_us
     if not query_text:
         return {"error": "query 不能为空"}
     return await _svc_handle_chat(agent, query_text, history, user_id)
-
-
-@app.post("/api/whoami_post", tags=["chat"], include_in_schema=False)
-async def api_whoami_post():
-    return _svc_whoami()
 
 
 @app.get(

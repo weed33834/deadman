@@ -22,7 +22,9 @@ def test_chunk_text_splits_by_sentence_and_bounds():
 
 
 def test_index_document_chunks_and_overwrites(rag: OrgDocRag):
-    n1 = rag.index_document("orgA", "d1", "标题", "北京死亡证明需到派出所开具。火化证明需到殡仪馆。")
+    n1 = rag.index_document(
+        "orgA", "d1", "标题", "北京死亡证明需到派出所开具。火化证明需到殡仪馆。"
+    )
     assert n1 >= 1
     assert rag.doc_count("orgA") == 1
     # 重复索引覆盖
@@ -31,7 +33,9 @@ def test_index_document_chunks_and_overwrites(rag: OrgDocRag):
 
 
 def test_query_returns_matching_chunks(rag: OrgDocRag):
-    rag.index_document("orgA", "d1", "北京流程", "北京身后事办理需死亡证明、户口注销、火化证明等材料。")
+    rag.index_document(
+        "orgA", "d1", "北京流程", "北京身后事办理需死亡证明、户口注销、火化证明等材料。"
+    )
     rag.index_document("orgA", "d2", "上海流程", "上海身后事办理需先到殡仪馆登记。")
     hits = rag.query("orgA", "死亡证明怎么开")
     assert hits and hits[0]["doc_id"] == "d1"
@@ -50,10 +54,11 @@ def test_query_tenant_isolation(rag: OrgDocRag):
 
 def test_delete_document(rag: OrgDocRag):
     rag.index_document("orgA", "d1", "A", "死亡证明材料。")
-    rag.index_document("orgA", "d2", "B", "火化流程与费用说明。")
+    # d2 用词避开查询词的全部单字（含 jieba 缺失时单字分词的退化场景）
+    rag.index_document("orgA", "d2", "B", "火化流程与费用标准。")
     assert rag.delete_document("orgA", "d1") is True
     assert rag.doc_count("orgA") == 1
-    assert rag.query("orgA", "死亡证明") == []  # 已删除 d1，d2 无重叠词
+    assert rag.query("orgA", "死亡证明") == []  # 已删除 d1，d2 无重叠字
 
 
 def test_doc_chunk_to_dict():

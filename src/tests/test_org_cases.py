@@ -61,9 +61,7 @@ class _OrgApiFixture:
         self.env["org"].add_member(org.org_id, user["user_id"], org_role)
 
     def _token(self, user, org, org_role="case_manager") -> str:
-        return JWTManager(secret=SECRET).issue(
-            user, tenant_id=org.org_id, org_role=org_role
-        )
+        return JWTManager(secret=SECRET).issue(user, tenant_id=org.org_id, org_role=org_role)
 
     def _auth(self, user, org, org_role="case_manager") -> dict:
         return {"Authorization": f"Bearer {self._token(user, org, org_role)}"}
@@ -121,7 +119,12 @@ class TestCaseFlow:
 
     def test_all_statuses_in_flow(self):
         assert set(CASE_FLOW.keys()) == {
-            "created", "assigned", "in_progress", "pending_input", "closed", "cancelled",
+            "created",
+            "assigned",
+            "in_progress",
+            "pending_input",
+            "closed",
+            "cancelled",
         }
 
 
@@ -228,9 +231,7 @@ class TestFullJourney:
         assert material["text"]
 
         # 7) 审计完整：create/assign/status_change×3/material_generate 至少 6 条
-        r = api.client.get(
-            f"/api/org/cases/{case['id']}/events", headers=headers
-        )
+        r = api.client.get(f"/api/org/cases/{case['id']}/events", headers=headers)
         assert r.status_code == 200
         events = r.json()["events"]
         actions = {e["action"] for e in events}
@@ -247,9 +248,7 @@ class TestFullJourney:
         org = api._org()
         api._member(org, user)
         headers = api._auth(user, org)
-        r = api.client.post(
-            "/api/org/customers", json={"display_name": "王五"}, headers=headers
-        )
+        r = api.client.post("/api/org/customers", json={"display_name": "王五"}, headers=headers)
         customer = r.json()
         r = api.client.post(
             "/api/org/cases",
@@ -271,9 +270,7 @@ class TestFullJourney:
         org = api._org()
         api._member(org, user)
         headers = api._auth(user, org)
-        r = api.client.post(
-            "/api/org/customers", json={"display_name": "赵六"}, headers=headers
-        )
+        r = api.client.post("/api/org/customers", json={"display_name": "赵六"}, headers=headers)
         customer = r.json()
         r = api.client.post(
             "/api/org/cases",
@@ -281,9 +278,7 @@ class TestFullJourney:
             headers=headers,
         )
         case = r.json()
-        r = api.client.get(
-            f"/api/org/customers/{customer['id']}/profile", headers=headers
-        )
+        r = api.client.get(f"/api/org/customers/{customer['id']}/profile", headers=headers)
         assert r.status_code == 200
         data = r.json()
         assert data["case_count"] == 1
@@ -300,9 +295,7 @@ class TestFullJourney:
         )
         customer = r.json()
         # case_manager 无权删除 → 403
-        r = api.client.delete(
-            f"/api/org/customers/{customer['id']}", headers=headers
-        )
+        r = api.client.delete(f"/api/org/customers/{customer['id']}", headers=headers)
         assert r.status_code == 403
         # org_admin 可删
         admin = api._user("admin@x.com")
@@ -331,9 +324,7 @@ class TestCrossTenantAccess:
         headers_b = api._auth(user_b, org_b)
 
         # B 创建客户
-        r = api.client.post(
-            "/api/org/customers", json={"display_name": "B客户"}, headers=headers_b
-        )
+        r = api.client.post("/api/org/customers", json={"display_name": "B客户"}, headers=headers_b)
         customer_b = r.json()
 
         # A 的 token 读 B 的客户 → 404
@@ -360,9 +351,7 @@ class TestCrossTenantAccess:
         api._member(org_b, user_b)
         headers_b = api._auth(user_b, org_b)
 
-        r = api.client.post(
-            "/api/org/customers", json={"display_name": "B客户"}, headers=headers_b
-        )
+        r = api.client.post("/api/org/customers", json={"display_name": "B客户"}, headers=headers_b)
         customer_b = r.json()
         r = api.client.post(
             "/api/org/cases",
@@ -372,9 +361,7 @@ class TestCrossTenantAccess:
         case_b = r.json()
 
         # A 读 B 的案件 → 404
-        r = api.client.get(
-            f"/api/org/cases/{case_b['id']}", headers=api._auth(user_a, org_a)
-        )
+        r = api.client.get(f"/api/org/cases/{case_b['id']}", headers=api._auth(user_a, org_a))
         assert r.status_code == 404
 
         # A 改 B 案件状态 → 404
@@ -404,12 +391,8 @@ class TestCrossTenantAccess:
         ob = api_403.env["org"].create_org("B", slug="b")
         api_403.env["org"].add_member(oa.org_id, u["user_id"], "case_manager")
         # 伪造 B 机构上下文（用户不是 B 成员）
-        token = JWTManager(secret=SECRET).issue(
-            u, tenant_id=ob.org_id, org_role="case_manager"
-        )
-        r = api_403.client.get(
-            "/protected", headers={"Authorization": f"Bearer {token}"}
-        )
+        token = JWTManager(secret=SECRET).issue(u, tenant_id=ob.org_id, org_role="case_manager")
+        r = api_403.client.get("/protected", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 403
 
 

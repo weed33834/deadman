@@ -21,7 +21,9 @@ SECRET = "test-license-secret-0123456789abcdef"
 # 纯函数：sign / verify
 # =====================================================================
 def test_sign_verify_roundtrip():
-    token = lic.sign_license(SECRET, {"licensee": "示例殡仪馆", "plan": "enterprise", "exp": time.time() + 3600})
+    token = lic.sign_license(
+        SECRET, {"licensee": "示例殡仪馆", "plan": "enterprise", "exp": time.time() + 3600}
+    )
     payload = lic.verify_license(SECRET, token)
     assert payload is not None
     assert payload["licensee"] == "示例殡仪馆"
@@ -63,7 +65,9 @@ def test_status_trial_without_token(monkeypatch):
 
 
 def test_status_licensed(monkeypatch, tmp_path):
-    token = lic.sign_license(SECRET, {"licensee": "机构X", "plan": "pro", "exp": time.time() + 86400})
+    token = lic.sign_license(
+        SECRET, {"licensee": "机构X", "plan": "pro", "exp": time.time() + 86400}
+    )
     monkeypatch.setenv("DEADMAN_LICENSE_KEY", token)
     monkeypatch.setenv("DEADMAN_LICENSE_SECRET", SECRET)
     st = lic.license_status()

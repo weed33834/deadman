@@ -408,7 +408,7 @@ class RegulatoryChangeDetector:
             else:
                 diffs.append(f"* {k}: {old_v} -> {new_v}")
                 # 数值变化幅度判断
-                if isinstance(old_v, (int, float)) and isinstance(new_v, (int, float)):
+                if isinstance(old_v, int | float) and isinstance(new_v, int | float):
                     if old_v != 0:
                         change_ratio = abs(new_v - old_v) / abs(old_v)
                         if change_ratio > 0.5:

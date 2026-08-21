@@ -25,11 +25,7 @@
 from __future__ import annotations
 
 import argparse
-import http.client
 import json
-import socket
-import threading
-import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -399,58 +395,16 @@ def test_cli_plan_score_detail_command(tmp_path: Path, capsys, monkeypatch):
 
 
 # =====================================================================
-# 9. Web 端点测试（401 / 200）
+# 9. Web 端点测试（401 / 200，FastAPI TestClient 进程内）
 # =====================================================================
 
 
-def _get_free_port() -> int:
-    """获取一个可用端口"""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
+def _test_client():
+    from fastapi.testclient import TestClient
 
+    from deadman.web.app import app
 
-def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    """等待服务器就绪（轮询 /api/health）"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            conn.request("GET", "/api/health")
-            resp = conn.getresponse()
-            conn.close()
-            if resp.status == 200:
-                return True
-        except (ConnectionError, OSError):
-            pass
-        time.sleep(0.1)
-    return False
-
-
-def _register_and_get_token(port: int) -> str:
-    """通过 HTTP 注册并拿 token"""
-    body = json.dumps(
-        {
-            "email": "webtest@example.com",
-            "password": "password123",
-            "display_name": "WebTest",
-        }
-    )
-    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request(
-        "POST",
-        "/api/auth/register",
-        body=body,
-        headers={
-            "Content-Type": "application/json",
-        },
-    )
-    resp = conn.getresponse()
-    data = json.loads(resp.read().decode("utf-8"))
-    conn.close()
-    return data["token"]
+    return TestClient(app)
 
 
 def test_web_endpoint_unauthorized_401(tmp_path: Path, monkeypatch):
@@ -463,29 +417,9 @@ def test_web_endpoint_unauthorized_401(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
     monkeypatch.setattr(settings, "password_min_length", 8)
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
-
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
-    )
-    thread.start()
-
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-        # 不带 token
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request("GET", "/api/plan-score")
-        resp = conn.getresponse()
-        assert resp.status == 401, f"未认证应 401，实际 {resp.status}"
-        body = json.loads(resp.read().decode("utf-8"))
-        assert "error" in body
-        conn.close()
-    finally:
-        pass  # daemon 线程随进程退出
+    resp = _test_client().get("/api/plan-score")
+    assert resp.status_code == 401, f"未认证应 401，实际 {resp.status_code}"
+    assert "detail" in resp.json()
 
 
 def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
@@ -500,59 +434,36 @@ def test_web_endpoint_authorized_200(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(settings, "jwt_expiry_days", 7)
     monkeypatch.setattr(settings, "password_min_length", 8)
 
-    port = _get_free_port()
-    from deadman.web.server import WebServer
-
-    server = WebServer()
-    thread = threading.Thread(
-        target=server.run,
-        args=("127.0.0.1", port),
-        daemon=True,
+    client = _test_client()
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": "webtest@example.com",
+            "password": "password123",
+            "display_name": "WebTest",
+        },
     )
-    thread.start()
+    assert reg.status_code == 200
+    token = reg.json()["token"]
+    assert token
 
-    try:
-        assert _wait_for_server(port), "服务器未在超时内启动"
-        token = _register_and_get_token(port)
-        assert token
+    # 带 token 访问 /api/plan-score
+    resp = client.get("/api/plan-score", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, f"认证后应 200，实际 {resp.status_code}"
+    body = resp.json()
+    assert "total_score" in body
+    assert "category_scores" in body
+    assert "overall_suggestions" in body
+    assert "disclaimer" in body
+    assert "评分仅反映信息完整度" in body["disclaimer"]
 
-        # 带 token 访问 /api/plan-score
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "GET",
-            "/api/plan-score",
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200, f"认证后应 200，实际 {resp.status}"
-        body = json.loads(resp.read().decode("utf-8"))
-        assert "total_score" in body
-        assert "category_scores" in body
-        assert "overall_suggestions" in body
-        assert "disclaimer" in body
-        assert "评分仅反映信息完整度" in body["disclaimer"]
-        conn.close()
-
-        # 带 token 访问 /api/plan-score/detail
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-        conn.request(
-            "GET",
-            "/api/plan-score/detail",
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
-        )
-        resp = conn.getresponse()
-        assert resp.status == 200
-        body = json.loads(resp.read().decode("utf-8"))
-        assert "category_scores" in body
-        # 详细分解应有 5 个维度
-        assert len(body["category_scores"]) == 5
-        conn.close()
-    finally:
-        pass
+    # 带 token 访问 /api/plan-score/detail
+    resp = client.get("/api/plan-score/detail", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "category_scores" in body
+    # 详细分解应有 5 个维度
+    assert len(body["category_scores"]) == 5
 
 
 # =====================================================================

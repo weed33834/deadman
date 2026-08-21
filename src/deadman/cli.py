@@ -219,7 +219,7 @@ def cmd_eval_ragas(args):
             gate = result.get("quality_gate_passed")
             degraded = result.get("degraded")
             metrics_str = ", ".join(
-                f"{k}={v:.2f}" for k, v in metrics.items() if isinstance(v, (int, float))
+                f"{k}={v:.2f}" for k, v in metrics.items() if isinstance(v, int | float)
             )
             print(f"  case-{case_id}: degraded={degraded}, gate={gate}, metrics={metrics_str}")
 
@@ -916,7 +916,7 @@ async def cmd_research(args):
 
     from .research.deep_research import deep_research
 
-    print(f"\n=== Deep Research 深度研究 ===")
+    print("\n=== Deep Research 深度研究 ===")
     print(f"问题: {args.question}")
     report = await deep_research(args.question, max_sources=args.max_sources)
     if args.json:
@@ -4127,7 +4127,9 @@ def main():
     ks_parser.add_argument("--region", help="地区过滤")
 
     # research 子命令 - Deep Research 深度研究
-    rs_parser = subparsers.add_parser("research", help="Deep Research 深度研究(迭代检索+交叉验证+引用报告)")
+    rs_parser = subparsers.add_parser(
+        "research", help="Deep Research 深度研究(迭代检索+交叉验证+引用报告)"
+    )
     rs_parser.add_argument("question", help="研究问题")
     rs_parser.add_argument("--max-sources", type=int, default=8, help="最大来源数(默认 8)")
     rs_parser.add_argument("--json", action="store_true", help="以 JSON 输出报告")

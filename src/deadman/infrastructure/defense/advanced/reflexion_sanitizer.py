@@ -178,7 +178,7 @@ class ReflexionSanitizer:
             return result.sanitized
         if isinstance(value, dict):
             return {k: self.sanitize_for_trace(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             sanitized = [self.sanitize_for_trace(v) for v in value]
             return type(value)(sanitized) if isinstance(value, tuple) else sanitized
         # int / float / bool / None → 原样
@@ -237,7 +237,7 @@ class ReflexionSanitizer:
                 if isinstance(v, str):
                     result = self.sanitize_output(v)
                     cleaned[k] = result.sanitized
-                elif isinstance(v, (dict, list)):
+                elif isinstance(v, dict | list):
                     cleaned[k] = self.sanitize_for_trace(v)
                 else:
                     cleaned[k] = v

@@ -161,7 +161,9 @@ def _monitoring_snapshot() -> dict[str, Any]:
     out: dict[str, Any] = {}
     out["conversation"] = _safe(
         lambda: dict(
-            __import__("deadman.web.server", fromlist=["web_server"]).web_server._conversation_stats
+            __import__(
+                "deadman.web.services.chat", fromlist=["get_conversation_stats"]
+            ).get_conversation_stats()
             or {}
         ),
         {},

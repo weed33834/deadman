@@ -421,7 +421,7 @@ class ConstitutionalDriftDetector:
         """自动推断阈值类型。"""
         if isinstance(value, bool) or isinstance(prev_value, bool):
             return ThresholdType.BOOLEAN
-        if isinstance(value, (int, float)) or isinstance(prev_value, (int, float)):
+        if isinstance(value, int | float) or isinstance(prev_value, int | float):
             return ThresholdType.NUMERIC
         return ThresholdType.ENUM
 

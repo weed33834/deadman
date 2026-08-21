@@ -26,10 +26,10 @@ import socket
 import tempfile
 import threading
 import urllib.parse
-
-import httpx
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

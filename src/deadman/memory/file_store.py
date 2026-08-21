@@ -65,6 +65,7 @@ _SNAPSHOT_VERSION: int = 1
 _SNAPSHOT_FLAG_PLAIN: int = 0
 _SNAPSHOT_FLAG_AESGCM: int = 1
 
+
 # 默认存储根目录：~/.deadman/memory/
 # 与 SOUL.md（~/.deadman/SOUL.md）同级，属于用户级数据
 # 多租户（TENANT_MODE=multi）时按租户路由到 ~/.deadman/tenants/<tid>/memory
@@ -954,7 +955,7 @@ class FileMemoryStore:
         """
         if not MEMORY_SNAPSHOT_ENABLED:
             return False
-        if not isinstance(data, (bytes, bytearray)) or len(data) < 6:
+        if not isinstance(data, bytes | bytearray) or len(data) < 6:
             return False
         data = bytes(data)
         # 校验魔数

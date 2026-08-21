@@ -32,11 +32,7 @@
 
 from __future__ import annotations
 
-import http.client
 import json
-import socket
-import threading
-import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -576,36 +572,18 @@ class TestCLICommands:
 
 
 # ====================================================================
-# 9. Web 端点测试
+# 9. Web 端点测试（FastAPI TestClient，进程内，不再起真实端口）
 # ====================================================================
-def _get_free_port() -> int:
-    """获取一个可用端口"""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
-def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    """等待服务器就绪（轮询 /api/health）"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            conn.request("GET", "/api/health")
-            resp = conn.getresponse()
-            conn.close()
-            if resp.status == 200:
-                return True
-        except (ConnectionError, OSError):
-            pass
-        time.sleep(0.1)
-    return False
-
-
 class TestWebEndpoints:
     """验证 /api/switch/* 端点的认证保护"""
+
+    @staticmethod
+    def _client():
+        from fastapi.testclient import TestClient
+
+        from deadman.web.app import app
+
+        return TestClient(app)
 
     def test_web_switch_init_without_token_returns_401(self, tmp_path: Path, monkeypatch):
         # 把 SwitchStore 默认数据目录指向 tmp_path
@@ -616,30 +594,9 @@ class TestWebEndpoints:
             "__init__",
             lambda self, data_dir=None: _orig_init(self, tmp_path / "switch_web"),
         )
-        # 启服务器
-        port = _get_free_port()
-        from deadman.web.server import WebServer
-
-        server = WebServer()
-        thread = threading.Thread(target=server.run, args=("127.0.0.1", port), daemon=True)
-        thread.start()
-        try:
-            assert _wait_for_server(port), "服务器未在超时内启动"
-            # 无 token 调 /api/switch/init
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request(
-                "POST",
-                "/api/switch/init",
-                body=json.dumps({"frequency": 30}),
-                headers={"Content-Type": "application/json"},
-            )
-            resp = conn.getresponse()
-            assert resp.status == 401
-            body = json.loads(resp.read().decode("utf-8"))
-            assert "error" in body
-            conn.close()
-        finally:
-            pass  # daemon 线程随进程退出
+        resp = self._client().post("/api/switch/init", json={"frequency": 30})
+        assert resp.status_code == 401
+        assert "detail" in resp.json()
 
     def test_web_switch_init_with_token_returns_201(self, tmp_path: Path, monkeypatch):
         # 让 SwitchStore 默认数据目录指向 tmp_path
@@ -658,71 +615,40 @@ class TestWebEndpoints:
         monkeypatch.setattr(settings, "jwt_expiry_days", 7)
         monkeypatch.setattr(settings, "password_min_length", 8)
 
-        port = _get_free_port()
-        from deadman.web.server import WebServer
-
-        server = WebServer()
-        thread = threading.Thread(target=server.run, args=("127.0.0.1", port), daemon=True)
-        thread.start()
-        try:
-            assert _wait_for_server(port)
-            # 注册用户拿 token
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request(
-                "POST",
-                "/api/auth/register",
-                body=json.dumps(
-                    {
-                        "email": "switch-test@example.com",
-                        "password": "password123",
-                        "display_name": "SwitchTest",
-                    }
-                ),
-                headers={"Content-Type": "application/json"},
-            )
-            resp = conn.getresponse()
-            assert resp.status == 200
-            data = json.loads(resp.read().decode("utf-8"))
-            token = data["token"]
-            conn.close()
-            # 带 token 调 /api/switch/init
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request(
-                "POST",
-                "/api/switch/init",
-                body=json.dumps(
-                    {
-                        "frequency": 14,
-                        "missed": 2,
-                        "emergency_contacts": ["c-1"],
-                        "heir_ids": ["h-1"],
-                    }
-                ),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}",
-                },
-            )
-            resp = conn.getresponse()
-            assert resp.status == 201
-            data = json.loads(resp.read().decode("utf-8"))
-            assert data["state"] == "ACTIVE"
-            assert data["config"]["check_in_frequency_days"] == 14
-            conn.close()
-            # 带 token 调 /api/switch/status
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request(
-                "GET",
-                "/api/switch/status",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            resp = conn.getresponse()
-            assert resp.status == 200
-            data = json.loads(resp.read().decode("utf-8"))
-            assert data["state"] == "ACTIVE"
-            conn.close()
-        finally:
-            pass
+        client = self._client()
+        # 注册用户拿 token
+        reg = client.post(
+            "/api/auth/register",
+            json={
+                "email": "switch-test@example.com",
+                "password": "password123",
+                "display_name": "SwitchTest",
+            },
+        )
+        assert reg.status_code == 200
+        token = reg.json()["token"]
+        # 带 token 调 /api/switch/init
+        resp = client.post(
+            "/api/switch/init",
+            json={
+                "frequency": 14,
+                "missed": 2,
+                "emergency_contacts": ["c-1"],
+                "heir_ids": ["h-1"],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["state"] == "ACTIVE"
+        assert data["config"]["check_in_frequency_days"] == 14
+        # 带 token 调 /api/switch/status
+        status = client.get(
+            "/api/switch/status",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert status.status_code == 200
+        assert status.json()["state"] == "ACTIVE"
 
 
 # 保留对原始 __init__ 的引用，用于 monkeypatch 中恢复

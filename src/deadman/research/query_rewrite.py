@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +37,11 @@ async def rewrite_query(query: str, context: str = "") -> tuple[str, bool]:
     try:
         out = await llm_client.chat(
             [
-                {"role": "system", "content": "你是检索查询优化器。把用户查询改写为更利于"
-                    "检索的查询：补全指代、扩展关键同义词、保留核心实体。只输出改写后的查询，不要解释。"},
+                {
+                    "role": "system",
+                    "content": "你是检索查询优化器。把用户查询改写为更利于"
+                    "检索的查询：补全指代、扩展关键同义词、保留核心实体。只输出改写后的查询，不要解释。",
+                },
                 {"role": "user", "content": f"原始查询：{q}{ctx_part}"},
             ],
             temperature=0.2,

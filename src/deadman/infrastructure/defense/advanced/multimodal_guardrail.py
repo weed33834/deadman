@@ -334,11 +334,11 @@ class MultimodalGuardrail:
     def _measure_size(input_data: Any) -> int:
         if input_data is None:
             return 0
-        if isinstance(input_data, (bytes, bytearray)):
+        if isinstance(input_data, bytes | bytearray):
             return len(input_data)
         if isinstance(input_data, str):
             return len(input_data.encode("utf-8"))
-        if isinstance(input_data, (list, tuple)):
+        if isinstance(input_data, list | tuple):
             return sum(MultimodalGuardrail._measure_size(x) for x in input_data)
         if isinstance(input_data, dict):
             return sum(MultimodalGuardrail._measure_size(v) for v in input_data.values())

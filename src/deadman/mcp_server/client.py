@@ -222,6 +222,8 @@ class RemoteMcpConnection:
     async def _ensure_env(self) -> dict[str, str]:
         env = dict(os.environ)
         env.update({k: v for k, v in self.cfg.env.items() if v != "***"})
+        # Windows 子进程默认 GBK 编码会弄坏中文参数/返回值，强制 UTF-8
+        env.setdefault("PYTHONIOENCODING", "utf-8")
         return env
 
     async def _connect_official(self) -> bool:

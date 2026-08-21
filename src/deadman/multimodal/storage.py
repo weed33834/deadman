@@ -151,7 +151,7 @@ class MultimodalStorage:
         if file_type not in SUPPORTED_FILE_TYPES:
             raise ValueError(f"Unsupported file_type: {file_type}")
 
-        if not isinstance(data, (bytes, bytearray)):
+        if not isinstance(data, bytes | bytearray):
             raise TypeError("data must be bytes")
 
         tid = tenant_id or get_current_tenant_id()

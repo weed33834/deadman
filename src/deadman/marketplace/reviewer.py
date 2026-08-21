@@ -650,7 +650,7 @@ class AgentReviewer:
         elif isinstance(obj, dict):
             for v in obj.values():
                 out.extend(self._extract_card_strings(v))
-        elif isinstance(obj, (list, tuple)):
+        elif isinstance(obj, list | tuple):
             for v in obj:
                 out.extend(self._extract_card_strings(v))
         return out
