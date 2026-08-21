@@ -3,6 +3,40 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)（SemVer）。
 版本号从 `0.1.0` 起小步迭代，`0.x` 阶段保持向后兼容最小承诺。
 
+## v0.2.0（2026-08）CI 全绿 + 去重复造轮子 + 架构收敛
+
+> 质量门禁从红转绿（tests + build 双 workflow，ubuntu/windows 矩阵），
+> 系统性清除手写轮子与死代码：净删 1000+ 行重复实现。
+
+### CI 转绿（质量门禁修复）
+
+- 版本断言测试改引单一版本源 `_version`（升版不再失配）
+- MCP 客户端子进程强制 `PYTHONIOENCODING=utf-8`（Windows GBK 中文乱码）
+- conftest 顶层禁用测试限流（TestClient 共享进程内滑动窗口，全量跑必撞 429）
+- Windows runner 环境型失败守卫（Docker read-only 容器 skip；亚毫秒 duration 放宽 ≥0）
+- ruff 0.16 全量清零：未用导入 / UP038 / SIM105/118 / E402/E741；
+  修复 `deep_research.py` F821 未定义名称真 bug
+
+### 去重复造轮子（用成熟库）
+
+- **删除手写 SequentialExecutor 模拟器**（约 -400 行）：langgraph 是硬依赖，
+  模拟 StateGraph 的降级引擎生产不可达且语义分叉无人维护；`build_main_graph`
+  收敛为单一 LangGraph 实现
+- **ToolResultCache 内核换 `cachetools.TTLCache`**：删除手写 LRU+TTL 条目管理
+- **消灭第 3 份手写令牌桶**：mcp_server/gateway 私有 `_TokenBucket` 平替为
+  `infrastructure.rate_limiter.TokenBucket` 统一实现
+- **HTML 实体清洗换 stdlib `html.unescape()`**：删除手写实体映射表
+- **移除零使用的 `requests` 依赖**（HTTP 统一 httpx）；新增 `cachetools>=5.0`
+
+### 废弃 server 物理删除 + 打包随包分发
+
+- 删除废弃 `web/server.py`（3665 行 stdlib 实现），10 个测试文件迁移至
+  FastAPI TestClient 进程内直调；resources/admin 对旧单例的引用切到 services/chat
+- rules/agents/knowledge/skills/prompts 五个数据目录移入 deadman 包内，
+  wheel 全量打入（439 文件验证）；config 路径改包内解析
+- 修复 agents_store 指向不存在目录的路径 bug（本地智能体加载 0 → 20）
+- 补 `POST /api/whoami` 保持旧版 GET/POST 双方法兼容
+
 ## v0.1.1（2026-08）测试修复与环境验证
 
 > 在 v0.1.0 基线上修复测试套件中的路径计算 bug，补全缺失依赖，

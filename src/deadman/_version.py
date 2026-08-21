@@ -4,4 +4,4 @@
 修改版本只需改这里，并同步 pyproject.toml 的 ``version`` 字段。
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
