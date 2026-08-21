@@ -6,15 +6,17 @@
 缓存键：(tool_name, args_hash)
   args_hash = sha256(json.dumps(args, sort_keys=True, default=str)).hexdigest()
 
+内核为成熟库 ``cachetools.TTLCache``（LRU + TTL 合一，线程安全需外加锁），
+本类只保留 feature flag / 统计 / 按工具前缀失效等业务语义。
 LRU 容量默认 1000，TTL 默认 3600 秒（1 小时）。
 
-Feature flag:DEADMAN_TOOL_CACHE_ENABLED=0（默认关闭）
+Feature flag: DEADMAN_TOOL_CACHE_ENABLED=0（默认关闭）
 关闭时 get / put 一律 no-op，调用层应自行判断是否走缓存（见 server.call_tool）。
 
 降级路径：
-  - get 命中但已过期 → 视为 miss，自动淘汰
+  - get 命中但已过期 → cachetools 视为 KeyError，按 miss 处理
   - put 失败（罕见，仅在 hash 不可序列化时）→ 静默忽略，不阻断调用
-  - LRU 满时淘汰最久未访问的条目
+  - 容量满时淘汰最久未访问的条目（TTLCache 继承 LRUCache 语义）
 """
 
 from __future__ import annotations
@@ -24,8 +26,9 @@ import json
 import os
 import threading
 import time
-from collections import OrderedDict
 from typing import Any
+
+from cachetools import TTLCache
 
 # =====================================================================
 # 配置（feature flag，默认关闭）
@@ -46,32 +49,12 @@ TOOL_CACHE_DEFAULT_TTL: int = int(os.environ.get("DEADMAN_TOOL_CACHE_DEFAULT_TTL
 
 
 # =====================================================================
-# 缓存条目
-# =====================================================================
-
-
-class _CacheEntry:
-    """单个缓存条目"""
-
-    __slots__ = ("expires_at", "inserted_at", "result")
-
-    def __init__(self, result: Any, ttl_seconds: int) -> None:
-        self.result = result
-        self.inserted_at = time.monotonic()
-        self.expires_at = self.inserted_at + max(0, ttl_seconds)
-
-    def is_expired(self, now: float | None = None) -> bool:
-        now = now if now is not None else time.monotonic()
-        return now >= self.expires_at
-
-
-# =====================================================================
 # ToolResultCache
 # =====================================================================
 
 
 class ToolResultCache:
-    """LRU + TTL 工具结果缓存（线程安全）
+    """LRU + TTL 工具结果缓存（线程安全，cachetools 内核）
 
     用法：
         cache = ToolResultCache(max_entries=1000, default_ttl=3600)
@@ -95,11 +78,13 @@ class ToolResultCache:
 
         Args:
             max_entries: LRU 最大条目数
-            default_ttl: 默认 TTL（秒）
+            default_ttl: 全局 TTL（秒）；0 表示立即过期（测试用）
             enabled: 是否启用；None 表示用模块级 TOOL_CACHE_ENABLED（默认随 feature flag）
                      显式传 True 可在 feature flag 关闭时强制启用（单元测试用）
         """
-        self._store: OrderedDict[tuple[str, str], _CacheEntry] = OrderedDict()
+        self._store: TTLCache[tuple[str, str], Any] = TTLCache(
+            maxsize=max(1, max_entries), ttl=max(0, default_ttl), timer=time.monotonic
+        )
         self._max_entries = max(1, max_entries)
         self._default_ttl = max(0, default_ttl)
         self._enabled = TOOL_CACHE_ENABLED if enabled is None else bool(enabled)
@@ -117,43 +102,26 @@ class ToolResultCache:
             return None
         key = (tool_name, args_hash)
         with self._lock:
-            entry = self._store.get(key)
-            if entry is None:
+            try:
+                value = self._store[key]  # 过期/缺失 → KeyError；命中刷新 LRU 序
+            except KeyError:
                 self.misses += 1
                 return None
-            if entry.is_expired():
-                # 过期：淘汰后视为 miss
-                self._store.pop(key, None)
-                self.misses += 1
-                self.evictions += 1
-                return None
-            # 命中：刷新 LRU 顺序
-            self._store.move_to_end(key)
             self.hits += 1
-            return entry.result
+            return value
 
-    def put(
-        self,
-        tool_name: str,
-        args_hash: str,
-        result: Any,
-        ttl_seconds: int | None = None,
-    ) -> None:
+    def put(self, tool_name: str, args_hash: str, result: Any) -> None:
         """写入缓存；超过 max_entries 时按 LRU 淘汰最旧条目"""
         if not self._enabled:
             return
-        ttl = self._default_ttl if ttl_seconds is None else max(0, ttl_seconds)
         key = (tool_name, args_hash)
         with self._lock:
-            # 已存在：先 pop 再 put，确保 LRU 顺序更新
-            if key in self._store:
-                self._store.pop(key)
-            self._store[key] = _CacheEntry(result, ttl)
-            self._store.move_to_end(key)
-            # LRU 淘汰
-            while len(self._store) > self._max_entries:
-                self._store.popitem(last=False)  # 弹出最旧
-                self.evictions += 1
+            before = self._store.currsize
+            self._store[key] = result
+            # currsize 缩减量即被淘汰/过期清出的条目数（观测用途，近似即可）
+            dropped = before + 1 - self._store.currsize
+            if dropped > 0:
+                self.evictions += dropped
 
     def invalidate(self, tool_name: str, args_hash: str | None = None) -> int:
         """失效缓存条目
@@ -165,11 +133,10 @@ class ToolResultCache:
             if args_hash is not None:
                 key = (tool_name, args_hash)
                 if key in self._store:
-                    self._store.pop(key, None)
+                    del self._store[key]
                     return 1
                 return 0
-            # 失效该工具全部
-            keys_to_remove = [k for k in self._store if k[0] == tool_name]
+            keys_to_remove = [k for k in list(self._store.keys()) if k[0] == tool_name]
             for k in keys_to_remove:
                 self._store.pop(k, None)
             return len(keys_to_remove)
@@ -185,8 +152,9 @@ class ToolResultCache:
     def stats(self) -> dict[str, int]:
         """返回缓存统计快照"""
         with self._lock:
+            self._store.expire()  # 清出已过期条目，让 entries 反映真实存活数
             return {
-                "entries": len(self._store),
+                "entries": self._store.currsize,
                 "max_entries": self._max_entries,
                 "hits": self.hits,
                 "misses": self.misses,

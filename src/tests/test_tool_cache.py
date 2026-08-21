@@ -94,13 +94,11 @@ class TestCacheHitMiss:
 
 class TestCacheTTL:
     def test_cache_ttl_expires(self):
-        """TTL 过期后应视为 miss"""
-        cache = ToolResultCache(default_ttl=60, enabled=True)
+        """TTL 过期后应视为 miss（构造 ttl=0 立即过期）"""
+        cache = ToolResultCache(default_ttl=0, enabled=True)
         args_hash = ToolResultCache.hash_args({"x": 1})
-        cache.put("tool", args_hash, "data", ttl_seconds=0)
-        # ttl=0 应立即过期
-        # 注意：put 时已开始倒计时，get 时已过期
-        # 等待极短时间确保 monotonic 推进
+        cache.put("tool", args_hash, "data")
+        # ttl=0 应立即过期；等待极短时间确保 monotonic 推进
         time.sleep(0.01)
         result = cache.get("tool", args_hash)
         assert result is None
