@@ -49,8 +49,8 @@ def perms_disabled(monkeypatch):
 
 class TestPermissionRegistry:
     def test_permission_registry_complete(self):
-        """注册表应覆盖全部 15 个工具"""
-        # 15 个工具名（与 server.py 一致）
+        """注册表应覆盖全部 16 个工具"""
+        # 16 个工具名（与 server.py 一致）
         expected = {
             "query_knowledge",
             "web_search",
@@ -67,6 +67,7 @@ class TestPermissionRegistry:
             "init_transfer",
             "report_incident",
             "execute_code",
+            "browser_automation",
         }
         assert set(PERMISSION_REGISTRY.keys()) == expected
 

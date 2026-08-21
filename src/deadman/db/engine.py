@@ -64,6 +64,13 @@ def _build_engine() -> AsyncEngine:
     # SQLite（测试用）不支持连接池参数
     if url.startswith("sqlite"):
         engine_kwargs = {}
+        # 内存库（含 file::memory:?cache=shared）必须 StaticPool：
+        # 普通池在连接归还/回收后内存库即销毁，跨会话"no such table"偶发
+        if ":memory:" in url or "mode=memory" in url:
+            from sqlalchemy.pool import StaticPool
+
+            engine_kwargs["poolclass"] = StaticPool
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
     return create_async_engine(url, **engine_kwargs)
 
 
