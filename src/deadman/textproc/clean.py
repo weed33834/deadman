@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 
 # 停用词表（中英常用词，抽取/检索用）
@@ -190,18 +191,6 @@ _FULL_TO_HALF.update({0xFF10 + i: ord("0") + i for i in range(10)})  # ０-９
 _FULL_TO_HALF.update({0xFF21 + i: ord("A") + i for i in range(26)})  # Ａ-Ｚ
 _FULL_TO_HALF.update({0xFF41 + i: ord("a") + i for i in range(26)})  # ａ-ｚ
 
-# HTML 实体 → 字符
-_ENTITY = {
-    "&nbsp;": " ",
-    "&amp;": "&",
-    "&lt;": "<",
-    "&gt;": ">",
-    "&quot;": '"',
-    "&apos;": "'",
-    "&#39;": "'",
-    "&#160;": " ",
-}
-
 
 def _full_to_half(text: str) -> str:
     return text.translate(_FULL_TO_HALF)
@@ -223,8 +212,8 @@ def clean_text(text: str, remove_html: bool = True, keep_emoji: bool = False) ->
     if remove_html:
         text = _HTML_TAG.sub(" ", text)
     text = _URL.sub(" ", text)
-    for ent, rep in _ENTITY.items():
-        text = text.replace(ent, rep)
+    # stdlib html.unescape 覆盖全部 HTML 实体（含数字/命名实体），替代手写映射表
+    text = html.unescape(text)
     text = _full_to_half(text)
     text = _ZERO_WIDTH.sub("", text)
     if not keep_emoji:
