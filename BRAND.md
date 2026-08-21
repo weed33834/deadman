@@ -1,0 +1,47 @@
+# 品牌名
+
+本项目是一个**通用智能体平台**，不绑定任何特定厂商（不止 TRAE，也适用 OpenAI/Anthropic/阿里/腾讯/智谱等所有支持 agent 的平台）。因此品牌名独立于任何平台。
+
+## 品牌名
+
+统一品牌名：**deadman**（身后事多智能体引导平台）。
+
+```python
+BRAND_NAMES = {
+    "zh": "deadman",
+    "en": "deadman",
+    "ja": "deadman",
+}
+
+DEFAULT_BRAND = "deadman"  # 国际默认
+
+def get_brand_name(user_language: str) -> str:
+    """根据用户语言返回对应品牌名"""
+    lang_prefix = user_language.split("-")[0].lower()
+    return BRAND_NAMES.get(lang_prefix, DEFAULT_BRAND)
+```
+
+## 命名规范
+
+### 包名/标识符（统一用英文）
+
+- Python 包名：`deadman`
+- PyPI 包名：`deadman`
+- CLI 命令：`deadman`
+- MCP Server 命令：`deadman-mcp-server`
+- A2A agent_id 前缀：`deadman-*`（如 `deadman-death-aftercare`）
+
+### 用户可见名
+
+- 全部场景统一使用：deadman
+
+## Logo
+
+Logo 文件：`assets/logo.svg`（矢量源）与 `assets/logo.png`（位图，各平台通用），居中展示见 README 顶部。
+
+设计说明：
+- 印章圆形 + 指引之光（蜡烛/陪伴符号）：契合"身后事陪伴引导"主题。
+- 配色沿用品牌色：陶土 `#9a5b3f` / 印章红 `#b0553f` / 金 `#c9a66b` / 墨 `#201c17`。
+- 用途：README / 文档 / Web 页头 / 移动端图标。
+
+![deadman Logo](assets/logo.png)

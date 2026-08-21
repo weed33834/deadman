@@ -1,0 +1,24 @@
+"""MCP Server - 身后事多智能体平台的 Model Context Protocol 封装
+
+提供 11 个工具供智能体调用，统一规则校验、知识查询、转介、自检等能力。
+优先使用 FastMCP；若环境未安装 fastmcp，则降级为纯 Python async 实现。
+
+P3 扩展层（全部默认关闭，通过 DEADMAN_*_ENABLED 环境变量开启）：
+  - gateway      : 6 层工具调用网关
+  - cache        : 工具结果缓存（LRU + TTL）
+  - permissions  : 工具权限分级
+  - signing      : 工具 manifest 签名校验
+  - server.dry_run / dynamic registration : 写操作 dry-run / 运行时动态注册
+"""
+
+from __future__ import annotations
+
+from .plugin import plugin  # 插件外观（entry point 目标）
+from .server import (
+    McpServer,
+    ToolDef,
+    main,
+    mcp,  # 全局 server 单例，已注册 15 个工具
+)
+
+__all__ = ["McpServer", "ToolDef", "main", "mcp", "plugin"]

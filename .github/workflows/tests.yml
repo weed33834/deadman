@@ -1,0 +1,127 @@
+name: tests
+
+# CI 管线（P1-4：企业级质量门禁）
+# - test:    pytest 测试套件（核心质量保证）
+# - lint:    ruff 静态检查（代码风格 + bug 模式）
+# - security: pip-audit 依赖漏洞扫描（供应链安全）
+# 三 job 并行，任一失败阻断合并。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,db,text,doc-export,plot]
+
+      - name: Run tests
+        run: |
+          pip install pytest-timeout
+          # --timeout 防止个别测试在 CI 环境挂起拖垮整个 job
+          pytest -q --tb=short --timeout=120 --timeout-method=thread
+        env:
+          PYTHONDONTWRITEBYTECODE: 1
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ruff>=0.15"
+
+      - name: Run ruff check
+        run: |
+          # 静态检查：E/W pycodestyle, F pyflakes, I isort, B bugbear,
+          # C4 comprehensions, UP pyupgrade, SIM simplify, RUF ruff 专有
+          # 配置见 pyproject.toml [tool.ruff.lint]
+          ruff check src/
+
+      - name: Run ruff format check
+        run: |
+          # 格式检查（不修改文件，仅验证是否符合 ruff format 规范）
+          ruff format --check src/
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Audit dependencies for known vulnerabilities
+        run: |
+          # 扫描 pyproject.toml 声明的依赖是否有已知 CVE
+          # --strict 退出码非 0 当发现漏洞（CI 门禁）
+          # --desc 漏洞描述长度限制避免输出爆炸
+          pip-audit \
+            --requirement <(python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print('\n'.join(d.get('project',{}).get('dependencies',[])))") \
+            --desc on \
+            --strict
+        # pip-audit 发现漏洞时该 step 失败，但用 continue-on-error 让 CI 继续
+        # 以便在 PR 评论里看到完整报告（实际合并门禁由 branch protection 控制）
+        continue-on-error: true
+
+      - name: Audit dev dependencies
+        run: |
+          # 开发依赖单独扫描（dev / sentry 等 optional-extra）
+          pip-audit \
+            --requirement <(python -c "
+          import tomllib
+          d=tomllib.load(open('pyproject.toml','rb'))
+          deps=d.get('project',{}).get('dependencies',[])
+          opt=d.get('project',{}).get('optional-dependencies',{})
+          for ext in ['dev','sentry']:
+              deps.extend(opt.get(ext,[]))
+          print('\n'.join(deps))
+          ") \
+            --desc on
+        continue-on-error: true

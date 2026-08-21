@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="身后事引导">
+<meta name="theme-color" content="#f5f0eb">
+<meta name="description" content="身后事多智能体引导平台 - 移动端">
+<link rel="manifest" href="/manifest.json">
+<title>身后事引导</title>
+<style>
+/* ============================================================
+ * deadman 移动端样式 - 温暖、极简、触摸优先
+ * 设计哲学：用户情绪脆弱 → 柔和色调、大字号、高对比度、无焦虑
+ * 与 web 端完全独立的视觉体系
+ * ============================================================ */
+
+/* --- CSS 变量：暖色系（非 web 端的冷色系） --- */
+:root {
+ --bg: #faf8f5;
+ --bg-card: #ffffff;
+ --bg-elevated: #f5f0eb;
+ --bg-tab: #ffffff;
+ --text: #2c2825;
+ --text-secondary: #6b6560;
+ --text-muted: #9b9590;
+ --accent: #8b6f47;
+ --accent-light: #c4a777;
+ --accent-bg: #f0e8dc;
+ --danger: #c0564a;
+ --danger-bg: #fdf2f0;
+ --success: #5a7a52;
+ --border: #ebe5dd;
+ --shadow: 0 1px 3px rgba(60, 50, 40, 0.06), 0 1px 2px rgba(60, 50, 40, 0.04);
+ --shadow-lg: 0 4px 16px rgba(60, 50, 40, 0.12);
+ --radius: 14px;
+ --radius-sm: 10px;
+ --radius-xs: 8px;
+ --safe-top: env(safe-area-inset-top, 0px);
+ --safe-bottom: env(safe-area-inset-bottom, 0px);
+ --tab-height: 56px;
+}
+
+/* 暗色模式：深沉但不冷 */
+@media (prefers-color-scheme: dark) {
+ :root {
+ --bg: #1a1815;
+ --bg-card: #252220;
+ --bg-elevated: #2c2925;
+ --bg-tab: #1f1d1a;
+ --text: #e8e2dc;
+ --text-secondary: #a89e94;
+ --text-muted: #6b6560;
+ --accent: #c4a777;
+ --accent-light: #d4bc8a;
+ --accent-bg: #2e2820;
+ --danger: #e07060;
+ --danger-bg: #2a1a18;
+ --success: #7a9a6a;
+ --border: #3a3530;
+ --shadow: 0 1px 3px rgba(0,0,0,0.3);
+ --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+ }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+ height: 100%;
+ overflow: hidden;
+ -webkit-font-smoothing: antialiased;
+}
+
+body {
+ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+ background: var(--bg);
+ color: var(--text);
+ font-size: 16px;
+ line-height: 1.6;
+ padding-top: var(--safe-top);
+ padding-bottom: var(--safe-bottom);
+}
+
+/* --- App 容器 --- */
+#app {
+ display: flex;
+ flex-direction: column;
+ height: 100%;
+}
+
+/* --- 顶部导航栏 --- */
+.nav-bar {
+ flex-shrink: 0;
+ height: 52px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ background: var(--bg-card);
+ border-bottom: 1px solid var(--border);
+ position: relative;
+ z-index: 10;
+}
+.nav-bar h1 {
+ font-size: 17px;
+ font-weight: 600;
+ color: var(--text);
+}
+.nav-bar .nav-left, .nav-bar .nav-right {
+ position: absolute;
+ top: 0;
+ height: 100%;
+ display: flex;
+ align-items: center;
+ padding: 0 16px;
+}
+.nav-bar .nav-left { left: 0; }
+.nav-bar .nav-right { right: 0; }
+.nav-bar button {
+ background: none;
+ border: none;
+ color: var(--accent);
+ font-size: 16px;
+ padding: 8px;
+ min-height: 44px;
+ min-width: 44px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+}
+
+/* --- 内容区 --- */
+.content {
+ flex: 1;
+ overflow-y: auto;
+ -webkit-overflow-scrolling: touch;
+ position: relative;
+}
+.page {
+ display: none;
+ min-height: 100%;
+ padding: 12px 16px 20px;
+}
+.page.active { display: block; }
+
+/* --- 底部 Tab 栏 --- */
+.tab-bar {
+ flex-shrink: 0;
+ height: var(--tab-height);
+ display: flex;
+ background: var(--bg-tab);
+ border-top: 1px solid var(--border);
+ padding-bottom: var(--safe-bottom);
+}
+.tab-item {
+ flex: 1;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 2px;
+ background: none;
+ border: none;
+ color: var(--text-muted);
+ font-size: 10px;
+ font-family: inherit;
+ padding-top: 6px;
+ transition: color 0.15s;
+}
+.tab-item.active { color: var(--accent); }
+.tab-item .tab-icon {
+ width: 24px;
+ height: 24px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+}
+.tab-item .tab-icon svg { width: 22px; height: 22px; }
+.tab-item.active .tab-icon svg { fill: var(--accent); }
+
+/* --- 卡片 --- */
+.card {
+ background: var(--bg-card);
+ border-radius: var(--radius);
+ padding: 16px;
+ box-shadow: var(--shadow);
+ margin-bottom: 10px;
+}
+.card-title {
+ font-size: 15px;
+ font-weight: 600;
+ margin-bottom: 8px;
+ color: var(--text);
+}
+.card-desc {
+ font-size: 13px;
+ color: var(--text-secondary);
+ line-height: 1.5;
+}
+
+/* --- 按钮 --- */
+.btn {
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ gap: 6px;
+ min-height: 48px;
+ padding: 0 20px;
+ border: none;
+ border-radius: var(--radius-sm);
+ font-size: 16px;
+ font-weight: 500;
+ font-family: inherit;
+ cursor: pointer;
+ transition: opacity 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+ background: var(--accent);
+ color: #fff;
+}
+.btn-secondary {
+ background: var(--accent-bg);
+ color: var(--accent);
+}
+.btn-danger {
+ background: var(--danger-bg);
+ color: var(--danger);
+}
+.btn-block { width: 100%; }
+.btn-sm { min-height: 36px; padding: 0 12px; font-size: 14px; }
+
+/* --- 输入框 --- */
+.input, .textarea, .select {
+ width: 100%;
+ min-height: 48px;
+ padding: 12px 14px;
+ border: 1.5px solid var(--border);
+ border-radius: var(--radius-sm);
+ font-size: 16px;
+ font-family: inherit;
+ background: var(--bg-card);
+ color: var(--text);
+ transition: border-color 0.15s;
+}
+.input:focus, .textarea:focus, .select:focus {
+ outline: none;
+ border-color: var(--accent);
+}
+.textarea {
+ min-height: 100px;
+ resize: none;
+ line-height: 1.6;
+}
+.field { margin-bottom: 14px; }
+.field label {
+ display: block;
+ font-size: 14px;
+ font-weight: 500;
+ margin-bottom: 6px;
+ color: var(--text-secondary);
+}
+
+/* --- 对话页 --- */
+.chat-page {
+ display: none;
+ flex-direction: column;
+ height: 100%;
+ padding: 0;
+}
+.chat-page.active { display: flex; }
+.chat-messages {
+ flex: 1;
+ overflow-y: auto;
+ -webkit-overflow-scrolling: touch;
+ padding: 12px 14px;
+}
+.chat-bubble {
+ max-width: 82%;
+ padding: 12px 16px;
+ border-radius: 18px;
+ font-size: 15px;
+ line-height: 1.6;
+ margin-bottom: 10px;
+ word-break: break-word;
+ animation: bubbleIn 0.2s ease;
+}
+@keyframes bubbleIn {
+ from { opacity: 0; transform: translateY(8px); }
+ to { opacity: 1; transform: translateY(0); }
+}
+.chat-bubble.bot {
+ align-self: flex-start;
+ background: var(--bg-card);
+ color: var(--text);
+ border-bottom-left-radius: 6px;
+ box-shadow: var(--shadow);
+}
+.chat-bubble.user {
+ align-self: flex-end;
+ background: var(--accent);
+ color: #fff;
+ border-bottom-right-radius: 6px;
+}
+.chat-bubble.error {
+ align-self: center;
+ background: var(--danger-bg);
+ color: var(--danger);
+ font-size: 13px;
+ max-width: 90%;
+}
+.chat-bubble.crisis {
+ background: var(--danger-bg);
+ color: var(--danger);
+ border: 1.5px solid var(--danger);
+}
+.chat-messages-inner {
+ display: flex;
+ flex-direction: column;
+}
+.typing-dots {
+ display: flex;
+ gap: 4px;
+ padding: 4px 0;
+}
+.typing-dots span {
+ width: 8px;
+ height: 8px;
+ border-radius: 50%;
+ background: var(--text-muted);
+ animation: typingBounce 0.6s infinite alternate;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+ to { opacity: 0.3; transform: translateY(-4px); }
+}
+
+/* 智能体选择器 */
+.agent-selector {
+ flex-shrink: 0;
+ display: flex;
+ gap: 8px;
+ padding: 8px 14px;
+ overflow-x: auto;
+ -webkit-overflow-scrolling: touch;
+ border-bottom: 1px solid var(--border);
+ background: var(--bg-card);
+}
+.agent-selector::-webkit-scrollbar { display: none; }
+.agent-chip {
+ flex-shrink: 0;
+ padding: 6px 14px;
+ border-radius: 20px;
+ font-size: 13px;
+ background: var(--bg-elevated);
+ color: var(--text-secondary);
+ border: 1.5px solid transparent;
+ white-space: nowrap;
+}
+.agent-chip.active {
+ background: var(--accent-bg);
+ color: var(--accent);
+ border-color: var(--accent-light);
+}
+
+/* 聊天输入栏 */
+.chat-input-bar {
+ flex-shrink: 0;
+ display: flex;
+ gap: 8px;
+ padding: 8px 12px var(--safe-bottom);
+ background: var(--bg-card);
+ border-top: 1px solid var(--border);
+ align-items: flex-end;
+}
+.chat-input-bar textarea {
+ flex: 1;
+ min-height: 40px;
+ max-height: 100px;
+ padding: 10px 14px;
+ border: 1.5px solid var(--border);
+ border-radius: 20px;
+ font-size: 16px;
+ font-family: inherit;
+ background: var(--bg);
+ color: var(--text);
+ resize: none;
+ line-height: 1.4;
+}
+.chat-input-bar textarea:focus { outline: none; border-color: var(--accent); }
+.chat-send-btn {
+ flex-shrink: 0;
+ width: 44px;
+ height: 44px;
+ border: none;
+ border-radius: 50%;
+ background: var(--accent);
+ color: #fff;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 20px;
+}
+.chat-send-btn:disabled { opacity: 0.4; }
+.chat-send-btn:active { transform: scale(0.92); }
+
+/* --- 列表项 --- */
+.list-item {
+ background: var(--bg-card);
+ border-radius: var(--radius-sm);
+ padding: 14px 16px;
+ margin-bottom: 8px;
+ box-shadow: var(--shadow);
+ position: relative;
+ overflow: hidden;
+ transition: transform 0.15s;
+}
+.list-item:active { transform: scale(0.98); }
+.list-item-title {
+ font-size: 15px;
+ font-weight: 500;
+ margin-bottom: 4px;
+ color: var(--text);
+}
+.list-item-desc {
+ font-size: 13px;
+ color: var(--text-secondary);
+}
+.list-item-meta {
+ font-size: 12px;
+ color: var(--text-muted);
+ margin-top: 6px;
+}
+
+/* 左滑删除 */
+.list-item-wrapper {
+ position: relative;
+ margin-bottom: 8px;
+ overflow: hidden;
+}
+.list-item-delete {
+ position: absolute;
+ right: 0;
+ top: 0;
+ bottom: 0;
+ width: 80px;
+ background: var(--danger);
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ color: #fff;
+ font-size: 14px;
+}
+.list-item-content {
+ position: relative;
+ z-index: 1;
+ background: var(--bg-card);
+ border-radius: var(--radius-sm);
+ box-shadow: var(--shadow);
+ transition: transform 0.2s ease;
+}
+.list-item-content.swiped {
+ transform: translateX(-80px);
+}
+
+/* --- 底部弹窗 (Action Sheet) --- */
+.action-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  opacity: 0;
+  /* 修复：默认隐藏时禁止接收鼠标事件，避免全屏透明覆盖层拦截所有点击 */
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0s linear 0.2s;
+}
+.action-sheet-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.2s, visibility 0s linear 0s;
+}
+.action-sheet {
+ position: fixed;
+ bottom: 0;
+ left: 0;
+ right: 0;
+ background: var(--bg-card);
+ border-radius: 20px 20px 0 0;
+ padding: 8px 0 var(--safe-bottom);
+ z-index: 101;
+ transform: translateY(100%);
+ transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+ max-height: 80vh;
+ overflow-y: auto;
+}
+.action-sheet.show { transform: translateY(0); }
+.action-sheet-handle {
+ width: 36px;
+ height: 5px;
+ border-radius: 3px;
+ background: var(--border);
+ margin: 8px auto 4px;
+}
+.action-sheet-title {
+ text-align: center;
+ font-size: 13px;
+ color: var(--text-muted);
+ padding: 4px 0 8px;
+}
+.action-sheet-item {
+ padding: 16px 20px;
+ font-size: 16px;
+ color: var(--text);
+ text-align: center;
+ border-top: 1px solid var(--border);
+}
+.action-sheet-item:active { background: var(--bg-elevated); }
+.action-sheet-item.danger { color: var(--danger); }
+.action-sheet-cancel {
+ margin-top: 8px;
+ border-top: 8px solid var(--bg);
+ font-weight: 500;
+}
+
+/* --- 全屏表单页 --- */
+.form-page {
+ position: fixed;
+ inset: 0;
+ background: var(--bg);
+ z-index: 200;
+ display: none;
+ flex-direction: column;
+ padding-top: var(--safe-top);
+}
+.form-page.show { display: flex; }
+.form-page-header {
+ flex-shrink: 0;
+ height: 52px;
+ display: flex;
+ align-items: center;
+ padding: 0 8px;
+ border-bottom: 1px solid var(--border);
+ background: var(--bg-card);
+}
+.form-page-header button {
+ background: none;
+ border: none;
+ color: var(--accent);
+ font-size: 16px;
+ padding: 8px 12px;
+ min-height: 44px;
+}
+.form-page-header h2 {
+ flex: 1;
+ text-align: center;
+ font-size: 17px;
+ font-weight: 600;
+}
+.form-page-body {
+ flex: 1;
+ overflow-y: auto;
+ padding: 16px;
+}
+.form-page-footer {
+ flex-shrink: 0;
+ padding: 12px 16px var(--safe-bottom);
+ border-top: 1px solid var(--border);
+ background: var(--bg-card);
+}
+
+/* --- 进度环 --- */
+.progress-ring {
+ width: 120px;
+ height: 120px;
+ margin: 0 auto 16px;
+ position: relative;
+}
+.progress-ring svg {
+ transform: rotate(-90deg);
+}
+.progress-ring circle {
+ fill: none;
+ stroke-width: 8;
+ stroke-linecap: round;
+}
+.progress-ring .ring-bg { stroke: var(--border); }
+.progress-ring .ring-fg {
+ stroke: var(--accent);
+ stroke-dasharray: 339.292;
+ stroke-dashoffset: 339.292;
+ transition: stroke-dashoffset 0.6s ease;
+}
+.progress-ring-text {
+ position: absolute;
+ inset: 0;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+}
+.progress-ring-text .pct {
+ font-size: 32px;
+ font-weight: 700;
+ color: var(--accent);
+}
+.progress-ring-text .label {
+ font-size: 12px;
+ color: var(--text-muted);
+}
+
+/* --- 空状态 --- */
+.empty-state {
+ text-align: center;
+ padding: 48px 20px;
+ color: var(--text-muted);
+}
+.empty-state .empty-icon {
+ font-size: 48px;
+ margin-bottom: 12px;
+ opacity: 0.3;
+}
+.empty-state .empty-text {
+ font-size: 14px;
+}
+
+/* --- 加载状态 --- */
+.loading {
+ display: flex;
+ justify-content: center;
+ padding: 20px;
+}
+.loading-spinner {
+ width: 28px;
+ height: 28px;
+ border: 3px solid var(--border);
+ border-top-color: var(--accent);
+ border-radius: 50%;
+ animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- Toast --- */
+.toast {
+ position: fixed;
+ top: 60px;
+ left: 50%;
+ transform: translateX(-50%);
+ background: rgba(0,0,0,0.75);
+ color: #fff;
+ padding: 10px 20px;
+ border-radius: 22px;
+ font-size: 14px;
+ z-index: 300;
+ opacity: 0;
+ transition: opacity 0.2s, transform 0.2s;
+ pointer-events: none;
+}
+.toast.show {
+ opacity: 1;
+ transform: translateX(-50%) translateY(0);
+}
+
+/* --- 危机提示横幅 --- */
+.crisis-banner {
+ background: var(--danger-bg);
+ border: 1.5px solid var(--danger);
+ border-radius: var(--radius);
+ padding: 14px;
+ margin-bottom: 12px;
+}
+.crisis-banner-title {
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--danger);
+ margin-bottom: 6px;
+}
+.crisis-banner-text {
+ font-size: 13px;
+ color: var(--danger);
+ line-height: 1.5;
+}
+
+/* --- 免责声明 --- */
+.disclaimer {
+ background: var(--accent-bg);
+ border-radius: var(--radius-xs);
+ padding: 10px 12px;
+ margin-bottom: 12px;
+ font-size: 12px;
+ color: var(--text-secondary);
+ line-height: 1.5;
+}
+
+/* --- 下拉刷新指示器 --- */
+.pull-refresh {
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 0;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ overflow: hidden;
+ transition: height 0.2s;
+ color: var(--text-muted);
+ font-size: 13px;
+}
+.pull-refresh.active { height: 50px; }
+.pull-refresh .spinner {
+ width: 24px;
+ height: 24px;
+ border: 2.5px solid var(--border);
+ border-top-color: var(--accent);
+ border-radius: 50%;
+ animation: spin 0.8s linear infinite;
+ margin-right: 8px;
+}
+
+/* --- 通用工具类 --- */
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.text-sm { font-size: 13px; }
+.text-danger { color: var(--danger); }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.hidden { display: none !important; }
+
+/* 滚动条隐藏 */
+.content::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar,
+.form-page-body::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+ <!-- 顶部导航栏 -->
+ <div class="nav-bar" id="navBar">
+ <div class="nav-left">
+ <button id="navLeftBtn" class="hidden" data-action="history-back">‹</button>
+ </div>
+ <h1 id="navTitle">对话</h1>
+ <div class="nav-right">
+ <button id="navRightBtn" class="hidden" data-action="show-agent-selector">切换</button>
+ </div>
+ </div>
+
+ <!-- 内容区 -->
+ <div class="content" id="content">
+
+ <!-- 下拉刷新指示器 -->
+ <div class="pull-refresh" id="pullRefresh">
+ <div class="spinner"></div>
+ <span>刷新中...</span>
+ </div>
+
+ <!-- ========== Tab 1: 对话 ========== -->
+ <div class="chat-page active" id="page-chat" data-tab="chat">
+ <div class="agent-selector" id="agentSelector">
+ <button class="agent-chip active" data-agent="">智能推荐</button>
+ </div>
+ <div class="chat-messages" id="chatMessages">
+ <div class="chat-messages-inner" id="chatInner">
+ <div class="chat-bubble bot">您好，我是身后事引导助手。在这个艰难的时刻，我在这里陪伴您。您可以问我任何关于身后事流程、法律、财务的问题，也可以只是聊聊天。</div>
+ </div>
+ </div>
+  <div class="chat-input-bar">
+  <textarea id="chatInput" rows="1" placeholder="输入问题，或 /help 查看命令"></textarea>
+  <button class="chat-send-btn" id="micBtn" data-action="voice-input" title="语音输入">🎤</button>
+  <button class="chat-send-btn" id="sendBtn" data-action="send-message">↑</button>
+  </div>
+ </div>
+
+ <!-- ========== Tab 2: 笔记 ========== -->
+ <div class="page" id="page-notes" data-tab="notes">
+ <div class="disclaimer">终活笔记帮助您整理重要信息，仅您可见。可共享给信任的家人。</div>
+ <div id="notesContent">
+ <div class="loading"><div class="loading-spinner"></div></div>
+ </div>
+ </div>
+
+ <!-- ========== Tab 3: 保险库 ========== -->
+ <div class="page" id="page-vault" data-tab="vault">
+ <div class="disclaimer">数字遗产保险库 - 安全存储密码、文档、账号信息，指定受益人。</div>
+ <div id="vaultContent">
+ <div class="loading"><div class="loading-spinner"></div></div>
+ </div>
+ </div>
+
+ <!-- ========== Tab 4: 服务 ========== -->
+ <div class="page" id="page-services" data-tab="services">
+ <div id="servicesContent">
+ <div class="card" data-action="load-mobile-guide" style="cursor:pointer;border:1.5px solid var(--accent,#8b6f47)">
+ <div class="card-title">🧭 身后事向导</div>
+ <div class="card-desc">生前准备 → 身后办理 → 纪念陪伴，按清单逐项完成</div>
+ </div>
+ <div class="card" data-action="show-letter-types" style="cursor:pointer">
+ <div class="card-title">通知信函生成</div>
+ <div class="card-desc">户口注销、社保丧葬费、公积金提取等 8 类信函</div>
+ </div>
+ <div class="card" data-action="show-memorial-types" style="cursor:pointer">
+ <div class="card-title">悼文撰写</div>
+ <div class="card-desc">AI 生成悼文、讣告、答谢词、墓志铭</div>
+ </div>
+ <div class="card" data-action="load-acp" style="cursor:pointer">
+ <div class="card-title">🏥 预立医疗 ACP</div>
+ <div class="card-desc">生前预嘱 · 缓和医疗 · 医疗代理授权</div>
+ </div>
+ <div class="card" data-action="load-hotlines" style="cursor:pointer">
+ <div class="card-title">热线电话</div>
+ <div class="card-desc">心理援助、法律援助、殡葬服务热线</div>
+ </div>
+ <div class="card" data-action="load-institutions" style="cursor:pointer">
+ <div class="card-title">机构查询</div>
+ <div class="card-desc">殡仪馆、公证处、社保局等机构信息</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- ========== Tab 5: 我的 ========== -->
+ <div class="page" id="page-profile" data-tab="profile">
+ <div id="profileContent">
+ <div class="loading"><div class="loading-spinner"></div></div>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- 底部 Tab 栏 -->
+ <div class="tab-bar" id="tabBar">
+ <button class="tab-item active" data-tab="chat" data-action="switch-tab" data-arg="chat">
+ <div class="tab-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
+ <span>对话</span>
+ </button>
+ <button class="tab-item" data-tab="notes" data-action="switch-tab" data-arg="notes">
+ <div class="tab-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></div>
+ <span>笔记</span>
+ </button>
+ <button class="tab-item" data-tab="vault" data-action="switch-tab" data-arg="vault">
+ <div class="tab-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg></div>
+ <span>保险库</span>
+ </button>
+ <button class="tab-item" data-tab="services" data-action="switch-tab" data-arg="services">
+ <div class="tab-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l-5.5 9h11z"/><circle cx="17.5" cy="14.5" r="2.5"/><circle cx="6.5" cy="14.5" r="2.5"/><path d="M12 22c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2z"/></svg></div>
+ <span>服务</span>
+ </button>
+ <button class="tab-item" data-tab="profile" data-action="switch-tab" data-arg="profile">
+ <div class="tab-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+ <span>我的</span>
+ </button>
+ </div>
+
+</div>
+
+<!-- Action Sheet -->
+<div class="action-sheet-overlay" id="asOverlay" data-action="hide-action-sheet"></div>
+<div class="action-sheet" id="actionSheet">
+ <div class="action-sheet-handle"></div>
+ <div class="action-sheet-title" id="asTitle"></div>
+ <div id="asContent"></div>
+ <div class="action-sheet-item action-sheet-cancel" data-action="hide-action-sheet">取消</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+<div id="mobileFirstRun" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%">
+    <div style="font-size:17px;font-weight:700;margin-bottom:10px">欢迎 · 傻瓜式操作</div>
+    <div style="font-size:13px;line-height:1.8;color:#555;margin-bottom:14px">
+      <div>🗣 直接说话或输入问题，就能办理身后事/医疗事务</div>
+      <div>📜 <b>/custom</b> 查民俗 · <b>/family</b> 亲属 · <b>/help</b> 全部命令</div>
+      <div>🔐 <b>/vault</b> 遗产 · <b>/note</b> 终活笔记 · <b>/task</b> 定时</div>
+      <div>🕯 <b>/memorial</b> 悼文 · <b>/plot</b> 画图</div>
+    </div>
+    <button style="width:100%;padding:12px;background:#8b6f47;color:#fff;border:none;border-radius:12px;font-size:14px" onclick="dismissMobileGuide()">知道了，开始使用</button>
+  </div>
+</div>
+
+<script src="/mobile.js"></script>
+</body>
+</html>

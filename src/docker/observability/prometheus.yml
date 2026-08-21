@@ -1,0 +1,38 @@
+# Prometheus 抓取配置（企业级扩展②：可观测性后端）
+# 抓取 deadman /metrics（HTTP RED 指标，prometheus_client 暴露）+ OTel Collector 自身指标
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# 告警规则文件
+rule_files:
+  - alert_rules.yml
+
+# 告警推送到 Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # deadman Web UI（/metrics 端点在 8002，web/app.py:841）
+  # 注意：需 deadman 以 web-server 模式运行才暴露 /metrics
+  - job_name: "deadman"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["deadman:8002"]
+        labels:
+          service: deadman
+
+  # OTel Collector 自身指标（内部 telemetry）
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8888"]
+        labels:
+          service: otel-collector
+
+  # Prometheus 自身指标
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

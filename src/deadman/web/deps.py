@@ -1,0 +1,274 @@
+"""FastAPI 依赖注入：认证、共享组件。
+
+提供给 :mod:`deadman.web.app` 的可复用依赖：
+
+* :func:`get_user_store` / :func:`get_jwt_manager` —— 懒加载 Phase 8 认证组件，
+  遵循 ``web/server.py`` 的实例化方式（用 ``settings.auth_data_dir`` /
+  ``settings.jwt_secret`` / ``settings.jwt_expiry_days``），便于测试 monkeypatch。
+* :func:`get_current_user` —— 强制认证依赖，未登录或 token 无效时抛 401。
+* :func:`get_optional_user` —— 可选认证依赖，未登录返回 ``None``（用于
+  ``/api/chat`` / ``/api/stream`` 等允许匿名降级的端点）。
+* :data:`bearer_scheme` —— FastAPI ``HTTPBearer`` 安全方案，使 OpenAPI 文档
+  自动出现"Authorize"按钮，并在所有认证路由上显示锁标记。
+
+设计原则：
+* 不修改 ``web/server.py`` —— 旧 stdlib http.server 保留为 fallback。
+* 直接 import 现有业务模块，不重复造轮子。
+* 用 ``HTTPBearer(auto_error=False)`` 作为子依赖，由 FastAPI 自动生成
+  OpenAPI securityScheme（``bearerAuth``），Swagger UI / ReDoc 可直接调试。
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from fastapi import Depends, Header, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from ..auth.jwt import JWTManager
+from ..auth.store import UserStore
+from ..config import settings
+from ..org import InviteStore, OrgStore
+from ..org.rbac import ORG_ROLES, rank
+
+__all__ = [
+    "get_user_store",
+    "get_jwt_manager",
+    "get_org_store",
+    "get_invite_store",
+    "get_customer_repo",
+    "get_case_repo",
+    "get_case_event_repo",
+    "get_current_user",
+    "get_optional_user",
+    "require_admin",
+    "require_org_role",
+    "bearer_scheme",
+]
+
+
+# Bearer 安全方案：auto_error=False 让 get_optional_user 能降级到匿名。
+# FastAPI 据此在 OpenAPI 中声明 securitySchemes.bearerAuth，
+# /docs 页面出现"Authorize"按钮，认证路由显示锁标记。
+bearer_scheme = HTTPBearer(auto_error=False, scheme_name="bearerAuth")
+
+
+def get_user_store() -> UserStore:
+    """懒加载 UserStore（用 settings.auth_data_dir，便于测试 monkeypatch）"""
+    return UserStore(data_dir=settings.auth_data_dir)
+
+
+def get_jwt_manager() -> JWTManager:
+    """懒加载 JWTManager（与 web/server.py 同源）"""
+    return JWTManager(
+        secret=settings.jwt_secret or None,
+        expiry_days=settings.jwt_expiry_days,
+    )
+
+
+def get_org_store() -> OrgStore:
+    """懒加载 OrgStore（用 settings.org_data_dir，便于测试 monkeypatch）"""
+    return OrgStore(data_dir=settings.org_data_dir)
+
+
+def get_invite_store() -> InviteStore:
+    """懒加载 InviteStore（与 OrgStore 同目录，便于测试 monkeypatch）"""
+    return InviteStore(data_dir=settings.org_data_dir)
+
+
+def _db_or_file(db_module: str, db_cls: str, file_cls):
+    """DB 仓库与文件仓库分发：DB 启用且可导入时用 DB 版，否则回退文件存储。
+
+    DB 层（sqlalchemy）为可选依赖，缺失/异常时回退文件存储，保证机构功能零侵入运行。
+    """
+    from ..db.engine import db_enabled
+
+    if db_enabled():
+        try:
+            import importlib
+
+            mod = importlib.import_module(db_module)
+            return getattr(mod, db_cls)()
+        except Exception:
+            pass  # DB 层异常 → 文件降级
+    return file_cls(data_dir=settings.org_data_dir)
+
+
+def get_customer_repo():
+    """客户 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
+    from ..org.file_customers import CustomerRepository as FileCustomerRepository
+
+    return _db_or_file("deadman.db.repositories", "CustomerRepository", FileCustomerRepository)
+
+
+def get_case_repo():
+    """案件 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
+    from ..org.file_customers import CaseRepository as FileCaseRepository
+
+    return _db_or_file("deadman.db.repositories", "CaseRepository", FileCaseRepository)
+
+
+def get_case_event_repo():
+    """案件事件 Repository 分发：DB 启用走 DB 版，否则文件降级（接口一致）。"""
+    from ..org.file_customers import CaseEventRepository as FileEventRepository
+
+    return _db_or_file("deadman.db.repositories", "CaseEventRepository", FileEventRepository)
+
+
+def _resolve_user(token: str | None) -> dict[str, Any] | None:
+    """共享的用户解析逻辑：token 有效返回 user dict，否则 None。
+
+    抽出此函数避免 ``get_current_user`` 与 ``get_optional_user`` 重复解析逻辑
+    （原实现中二者各写一遍 bearer 前缀剥离 + verify + get_user）。
+    """
+    if not token:
+        return None
+    jwt_mgr = get_jwt_manager()
+    payload = jwt_mgr.verify(token)
+    if payload is None:
+        return None
+    store = get_user_store()
+    return store.get_user(payload.get("user_id", ""))
+
+
+def get_current_user(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict[str, Any]:
+    """从 ``Authorization: Bearer <token>`` 解析当前用户。
+
+    未认证或 token 无效时抛 ``401``（附 ``WWW-Authenticate: Bearer`` 头，
+    符合 RFC 7235），与旧 ``_phase_unauthorized`` 行为一致。
+
+    通过 :data:`bearer_scheme` 子依赖，FastAPI 自动在 OpenAPI 文档中标注
+    本依赖所在路由需要 Bearer 认证。
+    """
+    token = cred.credentials if cred else None
+    user = _resolve_user(token)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="未认证或 token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+def get_optional_user(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict[str, Any] | None:
+    """可选认证：未登录或 token 无效返回 ``None``，不报错。
+
+    用于 ``/api/chat`` / ``/api/stream`` 等允许匿名降级的端点。
+    """
+    token = cred.credentials if cred else None
+    return _resolve_user(token)
+
+
+def require_admin(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    strict: bool = False,
+) -> dict[str, Any]:
+    """管理员级认证依赖：``/api/admin/*`` 全族端点必须挂载本依赖。
+
+    两种通过方式（满足其一即可）：
+    1. ``X-Admin-Token`` 头与 ``DEADMAN_ADMIN_TOKEN`` 严格相等
+       （与 :meth:`deadman.mcp_server.server._check_admin_token` 语义一致）；
+    2. 有效的 JWT 用户（``Authorization: Bearer <token>``）。``strict=True``
+       时要求用户平台层 ``role == "admin"``，否则仅要求已认证。
+
+    未配置 ``DEADMAN_ADMIN_TOKEN`` 且无 JWT 时抛 401；提供错误的
+    ``X-Admin-Token`` 时同样抛 401（防探测，不区分"未配置"与"错误"）。
+
+    ⚠️ 修复说明：早期实现检查 ``user.get("is_admin")``，但 UserStore 用户
+    记录中不存在该字段（角色存于 ``role``，admin 需手动提升），导致
+    ``strict=True`` 永远 403。现改为 ``role == "admin"`` 判定。
+    """
+    if x_admin_token:
+        admin_token = os.environ.get("DEADMAN_ADMIN_TOKEN", "")
+        if admin_token and x_admin_token == admin_token:
+            return {"role": "admin", "source": "admin_token"}
+        raise HTTPException(
+            status_code=401,
+            detail="X-Admin-Token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = cred.credentials if cred else None
+    user = _resolve_user(token)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="未认证或 token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if strict and user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="需要管理员权限",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"role": user.get("role", "user"), "source": "jwt", "user": user}
+
+
+def require_org_role(min_role: str):
+    """构造「机构内角色 >= min_role」的 FastAPI 依赖（To B）。
+
+    Args:
+        min_role: 最低机构内角色（viewer/consultant/case_manager/org_admin）
+
+    校验链（任一不满足即 401/403）：
+      1. JWT 有效（否则 401）
+      2. payload 携带 tenant_id + org_role（否则 403，未绑定机构）
+      3. 机构存在且 active（否则 403）
+      4. membership 存在且 active（否则 403）
+      5. 角色在 ORG_ROLES 内且等级 >= min_role（否则 403）
+
+    Returns:
+        依赖函数：返回带机构上下文的 user dict。
+    """
+
+    def _dependency(
+        cred: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    ) -> dict[str, Any]:
+        token = cred.credentials if cred else None
+        jwt_mgr = get_jwt_manager()
+        payload = jwt_mgr.verify(token) if token else None
+        if payload is None:
+            raise HTTPException(
+                status_code=401,
+                detail="未认证或 token 无效",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        tenant_id = payload.get("tenant_id")
+        org_role = payload.get("org_role")
+        if not tenant_id or not org_role:
+            raise HTTPException(
+                status_code=403,
+                detail="未绑定机构，请先切换机构",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        org_store = get_org_store()
+        org = org_store.get_org(tenant_id)
+        if org is None or not org.is_active():
+            raise HTTPException(status_code=403, detail="机构不存在或已停用")
+        membership = org_store.get_membership(tenant_id, payload.get("user_id", ""))
+        if membership is None or not membership.is_active():
+            raise HTTPException(status_code=403, detail="非机构成员或已被禁用")
+        if org_role not in ORG_ROLES:
+            raise HTTPException(status_code=403, detail="机构内角色无效")
+        if rank(org_role) < rank(min_role):
+            raise HTTPException(
+                status_code=403,
+                detail=f"需要机构内角色不低于 {min_role}",
+            )
+        return {
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email"),
+            "tenant_id": tenant_id,
+            "org_role": org_role,
+            "org": org.to_dict(),
+            "membership": membership.to_dict(),
+        }
+
+    return _dependency

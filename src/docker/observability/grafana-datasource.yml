@@ -1,0 +1,12 @@
+# Grafana 数据源 provisioning（企业级扩展②）
+# 启动时自动配置 Prometheus 数据源，无需手动在 UI 添加。
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

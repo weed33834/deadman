@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">
+  <!-- deadman Logo —— 身后事多智能体引导平台 -->
+  <defs>
+    <linearGradient id="seal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b0553f"/>
+      <stop offset="1" stop-color="#7c4630"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#c9a66b"/>
+      <stop offset="1" stop-color="#f0d9a8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 印章圆形 -->
+  <circle cx="52" cy="60" r="44" fill="url(#seal)"/>
+  <circle cx="52" cy="60" r="38" fill="none" stroke="#f4efe6" stroke-width="1.6" opacity="0.7"/>
+
+  <!-- 蜡烛/陪伴符号：灯台 -->
+  <rect x="46" y="72" width="12" height="4" rx="2" fill="#f4efe6"/>
+  <rect x="48.5" y="62" width="7" height="12" rx="2.5" fill="#f4efe6"/>
+  <!-- 火焰 -->
+  <path d="M52 34 c6 8 9 13 9 19 a9 9 0 1 1 -18 0 c0 -6 3 -11 9 -19 z" fill="url(#flame)"/>
+  <!-- 指引之光 -->
+  <circle cx="52" cy="52" r="4" fill="#f4efe6" opacity="0.85"/>
+
+  <!-- 文字 -->
+  <text x="110" y="52" font-family="Georgia, 'Songti SC', serif" font-size="34" font-weight="700" fill="#201c17" letter-spacing="1">deadman</text>
+  <text x="112" y="74" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="14" fill="#7c4630" letter-spacing="2">身后事多智能体引导平台</text>
+  <text x="112" y="94" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="10" fill="#8c8578" letter-spacing="1">对话优先 · 傻瓜式操作 · 民俗与亲属图谱</text>
+</svg>
