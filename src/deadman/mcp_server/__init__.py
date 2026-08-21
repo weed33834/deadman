@@ -18,7 +18,7 @@ from .server import (
     McpServer,
     ToolDef,
     main,
-    mcp,  # 全局 server 单例，已注册 15 个工具
+    mcp,  # 全局 server 单例，已注册 16 个工具
 )
 
 __all__ = ["McpServer", "ToolDef", "main", "mcp", "plugin"]

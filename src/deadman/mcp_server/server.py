@@ -1,4 +1,4 @@
-"""MCP Server 实现 - 封装身后事平台的 15 个工具
+"""MCP Server 实现 - 封装身后事平台的 16 个工具
 
 优先尝试使用 FastMCP；若 fastmcp 包不可用，则降级为纯 Python async + 装饰器模式。
 两种实现共享同一套工具注册逻辑，调用方式对上层透明。
@@ -3120,6 +3120,52 @@ def _strip_image_marker(stdout: str) -> str:
         "",
         stdout,
     ).strip()
+
+
+@mcp.tool_auto(
+    name="browser_automation",
+    description=(
+        "浏览器自动化（headless Chromium，由 Playwright 驱动）。"
+        "action 取值：navigate(打开 URL) / get_text(提取页面文本) / screenshot(PNG 截图) / "
+        "click(点击元素) / fill(填写输入框)。仅允许 http/https。"
+        "需 DEADMAN_BROWSER_TOOL_ENABLED=1 且安装 playwright；未就绪时返回 ok=False + 提示。"
+    ),
+    output_schema={
+        "type": "object",
+        "properties": {
+            "ok": {"type": "boolean"},
+            "action": {"type": "string"},
+            "url": {"type": "string"},
+            "title": {"type": "string"},
+            "text": {"type": "string"},
+            "image_base64": {"type": "string"},
+            "error": {"type": "string"},
+        },
+    },
+)
+async def browser_automation(
+    action: str,
+    url: str = "",
+    selector: str = "",
+    text: str = "",
+    timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    """驱动 headless 浏览器执行单步操作
+
+    能力全部来自开源库 playwright（微软官方），本函数仅为工具化适配：
+    - input-guardrails：URL 仅 http/https，阻断 file:// 等协议
+    - integrity-framework：失败返回 ok=False + error，不抛异常
+    - 默认关闭：DEADMAN_BROWSER_TOOL_ENABLED=1 由部署方显式开启
+    """
+    from ..tools.browser import run_browser_action
+
+    return await run_browser_action(
+        action=action,
+        url=url,
+        selector=selector,
+        text=text,
+        timeout_seconds=timeout_seconds,
+    )
 
 
 @mcp.tool_auto(

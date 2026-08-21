@@ -157,8 +157,10 @@ text = ["jieba>=0.42", "rank-bm25>=0.2"]
 doc-export = ["reportlab>=4.0", "python-docx>=1.1"]
 # 沙箱绘图
 plot = ["matplotlib>=3.7", "numpy>=1.24"]
+# 浏览器自动化（browser_automation 工具；装后需 `playwright install chromium`）
+browser = ["playwright>=1.0"]
 all = [
-    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text,doc-export,plot]",
+    "deadman[dev,lightrag,graphiti,langfuse,sqlite-checkpoint,mcp,ragas,sentry,skills,multimodal,doc-extract,db,text,doc-export,plot,browser]",
 ]
 
 [project.scripts]

@@ -180,6 +180,13 @@ async def _wrap_supervisor(question: str = "", **_: Any) -> Any:
     return {"ok": True, **result.to_dict()}
 
 
+async def _wrap_browser(action: str = "get_text", url: str = "", selector: str = "", text: str = "", **_: Any) -> Any:
+    """浏览器自动化：navigate/get_text/screenshot/click/fill（Playwright 驱动）。"""
+    from ..tools.browser import run_browser_action
+
+    return await run_browser_action(action=action, url=url, selector=selector, text=text)
+
+
 # 注册表:工具名 → wrapper
 _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search": _wrap_web_search,
@@ -207,6 +214,8 @@ async def _wrap_awareness(text: str = "", **_: Any) -> Any:
 
 # awareness 工具在 _wrap_awareness 定义后再注册（避免导入期未定义）
 _TOOL_WRAPPERS["awareness"] = _wrap_awareness
+_TOOL_WRAPPERS["browser"] = _wrap_browser
+_TOOL_WRAPPERS["browser_automation"] = _wrap_browser  # 别名，对齐 MCP 工具名
 
 
 def register_default_react_tools() -> None:

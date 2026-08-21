@@ -45,7 +45,7 @@ class ToolPermission(str, Enum):
 
 
 # =====================================================================
-# 权限注册表 - 15 个工具的默认权限
+# 权限注册表 - 16 个工具的默认权限
 # =====================================================================
 
 PERMISSION_REGISTRY: dict[str, ToolPermission] = {
@@ -62,6 +62,7 @@ PERMISSION_REGISTRY: dict[str, ToolPermission] = {
     "init_transfer": ToolPermission.WRITE_CONFIRM,
     # ---------- write-async ----------
     "execute_code": ToolPermission.WRITE_ASYNC,
+    "browser_automation": ToolPermission.WRITE_ASYNC,
     # ---------- dangerous ----------
     "execute_reflexion": ToolPermission.DANGEROUS,
     # ---------- 中性（按 read-only 对待：可缓存、无需二次确认）----------
