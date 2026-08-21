@@ -31,6 +31,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ..infrastructure.rate_limiter import TokenBucket
+
 # =====================================================================
 # 配置（feature flag，默认关闭）
 # =====================================================================
@@ -102,37 +104,6 @@ _INJECTION_PATTERNS: list[re.Pattern[str]] = [
 
 
 # =====================================================================
-# TokenBucket 令牌桶
-# =====================================================================
-
-
-class _TokenBucket:
-    """简单令牌桶：容量 burst，每秒补充 rate/60 个令牌"""
-
-    __slots__ = ("capacity", "last_refill", "lock", "rate_per_sec", "tokens")
-
-    def __init__(self, rate_per_minute: int, burst: int) -> None:
-        self.capacity = max(1, burst)
-        self.rate_per_sec = max(0.0, rate_per_minute / 60.0)
-        self.tokens = float(self.capacity)
-        self.last_refill = time.monotonic()
-        self.lock = threading.Lock()
-
-    def consume(self, tokens: float = 1.0) -> bool:
-        """尝试消耗 tokens 个令牌，成功返回 True"""
-        with self.lock:
-            now = time.monotonic()
-            elapsed = now - self.last_refill
-            self.last_refill = now
-            # 补充令牌（不超过容量）
-            self.tokens = min(self.capacity, self.tokens + elapsed * self.rate_per_sec)
-            if self.tokens >= tokens:
-                self.tokens -= tokens
-                return True
-            return False
-
-
-# =====================================================================
 # ToolGateway
 # =====================================================================
 
@@ -158,7 +129,7 @@ class ToolGateway:
     ) -> None:
         self._schemas: dict[str, dict[str, Any]] = {}
         self._trust_scores: dict[tuple[str, str], float] = {}
-        self._buckets: dict[tuple[str, str], _TokenBucket] = {}
+        self._buckets: dict[tuple[str, str], TokenBucket] = {}
         self._rate_limit_qpm = rate_limit_qpm
         self._rate_limit_burst = rate_limit_burst
         self._trust_threshold = trust_threshold
@@ -279,9 +250,13 @@ class ToolGateway:
         with self._lock:
             bucket = self._buckets.get(key)
             if bucket is None:
-                bucket = _TokenBucket(self._rate_limit_qpm, self._rate_limit_burst)
+                bucket = TokenBucket(
+                    rate_per_second=max(0.0, self._rate_limit_qpm / 60.0),
+                    capacity=self._rate_limit_burst,
+                    clock=time.monotonic,
+                )
                 self._buckets[key] = bucket
-        if not bucket.consume(1.0):
+        if not bucket.acquire(1):
             return False, f"触发限流（{self._rate_limit_qpm} QPM）", 0.1
         return True, "", 1.0
 
