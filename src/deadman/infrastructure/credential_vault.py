@@ -82,8 +82,14 @@ class CredentialRecord:
     metadata: dict[str, Any] = field(default_factory=dict)  # 非敏感元数据(如 description)
 
     def needs_rotation(self, rotation_days: int = DEFAULT_ROTATION_DAYS) -> bool:
-        """是否需要轮换。"""
+        """是否需要轮换。
+
+        ``rotation_days <= 0`` 表示强制轮换策略（每次检查都需要轮换），
+        同时避免同 clock tick 下 age_days==0.0 的浮点比较 flake。
+        """
         if self.last_rotated_at == 0:
+            return True
+        if rotation_days <= 0:
             return True
         age_days = (time.time() - self.last_rotated_at) / 86400
         return age_days > rotation_days
