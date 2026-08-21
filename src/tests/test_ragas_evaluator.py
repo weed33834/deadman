@@ -339,7 +339,7 @@ class TestCaseLoading:
     def test_load_existing_case(self):
         """加载真实 case 文件"""
         case_path = (
-            Path(__file__).resolve().parent.parent.parent
+            Path(__file__).resolve().parent.parent
             / "tests"
             / "automated"
             / "cases"

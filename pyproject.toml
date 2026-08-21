@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deadman"
-version = "0.1.0"
+version = "0.1.1"
 description = "deadman - An end-of-life & medical-navigation multi-agent guidance platform: after-death procedure wizard, digital legacy & vault, grief companion, folk-custom rules & kinship graph, conversation-first UX. Framework-agnostic, runs on any agent platform."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -439,7 +439,7 @@ def test_knowledge_freshness_scan_phase16_provinces():
     from deadman.cron.tasks.knowledge_freshness import KnowledgeFreshnessChecker
 
     # 用真实仓库下的 knowledge/regions 作为扫描目标
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[2]
     regions_dir = repo_root / "src" / "knowledge" / "regions"
 
     # 测试环境必须有这个目录（CI 上也应存在）
@@ -636,7 +636,7 @@ def test_cli_onboarding_save_then_show(tmp_path: Path, capsys):
 
 def test_cli_knowledge_freshness_scan_phase16_files(capsys):
     """CLI knowledge-freshness-scan 扫描真实 Phase 16A 文件"""
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[2]
     regions_dir = repo_root / "src" / "knowledge" / "regions"
     if not regions_dir.exists():
         pytest.skip(f"知识库目录不存在: {regions_dir}")
