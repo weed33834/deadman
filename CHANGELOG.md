@@ -28,6 +28,14 @@
 - **HTML 实体清洗换 stdlib `html.unescape()`**：删除手写实体映射表
 - **移除零使用的 `requests` 依赖**（HTTP 统一 httpx）；新增 `cachetools>=5.0`
 
+### 能力拼图：浏览器自动化（第 16 个工具）
+
+- 新增 `browser_automation` 工具：能力来自微软官方开源库 playwright，
+  本仓仅写薄适配层（navigate/get_text/screenshot/click/fill 五动作）
+- 安全边界：URL 仅 http/https、headless、超时上限、文本提取封顶 5 万字符、
+  feature flag 默认关闭；未装依赖时降级提示不阻断
+- 注册面：MCP server / permissions(WRITE_ASYNC) / ReAct 工具表；pyproject 增 browser extra
+
 ### 废弃 server 物理删除 + 打包随包分发
 
 - 删除废弃 `web/server.py`（3665 行 stdlib 实现），10 个测试文件迁移至
