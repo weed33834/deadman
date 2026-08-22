@@ -23,8 +23,13 @@ logger = logging.getLogger(__name__)
 
 # =====================================================================
 # 可选依赖 - 官方 SDK（优先），缺失则降级为 httpx
+# 逃生门：LLM_DISABLE_OPENAI_SDK=1 强制走 httpx 直连——部分聚合网关
+# 对 SDK 的连接指纹/keep-alive 行为不兼容（间歇 Connection error），
+# 而 httpx 裸路径稳定；部署方可用此开关切换传输层。
 # =====================================================================
 try:
+    if os.getenv("LLM_DISABLE_OPENAI_SDK", "").strip().lower() in ("1", "true", "yes"):
+        raise ImportError("LLM_DISABLE_OPENAI_SDK=1（强制 httpx 模式）")
     from openai import AsyncOpenAI
 
     _HAS_OPENAI_SDK = True

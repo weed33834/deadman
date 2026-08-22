@@ -10,7 +10,7 @@
 <style>
 :root{
   --paper:#f7f5f0; --paper-warm:#f1ece4; --line:#e7e0d4; --ink:#26211c;
-  --ink-soft:#4a4238;
+  --ink-soft:#4a4238; --muted:#9a9183;
   --accent:#9a5b3f; --accent-deep:#7c4630; --accent-soft:#c89a82;
   --gold:#b98d4f; --sage:#5e7d63; --sage-deep:#45614a; --warn:#b0893c; --bad:#b0553f;
   --sage-bg:#eef2ec; --warn-bg:#f6f0e2; --bad-bg:#f7eae6;
@@ -170,6 +170,25 @@ textarea{resize:vertical;min-height:90px}
   .side .item{justify-content:center;padding:12px}.side .item .ic{margin:0}
   .main{padding:20px 16px 50px}
 }
+
+/* ============ 夜砚暗色（与 index body.dark 契约一致，localStorage 同键）============ */
+body.dark{
+  --paper:#211d18; --paper-warm:#2a251f; --line:#3a342c; --ink:#ece5d8;
+  --ink-soft:#cfc5b4; --muted:#a89f8f;
+  --accent:#c07a55; --accent-deep:#a05f3e; --accent-soft:#8f6a52;
+  --sage-bg:#26302a; --warn-bg:#332b1d; --bad-bg:#382620;
+}
+body.dark .side{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01))}
+body.dark .side .item:hover{background:#2a251f;color:var(--ink)}
+body.dark .side .item.active{background:linear-gradient(120deg,#332c22,#3a3020);border-color:var(--line)}
+body.dark .card,body.dark .stat,body.dark .row-item,body.dark .modal,
+body.dark input[type=text],body.dark input[type=email],body.dark input[type=password],
+body.dark input[type=number],body.dark select,body.dark textarea{
+  background:#26221d;border-color:#3a342c;color:var(--ink)}
+body.dark tbody tr:hover{background:#2a251f}
+body.dark th{background:#2a251f;color:var(--accent-soft)}
+body.dark .btn.ghost:hover{background:#2a251f}
+body.dark .login-card{background:#26221d}
 </style>
 </head>
 <body>
@@ -209,6 +228,7 @@ textarea{resize:vertical;min-height:90px}
       </div>
     </div>
     <span class="spacer"></span>
+    <button id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜主题" style="background:none;border:none;color:inherit;font-size:15px;cursor:pointer;padding:4px">☾</button>
     <div class="who">
       <span id="whoAmI">—</span>
       <span class="role" id="rolePill">viewer</span>
@@ -238,6 +258,23 @@ const PANELS=[
 let current="dashboard";
 const TOKEN_KEY=window.APP_TOKEN_KEY;  // 与 common.js 会话键一致
 const ROLES={viewer:"查看者",consultant:"顾问",case_manager:"办案员",org_admin:"管理员"};
+
+// === 主题（与 index 同键 deadman-theme，跨页一致）===
+function toggleTheme() {
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("deadman-theme", isDark ? "dark" : "light");
+  const btn = document.getElementById("themeToggle");
+  if (btn) btn.textContent = isDark ? "☀" : "☾";
+}
+(function initTheme() {
+  try {
+    if (localStorage.getItem("deadman-theme") === "dark") {
+      document.body.classList.add("dark");
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.textContent = "☀";
+    }
+  } catch (e) {}
+})();
 
 // el / token / api / esc / fmtDate 已由 /static/js/common.js 提供，此处不再重复定义
 function msg(id,t,type){const m=el(id);if(!m)return;m.className="msg "+type;m.innerHTML=t}
