@@ -686,3 +686,92 @@
     .domain-grid { grid-template-columns: 1fr; }
     .topbar-right .status-text { display: none; }
   }
+
+  /* =====================================================================
+     v0.3 视觉重构层 —— 参考 ChatGPT/豆包：空态欢迎屏 + 悬浮胶囊输入条
+     （仅追加覆盖，不改上方既有规则；body.dark 契约保持）
+     ===================================================================== */
+
+  /* ---- 空态欢迎屏 ---- */
+  .hero-welcome {
+    max-width: 760px; margin: auto; padding: 48px 24px 24px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    animation: msg-in .5s var(--ease) both;
+    flex: 1; justify-content: center;
+  }
+  .hero-glyph {
+    width: 64px; height: 64px; border-radius: 20px; margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+    color: #fff; font-size: 30px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-m);
+    font-family: "Songti SC", "STSong", serif;
+  }
+  .hero-title { font-size: 26px; font-weight: 700; letter-spacing: .02em; color: var(--ink); }
+  .hero-sub { margin-top: 10px; color: var(--ink-muted); font-size: 14px; }
+  .hero-cards {
+    margin-top: 28px; width: 100%;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  }
+  @media (max-width: 720px) { .hero-cards { grid-template-columns: 1fr; } }
+  .hero-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+    padding: 16px 18px; text-align: left;
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    cursor: pointer; transition: all .2s var(--ease); box-shadow: var(--shadow-s);
+    font-family: inherit;
+  }
+  .hero-card:hover { transform: translateY(-2px); border-color: var(--accent-soft); box-shadow: var(--shadow-m); }
+  .hc-icon { font-size: 20px; }
+  .hc-t { font-weight: 600; color: var(--ink); font-size: 14px; }
+  .hc-d { font-size: 12px; color: var(--ink-muted); line-height: 1.5; }
+  .hero-tip { margin-top: 26px; font-size: 12px; color: var(--ink-muted); }
+  body.dark .hero-card { background: #26221d; border-color: #3a342c; }
+  body.dark .hero-glyph { background: linear-gradient(135deg, #b56b49, #8f5038); }
+
+  /* chat-area 空态时欢迎屏居中铺满 */
+  .chat-area { display: flex; flex-direction: column; }
+
+  /* ---- 悬浮胶囊输入条 ---- */
+  .input-area {
+    background: transparent; border-top: none; backdrop-filter: none;
+    padding: 0 32px calc(20px + env(safe-area-inset-bottom));
+  }
+  .composer {
+    max-width: 780px; margin: 0 auto;
+    background: #fff; border: 1px solid var(--line); border-radius: 24px;
+    box-shadow: var(--shadow-l); overflow: hidden;
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+  }
+  .composer:focus-within { border-color: var(--accent-soft); box-shadow: var(--shadow-l), var(--ring); }
+  .composer-tools {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 10px 14px 0;
+  }
+  .composer-hint { margin-left: auto; font-size: 11px; color: var(--ink-muted); }
+  .tool-chip.stop { background: var(--err); color: #fff; border-color: var(--err); }
+  body.dark .composer { background: #211d18; border-color: #3a342c; }
+
+  .input-wrapper { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px 12px; max-width: none; margin: 0; }
+  .input-wrapper textarea {
+    border: none !important; box-shadow: none !important; background: transparent;
+    padding: 8px 10px; min-height: 44px;
+  }
+  #sendBtn {
+    width: 44px; height: 44px; flex-shrink: 0; border-radius: 50% !important;
+    border: none !important; cursor: pointer; font-size: 17px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    color: #fff; transition: transform .15s var(--ease), opacity .2s var(--ease);
+  }
+  #sendBtn:hover { transform: scale(1.06); }
+  #sendBtn:active { transform: scale(.96); }
+
+  /* ---- 消息操作栏：默认隐身，悬停浮现 ---- */
+  .msg-actions { opacity: 0; transition: opacity .18s var(--ease); }
+  .message:hover .msg-actions { opacity: 1; }
+
+  @media (max-width: 720px) {
+    .input-area { padding: 0 12px calc(12px + env(safe-area-inset-bottom)); }
+    .composer-tools { flex-wrap: wrap; }
+    .composer-hint { display: none; }
+  }

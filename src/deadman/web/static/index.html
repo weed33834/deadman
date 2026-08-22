@@ -87,41 +87,43 @@
         <button class="disclaimer-close" onclick="dismissBanner()" aria-label="关闭免责声明">×</button>
       </div>
       <div class="chat-area" id="chatArea">
-        <div class="message bot">
-          <div class="avatar bot">引</div>
-          <div>
-            <div class="bubble">您好。在这个特殊的时刻，我会陪伴您一起处理逝者的身后事务。
-<b>傻瓜式操作提示</b>：您不用点任何页面——直接告诉我需求即可，我就能为您办。例如：
-· "查北京殡葬热线" · "帮我写悼文" · "记录我家丧葬规矩" · "我的数字遗产有哪些"
-· 输入「/help」查看全部命令；下方快捷按钮一键直达。</div>
-            <div class="meta">身后事流程引导员</div>
+        <div class="hero-welcome" id="heroWelcome">
+          <div class="hero-glyph">引</div>
+          <h1 class="hero-title">您好，我是您的身后事引导员</h1>
+          <p class="hero-sub">不用研究任何页面——直接说出需求，我来为您办。以下是一些常见的开始方式：</p>
+          <div class="hero-cards">
+            <button class="hero-card" onclick="quickAction('查一下北京殡葬服务热线和办理流程')">
+              <span class="hc-icon">☎</span><span class="hc-t">查官方热线</span><span class="hc-d">各省市殡葬/白事热线与流程</span>
+            </button>
+            <button class="hero-card" onclick="quickAction('帮我写一篇悼文，父亲生前爱读书、为人宽厚')">
+              <span class="hc-icon">🕯</span><span class="hc-t">写一篇悼文</span><span class="hc-d">告诉我逝者的故事即可</span>
+            </button>
+            <button class="hero-card" onclick="quickAction('身后事办理的完整流程是什么？第一步做什么？')">
+              <span class="hc-icon">🧭</span><span class="hc-t">办理全流程</span><span class="hc-d">从死亡证明到安葬分步引导</span>
+            </button>
+            <button class="hero-card" onclick="quickAction('我的数字遗产有哪些？怎么移交给家人？')">
+              <span class="hc-icon">🔐</span><span class="hc-t">数字遗产</span><span class="hc-d">账号资产清点与移交方案</span>
+            </button>
           </div>
+          <p class="hero-tip">💡 全程傻瓜式：直接打字或点上面的卡片；输入「/help」查看全部能力</p>
         </div>
       </div>
       <div class="input-area">
-        <div class="quick-chips" id="quickChips">
-          <button class="tool-chip" onclick="quickAction('身后事办理流程')">🧭 身后事流程</button>
-          <button class="tool-chip" onclick="quickAction('医疗导航与医保报销')">🏥 医疗导航</button>
-          <button class="tool-chip" onclick="quickAction('数字遗产与保险库')">🔐 数字遗产</button>
-          <button class="tool-chip" onclick="quickAction('撰写悼文')">🕯 悼文</button>
-          <button class="tool-chip" onclick="runHotline()">☎ 官方热线</button>
-          <button class="tool-chip" onclick="runPlotDemo()">📈 画个图</button>
-          <button class="tool-chip" onclick="quickCmd('/custom list')">📜 民俗</button>
-          <button class="tool-chip" onclick="quickCmd('/family list')">👨‍👩‍👧 亲属</button>
-          <button class="tool-chip" onclick="quickCmd('/help')">❓ 命令</button>
-        </div>
-        <div class="chat-tip" id="chatTip">💡 傻瓜式操作：直接聊天即可完成一切；输入「/help」查看全部命令</div>
-          <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
-          <button class="tool-chip" id="searchToggle" onclick="toggleSearch()" title="联网搜索最新信息">🔍 联网</button>
-          <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传文件</button>
-          <button class="tool-chip" id="stopBtn" onclick="stopGeneration()" title="停止生成" style="display:none">⏹ 停止</button>
-          <input type="file" id="chatFile" accept=".pdf,.docx,.doc,.txt,.md,.csv,image/*" style="display:none" onchange="handleChatFile(this)">
-          <span class="tool-chip kb-state" id="kbState" style="display:none">知识库开</span>
-        </div>
-        <div class="input-wrapper">
-          <textarea id="input" placeholder="请输入您的问题…（/prompt、/expert、/skill 可管理提示词/专家/技能）" rows="1" onkeydown="handleKey(event)"></textarea>
-          <button id="micBtn" class="mic-btn" onclick="toggleVoiceInput()" title="语音输入" aria-label="语音输入">🎤</button>
-          <button id="sendBtn" onclick="send()" data-i18n="发送">发送</button>
+        <div class="composer">
+          <div class="composer-tools">
+            <button class="tool-chip" id="kbToggle" onclick="toggleKb()" title="引用知识库政策信息">📚 知识库</button>
+            <button class="tool-chip" id="searchToggle" onclick="toggleSearch()" title="联网搜索最新信息">🔍 联网</button>
+            <button class="tool-chip" onclick="document.getElementById('chatFile').click()" title="上传 PDF/Word/图片/TXT 供对话引用">📎 上传</button>
+            <button class="tool-chip stop" id="stopBtn" onclick="stopGeneration()" title="停止生成" style="display:none">⏹ 停止</button>
+            <input type="file" id="chatFile" accept=".pdf,.docx,.doc,.txt,.md,.csv,image/*" style="display:none" onchange="handleChatFile(this)">
+            <span class="tool-chip kb-state" id="kbState" style="display:none">知识库开</span>
+            <span class="composer-hint">Enter 发送 · Shift+Enter 换行 · /help 查看全部命令</span>
+          </div>
+          <div class="input-wrapper">
+            <textarea id="input" placeholder="说出您的需求，我来为您办…" rows="1" onkeydown="handleKey(event)"></textarea>
+            <button id="micBtn" class="mic-btn" onclick="toggleVoiceInput()" title="语音输入" aria-label="语音输入">🎤</button>
+            <button id="sendBtn" class="send-btn" onclick="send()" aria-label="发送">➤</button>
+          </div>
         </div>
         <div class="mic-hint" id="micHint"></div>
         <div class="mic-hint" id="chatHint"></div>
@@ -715,13 +717,21 @@ async function api(path, opts) {
 // === 会话管理（多会话/历史）===
 let currentSessionId = null;
 let currentSessionTitle = "";
+// esc 别名：loadSessions 渲染依赖；此前未定义导致会话列表恒显"加载失败"
+function esc(s) { return escapeHtml(s); }
 async function loadSessions(q) {
   const list = document.getElementById("sessionList");
   if (!list) return;
   q = (q || "").trim();
   try {
     const url = q ? "/api/sessions/search?q=" + encodeURIComponent(q) : "/api/sessions";
-    const d = (await api(url)).data || {};
+    const res = await api(url);
+    // 未登录：温和引导而非报错（api() 不抛异常，按状态码判断）
+    if (res.status === 401) {
+      list.innerHTML = '<div class="session-empty">登录后可同步历史会话</div>';
+      return;
+    }
+    const d = res.data || {};
     const items = d.sessions || [];
     // 按分组渲染（无搜索时）
     if (q) {
@@ -743,7 +753,10 @@ async function loadSessions(q) {
         + '<span class="session-del" onclick="event.stopPropagation();deleteSession(\'' + s.id + '\')" title="删除">×</span></div>'
       ).join("")
     ).join("") || '<div class="session-empty">暂无会话</div>';
-  } catch (e) { list.innerHTML = '<div class="session-empty">会话加载失败</div>'; }
+  } catch (e) {
+    window.__sessErr = String((e && e.stack) || e);
+    list.innerHTML = '<div class="session-empty">会话加载失败，请稍后重试</div>';
+  }
 }
 async function toggleStar(id, starred) {
   await api("/api/sessions/" + id + "/star", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ starred }) });
@@ -1023,6 +1036,9 @@ function handleKey(e) {
 }
 
 function addMessage(role, text, meta) {
+  // 首条消息出现时收起欢迎屏（GPT 式空态）
+  const hero = document.getElementById("heroWelcome");
+  if (hero) hero.remove();
   const msg = document.createElement("div");
   msg.className = "message " + role;
   const avatar = document.createElement("div");
