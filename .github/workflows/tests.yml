@@ -106,8 +106,9 @@ jobs:
             --requirement <(python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print('\n'.join(d.get('project',{}).get('dependencies',[])))") \
             --desc on \
             --strict
-        # pip-audit 发现漏洞时该 step 失败，但用 continue-on-error 让 CI 继续
-        # 以便在 PR 评论里看到完整报告（实际合并门禁由 branch protection 控制）
+        # continue-on-error 的原因：pip-audit 依赖 PyPI 实时解析依赖树，
+        # 在部分网络环境（镜像/代理）会确定性 IncompleteRead 失败；若设为阻断，
+        # CI 将因基础设施而非真实漏洞长期红灯。报告仍会输出供人工审阅。
         continue-on-error: true
 
       - name: Audit dev dependencies
