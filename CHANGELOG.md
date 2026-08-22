@@ -3,6 +3,28 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)（SemVer）。
 版本号从 `0.1.0` 起小步迭代，`0.x` 阶段保持向后兼容最小承诺。
 
+## v0.3.0（2026-08）智能体完整性拼图：多模态工具化 + OpenAI 兼容端点
+
+> 深度审计发现两类缺口：能力模块存在但未接入 agent 工具面（多模态五能力），
+> 以及生态互通缺口（无 OpenAI 协议入口）。均以"外部标准/既有模块 + 薄适配"补齐。
+
+### 多模态工具化（16 → 21 个工具）
+
+- 新增 5 个工具：`ocr_extract` / `asr_transcribe` / `analyze_image`（READ_ONLY）、
+  `text_to_speech` / `generate_image`（WRITE_ASYNC，返回 base64 产物）
+- 能力全部复用既有 multimodal 模块（provider 懒加载+降级），零新能力代码
+- ReAct 表新增 `multimodal` 统一入口（按 kwargs 键分发五能力）
+- flag 关闭/依赖缺失 → ok=False envelope，不抛异常
+
+### OpenAI 兼容端点 `/v1/chat/completions`
+
+- 任何 OpenAI-SDK 客户端（Cherry Studio / LobeChat / OpenWebUI / Cursor 自定义模型）
+  可直接把 deadman 当成一个"模型"接入
+- 协议映射：messages 末条 user → 编排图 query；`model` 字段即智能体路由器
+  （8 个已知名，未知回退默认）；system 中 `agent:<name>` 标记亦可路由
+- 双模：非流式 JSON（含 deadman 扩展字段 degraded/risk_tier/disclaimer）+
+  SSE chat.completion.chunk 流 + `[DONE]` 终止帧；认证复用 JWT 可选依赖
+
 ## v0.2.0（2026-08）CI 全绿 + 去重复造轮子 + 架构收敛
 
 > 质量门禁从红转绿（tests + build 双 workflow，ubuntu/windows 矩阵），
