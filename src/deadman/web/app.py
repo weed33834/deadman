@@ -75,6 +75,7 @@ from .routes import customs as _customs_routes
 from .routes import iam as _iam_routes
 from .routes import kinship as _kinship_routes
 from .routes import mcp as _mcp_routes
+from .routes import openai_compat as _openai_compat_routes
 from .routes import org_cases as _org_cases_routes
 from .routes import org_customers as _org_customers_routes
 from .routes import org_export as _org_export_routes
@@ -333,6 +334,7 @@ app.include_router(_scheduler_routes.router)
 app.include_router(_sessions_routes.router)
 app.include_router(_mcp_routes.router)
 app.include_router(_orgs_routes.router)
+app.include_router(_openai_compat_routes.router)
 app.include_router(_org_customers_routes.router)
 app.include_router(_org_cases_routes.router)
 app.include_router(_org_pages_routes.router)

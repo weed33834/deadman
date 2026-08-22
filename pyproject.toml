@@ -258,6 +258,8 @@ ignore = [
 # org_export / test_org_export: require_org_role + Depends 为标准框架模式
 "src/deadman/web/routes/org_export.py" = ["B008"]
 "src/tests/test_org_export.py" = ["B008"]
+# openai_compat: bearer_scheme Depends 参数默认值是框架标准模式
+"src/deadman/web/routes/openai_compat.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
