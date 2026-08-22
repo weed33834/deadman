@@ -120,3 +120,30 @@ class TestStream:
             if c["choices"][0]["delta"].get("content")
         ]
         assert "你好" in "".join(contents)
+
+    def test_stream_error_event_becomes_terminal_content(self, client, monkeypatch):
+        """graph 失败的 error 事件应转为内容帧并终止，而非静默挂起"""
+
+        async def failing_stream(agent, query, user_id=None):
+            yield 'data: {"error": "graph boom"}\n\n'
+
+        from deadman.web.routes import openai_compat
+
+        monkeypatch.setattr(openai_compat, "stream_chat_events", failing_stream)
+
+        with client.stream(
+            "POST",
+            "/v1/chat/completions",
+            json={"stream": True, "messages": [{"role": "user", "content": "x"}]},
+        ) as r:
+            raw = "".join(r.iter_text())
+
+        frames = [ln[6:] for ln in raw.split("\n") if ln.startswith("data: ")]
+        assert frames[-1] == "[DONE]"
+        chunks = [json.loads(f) for f in frames[:-1]]
+        content_frames = [c for c in chunks if c["choices"][0]["delta"].get("content")]
+        assert (
+            content_frames and "graph boom" in content_frames[-1]["choices"][0]["delta"]["content"]
+        )
+        # 终止帧：最后一个 chunk（内容帧）应带 finish_reason=stop
+        assert chunks[-1]["choices"][0]["finish_reason"] == "stop"

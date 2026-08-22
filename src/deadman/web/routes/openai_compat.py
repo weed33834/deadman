@@ -158,6 +158,11 @@ async def chat_completions(
                 continue
             chunk_text = payload.get("chunk")
             done = payload.get("done") is not None or payload.get("has_trace") is not None
+            # 错误事件透传为内容并以 stop 终止（OpenAI 协议无独立错误帧）
+            err_text = payload.get("error")
+            if err_text and chunk_text is None:
+                chunk_text = f"[服务暂不可用] {err_text}"
+                done = True
             if chunk_text is None and not done:
                 continue
             delta: dict[str, Any] = {}
