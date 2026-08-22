@@ -33,7 +33,7 @@ BROWSER_TOOL_ENABLED: bool = os.environ.get("DEADMAN_BROWSER_TOOL_ENABLED", "0")
 )
 
 #: 单页操作默认超时（秒）
-DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_TIMEOUT_SECONDS = int(os.environ.get("DEADMAN_BROWSER_TIMEOUT_SECONDS", "30"))
 #: 提取文本最大字符数（防 token 爆炸）
 MAX_TEXT_CHARS = 50_000
 #: 截图最长边像素上限

@@ -3148,7 +3148,7 @@ async def browser_automation(
     url: str = "",
     selector: str = "",
     text: str = "",
-    timeout_seconds: int = 30,
+    timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     """驱动 headless 浏览器执行单步操作
 
@@ -3157,14 +3157,14 @@ async def browser_automation(
     - integrity-framework：失败返回 ok=False + error，不抛异常
     - 默认关闭：DEADMAN_BROWSER_TOOL_ENABLED=1 由部署方显式开启
     """
-    from ..tools.browser import run_browser_action
+    from ..tools.browser import DEFAULT_TIMEOUT_SECONDS, run_browser_action
 
     return await run_browser_action(
         action=action,
         url=url,
         selector=selector,
         text=text,
-        timeout_seconds=timeout_seconds,
+        timeout_seconds=DEFAULT_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds,
     )
 
 
