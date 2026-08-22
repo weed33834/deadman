@@ -349,7 +349,7 @@ function renderCaseRows(cases){
     <td>${esc(c.customer_name||c.customer_id||"-")}</td>
     <td>${esc(caseTypeName(c.case_type))}</td>
     <td>${statusPill(c.status)}</td>
-    <td>${esc(c.assignee_user_id||"未分配")}</td>
+    <td>${esc(c.assignee_name||c.assignee_user_id||"未分配")}</td>
     <td class="muted">${esc((c.updated_at||"").slice(0,10))}</td></tr>`).join("")}</tbody></table>`;
 }
 
@@ -409,7 +409,7 @@ async function openCustomerCases(id,name){
       <div class="row-item" style="margin-bottom:10px">
         <div class="body">
           <div class="title">${esc(caseTypeName(c.case_type))} ${statusPill(c.status)}</div>
-          <div class="meta"><span>负责人：${esc(c.assignee_user_id||"未分配")}</span>
+          <div class="meta"><span>负责人：${esc(c.assignee_name||c.assignee_user_id||"未分配")}</span>
             <span>更新：${esc((c.updated_at||"").slice(0,10))}</span></div>
         </div></div>`).join(""):empty("◍","该客户暂无案件")}
     <div class="actions"><button class="btn" onclick="openCaseForm('${esc(id)}')">为该客户办案</button>
@@ -433,7 +433,7 @@ async function renderCases(){
          <div class="title">${esc(caseTypeName(c.case_type))} ${statusPill(c.status)}</div>
          <div class="meta">
            <span>客户：${esc(c.customer_name||c.customer_id||"-")}</span>
-           <span>负责人：${esc(c.assignee_user_id||"未分配")}</span>
+           <span>负责人：${esc(c.assignee_name||c.assignee_user_id||"未分配")}</span>
            <span>优先级：<span class="pill ${c.priority==="high"||c.priority==="urgent"?"warn":"off"}">${esc(priorityName(c.priority))}</span></span>
            <span>更新：${esc((c.updated_at||"").slice(0,10))}</span>
          </div>

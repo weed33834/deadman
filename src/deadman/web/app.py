@@ -456,6 +456,7 @@ async def favicon_svg():
 
 @app.get("/admin", include_in_schema=False)
 @app.get("/admin/", include_in_schema=False)
+@app.get("/admin.html", include_in_schema=False)
 async def admin_index():
     """G1 管理台入口页（admin.html）"""
     return FileResponse(_STATIC_DIR / "admin.html", media_type="text/html; charset=utf-8")

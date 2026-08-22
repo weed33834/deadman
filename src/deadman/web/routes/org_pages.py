@@ -99,6 +99,27 @@ async def org_dashboard(ctx: dict = Depends(require_org_role("viewer"))):
         status_breakdown[s] = status_breakdown.get(s, 0) + 1
 
     recent = sorted(cases, key=lambda c: c.get("updated_at", ""), reverse=True)[:8]
+
+    # 富化：客户名 + 负责人名（避免工作台裸露 UUID）
+    customers = await customer_repo.list_by_org(tenant_id)
+    cust_names = {c.get("id"): (c.get("display_name") or "") for c in customers}
+    from ..deps import get_user_store as _get_user_store
+
+    _user_store = _get_user_store()
+    user_names: dict[str, str] = {}
+
+    def _uname(uid: str | None) -> str:
+        if not uid:
+            return ""
+        if uid not in user_names:
+            u = _user_store.get_user(uid)
+            user_names[uid] = (u.get("display_name") or u.get("email") or uid) if u else uid
+        return user_names[uid]
+
+    for item in recent:
+        item["customer_name"] = cust_names.get(item.get("customer_id"), "")
+        item["assignee_name"] = _uname(item.get("assignee_user_id"))
+
     return {
         "customer_count": customer_count,
         "case_count": len(cases),

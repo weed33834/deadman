@@ -113,7 +113,7 @@ async function renderOverview(){
   const d=(await api("/api/admin/overview")).data||{}; const llm=d.llm||{};
   el("main").innerHTML=card("服务概览","总览",`<div class="grid">
    ${stat("主模型",`${llm.provider||"-"} / ${llm.model||"-"}`)}${stat("主智能体",(d.agents&&d.agents.main)||0,"并列 6 个")}
-   ${stat("注册Agent",(d.agents&&d.agents.registry)||0)}${stat("工具",(d.tools&&d.tools.total)||0,"启用 "+(d.tools&&d.tools.enabled)||0)}
+   ${stat("注册Agent",(d.agents&&d.agents.registry)||0)}${stat("工具",(d.tools&&d.tools.total)||0,"启用 "+((d.tools&&d.tools.enabled)??0))}
    ${stat("外部MCP",d.external_mcp_servers||0)}</div>`)+card("管理入口","",`<div class="muted">本控制台支持对提示词/Agent/工具/音色/模型做真实增删改调与试跑测试，并支持全量配置备份迁移。左侧导航进入各资源管理面板。</div>`);
 }
 let promptsList=[],promptSelName="";

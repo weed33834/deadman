@@ -671,10 +671,21 @@ class LLMClient:
             return self._openai_client
         base = self.base_url or _PROVIDER_DEFAULTS.get(self.provider, {}).get("base_url", "")
         if _HAS_OPENAI_SDK:
+            # 自定义网关：禁用 keep-alive 复用。聚合网关普遍空闲即断连，
+            # SDK 默认连接池会复用被对端 RST 的死连接 → 间歇性 Connection error
+            http_client = None
+            if self.base_url and _HAS_HTTPX:
+                import httpx as _httpx
+
+                http_client = _httpx.AsyncClient(
+                    limits=_httpx.Limits(max_keepalive_connections=0),
+                    timeout=self.timeout,
+                )
             self._openai_client = AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=base,
                 timeout=self.timeout,
+                http_client=http_client,
             )
             return self._openai_client
         # 降级：无 SDK 时用 httpx
