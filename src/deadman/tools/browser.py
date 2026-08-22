@@ -86,13 +86,7 @@ def _is_private_host(hostname: str) -> bool:
             ip = ipaddress.ip_address(addr)
         except ValueError:
             continue
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             return True
     return False
 
@@ -112,13 +106,7 @@ def _validate_url(url: str) -> str | None:
     # 字面量 IP 直接判；域名走 DNS 解析判定（防内网/元数据端点探测）
     try:
         ip = ipaddress.ip_address(hostname)
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             if os.environ.get("DEADMAN_BROWSER_ALLOW_PRIVATE", "0").lower() not in (
                 "1",
                 "true",

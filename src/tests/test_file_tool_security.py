@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from deadman.mcp_server.server import _safe_resolve
@@ -18,10 +20,20 @@ class TestPathTraversal:
         "bad",
         [
             "../outside.txt",
-            "..\\outside.txt",
             "a/../../b.txt",
-            "/etc/passwd",  # 绝对路径越界（非 Windows 根内）
-            "C:/Windows/win.ini",
+            "/etc/passwd",  # 绝对路径：POSIX 直指根外；Windows 解析到当前盘根外
+            pytest.param(
+                "..\\outside.txt",
+                marks=pytest.mark.skipif(
+                    sys.platform != "win32", reason="反斜杠仅在 Windows 是分隔符"
+                ),
+            ),
+            pytest.param(
+                "C:/Windows/win.ini",
+                marks=pytest.mark.skipif(
+                    sys.platform != "win32", reason="盘符绝对路径仅 Windows 有意义"
+                ),
+            ),
         ],
     )
     def test_traversal_blocked(self, bad: str):
