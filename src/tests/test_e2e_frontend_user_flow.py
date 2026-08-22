@@ -105,10 +105,12 @@ def test_home_html_integrity(client):
         assert f'id="{chart_id}"' in html, f"{chart_id} 缺失"
     print("  ✓ P9 dashboard 函数 + 4 个图表容器就位")
 
-    # P10 夜砚暗色模式 + 主题切换按钮
-    assert "body.dark" in html, "夜砚暗色模式 CSS 缺失"
+    # P10 夜砚暗色模式 + 主题切换按钮（CSS 已抽取到 /static/css/app.css）
     assert "theme-toggle" in html, "主题切换按钮缺失"
-    print("  ✓ 暗色模式 + 主题切换按钮就位")
+    css = client.get("/static/css/app.css")
+    assert css.status_code == 200, "app.css 应可达"
+    assert "body.dark" in css.text, "夜砚暗色模式 CSS 缺失"
+    print("  ✓ 暗色模式（app.css）+ 主题切换按钮就位")
 
     # send() 函数含 SSE 事件分发逻辑
     assert "currentEvent" in html, "SSE event 分发逻辑缺失"

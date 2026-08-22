@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -70,7 +71,7 @@ def _graph(data: dict[str, Any]) -> dict[str, Any]:
 @router.get("")
 async def kinship_get() -> dict[str, Any]:
     """GET /api/kinship —— 图谱数据（成员+关系+图结构）"""
-    data = _load()
+    data = await asyncio.to_thread(_load)
     data["graph"] = _graph(data)
     return {"ok": True, **data}
 
@@ -81,7 +82,7 @@ async def kinship_add_member(member: dict[str, Any] = Body(default=None)) -> dic
     member = member or {}
     if not member.get("name"):
         raise DeadmanHTTPException("DM-VALID-4002", message="name 必填")
-    data = _load()
+    data = await asyncio.to_thread(_load)
     mid = member.get("id") or f"m-{uuid.uuid4().hex[:8]}"
     data["members"].append(
         {
@@ -105,7 +106,7 @@ async def kinship_update_member(
     member: dict[str, Any] = Body(default=None),  # noqa: B008
 ) -> dict[str, Any]:
     """PUT /api/kinship/member/{id} —— 更新成员"""
-    data = _load()
+    data = await asyncio.to_thread(_load)
     target = next((m for m in data["members"] if m["id"] == member_id), None)
     if target is None:
         raise DeadmanHTTPException("DM-GENERAL-4040", message=f"成员不存在: {member_id}")
@@ -120,7 +121,7 @@ async def kinship_update_member(
 @router.delete("/member/{member_id}")
 async def kinship_delete_member(member_id: str) -> dict[str, Any]:
     """DELETE /api/kinship/member/{id} —— 删除成员（连带其关系）"""
-    data = _load()
+    data = await asyncio.to_thread(_load)
     before = len(data["members"])
     data["members"] = [m for m in data["members"] if m["id"] != member_id]
     data["relations"] = [
@@ -144,7 +145,7 @@ async def kinship_add_relation(rel: dict[str, Any] = Body(default=None)) -> dict
         raise DeadmanHTTPException("DM-VALID-4001", message=f"关系需 from/to，type ∈ {_REL_TYPES}")
     if rel["from"] == rel["to"]:
         raise DeadmanHTTPException("DM-VALID-4001", message="from 与 to 不能相同")
-    data = _load()
+    data = await asyncio.to_thread(_load)
     for r in data["relations"]:
         if r["from"] == rel["from"] and r["to"] == rel["to"] and r["type"] == rel["type"]:
             raise DeadmanHTTPException("DM-VALID-4001", message="该关系已存在")
@@ -158,7 +159,7 @@ async def kinship_delete_relation(
     from_id: str = "", to_id: str = "", type: str = ""
 ) -> dict[str, Any]:
     """DELETE /api/kinship/relation?from=&to=&type= —— 删除关系"""
-    data = _load()
+    data = await asyncio.to_thread(_load)
     before = len(data["relations"])
     data["relations"] = [
         r

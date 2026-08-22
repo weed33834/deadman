@@ -18,7 +18,7 @@
   [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
   [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
   [![Version](https://img.shields.io/badge/version-6.0.0-6b5d4f.svg)](CHANGELOG.md)
-  [![Tests](https://img.shields.io/badge/pytest-3120%20passed-brightgreen)]()
+  [![Tests](https://img.shields.io/badge/pytest-3137%20passed-brightgreen)]()
   [![MCP](https://img.shields.io/badge/MCP-Server%2BClient-blueviolet)]()
 </p>
 
@@ -74,7 +74,7 @@ Open `http://localhost:8002` 鈥?the chat is the primary interface. The admin co
 ### Run tests
 
 ```bash
-python -m pytest            # 3120 passed
+python -m pytest            # 3137 passed
 ```
 
 ## 馃棬 Conversation Commands
@@ -126,7 +126,7 @@ To make this repo easy to find, add these as **repository topics/tags** on GitHu
 - **Folk-custom & kinship**: `/custom` rules engine + `/family` SVG kinship graph.
 - **Universal agent stack**: MCP client, sandboxed code execution, **browser automation** (Playwright), multimodal tools (vision/TTS/ASR/OCR/image-gen), file parsing, export, scheduled tasks, IAM, i18n, traces, alerts, error codes.
 - **Ecosystem interop**: **OpenAI-compatible /v1/chat/completions** endpoint — plug deadman into Cherry Studio / LobeChat / OpenWebUI / any OpenAI-SDK client; MCP server & A2A protocol built in.
-- **10-layer clean architecture**, `3120` passing tests, zero shells.
+- **10-layer clean architecture**, `3137` passing tests, zero shells.
 
 ## License
 

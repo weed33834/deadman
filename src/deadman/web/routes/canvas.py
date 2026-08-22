@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -95,7 +96,7 @@ async def canvas_create(title: str = Body(default="", embed=True)) -> dict[str, 
 async def canvas_get(canvas_id: str) -> dict[str, Any]:
     """GET /api/canvas/{id} —— 画布详情"""
     cid = _safe_id(canvas_id)
-    data = _load(cid)
+    data = await asyncio.to_thread(_load, cid)
     if data is None:
         raise DeadmanHTTPException("DM-GENERAL-4040", message=f"画布不存在: {canvas_id}")
     return {"ok": True, "canvas": data}
@@ -109,7 +110,7 @@ async def canvas_update(
 ) -> dict[str, Any]:
     """PUT /api/canvas/{id} —— 更新标题 / blocks"""
     cid = _safe_id(canvas_id)
-    data = _load(cid)
+    data = await asyncio.to_thread(_load, cid)
     if data is None:
         raise DeadmanHTTPException("DM-GENERAL-4040", message=f"画布不存在: {canvas_id}")
     if title is not None:
@@ -142,7 +143,7 @@ async def canvas_ai(
     from ...llm import llm_client
 
     cid = _safe_id(canvas_id)
-    data = _load(cid)
+    data = await asyncio.to_thread(_load, cid)
     if data is None:
         raise DeadmanHTTPException("DM-GENERAL-4040", message=f"画布不存在: {canvas_id}")
     blocks = data.get("blocks", [])
