@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import shutil
 from typing import Any
@@ -100,6 +101,11 @@ async def _docker_exec(command: list[str]) -> dict[str, Any]:
             "stderr": stderr.decode("utf-8", errors="replace"),
         }
     except asyncio.TimeoutError:
+        # 超时必须杀掉子进程，否则僵尸 docker/python 进程永久驻留
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        with contextlib.suppress(Exception):
+            await proc.wait()
         return {"exit_code": -1, "stdout": "", "stderr": "timeout"}
     except Exception as exc:
         return {"exit_code": -1, "stdout": "", "stderr": str(exc)}
@@ -167,6 +173,14 @@ async def sandbox_write_file(path: str, content: str, encoding: str = "utf-8") -
             "error": stderr.decode("utf-8", errors="replace"),
             "sandbox": True,
         }
+    except asyncio.TimeoutError:
+        # 超时杀掉子进程（防僵尸），再降级本地写入
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        with contextlib.suppress(Exception):
+            await proc.wait()
+        logger.warning("Docker 沙箱写入超时，降级为本地")
+        return _local_write(path, content, encoding)
     except Exception as exc:
         logger.warning("Docker 沙箱写入失败，降级为本地: %s", exc)
         return _local_write(path, content, encoding)

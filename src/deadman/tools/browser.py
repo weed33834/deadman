@@ -17,8 +17,10 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import ipaddress
 import logging
 import os
+import socket
 import threading
 from typing import Any
 from urllib.parse import urlparse
@@ -65,8 +67,38 @@ def _probe_playwright() -> tuple[bool, str]:
     return True, ""
 
 
+def _is_private_host(hostname: str) -> bool:
+    """SSRF 守卫：主机名解析到回环/私网/链路本地地址则拒绝。
+
+    防止 agent（含提示注入场景）借浏览器探测内网服务或云元数据端点
+    （169.254.169.254）。DEADMAN_BROWSER_ALLOW_PRIVATE=1 可显式放开
+    （仅限本地开发）。
+    """
+    if os.environ.get("DEADMAN_BROWSER_ALLOW_PRIVATE", "0").lower() in ("1", "true", "yes"):
+        return False
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except OSError:
+        return True  # 解析失败按不可达处理，不放行
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            return True
+    return False
+
+
 def _validate_url(url: str) -> str | None:
-    """仅允许 http/https；返回错误信息或 None"""
+    """仅允许公网 http/https；返回错误信息或 None"""
     if not url or not url.strip():
         return "url 不能为空"
     parsed = urlparse(url.strip())
@@ -74,6 +106,28 @@ def _validate_url(url: str) -> str | None:
         return f"仅支持 http/https URL，收到 scheme={parsed.scheme!r}"
     if not parsed.netloc:
         return "URL 缺少主机名"
+    hostname = parsed.hostname or ""
+    if not hostname:
+        return "URL 缺少主机名"
+    # 字面量 IP 直接判；域名走 DNS 解析判定（防内网/元数据端点探测）
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            if os.environ.get("DEADMAN_BROWSER_ALLOW_PRIVATE", "0").lower() not in (
+                "1",
+                "true",
+                "yes",
+            ):
+                return "禁止访问私有/回环/链路本地地址（SSRF 守卫）"
+    except ValueError:
+        if _is_private_host(hostname):
+            return "目标域名解析到私有/保留网络地址，已拦截（SSRF 守卫）"
     return None
 
 

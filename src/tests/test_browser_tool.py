@@ -46,12 +46,23 @@ class TestGuards:
             ("", "不能为空"),
             ("   ", "不能为空"),
             ("https://", "主机名"),
+            # SSRF 守卫：回环/私网/云元数据端点
+            ("http://127.0.0.1:8019/api/admin/x", "SSRF"),
+            ("http://localhost:8000/api/health", "SSRF"),
+            ("http://169.254.169.254/latest/meta-data/", "SSRF"),
+            ("http://10.0.0.5/internal", "SSRF"),
+            ("http://192.168.1.1/router", "SSRF"),
         ],
     )
     async def test_url_guard_blocks_non_http(self, monkeypatch, bad_url: str, why: str):
         monkeypatch.setattr(browser_mod, "BROWSER_TOOL_ENABLED", True)
         err = _validate_url(bad_url)
         assert err is not None and why in err, f"{bad_url!r} 应被阻断（{why}）"
+
+    def test_private_allow_escape_hatch(self, monkeypatch):
+        """DEADMAN_BROWSER_ALLOW_PRIVATE=1 时放行内网（本地开发用）"""
+        monkeypatch.setenv("DEADMAN_BROWSER_ALLOW_PRIVATE", "1")
+        assert _validate_url("http://127.0.0.1:8019/") is None
 
     def test_valid_https_passes(self):
         assert _validate_url("https://example.com/page") is None

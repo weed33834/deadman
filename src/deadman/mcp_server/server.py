@@ -183,10 +183,25 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_SENSITIVE_SUFFIXES = (".env", ".env.local", ".env.production", ".key", ".pem", ".p12", ".pfx")
+_SENSITIVE_SEGMENTS = (".git", ".pytest_cache", ".ruff_cache")
+
+
+def _is_sensitive_path(candidate: Path) -> bool:
+    """敏感文件守卫：密钥/env/git 内部物禁止经工具读取（防提示注入外泄）"""
+    name = candidate.name.lower()
+    if name == ".env" or name.startswith(".env."):
+        return True
+    if name == ".vault_master_key" or name.endswith(_SENSITIVE_SUFFIXES):
+        return True
+    parts = {seg.lower() for seg in candidate.parts}
+    return bool(parts & set(_SENSITIVE_SEGMENTS))
+
+
 def _safe_resolve(project_relative: str) -> Path | None:
     """将项目内相对路径解析为绝对路径，并校验未越界
 
-    返回 None 表示路径不安全（越界 / 路径穿越）。
+    返回 None 表示路径不安全（越界 / 路径穿越 / 敏感文件）。
     """
     if not project_relative:
         return None
@@ -200,6 +215,9 @@ def _safe_resolve(project_relative: str) -> Path | None:
     try:
         candidate.relative_to(root)
     except ValueError:
+        return None
+    # 敏感文件：.env / 主密钥 / 密钥材料 / .git 内部（防注入外泄）
+    if _is_sensitive_path(candidate):
         return None
     return candidate
 
