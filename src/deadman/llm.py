@@ -530,6 +530,7 @@ class LLMClient:
     ) -> LLMResponse:
         """调用 LLM，返回含工具调用的完整响应。失败时走 fallback 链"""
         last_error: Exception | None = None
+        rate_limit_delay = 1.0  # 限频退避起点（秒），逐候选拱手加倍，封顶 8s
         # 先试主客户端，再试 fallback
         for client in [self, *self._fallback_clients]:
             try:
@@ -547,6 +548,12 @@ class LLMClient:
                     client.model,
                     e,
                 )
+                # 限频（429）时退避再试下一候选：共享配额池的网关上
+                # 无退避的连环切换会把整条 fallback 链的额度一次性打光
+                name = type(e).__name__
+                if name == "RateLimitError" or "429" in str(e) or "rate limit" in str(e).lower():
+                    await asyncio.sleep(rate_limit_delay)
+                    rate_limit_delay = min(rate_limit_delay * 2, 8.0)
                 continue
         raise RuntimeError(f"所有 LLM 均调用失败，最后错误: {last_error}") from last_error
 
