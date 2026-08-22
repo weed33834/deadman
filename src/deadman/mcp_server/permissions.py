@@ -45,7 +45,7 @@ class ToolPermission(str, Enum):
 
 
 # =====================================================================
-# 权限注册表 - 16 个工具的默认权限
+# 权限注册表 - 21 个工具的默认权限
 # =====================================================================
 
 PERMISSION_REGISTRY: dict[str, ToolPermission] = {
@@ -57,12 +57,17 @@ PERMISSION_REGISTRY: dict[str, ToolPermission] = {
     "check_integrity": ToolPermission.READ_ONLY,
     "check_rules": ToolPermission.READ_ONLY,
     "query_memory": ToolPermission.READ_ONLY,
+    "ocr_extract": ToolPermission.READ_ONLY,
+    "asr_transcribe": ToolPermission.READ_ONLY,
+    "analyze_image": ToolPermission.READ_ONLY,
     # ---------- write-confirm ----------
     "write_file": ToolPermission.WRITE_CONFIRM,
     "init_transfer": ToolPermission.WRITE_CONFIRM,
     # ---------- write-async ----------
     "execute_code": ToolPermission.WRITE_ASYNC,
     "browser_automation": ToolPermission.WRITE_ASYNC,
+    "text_to_speech": ToolPermission.WRITE_ASYNC,
+    "generate_image": ToolPermission.WRITE_ASYNC,
     # ---------- dangerous ----------
     "execute_reflexion": ToolPermission.DANGEROUS,
     # ---------- 中性（按 read-only 对待：可缓存、无需二次确认）----------

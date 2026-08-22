@@ -1,4 +1,4 @@
-"""MCP Server 实现 - 封装身后事平台的 16 个工具
+"""MCP Server 实现 - 封装身后事平台的 21 个工具
 
 优先尝试使用 FastMCP；若 fastmcp 包不可用，则降级为纯 Python async + 装饰器模式。
 两种实现共享同一套工具注册逻辑，调用方式对上层透明。
@@ -3120,6 +3120,60 @@ def _strip_image_marker(stdout: str) -> str:
         "",
         stdout,
     ).strip()
+
+
+@mcp.tool_auto(
+    name="ocr_extract",
+    description="OCR 图片文字提取（输出自动 PII 脱敏）。多模态 flag 关闭或依赖缺失时 ok=False。",
+)
+def ocr_extract_tool(image_path: str, user_id: str = "unknown") -> dict[str, Any]:
+    from ..tools.multimodal_tools import tool_ocr_extract
+
+    return tool_ocr_extract(image_path=image_path, user_id=user_id)
+
+
+@mcp.tool_auto(
+    name="asr_transcribe",
+    description="语音转文字（音频文件路径）。支持 cloud / whisper provider 懒加载降级。",
+)
+def asr_transcribe_tool(
+    audio_path: str, language: str = "auto", user_id: str = "unknown"
+) -> dict[str, Any]:
+    from ..tools.multimodal_tools import tool_asr_transcribe
+
+    return tool_asr_transcribe(audio_path=audio_path, language=language, user_id=user_id)
+
+
+@mcp.tool_auto(
+    name="text_to_speech",
+    description="文字转语音，返回 base64 音频（provider：edge-tts 等，懒加载）。",
+)
+def text_to_speech_tool(text: str, user_id: str = "unknown") -> dict[str, Any]:
+    from ..tools.multimodal_tools import tool_text_to_speech
+
+    return tool_text_to_speech(text=text, user_id=user_id)
+
+
+@mcp.tool_auto(
+    name="analyze_image",
+    description="视觉理解：描述图片内容或回答关于图片的问题（GPT-4V/Claude Vision 懒加载）。",
+)
+def analyze_image_tool(
+    image_path: str, question: str = "", user_id: str = "unknown"
+) -> dict[str, Any]:
+    from ..tools.multimodal_tools import tool_analyze_image
+
+    return tool_analyze_image(image_path=image_path, question=question, user_id=user_id)
+
+
+@mcp.tool_auto(
+    name="generate_image",
+    description="文生图：按提示词生成图片，返回 base64 PNG（DALL-E/SD provider 懒加载）。",
+)
+def generate_image_tool(prompt: str, user_id: str = "unknown") -> dict[str, Any]:
+    from ..tools.multimodal_tools import tool_generate_image
+
+    return tool_generate_image(prompt=prompt, user_id=user_id)
 
 
 @mcp.tool_auto(

@@ -189,6 +189,33 @@ async def _wrap_browser(
     return await run_browser_action(action=action, url=url, selector=selector, text=text)
 
 
+async def _wrap_multimodal(**kwargs: Any) -> Any:
+    """多模态统一入口：按 kwargs 键分发到对应能力工具。
+
+    - image_path + ocr=True   → OCR
+    - audio_path              → ASR
+    - text + tts=True         → TTS
+    - image_path（无 ocr）    → 视觉理解
+    - prompt                  → 文生图
+    """
+    from ..tools import multimodal_tools as mt
+
+    uid = kwargs.get("user_id", "unknown")
+    if kwargs.get("ocr"):
+        return mt.tool_ocr_extract(image_path=kwargs.get("image_path", ""), user_id=uid)
+    if kwargs.get("tts") or (kwargs.get("text") and not kwargs.get("prompt")):
+        return mt.tool_text_to_speech(text=kwargs.get("text", ""), user_id=uid)
+    if kwargs.get("audio_path"):
+        return mt.tool_asr_transcribe(audio_path=kwargs["audio_path"], user_id=uid)
+    if kwargs.get("image_path"):
+        return mt.tool_analyze_image(
+            image_path=kwargs["image_path"], question=kwargs.get("question", ""), user_id=uid
+        )
+    if kwargs.get("prompt"):
+        return mt.tool_generate_image(prompt=kwargs["prompt"], user_id=uid)
+    return {"ok": False, "error": "需要 image_path / audio_path / text+tts / prompt 之一"}
+
+
 # 注册表:工具名 → wrapper
 _TOOL_WRAPPERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "web_search": _wrap_web_search,
@@ -218,6 +245,7 @@ async def _wrap_awareness(text: str = "", **_: Any) -> Any:
 _TOOL_WRAPPERS["awareness"] = _wrap_awareness
 _TOOL_WRAPPERS["browser"] = _wrap_browser
 _TOOL_WRAPPERS["browser_automation"] = _wrap_browser  # 别名，对齐 MCP 工具名
+_TOOL_WRAPPERS["multimodal"] = _wrap_multimodal
 
 
 def register_default_react_tools() -> None:

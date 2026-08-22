@@ -1,7 +1,7 @@
 """测试 deadman.mcp_server - MCP Server 工具注册与调用
 
 覆盖点：
-  - list_tools 返回 16 个工具
+  - list_tools 返回 21 个工具
   - call_tool query_knowledge 知识库查询
   - call_tool check_rules 规则校验
 """
@@ -18,11 +18,11 @@ from deadman.mcp_server.server import McpServer, mcp
 class TestMcpServerRegistration:
     """测试 McpServer 工具注册"""
 
-    def test_list_tools_returns_16_tools(self):
-        # 全局 mcp 单例应注册了 16 个工具
-        # （13 原有 + web_search_official + execute_code + browser_automation）
+    def test_list_tools_returns_21_tools(self):
+        # 全局 mcp 单例应注册了 21 个工具
+        # （16 + 多模态五能力：ocr/asr/tts/vision/image_gen）
         tools = mcp.list_tools()
-        assert len(tools) == 16
+        assert len(tools) == 21
 
     def test_list_tools_format(self):
         # 每个工具含 name/description/inputSchema
@@ -33,7 +33,7 @@ class TestMcpServerRegistration:
             assert "inputSchema" in tool
 
     def test_expected_tool_names(self):
-        # 16 个工具名齐全（13 原有 + web_search_official + execute_code + browser_automation）
+        # 21 个工具名齐全（16 + 多模态五能力）
         tools = mcp.list_tools()
         names = {t["name"] for t in tools}
         expected = {
@@ -53,6 +53,11 @@ class TestMcpServerRegistration:
             "report_incident",
             "execute_code",
             "browser_automation",
+            "ocr_extract",
+            "asr_transcribe",
+            "text_to_speech",
+            "analyze_image",
+            "generate_image",
         }
         assert names == expected
 

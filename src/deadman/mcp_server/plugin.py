@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _PLUGIN_META = PluginMeta(
     name="deadman-mcp",
     version=_core_version,
-    description="Model Context Protocol server（16 个工具：知识查询/联网搜索/文件读写/子智能体/沙箱/浏览器自动化等）",
+    description="Model Context Protocol server（21 个工具：知识查询/联网搜索/文件读写/子智能体/沙箱/浏览器自动化/多模态五能力等）",
     extra={"home": "src/deadman/mcp_server"},
 )
 
