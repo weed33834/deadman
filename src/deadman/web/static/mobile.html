@@ -406,6 +406,26 @@ body {
 .chat-send-btn:disabled { opacity: 0.4; }
 .chat-send-btn:active { transform: scale(0.92); }
 
+/* ---- 移动端欢迎屏（对齐 index v0.3 风格）---- */
+.m-hero { padding: 28px 14px 10px; text-align: center; }
+.m-hero-glyph {
+  width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff; font-size: 24px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.m-hero-title { font-size: 19px; font-weight: 700; }
+.m-hero-sub { font-size: 12px; color: var(--ink-muted, #8c8578); margin-top: 4px; }
+.m-card {
+  width: 100%; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; margin-top: 10px; text-align: left;
+  background: #fff; border: 1px solid var(--line, #e4ded3); border-radius: 14px;
+  cursor: pointer; transition: all .2s ease; font-family: inherit;
+}
+.m-card:active { transform: scale(.98); border-color: var(--accent); }
+.m-card span { font-weight: 600; font-size: 14px; color: var(--ink, #201c17); }
+.m-card small { font-size: 11px; color: var(--ink-muted, #8c8578); }
+
 /* --- 列表项 --- */
 .list-item {
  background: var(--bg-card);
@@ -774,7 +794,15 @@ body {
  </div>
  <div class="chat-messages" id="chatMessages">
  <div class="chat-messages-inner" id="chatInner">
- <div class="chat-bubble bot">您好，我是身后事引导助手。在这个艰难的时刻，我在这里陪伴您。您可以问我任何关于身后事流程、法律、财务的问题，也可以只是聊聊天。</div>
+ <div class="m-hero" id="mHero">
+ <div class="m-hero-glyph">引</div>
+ <div class="m-hero-title">您好，我是身后事引导助手</div>
+ <div class="m-hero-sub">点卡片快速开始，或直接输入</div>
+ <button class="m-card" data-action="hero-send" data-arg="查一下殡葬服务热线和办理流程"><span>☎ 查官方热线</span><small>各省市白事热线</small></button>
+ <button class="m-card" data-action="hero-send" data-arg="帮我写一篇悼文，父亲生前爱读书、为人宽厚"><span>🕯 写悼文</span><small>告诉我逝者的故事即可</small></button>
+ <button class="m-card" data-action="hero-send" data-arg="身后事办理的完整流程是什么？"><span>🧭 办理流程</span><small>分步引导</small></button>
+ <button class="m-card" data-action="hero-send" data-arg="我的数字遗产有哪些？怎么移交给家人？"><span>🔐 数字遗产</span><small>清点与移交方案</small></button>
+ </div>
  </div>
  </div>
   <div class="chat-input-bar">

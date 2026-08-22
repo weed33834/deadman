@@ -158,6 +158,10 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text || isStreaming) return;
 
+  // 首条消息收起欢迎屏
+  const hero = document.getElementById('mHero');
+  if (hero) hero.remove();
+
   // 添加用户消息
   appendBubble(text, 'user');
   input.value = '';
@@ -1369,6 +1373,12 @@ const _ACTION_MAP = {
 
 // 带参数的动作：data-action="view-vault-item" data-id="xxx"
 const _PARAM_ACTION_MAP = {
+  'hero-send': (arg) => {
+    const input = document.getElementById('chatInput');
+    if (!arg || isStreaming) return;
+    input.value = arg;
+    sendMessage();
+  },
   'switch-tab': (arg) => {
     closeFormPage();
     switchTab(arg);

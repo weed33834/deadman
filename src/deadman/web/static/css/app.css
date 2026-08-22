@@ -725,9 +725,23 @@
   .hc-icon { font-size: 20px; }
   .hc-t { font-weight: 600; color: var(--ink); font-size: 14px; }
   .hc-d { font-size: 12px; color: var(--ink-muted); line-height: 1.5; }
+  /* 自定义卡片的删除钮：悬停浮现 */
+  .hero-card { position: relative; }
+  .hc-del {
+    position: absolute; top: 8px; right: 10px; width: 22px; height: 22px;
+    border-radius: 50%; display: none; align-items: center; justify-content: center;
+    background: var(--paper-warm); color: var(--ink-muted); font-size: 14px; cursor: pointer;
+  }
+  .hero-card:hover .hc-del { display: flex; }
+  .hc-del:hover { background: var(--err); color: #fff; }
+  body.dark .hc-del { background: #3a342c; }
   .hero-tip { margin-top: 26px; font-size: 12px; color: var(--ink-muted); }
   body.dark .hero-card { background: #26221d; border-color: #3a342c; }
   body.dark .hero-glyph { background: linear-gradient(135deg, #b56b49, #8f5038); }
+  /* 暗色下次要文字对比度提升（WCAG AA）：muted #8c8578 在暗底上偏弱 */
+  body.dark .hero-sub, body.dark .hero-tip,
+  body.dark .hc-d, body.dark .composer-hint { color: #a89f8f; }
+  body.dark .hero-card:hover { border-color: #6b4f3d; }
 
   /* chat-area 空态时欢迎屏居中铺满 */
   .chat-area { display: flex; flex-direction: column; }

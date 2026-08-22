@@ -105,7 +105,9 @@
               <span class="hc-icon">🔐</span><span class="hc-t">数字遗产</span><span class="hc-d">账号资产清点与移交方案</span>
             </button>
           </div>
-          <p class="hero-tip">💡 全程傻瓜式：直接打字或点上面的卡片；输入「/help」查看全部能力</p>
+          <p class="hero-tip">💡 全程傻瓜式：直接打字或点上面的卡片；输入「/help」查看全部能力
+            <button class="tool-chip" onclick="openCustomCardModal()" title="添加你自己的常用入口">＋ 自定义入口</button>
+          </p>
         </div>
       </div>
       <div class="input-area">
@@ -1020,11 +1022,74 @@ function dismissBanner() {
   localStorage.setItem("deadman_disclaimer_dismissed", "1");
 }
 
+// === 自定义常用入口（localStorage 持久化，傻瓜式管理）===
+const HERO_CUSTOM_KEY = "deadman_hero_custom_cards";
+
+function getCustomCards() {
+  try { return JSON.parse(localStorage.getItem(HERO_CUSTOM_KEY) || "[]") || []; }
+  catch (e) { return []; }
+}
+function saveCustomCards(cards) {
+  try { localStorage.setItem(HERO_CUSTOM_KEY, JSON.stringify(cards)); } catch (e) {}
+}
+
+// 渲染用户自定义卡片（追加在 4 张默认卡之后）
+function renderCustomCards() {
+  const grid = document.querySelector(".hero-cards");
+  if (!grid) { console.warn("[cc] no .hero-cards"); return; }
+  window.__ccRan = true;
+  grid.querySelectorAll(".hero-card-custom").forEach(el => el.remove());
+  const esc = window.escapeHtml || (s => String(s || ""));
+  getCustomCards().forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "hero-card hero-card-custom";
+    btn.onclick = () => quickAction(c.prompt);
+    btn.innerHTML =
+      '<span class="hc-icon">' + esc(c.icon || "⭐") + '</span>'
+      + '<span class="hc-t">' + esc(c.title) + '</span>'
+      + '<span class="hc-d">' + esc(c.desc || "") + '</span>'
+      + '<span class="hc-del" title="删除此卡片" onclick="event.stopPropagation();removeCustomCard(' + i + ')">×</span>';
+    grid.appendChild(btn);
+  });
+}
+
+function removeCustomCard(i) {
+  const cards = getCustomCards();
+  cards.splice(i, 1);
+  saveCustomCards(cards);
+  renderCustomCards();
+  toast("已删除自定义入口");
+}
+
+function openCustomCardModal() {
+  window._ccOverlay = showGenericModal("添加常用入口", `
+    <div class="field"><label>标题 *</label><input id="ccTitle" maxlength="12" placeholder="如：查医保报销"></div>
+    <div class="field"><label>描述（可选）</label><input id="ccDesc" maxlength="24" placeholder="一句话说明"></div>
+    <div class="field"><label>图标（任意 emoji）</label><input id="ccIcon" maxlength="4" placeholder="⭐"></div>
+    <div class="field"><label>点卡片后发送的话 *</label><textarea id="ccPrompt" rows="3" placeholder="例如：帮我查一下医保报销流程"></textarea></div>
+    <button class="btn green" style="width:100%" onclick="saveCustomCardFromModal()">保存并使用</button>
+  `);
+}
+
+function saveCustomCardFromModal() {
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
+  const title = val("ccTitle"), desc = val("ccDesc"), icon = val("ccIcon") || "⭐", prompt = val("ccPrompt");
+  if (!title || !prompt) { toast("标题和提示词必填"); return; }
+  const cards = getCustomCards();
+  if (cards.length >= 8) { toast("自定义入口最多 8 个"); return; }
+  cards.push({ title, desc, icon, prompt });
+  saveCustomCards(cards);
+  renderCustomCards();
+  if (window._ccOverlay) window._ccOverlay.remove();
+  toast("已添加到欢迎屏");
+}
+
 // 页面初始化
 initDisclaimerBanner();
 loadWhoami();
 initModelSelect();
 loadSessions();
+renderCustomCards();
 
 input.addEventListener("input", () => {
   input.style.height = "auto";
@@ -1354,6 +1419,7 @@ function clearConversation() {
 }
 // 快捷动作：填入提示并发送
 function quickAction(text) { input.value = text; send(); }
+
 // 快捷命令：填入斜杠命令并发送
 function quickCmd(cmd) { input.value = cmd; send(); }
 // 快捷动作：直接查官方热线（走对话命令）
