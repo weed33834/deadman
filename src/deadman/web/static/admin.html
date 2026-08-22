@@ -62,6 +62,21 @@ textarea{resize:vertical;min-height:80px}
 .wf-scale{height:4px;background:var(--line);border-radius:2px;margin:4px 0 8px;font-size:10px;color:var(--muted)}
 .msg.ok{background:var(--ok-bg);color:var(--ok)} .msg.err{background:#f7eae6;color:var(--bad)} .msg.info{background:#eef0f5;color:#4a5568}
 @media(max-width:820px){.side{width:56px}.side .g,.side .item span{display:none}.side .item{padding:13px;text-align:center}}
+
+/* ============ 夜砚暗色（与 index/org 同键 deadman-theme）============ */
+body.dark{
+  --paper:#211d18; --paper-warm:#2a251f; --line:#3a342c; --ink:#ece5d8;
+  --muted:#a89f8f; --ok-bg:#26302a;
+}
+body.dark .card{background:#26221d;border-color:#3a342c}
+body.dark .stat{background:#211d18;border-color:#3a342c}
+body.dark th{background:#2a251f;color:var(--accent-soft)}
+body.dark tbody tr:hover{background:#2a251f}
+body.dark input[type=text],body.dark input[type=password],body.dark input[type=number],
+body.dark select,body.dark textarea{background:#26221d;border-color:#3a342c;color:var(--ink)}
+body.dark .pill.off{background:#332b20;color:var(--muted)}
+body.dark .pill.warn{background:#3d3018;color:#c9a66b}
+body.dark .pill.bad{background:#3d241e;color:#d08b76}
 </style>
 </head>
 <body>
@@ -69,6 +84,7 @@ textarea{resize:vertical;min-height:80px}
   <h1>管理台</h1>
   <span class="muted" style="opacity:.7;color:#d8d2c6">身后事多智能体引导平台 · 运营控制台</span>
   <span class="spacer"></span>
+  <button id="themeToggle" onclick="toggleTheme()" aria-label="切换主题" title="切换日/夜主题" style="background:none;border:none;color:inherit;font-size:15px;cursor:pointer;padding:4px">☾</button>
   <a class="ret" href="/">← 返回主站</a>
 </div>
 <div class="wrap">
@@ -76,6 +92,23 @@ textarea{resize:vertical;min-height:80px}
   <div class="main" id="main"></div>
 </div>
 <script>
+// === 主题（与 index/org 同键 deadman-theme，跨页一致）===
+function toggleTheme() {
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("deadman-theme", isDark ? "dark" : "light");
+  const btn = document.getElementById("themeToggle");
+  if (btn) btn.textContent = isDark ? "☀" : "☾";
+}
+(function initTheme() {
+  try {
+    if (localStorage.getItem("deadman-theme") === "dark") {
+      document.body.classList.add("dark");
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.textContent = "☀";
+    }
+  } catch (e) {}
+})();
+
 const PANELS=[
  {id:"overview",label:"总览",g:"总览",icon:"◎"},
  {id:"prompts",label:"提示词",g:"资源管理",icon:"✎"},
